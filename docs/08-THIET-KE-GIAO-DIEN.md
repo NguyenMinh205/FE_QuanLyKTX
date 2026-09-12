@@ -1,7 +1,7 @@
 # 08 – THIẾT KẾ GIAO DIỆN (UI/UX)
 
 **Hệ thống:** DMS-KTX
-**Phiên bản:** v1.0
+**Phiên bản:** v2.0 (MongoDB + Mongoose)
 **Đối tượng:** Nhóm Frontend
 
 ---
@@ -114,7 +114,7 @@ flowchart TB
 ```
 
 **Quy tắc:**
-- Sidebar hiển thị **số đếm (badge)** ở các mục cần xử lý: đơn chờ duyệt, yêu cầu chờ xử lý (lấy từ `GET /dashboard/pending-tasks`).
+- Sidebar hiển thị **số đếm (badge)** ở mục cần xử lý: yêu cầu gia hạn/trả phòng đang chờ (lấy từ `GET /api/dashboard/summary`).
 - **Không có biểu tượng chuông thông báo** — hệ thống thông báo nằm ngoài phạm vi v1. Badge trên sidebar là cơ chế nhắc việc duy nhất.
 - Các mục menu ẩn/hiện theo vai trò — dùng hàm `can()` ở `utils/permission.js`.
 - Trên màn hình < 992px, sidebar tự thu gọn thành drawer.
@@ -168,7 +168,7 @@ export const CONTRACT_STATUS = {
 
 export const INVOICE_STATUS = {
   UNPAID:         { label: 'Chưa thanh toán',      color: 'warning' },
-  PARTIALLY_PAID: { label: 'Thanh toán một phần',  color: 'processing' },
+  partial: { label: 'Thanh toán một phần',  color: 'processing' },
   PAID:           { label: 'Đã thanh toán',        color: 'success' },
   OVERDUE:        { label: 'Quá hạn',              color: 'error'   },
   CANCELLED:      { label: 'Đã hủy',               color: 'default' },
@@ -176,7 +176,6 @@ export const INVOICE_STATUS = {
 
 export const BED_STATUS = {
   AVAILABLE:   { label: 'Trống',       color: 'success' },
-  RESERVED:    { label: 'Giữ chỗ',     color: 'warning' },
   OCCUPIED:    { label: 'Đã sử dụng',  color: 'processing' },
   MAINTENANCE: { label: 'Bảo trì',     color: 'default' },
 };
@@ -237,7 +236,7 @@ export const REQUEST_STATUS = {
 | SCR-24 | Chi tiết phòng & quản lý giường | `/admin/rooms/:id` | A S V | FR-22, FR-23 |
 | SCR-25 | Tra cứu giường trống | `/admin/beds/available` | A S V | FR-28 |
 | SCR-31 | Danh sách hợp đồng | `/admin/contracts` | A S V | FR-36 |
-| SCR-32 | Đơn chờ duyệt | `/admin/contracts/pending` | A S | FR-35 |
+| SCR-32 | Đăng ký lưu trú (xếp sinh viên vào giường) | `/admin/residencies` | A S | FR-30, FR-31 |
 | SCR-33 | Tạo hợp đồng | `/admin/contracts/new` | A S | FR-31 |
 | SCR-34 | Chi tiết hợp đồng | `/admin/contracts/:id` | A S V | FR-36, FR-39 |
 | SCR-35 | Hợp đồng sắp hết hạn | `/admin/contracts/expiring` | A S | FR-38 |
@@ -259,9 +258,9 @@ export const REQUEST_STATUS = {
 
 | Mã | Màn hình | Đường dẫn | FR |
 |----|----------|-----------|-----|
-| SCR-61 | Trang chủ sinh viên | `/portal/home` | FR-87 |
-| SCR-62 | Chỗ ở của tôi | `/portal/my-residence` | FR-87 |
-| SCR-63 | Tra cứu giường trống | `/portal/available-beds` | FR-88 |
+| SCR-61 | Trang chủ sinh viên | `/portal/home` | FR-82 |
+| SCR-62 | Chỗ ở của tôi | `/portal/my-residence` | FR-82 |
+| SCR-63 | Tra cứu giường trống | `/portal/available-beds` | FR-83 |
 | SCR-64 | Nộp đơn đăng ký | `/portal/apply` | FR-30 |
 | SCR-65 | Hợp đồng của tôi | `/portal/my-contracts` | FR-91 |
 | SCR-66 | Hóa đơn của tôi | `/portal/my-invoices` | FR-70 |
@@ -372,7 +371,7 @@ export const REQUEST_STATUS = {
 
 ---
 
-### SCR-32: Đơn chờ duyệt
+### SCR-32: Đăng ký lưu trú — Staff xếp sinh viên vào giường
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -511,8 +510,8 @@ export const REQUEST_STATUS = {
 
 | Tình huống sinh viên | Nội dung hiển thị |
 |----------------------|-------------------|
-| Chưa lưu trú, chưa nộp đơn | Thẻ lớn "Bạn chưa đăng ký chỗ ở" + nút **Đăng ký ngay** |
-| Đã nộp đơn, chờ duyệt | Thẻ "Đơn của bạn đang chờ duyệt" + thông tin giường đã chọn + nút "Hủy đơn" |
+| Chưa lưu trú | Thẻ "Bạn chưa được xếp chỗ ở" + hướng dẫn liên hệ văn phòng KTX (v1: **Staff xếp giường**, sinh viên không tự đăng ký) |
+| Đã có hợp đồng `pending` | Thẻ "Hợp đồng của bạn đang chờ kích hoạt" + thông tin giường Staff đã xếp |
 | Đơn bị từ chối | Thẻ đỏ hiện lý do từ chối + nút "Đăng ký lại" |
 | Đang lưu trú, không nợ | Thẻ chỗ ở (xanh) + "Bạn đã thanh toán đầy đủ ✅" |
 | Đang lưu trú, có nợ | Thẻ chỗ ở + thẻ cảnh báo công nợ (cam/đỏ nếu quá hạn) |
@@ -548,7 +547,7 @@ Bước 1: Chọn chỗ ở            Bước 2: Chọn thời gian      Bướ
 **Đặc tả:**
 - Bước 1 chỉ hiện tòa nhà phù hợp giới tính của sinh viên (BR-06) — lọc ở backend, không để sinh viên chọn rồi mới báo lỗi.
 - Chọn giường xong, **làm mới danh sách trước khi sang bước 3** để giảm khả năng chọn phải giường vừa bị người khác lấy.
-- Nếu nộp đơn trả `409` → quay về bước 1, hiện thông báo rõ ràng, tự động tải lại danh sách giường.
+- Nếu API trả `409 BED_NOT_AVAILABLE` → quay về bước chọn giường, hiện thông báo rõ ràng, tự động tải lại danh sách giường trống.
 - Ô "Tôi đồng ý với nội quy" bắt buộc tích mới cho nộp.
 
 ---
@@ -589,7 +588,7 @@ Bước 1: Chọn chỗ ở            Bước 2: Chọn thời gian      Bướ
 1. Bấm thanh toán → gọi API → nhận `paymentUrl` → `window.location.href = paymentUrl`.
 2. Trước khi chuyển hướng, lưu `transactionRef` vào `sessionStorage` để đối chiếu khi quay về.
 3. Sau khi cổng chuyển về `/portal/payment-result?ref=...`, màn hình SCR-68 **hiển thị trạng thái đang kiểm tra**, gọi `GET /payments/:ref`, thử lại tối đa 5 lần cách nhau 2 giây (vì IPN có thể chưa kịp về).
-4. Sau 5 lần vẫn `PENDING` → hiện "Giao dịch đang được xử lý, vui lòng kiểm tra lại sau ít phút" kèm nút làm mới. **Không** hiển thị "Thất bại" khi chưa chắc chắn.
+4. Sau 5 lần vẫn `pending` → hiện "Giao dịch đang được xử lý, vui lòng kiểm tra lại sau ít phút" kèm nút làm mới. **Không** hiển thị "Thất bại" khi chưa chắc chắn.
 
 ---
 
@@ -604,7 +603,7 @@ Bước 1: Chọn chỗ ở            Bước 2: Chọn thời gian      Bướ
 | `<FilterBar>` | Thanh lọc đồng bộ với URL query string | Màn hình danh sách |
 | `<EmptyState>` | Trạng thái rỗng có minh họa + nút hành động | Mọi danh sách |
 | `<PageHeader>` | Tiêu đề + breadcrumb + nút hành động | Mọi trang |
-| `<BedPicker>` | Chọn giường có lọc, hiển thị trực quan | SCR-33, SCR-64, chuyển phòng |
+| `<BedPicker>` | Chọn giường còn trống, đã lọc sẵn theo giới tính sinh viên | SCR-32, SCR-33 |
 | `<StudentSelect>` | Ô chọn sinh viên có tìm kiếm từ xa | SCR-33, SCR-52 |
 | `<InvoiceItemsEditor>` | Bảng nhập các dòng phí, tự tính tổng | SCR-52 |
 | `<StatCard>` | Thẻ chỉ số dashboard | SCR-10 |
@@ -625,7 +624,7 @@ Bước 1: Chọn chỗ ở            Bước 2: Chọn thời gian      Bướ
 | Lỗi 422 (vi phạm nghiệp vụ) | Hiện `message` từ API ngay tại form/thẻ liên quan, không dùng toast biến mất |
 | Lỗi 409 (xung đột) | Cảnh báo nổi bật + tự động làm mới dữ liệu liên quan |
 | Đang gửi form | Khóa nút submit, hiện spinner trong nút, chặn nhấn đúp |
-| Đăng nhập bằng mật khẩu tạm | `user.mustChangePassword = true` → điều hướng cưỡng bức sang SCR-03, chặn mọi route khác cho tới khi đổi xong (BR-18) |
+| Đăng nhập bằng mật khẩu tạm | `user.mustChangePassword = true` → điều hướng cưỡng bức sang SCR-03, chặn mọi route khác cho tới khi đổi xong (BR-85) |
 | Thành công | Toast xanh ở góc trên bên phải, tự tắt sau 3 giây |
 
 ---
@@ -647,4 +646,5 @@ Bước 1: Chọn chỗ ở            Bước 2: Chọn thời gian      Bướ
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | Nhóm Frontend | Chốt sitemap, 36 màn hình, design system, wireframe các màn hình trọng yếu |
+| **v2.0** | **12/09/2026** | FE Lead | **Rà soát theo bộ tài liệu v2.0:** trạng thái đổi sang chữ thường, bỏ `reserved`; SCR-32 đổi từ "Đơn chờ duyệt" thành "Đăng ký lưu trú" (Staff xếp giường); bỏ luồng sinh viên tự nộp đơn; cấu trúc thư mục theo `features/` |
 | v1.1 | 12/09/2026 | FE Lead | Rà soát chéo: đổi mã Trung tâm báo cáo SCR-71 → **SCR-57** để dải 61–72 dành trọn cho cổng sinh viên (trước đó bị chồng lấn); thêm SCR-84 (đặt lại mật khẩu); **bỏ biểu tượng chuông thông báo** khỏi 2 layout vì thông báo nằm ngoài phạm vi v1 (`01` mục 3.2) — giao diện không được vẽ chức năng không tồn tại |

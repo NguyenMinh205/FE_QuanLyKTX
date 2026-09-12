@@ -2,7 +2,7 @@
 
 **Hệ thống:** DMS-KTX
 **Phiên bản:** v1.0
-**Thời lượng dự án:** 12 tuần
+**Thời lượng dự án:** 12 tuần · **Phiên bản:** v2.0
 **Khối lượng:** ~155 ngày công (đã áp dụng [v1-lite](14-PHIEN-BAN-DON-GIAN-HOA.md))
 
 > Tài liệu này trả lời câu hỏi **"ai làm gì"**. Câu hỏi **"làm vào lúc nào và làm thế nào"** nằm ở `13-LO-TRINH-TRIEN-KHAI.md`.
@@ -13,23 +13,49 @@
 
 > ⚠️ Điền tên thật của thành viên vào cột "Người đảm nhận" trước khi nộp báo cáo.
 
-| Vai trò | Người đảm nhận | Trách nhiệm chính | Khối lượng dự kiến |
-|---------|----------------|-------------------|--------------------|
-| **Nhóm trưởng / PM** | _(điền tên)_ | Lập kế hoạch, theo dõi tiến độ, chủ trì họp, chốt phạm vi, báo cáo GVHD, tổng hợp báo cáo cuối | 15% |
-| **Phân tích nghiệp vụ (BA)** | _(điền tên)_ | Duy trì tài liệu 01–03, làm rõ yêu cầu, viết test case, nghiệm thu UAT | 15% |
-| **Backend Lead** | _(điền tên)_ | Thiết kế CSDL, khởi tạo dự án, xác thực/phân quyền, module hợp đồng, review code BE | 25% |
-| **Backend Dev** | _(điền tên)_ | Module sinh viên, cơ sở vật chất, hóa đơn, thanh toán, báo cáo, cron jobs | 20% |
-| **Frontend Lead** | _(điền tên)_ | Khởi tạo dự án FE, layout, routing, component dùng chung, dashboard, review code FE | 15% |
-| **Frontend Dev** | _(điền tên)_ | Các màn hình CRUD, cổng sinh viên, biểu đồ, responsive | 10% |
+| # | Vai trò | Người đảm nhận | Trách nhiệm chính | Repo chính |
+|---|---------|----------------|-------------------|------------|
+| 1 | **Backend Lead** *(kiêm Nhóm trưởng / PM)* | _(điền tên)_ | Thiết kế schema Mongoose, khởi tạo dự án BE, xác thực & phân quyền, module `residencies`/`contracts`, review code BE. Kiêm: lập kế hoạch, theo dõi tiến độ, chủ trì họp, báo cáo GVHD | `BE_QuanLyKTX` |
+| 2 | **Backend Dev 1** | _(điền tên)_ | Module `students`, `rooms` (building/room/bed), `dashboard` | `BE_QuanLyKTX` |
+| 3 | **Backend Dev 2** | _(điền tên)_ | Module `fees` (chỉ số điện nước + hóa đơn), `payments` (VNPay), `requests`, cron job | `BE_QuanLyKTX` |
+| 4 | **Frontend Lead** *(kiêm BA)* | _(điền tên)_ | Khung nền FE, layout, routing, phân quyền, dashboard, review code FE. Kiêm: duy trì tài liệu `01`–`03`, làm rõ yêu cầu, viết test case, nghiệm thu UAT | `FE_QuanLyKTX` |
+| 5 | **Frontend Dev** | _(điền tên)_ | Các màn hình CRUD, màn hình tài chính, cổng sinh viên, responsive | `FE_QuanLyKTX` |
 
-**Ghi chú với nhóm ít người:**
+### 1.1. Vì sao chia 3 backend / 2 frontend
 
-| Số thành viên | Cách gộp vai trò |
-|---------------|------------------|
-| 5 người | PM kiêm BA |
-| 4 người | PM kiêm BA; 2 BE; 1 FE Lead kiêm FE Dev |
-| 3 người | 1 người PM+BA+FE Dev; 1 BE Lead; 1 FE Lead. Cắt các chức năng ưu tiên `C` |
-| 2 người | 1 Fullstack thiên BE, 1 Fullstack thiên FE. Cắt hết `C`, cân nhắc cắt cả `S` |
+Đối chiếu với WBS ở mục 3, khối lượng nghiêng hẳn về backend:
+
+| Phía | Ngày công | Tỷ lệ | Số người | Tải mỗi người |
+|------|-----------|-------|----------|---------------|
+| Backend | ~62 MD | 52% | 3 | ~21 MD |
+| Frontend | ~41 MD | 34% | 2 | ~20 MD |
+| Chung (tài liệu, test, deploy, báo cáo) | ~17 MD | 14% | 5 | ~3 MD |
+| **Tổng** | **~120 MD** | | **5** | **~24 MD/người** |
+
+Tải hai bên xấp xỉ bằng nhau — cách chia này hợp lý. Backend nhiều việc hơn vì phải cài toàn bộ 67 quy tắc nghiệp vụ `BR-xx`, còn frontend được hưởng lợi từ Ant Design (Table/Form có sẵn) và từ việc nhân bản mẫu code (`14` mục 15).
+
+### 1.2. Ai đọc tài liệu nào
+
+| Tài liệu | 3 người BE | 2 người FE |
+|----------|:----------:|:----------:|
+| `PRD.md` · `02` SRS · `07` Phân quyền · `10` Quy trình · `11` Kiểm thử | ✅ | ✅ |
+| `API.md` — **hợp đồng chung, đổi phải báo nhau** | ✅ | ✅ |
+| `ARCHITECTURE.md` | §3, §9, §10 | §4, §6 |
+| `DATA-SCHEMA.md` | ✅ bắt buộc | 🔸 tham khảo khi cần hiểu dữ liệu |
+| `03` Phân tích nghiệp vụ (67 quy tắc BR) | ✅ bắt buộc | 🔸 tham khảo |
+| `08` Thiết kế giao diện | ❌ | ✅ bắt buộc |
+| `14` Mẫu code | mục 15.1–15.3 | mục 15.4–15.6 |
+
+> 📌 **Tài liệu chỉ nằm ở repo `FE_QuanLyKTX/docs/`.** Ba người BE đọc trực tiếp trên GitHub hoặc clone repo FE về máy. **Không sao chép sang repo BE** — hai bản sẽ lệch nhau.
+
+### 1.3. Hai điểm giao nhau bắt buộc phối hợp
+
+| Thời điểm | Việc | Cách làm |
+|-----------|------|----------|
+| **Đầu mỗi module** | Chốt endpoint trước khi code | Cập nhật `API.md` **trước**, báo trong nhóm chat. FE dựa vào đó viết dữ liệu giả, BE dựa vào đó viết service. Hai bên làm song song, không chờ nhau |
+| **Khi nối API thật** | FE tắt mock, trỏ vào backend | Đặt `VITE_USE_MOCK=false`. Nếu response không khớp `API.md` → **sửa bên sai so với tài liệu**, không sửa tài liệu cho khớp code |
+
+Nhờ có lớp dữ liệu giả (`14` mục 4.4), frontend **không bị chặn** dù backend chưa xong module nào.
 
 ---
 
@@ -67,7 +93,7 @@ flowchart TB
     W4 --> W44["4.4 Tích hợp VNPay"]
 
     W5 --> W51["5.1 Đăng ký tài khoản SV"]
-    W5 --> W52["5.2 Tra cứu & nộp đơn"]
+    W5 --> W52["5.2 Tra cứu giường trống (chỉ đọc)"]
     W5 --> W53["5.3 Hóa đơn & thanh toán online"]
     W5 --> W54["5.4 Gửi yêu cầu"]
 
@@ -100,9 +126,9 @@ flowchart TB
 | T1.3 | Đặc tả yêu cầu chức năng và phi chức năng | BA | 3 | T1.2 | `02-DAC-TA-YEU-CAU.md` |
 | T1.4 | Vẽ use case, viết đặc tả use case chi tiết | BA | 2 | T1.3 | Mục 2, 5 của `02` |
 | T1.5 | Phân tích nghiệp vụ, quy tắc BR, máy trạng thái | BA, BE Lead | 3 | T1.3 | `03-PHAN-TICH-NGHIEP-VU.md` |
-| T1.6 | Thiết kế ERD và từ điển dữ liệu | BE Lead | 3 | T1.5 | `04-THIET-KE-CSDL.md` |
-| T1.7 | Chốt kiến trúc và tech stack | BE Lead, FE Lead | 1 | T1.2 | `05-KIEN-TRUC-HE-THONG.md` |
-| T1.8 | Thiết kế hợp đồng API | BE Lead, FE Lead | 3 | T1.6 | `06-DAC-TA-API.md` |
+| T1.6 | Thiết kế ERD và từ điển dữ liệu | BE Lead | 3 | T1.5 | `DATA-SCHEMA.md` |
+| T1.7 | Chốt kiến trúc và tech stack | BE Lead, FE Lead | 1 | T1.2 | `ARCHITECTURE.md` |
+| T1.8 | Thiết kế hợp đồng API | BE Lead, FE Lead | 3 | T1.6 | `API.md` |
 | T1.9 | Ma trận phân quyền | BA, BE Lead | 1 | T1.3 | `07-PHAN-QUYEN-BAO-MAT.md` |
 | T1.10 | Sitemap, wireframe các màn hình chính | FE Lead | 3 | T1.3 | `08-THIET-KE-GIAO-DIEN.md` |
 | T1.11 | Lập kế hoạch, phân công, lộ trình | PM | 2 | Tất cả | `09`, `13` |
@@ -112,7 +138,7 @@ flowchart TB
 | ID | Công việc | Người | MD | Phụ thuộc | Kết quả bàn giao |
 |----|-----------|-------|-----|-----------|------------------|
 | T2.1 | Khởi tạo repo backend, cấu trúc thư mục, ESLint/Prettier | BE Lead | 1 | T1.7 | Repo BE chạy được `GET /health` |
-| T2.2 | Cài Prisma, viết `schema.prisma` **13 bảng**, chạy migration | BE Lead | 1.5 | T1.6 | CSDL tạo được từ migration (không cần viết index thủ công) |
+| T2.2 | Cài Mongoose, viết `các file *.model.js` **13 bảng**, chạy migration | BE Lead | 1.5 | T1.6 | CSDL tạo được từ migration (không cần viết index thủ công) |
 | T2.3 | Viết script seed dữ liệu mẫu | BE Dev | 1.5 | T2.2 | `npm run seed` chạy thành công |
 | T2.4 | Middleware nền: error handler, response chuẩn, logger, requestId | BE Lead | 1 | T2.1 | Mọi lỗi trả đúng định dạng |
 | T2.5 | API xác thực: login, register, refresh, logout, me, đặt lại mật khẩu (FR-09) | BE Lead | 2 | T2.2, T2.4 | 7 endpoint `/auth/*` + `/users/:id/reset-password` chạy được |
@@ -121,7 +147,7 @@ flowchart TB
 | T2.8 | AdminLayout, PortalLayout, sidebar, header | FE Lead | 2 | T2.7 | 2 layout hoàn chỉnh |
 | T2.9 | Màn hình đăng nhập/đăng ký, authStore, ProtectedRoute, RoleRoute | FE Lead | 2 | T2.5, T2.8 | Đăng nhập thật vào được hệ thống |
 | T2.10 | Component dùng chung: StatusTag, MoneyText, ConfirmModal, EmptyState, PageHeader + hook `useApi` + `AuthContext` | FE Dev | 2.5 | T2.8 | Thư viện component nội bộ (`14` mục 4.1–4.3) |
-| T2.11 | Dữ liệu giả trong `mocks/mockData.js` theo đặc tả `06` | FE Dev | 0.5 | T1.8 | FE làm được khi BE chưa xong |
+| T2.11 | Dữ liệu giả trong `mocks/mockData.js` theo đặc tả `API.md` | FE Dev | 0.5 | T1.8 | FE làm được khi BE chưa xong |
 | ~~T2.12~~ | ~~Thiết lập CI~~ — v1-lite: chạy `npm run lint` tay trước khi mở PR | – | 0 | – | – |
 
 ### Giai đoạn 3 – Phân hệ Quản trị (Tuần 4–6)
@@ -136,9 +162,9 @@ flowchart TB
 | T3.6 | Màn hình sơ đồ tòa nhà (trực quan) | FE Lead | 2 | T3.4 | SCR-22 |
 | T3.7 | Màn hình tra cứu giường trống | FE Dev | 1 | T3.4 | SCR-25 |
 | T3.8 | **Service hợp đồng: tạo, duyệt, từ chối (transaction)** | BE Lead | 3 | T3.3 | BR-20, BR-21, BR-25 hoạt động đúng |
-| T3.9 | API chấm dứt, chuyển phòng, sắp hết hạn | BE Lead | 2.5 | T3.8 | `/contracts/*` đầy đủ |
+| T3.9 | API kích hoạt, chấm dứt hợp đồng, danh sách sắp hết hạn | BE Lead | 2 | T3.8 | `/api/contracts/*` đầy đủ |
 | T3.10 | Màn hình danh sách + chi tiết hợp đồng | FE Dev | 2.5 | T3.8 | SCR-31, 34 |
-| T3.11 | Màn hình đơn chờ duyệt (luồng duyệt/từ chối) | FE Lead | 2 | T3.8 | SCR-32 |
+| T3.11 | Màn hình đăng ký lưu trú (Staff xếp SV vào giường) | FE Lead | 2 | T3.8 | SCR-32 |
 | T3.12 | Màn hình tạo hợp đồng + BedPicker | FE Lead | 2 | T3.8 | SCR-33 |
 | T3.13 | API yêu cầu gia hạn / trả phòng + duyệt | BE Lead | 2.5 | T3.9 | `/requests/*` |
 | T3.14 | Màn hình danh sách & xử lý yêu cầu | FE Dev | 2 | T3.13 | SCR-41, 42 |
@@ -170,12 +196,12 @@ flowchart TB
 | ID | Công việc | Người | MD | Phụ thuộc | Kết quả bàn giao |
 |----|-----------|-------|-----|-----------|------------------|
 | T5.1 | API `/portal/*`: hồ sơ, cư trú, bạn cùng phòng, giường trống | BE Dev | 2 | T3.4 | Lọc theo JWT (BR-85) |
-| T5.2 | API nộp đơn + tự hủy đơn | BE Lead | 1.5 | T3.8 | UC-02 |
+| T5.2 | API cổng SV: hồ sơ, chỗ ở, hợp đồng (chỉ đọc, lọc theo JWT) | BE Lead | 1.5 | T3.8 | FR-82, FR-85 |
 | T5.3 | API hóa đơn & thanh toán online cho sinh viên | BE Dev | 1.5 | T4.12 | Có kiểm tra ownership |
 | T5.4 | API gửi/hủy yêu cầu | BE Dev | 1 | T3.13 | BR-70→78 |
 | T5.5 | PortalLayout + trang chủ sinh viên (đủ 6 trạng thái) | FE Dev | 2.5 | T5.1 | SCR-61 |
 | T5.6 | Màn hình chỗ ở của tôi + hợp đồng | FE Dev | 2 | T5.1 | SCR-62, 65 |
-| T5.7 | Màn hình tra cứu giường trống + nộp đơn 3 bước | FE Lead | 3 | T5.2 | SCR-63, 64 |
+| T5.7 | Màn hình tra cứu giường trống (chỉ đọc) + gửi yêu cầu gia hạn/trả phòng | FE Lead | 2.5 | T5.2 | SCR-63, 64 |
 | T5.8 | Màn hình hóa đơn + chi tiết + thanh toán | FE Dev | 2.5 | T5.3 | SCR-66, 67 |
 | T5.9 | Màn hình kết quả thanh toán (có polling) | FE Lead | 1.5 | T5.3 | SCR-68 |
 | T5.10 | Màn hình yêu cầu + gửi yêu cầu mới | FE Dev | 2 | T5.4 | SCR-69, 70 |
@@ -188,7 +214,7 @@ flowchart TB
 | T6.1 | API dashboard tổng hợp (tối ưu truy vấn) | BE Dev | 2.5 | T4.4 | `/dashboard/*`, đạt NFR-02 |
 | T6.2 | API báo cáo + xuất Excel | BE Dev | 2 | T6.1 | `/reports/*` |
 | T6.3 | Màn hình dashboard + thẻ chỉ số | FE Lead | 2.5 | T6.1 | SCR-10 |
-| T6.4 | Biểu đồ lấp đầy + doanh thu (Recharts) | FE Lead | 2 | T6.1 | FR-79 |
+| T6.4 | Biểu đồ lấp đầy + doanh thu (Recharts) | FE Lead | 2 | T6.1 | FR-70 |
 | T6.5 | Trung tâm báo cáo + nút xuất file | FE Dev | 2 | T6.2 | SCR-57 |
 
 ### Giai đoạn 7 – Kiểm thử & Hoàn thiện (Tuần 10–11)
@@ -235,7 +261,7 @@ flowchart TB
 | Dự phòng | 27 | **10** | 6% |
 | **Tổng cộng** | **~206** | **~155 ngày công** | 100% |
 
-**Diễn giải:** với nhóm 6 người làm bán thời gian (trung bình 3 ngày công/người/tuần), năng lực = 18 MD/tuần × 12 tuần = **216 ngày công**.
+**Diễn giải:** với nhóm 5 người làm bán thời gian (trung bình 3 ngày công/người/tuần), năng lực = 18 MD/tuần × 12 tuần = **216 ngày công**.
 
 | | Bản đầu | v1-lite |
 |---|---------|---------|
@@ -243,8 +269,8 @@ flowchart TB
 
 Chi tiết 21 thay đổi giúp giảm 51 ngày công: [`14-PHIEN-BAN-DON-GIAN-HOA.md`](14-PHIEN-BAN-DON-GIAN-HOA.md) mục 2.
 
-**Nếu nhóm ít hơn 6 người:** xem thang cắt giảm 7 bậc tại `14` mục 9. Tóm tắt:
-- **4 người** (~144 MD năng lực): cắt bậc 1–2 (sơ đồ tòa nhà, chuyển phòng) → về ~150 MD, vẫn hơi sát.
+**Nếu nhóm ít hơn 5 người:** xem thang cắt giảm 7 bậc tại `14` mục 9. Tóm tắt:
+- **4 người** (~144 MD năng lực): cắt bậc 1–2 (sơ đồ tòa nhà, biểu đồ dashboard) → về ~150 MD, vẫn hơi sát.
 - **3 người** (~108 MD năng lực): cắt tới bậc 5 → về ~144 MD, vẫn thiếu — cần tăng thời gian đóng góp mỗi người hoặc xin gia hạn.
 
 ---
@@ -343,4 +369,6 @@ flowchart LR
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | PM | Khởi tạo WBS, phân công, RACI, quy tắc phối hợp |
+| **v2.1** | **12/09/2026** | PM | Chốt mô hình **2 repo** và phân công **3 backend / 2 frontend**; thêm mục 1.1 (lý do chia), 1.2 (ai đọc tài liệu nào), 1.3 (hai điểm giao nhau bắt buộc phối hợp) |
+| v2.0 | 12/09/2026 | PM | **Rà soát theo bộ tài liệu v2.0:** nhóm 5 người; bỏ task chuyển phòng và task API nộp đơn; đổi tên task theo module mới (`residencies`, `fees`) |
 | v1.1 | 12/09/2026 | PM | **Áp dụng v1-lite:** khối lượng 206 → 155 ngày công; bỏ T2.12 (CI), T4.13 (ZaloPay), T7.2 (integration test); rút gọn T2.2, T2.10, T2.11, T3.15, T4.12, T7.1, T7.3. Chức năng giữ nguyên — xem `14` |

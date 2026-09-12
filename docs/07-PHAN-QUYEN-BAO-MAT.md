@@ -1,7 +1,7 @@
 # 07 – PHÂN QUYỀN & BẢO MẬT
 
 **Hệ thống:** DMS-KTX
-**Phiên bản:** v1.0
+**Phiên bản:** v2.0 (MongoDB + Mongoose)
 
 ---
 
@@ -26,12 +26,12 @@ flowchart TB
 
 | Vai trò | Nguyên tắc | Phạm vi dữ liệu |
 |---------|------------|-----------------|
-| `ADMIN` | Toàn quyền, bao gồm quản lý tài khoản và cấu hình hệ thống | Toàn bộ |
-| `STAFF` | Mọi nghiệp vụ vận hành, **trừ** quản lý tài khoản, cấu hình, xóa cứng | Toàn bộ dữ liệu nghiệp vụ |
-| `VIEWER` | Chỉ đọc, không thay đổi bất cứ dữ liệu nào | Toàn bộ (chỉ đọc) |
-| `STUDENT` | Chỉ thao tác trên dữ liệu của chính mình | Giới hạn theo `student_id` trong JWT |
+| `admin` | Toàn quyền, bao gồm quản lý tài khoản và cấu hình hệ thống | Toàn bộ |
+| `staff` | Mọi nghiệp vụ vận hành, **trừ** quản lý tài khoản, cấu hình, xóa cứng | Toàn bộ dữ liệu nghiệp vụ |
+| `viewer` | Chỉ đọc, không thay đổi bất cứ dữ liệu nào | Toàn bộ (chỉ đọc) |
+| `student` | Chỉ thao tác trên dữ liệu của chính mình | Giới hạn theo `studentId` trong JWT |
 
-> **Lưu ý:** `STUDENT` **không** kế thừa quyền của `VIEWER`. Đây là nhánh quyền hoàn toàn tách biệt — sinh viên không được xem danh sách sinh viên khác, không xem dashboard tổng hợp.
+> **Lưu ý:** `student` **không** kế thừa quyền của `viewer`. Đây là nhánh quyền hoàn toàn tách biệt — sinh viên không được xem danh sách sinh viên khác, không xem dashboard tổng hợp.
 
 ---
 
@@ -41,7 +41,7 @@ flowchart TB
 
 ### 2.1. Quản trị hệ thống
 
-| Chức năng | ADMIN | STAFF | VIEWER | STUDENT |
+| Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
 | Xem danh sách tài khoản | ✅ | ❌ | ❌ | ❌ |
 | Tạo/sửa tài khoản | ✅ | ❌ | ❌ | ❌ |
@@ -55,7 +55,7 @@ flowchart TB
 
 ### 2.2. Quản lý sinh viên
 
-| Chức năng | ADMIN | STAFF | VIEWER | STUDENT |
+| Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
 | Xem danh sách sinh viên | ✅ | ✅ | 👁 | ❌ |
 | Xem chi tiết hồ sơ | ✅ | ✅ | 👁 | 🔒 |
@@ -67,7 +67,7 @@ flowchart TB
 
 ### 2.3. Quản lý cơ sở vật chất
 
-| Chức năng | ADMIN | STAFF | VIEWER | STUDENT |
+| Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
 | Xem tòa nhà / phòng / giường | ✅ | ✅ | 👁 | 👁 (thông tin công khai) |
 | Thêm/sửa tòa nhà | ✅ | ✅ | ❌ | ❌ |
@@ -83,21 +83,21 @@ flowchart TB
 
 ### 2.4. Quản lý hợp đồng
 
-| Chức năng | ADMIN | STAFF | VIEWER | STUDENT |
+| Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
 | Xem danh sách hợp đồng | ✅ | ✅ | 👁 | 🔒 |
-| Nộp đơn đăng ký lưu trú | ❌ | ❌ | ❌ | ✅ |
-| Tự hủy đơn khi chờ duyệt | ❌ | ❌ | ❌ | 🔒 |
+| Tạo đăng ký lưu trú (Residency) | ✅ | ✅ | ❌ | ❌ |
+| Kích hoạt hợp đồng `pending` → `active` | ✅ | ✅ | ❌ | ❌ |
 | Tạo hợp đồng trực tiếp | ✅ | ✅ | ❌ | ❌ |
-| Duyệt / từ chối đơn | ✅ | ✅ | ❌ | ❌ |
+| Đóng đăng ký lưu trú (checkout) | ✅ | ✅ | ❌ | ❌ |
 | Chấm dứt hợp đồng trước hạn | ✅ | ✅ | ❌ | ❌ |
-| Chuyển phòng | ✅ | ✅ | ❌ | ❌ |
+| ~~Chuyển phòng~~ (ngoài phạm vi v1) | ❌ | ❌ | ❌ | ❌ |
 | Xem hợp đồng sắp hết hạn | ✅ | ✅ | ❌ | 🔒 (của mình) |
 | In hợp đồng (qua trình duyệt) | ✅ | ✅ | ❌ | 🔒 |
 
 ### 2.5. Tài chính
 
-| Chức năng | ADMIN | STAFF | VIEWER | STUDENT |
+| Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
 | Quản lý danh mục loại phí | ✅ | 👁 | 👁 | ❌ |
 | Nhập chỉ số điện nước | ✅ | ✅ | 👁 | ❌ |
@@ -113,7 +113,7 @@ flowchart TB
 
 ### 2.6. Yêu cầu gia hạn / trả phòng
 
-| Chức năng | ADMIN | STAFF | VIEWER | STUDENT |
+| Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
 | Gửi yêu cầu | ❌ | ❌ | ❌ | 🔒 |
 | Tự hủy yêu cầu khi chờ xử lý | ❌ | ❌ | ❌ | 🔒 |
@@ -122,7 +122,7 @@ flowchart TB
 
 ### 2.7. Dashboard & báo cáo
 
-| Chức năng | ADMIN | STAFF | VIEWER | STUDENT |
+| Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
 | Dashboard tổng quan | ✅ | ✅ | 👁 | ❌ |
 | Biểu đồ doanh thu | ✅ | 👁 | 👁 | ❌ |
@@ -140,7 +140,7 @@ flowchart TB
 | Tầng | Cách làm | Mục đích |
 |------|----------|----------|
 | **1. Giao diện (FE)** | Ẩn menu/nút theo vai trò | Trải nghiệm tốt — **không** phải biện pháp bảo mật |
-| **2. Route (FE)** | `<RoleRoute allowed={['ADMIN','STAFF']}>` chặn truy cập URL | Ngăn người dùng gõ URL trực tiếp |
+| **2. Route (FE)** | `<RoleRoute allowed={['admin','staff']}>` chặn truy cập URL | Ngăn người dùng gõ URL trực tiếp |
 | **3. API (BE)** | Middleware `authenticate` + `authorize` trên từng route | **Biện pháp bảo mật thực sự** |
 
 > ⚠️ **Nguyên tắc bất di bất dịch:** frontend chỉ làm nhiệm vụ hiển thị. Kẻ tấn công có thể gọi thẳng API bằng Postman. Mọi quyền hạn **phải** được kiểm tra ở backend.
@@ -163,7 +163,7 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, 'Phiên đăng nhập đã hết hạn', code);
   }
   // Kiểm tra lại tài khoản còn hoạt động (phòng trường hợp bị khóa sau khi cấp token)
-  const user = await prisma.user.findFirst({ where: { id: payload.userId, isActive: true } });
+  const user = await mongoose.user.findFirst({ where: { id: payload.userId, isActive: true } });
   if (!user) throw new ApiError(401, 'Tài khoản không còn hiệu lực', 'ACCOUNT_INACTIVE');
 
   req.user = { id: user.id, role: user.role, studentId: user.studentId, mustChangePassword: user.mustChangePassword };
@@ -180,7 +180,7 @@ export const authorize = (...allowedRoles) => (req, res, next) => {
 
 // Middleware riêng cho cổng sinh viên
 export const requireLinkedStudent = (req, res, next) => {
-  if (req.user.role !== 'STUDENT' || !req.user.studentId) {
+  if (req.user.role !== 'student' || !req.user.studentId) {
     throw new ApiError(403, 'Tài khoản chưa được liên kết với hồ sơ sinh viên', 'STUDENT_NOT_LINKED');
   }
   next();
@@ -189,10 +189,10 @@ export const requireLinkedStudent = (req, res, next) => {
 
 **Cách dùng trong route:**
 ```js
-router.get('/students',        authenticate, authorize('ADMIN','STAFF','VIEWER'), studentController.list);
-router.post('/students',       authenticate, authorize('ADMIN','STAFF'),          studentController.create);
-router.delete('/buildings/:id',authenticate, authorize('ADMIN'),                  buildingController.remove);
-router.use('/portal',          authenticate, authorize('STUDENT'), requireLinkedStudent, portalRoutes);
+router.get('/students',        authenticate, authorize('admin','staff','viewer'), studentController.list);
+router.post('/students',       authenticate, authorize('admin','staff'),          studentController.create);
+router.delete('/buildings/:id',authenticate, authorize('admin'),                  buildingController.remove);
+router.use('/portal',          authenticate, authorize('student'), requireLinkedStudent, portalRoutes);
 ```
 
 ### 3.3. Kiểm soát quyền sở hữu dữ liệu (Ownership Check)
@@ -228,8 +228,8 @@ export const getMyInvoiceDetail = asyncHandler(async (req, res) => {
 |----------|----------|
 | `GET /portal/my-invoices/:id` | `invoice.studentId === req.user.studentId` |
 | `POST /portal/my-invoices/:id/pay` | như trên |
-| `DELETE /portal/applications/:id` | `contract.studentId === req.user.studentId` và `status = 'PENDING'` |
-| `DELETE /portal/my-requests/:id` | `request.studentId === req.user.studentId` và `status = 'PENDING'` |
+| `DELETE /api/portal/my-requests/:id` | `request.studentId === req.user.studentId` và `status = 'pending'` |
+| `DELETE /portal/my-requests/:id` | `request.studentId === req.user.studentId` và `status = 'pending'` |
 | `GET /portal/my-roommates` | Lấy `roomId` từ hợp đồng của chính sinh viên |
 
 ### 3.4. Bảo vệ route phía Frontend
@@ -252,16 +252,16 @@ export function RoleRoute({ allowed, children }) {
 
 ```jsx
 // Cách dùng trong AppRoutes
-<Route element={<RoleRoute allowed={['ADMIN','STAFF','VIEWER']}><AdminLayout /></RoleRoute>}>
+<Route element={<RoleRoute allowed={['admin','staff','viewer']}><AdminLayout /></RoleRoute>}>
   <Route path="/admin/dashboard" element={<DashboardPage />} />
   <Route path="/admin/students"  element={<StudentListPage />} />
-  <Route element={<RoleRoute allowed={['ADMIN']}><Outlet /></RoleRoute>}>
+  <Route element={<RoleRoute allowed={['admin']}><Outlet /></RoleRoute>}>
     <Route path="/admin/users"   element={<UserListPage />} />
     <Route path="/admin/settings" element={<SettingsPage />} />
   </Route>
 </Route>
 
-<Route element={<RoleRoute allowed={['STUDENT']}><PortalLayout /></RoleRoute>}>
+<Route element={<RoleRoute allowed={['student']}><PortalLayout /></RoleRoute>}>
   <Route path="/portal/home" element={<PortalHomePage />} />
 </Route>
 ```
@@ -270,13 +270,13 @@ export function RoleRoute({ allowed, children }) {
 ```jsx
 // utils/permission.js — dùng chung một nguồn quy tắc
 const PERMISSIONS = {
-  'student:create':   ['ADMIN', 'STAFF'],
-  'student:delete':   ['ADMIN', 'STAFF'],
-  'building:delete':  ['ADMIN'],
-  'contract:approve': ['ADMIN', 'STAFF'],
-  'invoice:create':   ['ADMIN', 'STAFF'],
-  'payment:record':   ['ADMIN', 'STAFF'],
-  'user:manage':      ['ADMIN'],
+  'student:create':   ['admin', 'staff'],
+  'student:delete':   ['admin', 'staff'],
+  'building:delete':  ['admin'],
+  'contract:approve': ['admin', 'staff'],
+  'invoice:create':   ['admin', 'staff'],
+  'payment:record':   ['admin', 'staff'],
+  'user:manage':      ['admin'],
 };
 
 export const can = (user, action) => PERMISSIONS[action]?.includes(user?.role) ?? false;
@@ -296,7 +296,7 @@ sequenceDiagram
     participant DB as CSDL
 
     Note over FE,DB: Đăng nhập
-    FE->>API: POST /auth/login {username, password}
+    FE->>API: POST /api/auth/login {email, password}
     API->>DB: Tìm user theo email/MSSV
     API->>API: bcrypt.compare(password, password_hash)
     API->>API: Kiểm tra is_active, locked_until
@@ -307,7 +307,7 @@ sequenceDiagram
     Note over FE,DB: Gọi API thông thường
     FE->>API: GET /students (Authorization: Bearer accessToken)
     API->>API: authenticate → verify token
-    API->>API: authorize('ADMIN','STAFF','VIEWER')
+    API->>API: authorize('admin','staff','viewer')
     API-->>FE: 200 {data}
 
     Note over FE,DB: Token hết hạn (sau 7 ngày)
@@ -393,10 +393,10 @@ axiosClient.interceptors.response.use(
 |-----------|---------|
 | Băm mật khẩu | `bcrypt` với `saltRounds = 10` (NFR-05) |
 | Độ mạnh tối thiểu | ≥ 8 ký tự, có ít nhất 1 chữ cái và 1 chữ số (BR-81) |
-| Không bao giờ trả về `password_hash` | Loại bỏ trường này ở tầng serialize, không phụ thuộc việc `SELECT` sót |
+| Không bao giờ trả về `passwordHash` | Đặt `select: false` trên trường này trong Mongoose schema, để mặc định mọi truy vấn đều không lấy nó |
 | Không ghi mật khẩu vào log | Cấu hình logger lọc các trường `password`, `token`, `secret`, `temporaryPassword` |
-| Đặt lại mật khẩu (FR-09) | Chỉ Admin/Staff; mật khẩu tạm sinh ngẫu nhiên ≥ 10 ký tự bằng `crypto.randomBytes`, **không** dùng `Math.random()`; trả về đúng **một lần** trong response, không lưu dạng rõ ở đâu; bật `must_change_password` (BR-18) |
-| Chống leo thang đặc quyền | Staff **không** được reset mật khẩu tài khoản có `role = 'ADMIN'` — nếu không, một Staff có thể chiếm quyền Admin |
+| Đặt lại mật khẩu (FR-09) | Chỉ Admin/Staff; mật khẩu tạm sinh ngẫu nhiên ≥ 10 ký tự bằng `crypto.randomBytes`, **không** dùng `Math.random()`; trả về đúng **một lần** trong response, không lưu dạng rõ ở đâu; bật `mustChangePassword` (BR-85) |
+| Chống leo thang đặc quyền | Staff **không** được reset mật khẩu tài khoản có `role = 'admin'` — nếu không, một Staff có thể chiếm quyền Admin |
 | Đổi mật khẩu | Bắt buộc nhập lại mật khẩu hiện tại (FR-07) |
 | Chống dò mật khẩu | Khóa 15 phút sau 5 lần sai (FR-05) + rate limit trên `/auth/login` |
 
@@ -413,8 +413,8 @@ axiosClient.interceptors.response.use(
 
 | Biện pháp | Cài đặt |
 |-----------|---------|
-| Dùng ORM | Prisma tự tham số hóa toàn bộ truy vấn |
-| Truy vấn thô | Nếu buộc phải dùng `$queryRaw`, **bắt buộc** dùng template literal có tham số: `` prisma.$queryRaw`SELECT * FROM student WHERE id = ${id}` `` — **không** nối chuỗi |
+| Dùng ORM | Mongoose tự tham số hóa toàn bộ truy vấn |
+| Truy vấn thô | Nếu buộc phải dùng `$queryRaw`, **bắt buộc** dùng template literal có tham số: `` mongoose.$queryRaw`SELECT * FROM student WHERE id = ${id}` `` — **không** nối chuỗi |
 | Whitelist cho sắp xếp | `sortBy` phải nằm trong danh sách cột cho phép, không truyền thẳng vào truy vấn |
 
 ### 5.4. Cấu hình bảo mật HTTP
@@ -429,19 +429,19 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));               // Chặn payload quá lớn
 
 // Rate limit riêng cho các endpoint nhạy cảm
-app.use('/api/v1/auth/login',    rateLimit({ windowMs: 15*60*1000, max: 10 }));
-app.use('/api/v1/auth/register', rateLimit({ windowMs: 60*60*1000, max: 5  }));
-app.use('/api/v1',               rateLimit({ windowMs: 15*60*1000, max: 300 }));
+app.use('/api/auth/login',    rateLimit({ windowMs: 15*60*1000, max: 10 }));
+app.use('/api/auth/register', rateLimit({ windowMs: 60*60*1000, max: 5  }));
+app.use('/api',               rateLimit({ windowMs: 15*60*1000, max: 300 }));
 ```
 
 ### 5.5. Bảo mật thanh toán
 
 | Rủi ro | Biện pháp | Quy tắc |
 |--------|-----------|---------|
-| Giả mạo IPN | Xác thực chữ ký HMAC bằng secret key trước mọi xử lý | BR-57 |
-| Nhận kết quả trùng lặp | Kiểm tra trạng thái giao dịch bên trong transaction; nếu đã `SUCCESS` thì bỏ qua, không ghi nhận lần hai | BR-56 |
-| Sửa số tiền | So sánh số tiền trong IPN với số tiền của giao dịch đã tạo | BR-58 |
-| Giả mạo kết quả tại Return URL | Ở v1-lite, kết quả **được** nhận qua Return URL nhưng **bắt buộc xác thực chữ ký HMAC ở backend** trước khi ghi nhận — không có `VNP_HASH_SECRET` thì không giả mạo được (`14` mục 4.10) | BR-57 |
+| Giả mạo IPN | Xác thực chữ ký HMAC bằng secret key trước mọi xử lý | BR-61 |
+| Nhận kết quả trùng lặp | Kiểm tra trạng thái giao dịch bên trong transaction; nếu đã `success` thì bỏ qua, không ghi nhận lần hai | BR-56 |
+| Sửa số tiền | So sánh số tiền trong IPN với số tiền của giao dịch đã tạo | BR-63 |
+| Giả mạo kết quả tại Return URL | Ở v1-lite, kết quả **được** nhận qua Return URL nhưng **bắt buộc xác thực chữ ký HMAC ở backend** trước khi ghi nhận — không có `VNP_HASH_SECRET` thì không giả mạo được (`14` mục 4.10) | BR-61 |
 | Lộ secret key | Để trong `.env`, không commit; ở production dùng biến môi trường của nền tảng | – |
 | Thanh toán hộ người khác | Kiểm tra ownership hóa đơn trước khi tạo URL thanh toán | BR-85 |
 
@@ -462,7 +462,7 @@ app.use('/api/v1',               rateLimit({ windowMs: 15*60*1000, max: 300 }));
 | # | Hạng mục | Cách kiểm tra | Đạt |
 |---|----------|---------------|-----|
 | 1 | Mọi endpoint (trừ nhóm công khai) đều có `authenticate` | Rà toàn bộ file route | ☐ |
-| 2 | Mọi endpoint đều có `authorize` đúng theo ma trận mục 2 | Đối chiếu bảng mục 15 của `06` | ☐ |
+| 2 | Mọi endpoint đều có `authorize` đúng theo ma trận mục 2 | Đối chiếu bảng mục 15 của `API.md` | ☐ |
 | 3 | Mọi endpoint `/portal/*` lấy `studentId` từ JWT, không từ client | `grep -rn "req.query.studentId\|req.body.studentId" src/` phải không có kết quả | ☐ |
 | 4 | Đã kiểm tra ownership ở các endpoint theo bảng mục 3.3 | Test thủ công: đăng nhập SV A, gọi API với ID của SV B → phải trả 403 | ☐ |
 | 5 | Không có mật khẩu/token nào lọt vào response hoặc log | Rà response mẫu + đọc file log | ☐ |
@@ -484,4 +484,5 @@ app.use('/api/v1',               rateLimit({ windowMs: 15*60*1000, max: 300 }));
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | Cả nhóm | Chốt ma trận RBAC 4 vai trò, luồng JWT, checklist bảo mật |
 | v1.1 | 12/09/2026 | BE Lead | Thêm quyền đặt lại mật khẩu (FR-09) kèm rào chặn leo thang đặc quyền Staff → Admin |
+| **v2.0** | **12/09/2026** | BE Lead | **Rà soát theo bộ tài liệu v2.0:** vai trò và trạng thái đổi sang chữ thường; bỏ quyền chuyển phòng và nộp đơn của sinh viên (ngoài phạm vi v1); thêm quyền tạo Residency và kích hoạt hợp đồng; đăng nhập bằng email; `passwordHash` dùng `select: false` của Mongoose |
 | v1.2 | 12/09/2026 | BE Lead | **Áp dụng v1-lite:** 1 JWT hạn 7 ngày (bỏ refresh token); gộp `rbac.middleware.js` vào `auth.middleware.js`; ghi nhật ký ra file thay bảng `audit_log`; xuất CSV thay Excel; làm rõ vì sao nhận kết quả thanh toán qua Return URL vẫn an toàn. Xem `14` |

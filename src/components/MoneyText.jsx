@@ -1,4 +1,4 @@
-import { formatCurrency } from '../../utils/formatter';
+import { formatCurrency } from '../utils/formatter';
 
 /**
  * Hiển thị số tiền. Nếu là công nợ (danger) và > 0 thì tô đỏ.

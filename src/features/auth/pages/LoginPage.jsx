@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Form, Input, Button, Card, Typography, Alert, App } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { ROLES } from '../../constants/roles';
-import { getErrorMessage } from '../../api/axiosClient';
+import { useAuth } from '../../../context/AuthContext';
+import { ROLES } from '../../../constants/roles';
+import { getErrorMessage } from '../../../lib/axiosClient';
 
 const { Title, Text } = Typography;
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const loggedIn = await login(values.username, values.password);
+      const loggedIn = await login(values.email, values.password);
       message.success('Đăng nhập thành công');
 
       const from = location.state?.from;
@@ -57,11 +57,14 @@ export default function LoginPage() {
 
         <Form layout="vertical" onFinish={handleSubmit} size="large" autoComplete="off">
           <Form.Item
-            name="username"
-            label="Email hoặc Mã số sinh viên"
-            rules={[{ required: true, message: 'Vui lòng nhập email hoặc MSSV' }]}
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Vui lòng nhập email' },
+              { type: 'email', message: 'Email không hợp lệ' },
+            ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="admin@ktx.edu.vn" />
+            <Input prefix={<UserOutlined />} placeholder="admin@dorm.local" />
           </Form.Item>
 
           <Form.Item
@@ -84,10 +87,10 @@ export default function LoginPage() {
             message="Đang chạy chế độ dữ liệu giả"
             description={
               <div style={{ fontSize: 12, lineHeight: 1.8 }}>
-                <div>Quản trị: <code>admin@ktx.edu.vn</code> / <code>Admin@123</code></div>
-                <div>Nhân viên: <code>staff@ktx.edu.vn</code> / <code>Staff@123</code></div>
-                <div>Người xem: <code>viewer@ktx.edu.vn</code> / <code>Viewer@123</code></div>
-                <div>Sinh viên: <code>SV2024001</code> / <code>Student@123</code></div>
+                <div>Quản trị: <code>admin@dorm.local</code> / <code>Admin@123</code></div>
+                <div>Nhân viên: <code>staff@dorm.local</code> / <code>Staff@123</code></div>
+                <div>Người xem: <code>viewer@dorm.local</code> / <code>Viewer@123</code></div>
+                <div>Sinh viên: <code>sv001@dorm.local</code> / <code>Student@123</code></div>
               </div>
             }
           />

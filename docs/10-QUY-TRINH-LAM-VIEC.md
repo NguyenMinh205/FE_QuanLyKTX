@@ -110,7 +110,7 @@ chore/setup-eslint-prettier
 
 **Ví dụ:**
 ```
-feat(contract): add approval endpoint for residence applications
+feat(contract): add activation endpoint for residence contracts
 
 - Implement ContractService.approve() inside a transaction
 - Generate first-period invoices (deposit + first month rent)
@@ -165,7 +165,7 @@ Cài đặt API duyệt đơn đăng ký lưu trú (T3.8).
 - [x] Tự sinh hóa đơn kỳ đầu
 - [x] Cập nhật trạng thái giường
 - [x] Xử lý trường hợp giường bị chiếm giữa chừng (409)
-- [x] Cập nhật `06-DAC-TA-API.md`
+- [x] Cập nhật `API.md`
 
 ## Cách kiểm thử
 1. Đăng nhập bằng `staff@ktx.edu.vn`
@@ -176,7 +176,7 @@ Cài đặt API duyệt đơn đăng ký lưu trú (T3.8).
 (nếu là thay đổi giao diện)
 
 ## Lưu ý cho reviewer
-Chú ý phần giữ chỗ giường bằng `updateMany` có điều kiện ở dòng 45.
+Chú ý phần chiếm giường bằng `findOneAndUpdate` có điều kiện ở dòng 45.
 ```
 
 **Quy tắc PR:**
@@ -225,7 +225,8 @@ Chú ý phần giữ chỗ giường bằng `updateMany` có điều kiện ở 
 | File component React | `PascalCase.jsx` | `StudentListPage.jsx` |
 | File khác (JS) | `camelCase.js` | `axiosClient.js`, `formatter.js` |
 | File backend theo tầng | `<tên>.<tầng>.js` | `student.service.js`, `contract.controller.js` |
-| Bảng, cột CSDL | `snake_case` | `student_code`, `invoice_item` |
+| Collection MongoDB | `PascalCase` số ít | `Student`, `UtilityReading` |
+| Trường trong document | `camelCase` | `studentCode`, `pricePerBed` |
 | Biến môi trường | `UPPER_SNAKE_CASE` | `JWT_ACCESS_SECRET` |
 | Hàm boolean | Bắt đầu bằng `is`, `has`, `can` | `isActive`, `hasDebt`, `canApprove` |
 | Hàm xử lý sự kiện | Bắt đầu bằng `handle` | `handleSubmit`, `handleApprove` |
@@ -310,9 +311,9 @@ export const approveContract = asyncHandler(async (req, res) => {
 
 // ❌ SAI — nghiệp vụ lọt vào controller
 export const approveContract = async (req, res) => {
-  const contract = await prisma.contract.findUnique({ where: { id: +req.params.id } });
-  if (contract.status !== 'PENDING') return res.status(400).json({ error: 'Sai trạng thái' });
-  const bed = await prisma.bed.findUnique({ where: { id: contract.bedId } });
+  const contract = await mongoose.contract.findUnique({ where: { id: +req.params.id } });
+  if (contract.status !== 'pending') return res.status(400).json({ error: 'Sai trạng thái' });
+  const bed = await mongoose.bed.findUnique({ where: { id: contract.bedId } });
   // ... 50 dòng nghiệp vụ nữa
 };
 ```
@@ -320,20 +321,20 @@ export const approveContract = async (req, res) => {
 **Service — chứa nghiệp vụ, bọc transaction:**
 ```js
 export const approve = async (contractId, approverId, { note }) => {
-  return prisma.$transaction(async (tx) => {
+  return phiên ghi nhiều bước(async (tx) => {
     const contract = await tx.contract.findUnique({
       where: { id: contractId },
       include: { bed: true, student: true },
     });
     if (!contract) throw new ApiError(404, 'Không tìm thấy hợp đồng', 'NOT_FOUND');
-    if (contract.status !== 'PENDING') {
+    if (contract.status !== 'pending') {
       throw new ApiError(422, 'Hợp đồng không ở trạng thái chờ duyệt', 'CONTRACT_NOT_PENDING');
     }
 
     // Chiếm giường bằng UPDATE có điều kiện — nguyên tử, chống race condition (14 mục 4.6)
     const taken = await tx.bed.updateMany({
-      where: { id: contract.bedId, status: 'RESERVED' },
-      data:  { status: 'OCCUPIED' },
+      where: { id: contract.bedId, status: 'reserved' },
+      data:  { status: 'occupied' },
     });
     if (taken.count === 0) {
       throw new ApiError(409, 'Giường không còn khả dụng', 'BED_NOT_AVAILABLE');
@@ -341,7 +342,7 @@ export const approve = async (contractId, approverId, { note }) => {
 
     const updated = await tx.contract.update({
       where: { id: contractId },
-      data: { status: 'ACTIVE', approvedBy: approverId, approvedAt: new Date(), note },
+      data: { status: 'active', approvedBy: approverId, approvedAt: new Date(), note },
     });
     // BR-25: sinh HAI hóa đơn riêng — tiền cọc (DEPOSIT) và tiền phòng tháng đầu (MONTHLY)
     const invoices = await invoiceService.createFirstInvoices(tx, updated);
@@ -392,7 +393,7 @@ Một task **chỉ được** đánh dấu hoàn thành khi thỏa **toàn bộ*
 | 5 | Thao tác đa bảng được bọc transaction | ☐ |
 | 6 | Lỗi trả về đúng mã HTTP và `errorCode`, thông báo tiếng Việt | ☐ |
 | 7 | Đã test thủ công bằng Postman đủ luồng thành công + các luồng lỗi | ☐ |
-| 8 | Đã cập nhật `06-DAC-TA-API.md` nếu API thay đổi | ☐ |
+| 8 | Đã cập nhật `API.md` nếu API thay đổi | ☐ |
 | 9 | ESLint không báo lỗi (tự chạy `npm run lint` trước khi mở PR) | ☐ |
 | 10 | Đã mở PR, có người review duyệt | ☐ |
 
@@ -441,7 +442,7 @@ Một task **chỉ được** đánh dấu hoàn thành khi thỏa **toàn bộ*
 ### 4.2. Cách viết nhận xét review
 
 **Tốt:**
-> Dòng 45: chỗ này cần bọc transaction vì đang ghi vào 2 bảng `contract` và `bed`. Nếu bước 2 lỗi thì dữ liệu sẽ lệch. Tham khảo `ContractService.approve()`.
+> Dòng 45: chỗ này cần bọc transaction vì đang ghi vào 2 collection `Contract` và `bed`. Nếu bước 2 lỗi thì dữ liệu sẽ lệch. Tham khảo `ContractService.approve()`.
 
 **Không tốt:**
 > Code này sai rồi.
@@ -485,7 +486,7 @@ uploads/
 |-----------|----------|
 | ESLint | Bắt lỗi code theo quy ước |
 | Prettier | Tự định dạng khi lưu |
-| Prisma | Highlight và autocomplete cho `schema.prisma` |
+| Mongoose | Highlight và autocomplete cho `các file *.model.js` |
 | Thunder Client / REST Client | Test API ngay trong editor |
 | GitLens | Xem lịch sử từng dòng code |
 | Error Lens | Hiện lỗi ngay trên dòng |
@@ -579,7 +580,7 @@ Khi duyệt hợp đồng của sinh viên đã có hợp đồng khác, hệ th
 
 ## Các bước tái hiện
 1. Đăng nhập `staff@ktx.edu.vn`
-2. Vào Đơn chờ duyệt
+2. Vào Đăng ký lưu trú
 3. Duyệt đơn của SV2024001 (sinh viên này đã có HĐ đang hiệu lực)
 
 ## Kết quả mong đợi

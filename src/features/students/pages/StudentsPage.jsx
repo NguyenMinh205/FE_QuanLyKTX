@@ -1,21 +1,21 @@
 import { useState } from 'react';
 import { Table, Button, Input, Space, Tag, Alert, App } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useApi } from '../../hooks/useApi';
-import { useAuth } from '../../context/AuthContext';
-import { can } from '../../utils/permission';
-import { studentApi } from '../../api/studentApi';
-import { getErrorMessage } from '../../api/axiosClient';
-import { GENDER } from '../../constants/statuses';
-import PageHeader from '../../components/common/PageHeader';
-import MoneyText from '../../components/common/MoneyText';
-import StudentFormModal from './StudentFormModal';
+import { useApi } from '../../../hooks/useApi';
+import { useAuth } from '../../../context/AuthContext';
+import { can } from '../../../utils/permission';
+import { studentApi } from '../api/student.api';
+import { getErrorMessage } from '../../../lib/axiosClient';
+import { GENDER } from '../../../constants/statuses';
+import PageHeader from '../../../components/PageHeader';
+import MoneyText from '../../../components/MoneyText';
+import StudentFormModal from '../components/StudentFormModal';
 
 /**
- * Màn hình mẫu (SCR-11). 8 module còn lại sao chép cấu trúc này.
- * Xem docs/14 mục 15.6 để biết cách nhân bản.
+ * Màn hình mẫu. Các module còn lại sao chép cấu trúc này —
+ * xem 14-PHIEN-BAN-DON-GIAN-HOA.md mục 15.6.
  */
-export default function StudentListPage() {
+export default function StudentsPage() {
   const { user } = useAuth();
   const { message, modal } = App.useApp();
 
@@ -51,7 +51,7 @@ export default function StudentListPage() {
   };
 
   const columns = [
-    { title: 'MSSV', dataIndex: 'studentCode', width: 120, fixed: 'left' },
+    { title: 'MSSV', dataIndex: 'studentCode', width: 130, fixed: 'left' },
     { title: 'Họ và tên', dataIndex: 'fullName', width: 180 },
     {
       title: 'Giới tính', dataIndex: 'gender', width: 100,
@@ -60,9 +60,9 @@ export default function StudentListPage() {
     { title: 'Lớp', dataIndex: 'className', width: 120 },
     { title: 'Khoa', dataIndex: 'faculty', width: 180, responsive: ['lg'] },
     {
-      title: 'Chỗ ở', dataIndex: 'residence', width: 150,
+      title: 'Chỗ ở', dataIndex: 'residence', width: 160,
       render: (r) => (r
-        ? <Tag color="blue">{`${r.buildingCode}-${r.roomNumber}-${r.bedLabel}`}</Tag>
+        ? <Tag color="blue">{r.bedCode}</Tag>
         : <span style={{ color: '#8C8C8C' }}>—</span>),
     },
     {

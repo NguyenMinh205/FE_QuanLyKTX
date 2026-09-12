@@ -1,7 +1,7 @@
 import { Result, Button } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { ROLES } from '../../constants/roles';
+import { useAuth } from '../../../context/AuthContext';
+import { ROLES } from '../../../constants/roles';
 
 export default function ForbiddenPage() {
   const navigate = useNavigate();

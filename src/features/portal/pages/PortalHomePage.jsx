@@ -1,5 +1,5 @@
 import { Card, Typography, Alert, Space } from 'antd';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 
 const { Title, Text } = Typography;
 
@@ -16,8 +16,8 @@ export default function PortalHomePage() {
       <Alert
         type="info"
         showIcon
-        message="Đây là khung cổng sinh viên (T5.5)"
-        description="Các thẻ 'Chỗ ở của tôi', 'Cần thanh toán' và 'Thao tác nhanh' sẽ bổ sung ở Sprint 4 — xem docs/08 mục 6, màn hình SCR-61."
+        message="Đây là khung cổng sinh viên"
+        description="Các thẻ 'Chỗ ở của tôi', 'Cần thanh toán' và 'Thao tác nhanh' sẽ bổ sung ở Sprint 4 — xem 08-THIET-KE-GIAO-DIEN.md."
       />
     </Space>
   );

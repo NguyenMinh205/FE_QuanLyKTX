@@ -1,14 +1,14 @@
 # 13 – LỘ TRÌNH TRIỂN KHAI A → Z
 
 **Hệ thống:** DMS-KTX
-**Phiên bản:** v1.0
+**Phiên bản:** v2.0 (MongoDB + Mongoose)
 **Thời lượng:** 12 tuần · **Khối lượng:** ~120 ngày công ([phiên bản đơn giản hóa Bậc B](14-PHIEN-BAN-DON-GIAN-HOA.md))
 
 **Ngày bắt đầu giả định:** Thứ 2, 14/09/2026 · **Ngày bảo vệ dự kiến:** 05/12/2026
 
 > ⚠️ **Đang áp dụng phiên bản đơn giản hóa Bậc B.** Các bước cài đặt, lệnh `npm install` và hướng dẫn VNPay dưới đây đã cập nhật theo bản này ([tài liệu 14](14-PHIEN-BAN-DON-GIAN-HOA.md)).
 >
-> 📌 **Bậc B đổi 3 thứ trong lộ trình này:** dùng **1 repo** với 2 thư mục `frontend/` + `backend/` (không phải 2 repo); chỉ dùng nhánh **`main`** (không có `develop`); và **tuần 2 dành hẳn cho tự học** theo `14` mục 14.
+> 📌 **Bậc B đổi 2 thứ trong lộ trình này:** chỉ dùng nhánh **`main`** (không có `develop`); và **tuần 2 dành hẳn cho tự học** theo `14` mục 14.
 
 > Tài liệu này trả lời câu hỏi **"làm vào lúc nào và làm thế nào"**. Câu hỏi **"ai làm gì"** nằm ở `09-KE-HOACH-PHAN-CONG.md`.
 >
@@ -102,27 +102,26 @@ Cuối mỗi sprint, mọi lỗi mức Critical/High **phải** được xử l�
 **Chốt lại 3 điều với cả nhóm:**
 1. Phạm vi đã khóa — ý tưởng mới ghi vào Backlog v2.
 2. Cấm push thẳng vào `main`/`develop`.
-3. API đổi thì cập nhật `06-DAC-TA-API.md` trước khi code.
+3. API đổi thì cập nhật `API.md` trước khi code.
 
 ### 3.2. Cài đặt môi trường (mọi thành viên đều phải làm)
 
 #### Bước 1 – Cài công cụ
 
-| Công cụ | Phiên bản | Link |
-|---------|-----------|------|
-| Node.js | 20 LTS | nodejs.org |
-| Git | mới nhất | git-scm.com |
-| VS Code | mới nhất | code.visualstudio.com |
-| PostgreSQL | 15+ | postgresql.org/download |
-| Postman | mới nhất | postman.com/downloads |
-| DBeaver (tùy chọn) | mới nhất | dbeaver.io |
+| Công cụ | Phiên bản | Bắt buộc? | Link |
+|---------|-----------|-----------|------|
+| Node.js | 20 LTS | ✅ | nodejs.org |
+| Git | mới nhất | ✅ | git-scm.com |
+| VS Code | mới nhất | ✅ | code.visualstudio.com |
+| Postman | mới nhất | ✅ | postman.com/downloads |
+| MongoDB Compass | mới nhất | ✅ | mongodb.com/products/compass — giao diện xem dữ liệu |
+| MongoDB Community Server | 7.x | ⬜ Tùy chọn | Chỉ cần nếu chọn phương án B ở Bước 3 |
 
 **Kiểm tra sau khi cài:**
 ```bash
 node -v    # phải ra v20.x.x
 npm -v     # phải ra 10.x.x
 git --version
-psql --version
 ```
 
 #### Bước 2 – Cấu hình Git (chỉ làm một lần)
@@ -133,69 +132,161 @@ git config --global core.autocrlf true      # Windows
 git config --global init.defaultBranch main
 ```
 
-#### Bước 3 – Tạo CSDL trên máy
-```bash
-# Mở psql (Windows: SQL Shell)
-psql -U postgres
+#### Bước 3 – Chuẩn bị MongoDB
 
-CREATE DATABASE dms_ktx;
-CREATE USER dms_user WITH PASSWORD 'dms_password';
-GRANT ALL PRIVILEGES ON DATABASE dms_ktx TO dms_user;
-\c dms_ktx
-GRANT ALL ON SCHEMA public TO dms_user;
-\q
+Có hai phương án. **Khuyến nghị phương án A** cho nhóm mới bắt đầu.
+
+---
+
+**🅰️ Phương án A — MongoDB Atlas (đám mây, miễn phí)** ⭐ *khuyên dùng*
+
+Không cần cài gì lên máy. Dùng chung một cụm cho cả lúc lập trình lẫn lúc deploy, nên **không bao giờ gặp cảnh "chạy được ở máy em mà lên hosting thì lỗi"**.
+
+1. Đăng ký tại **mongodb.com/cloud/atlas** (miễn phí, không cần thẻ).
+2. **Create Deployment** → chọn **M0 Free** → Provider `AWS`, Region **Singapore (ap-southeast-1)** → Create.
+3. **Database Access** → *Add New Database User*:
+   - Username: `dms_user`
+   - Password: bấm **Autogenerate** rồi **lưu lại** — xem cảnh báo ký tự đặc biệt bên dưới
+   - Role: `Read and write to any database`
+4. **Network Access** → *Add IP Address* → **Allow access from anywhere** (`0.0.0.0/0`).
+   > Bắt buộc phải mở như vậy vì Render gói miễn phí dùng IP động, không biết trước để whitelist. Chấp nhận được ở phạm vi đồ án vì vẫn phải có username/password mới vào được.
+5. **Database → Connect → Drivers → Node.js**, copy chuỗi kết nối:
+   ```
+   mongodb+srv://dms_user:<db_password>@cluster0.abc12.mongodb.net/?retryWrites=true&w=majority
+   ```
+6. **Sửa lại chuỗi trước khi dùng** — thay `<db_password>` bằng mật khẩu thật và **chèn tên database** vào trước dấu `?`:
+   ```
+   mongodb+srv://dms_user:MatKhauThat@cluster0.abc12.mongodb.net/dms_ktx?retryWrites=true&w=majority
+                                                                  ^^^^^^^ bắt buộc
+   ```
+
+> ⚠️ **Hai lỗi khiến gần như ai cũng vấp ở bước này:**
+>
+> **1. Quên tên database.** Nếu chuỗi là `...mongodb.net/?retryWrites...` (không có `dms_ktx`), Mongoose sẽ ghi vào database tên `test`. Ứng dụng vẫn chạy, nhưng mở Atlas không thấy dữ liệu đâu.
+>
+> **2. Mật khẩu có ký tự đặc biệt.** Các ký tự `@ : / ? # [ ] %` sẽ làm hỏng chuỗi kết nối. Hoặc đặt mật khẩu chỉ gồm chữ và số, hoặc mã hóa lại:
+> ```js
+> // Mật khẩu p@ss:w0rd  →  p%40ss%3Aw0rd
+> console.log(encodeURIComponent('p@ss:w0rd'));
+> ```
+
+**Điểm cộng của Atlas:** cụm M0 vốn đã chạy ở chế độ **replica set**, nên nếu sau này nhóm cần dùng MongoDB transaction thật thì dùng được ngay, không phải cấu hình gì thêm (`ARCHITECTURE.md` §3.5).
+
+---
+
+**🅱️ Phương án B — MongoDB cài trên máy**
+
+Chọn nếu mạng yếu hoặc muốn làm việc offline.
+
+```bash
+# Sau khi cài MongoDB Community Server, kiểm tra:
+mongosh --eval "db.version()"
 ```
 
-> **Không cài PostgreSQL được?** Dùng Docker:
+Chuỗi kết nối:
+```
+mongodb://localhost:27017/dms_ktx
+```
+
+Hoặc dùng Docker, không cần cài đặt gì:
+```bash
+docker run --name dms-mongo -p 27017:27017 -d mongo:7
+```
+
+> ⚠️ **Hạn chế của phương án B:** `mongod` chạy mặc định là **standalone**, **không hỗ trợ transaction**. Đây chính là lý do v1 dùng `findOneAndUpdate` có điều kiện thay vì transaction (`ARCHITECTURE.md` §3.5). Nếu nhất định cần transaction, khởi động dạng replica set một node:
 > ```bash
-> docker run --name dms-postgres -e POSTGRES_PASSWORD=dms_password -e POSTGRES_DB=dms_ktx -p 5432:5432 -d postgres:15
+> mongod --replSet rs0 --dbpath C:\data\db
+> mongosh --eval "rs.initiate()"
 > ```
+
+---
+
+**Dù chọn phương án nào**, ghi chuỗi kết nối vào file `.env` ở gốc repo **BE_QuanLyKTX**:
+```bash
+MONGODB_URI=mongodb+srv://dms_user:MatKhau@cluster0.abc12.mongodb.net/dms_ktx?retryWrites=true&w=majority
+```
+
+Rồi mở **MongoDB Compass**, dán đúng chuỗi đó vào để xem dữ liệu bằng giao diện.
 
 #### Bước 4 – Cài extension VS Code
 Xem danh sách ở `10-QUY-TRINH-LAM-VIEC.md` mục 5.2.
 
 ### 3.3. Khởi tạo repository
 
-#### Repo Frontend (repo hiện tại)
+Nhóm dùng **2 repo**. Mọi thành viên clone cả hai.
+
+#### Repo Frontend — `FE_QuanLyKTX` (đã có sẵn)
+
 ```bash
-cd D:\FE_QuanLyKTX
-
-# Cài thư viện cần thiết (v1-lite — 5 thư viện thay vì 8)
-npm install react-router-dom axios antd @ant-design/icons dayjs recharts
-npm install -D prettier eslint-config-prettier
-
-# Tạo file cấu hình
-echo "VITE_API_BASE_URL=http://localhost:5000/api/v1" > .env.example
-cp .env.example .env
-
-git add .
-git commit -m "chore: cai dat dependencies va cau hinh ban dau"
-git branch develop
-git push -u origin main
-git push -u origin develop
+git clone https://github.com/<tài-khoản>/FE_QuanLyKTX.git
+cd FE_QuanLyKTX
+npm install
+cp .env.example .env     # sửa VITE_API_BASE_URL nếu cần
+npm run dev              # http://localhost:5173
 ```
 
-#### Repo Backend (tạo mới)
+Repo này chứa luôn thư mục **`docs/`** — tài liệu dùng chung cho cả hai đội.
+
+#### Repo Backend — `BE_QuanLyKTX` (tạo mới)
+
 ```bash
-mkdir dms-ktx-backend && cd dms-ktx-backend
+mkdir BE_QuanLyKTX && cd BE_QuanLyKTX
 npm init -y
-npm pkg set type=module
 
-npm install express cors helmet dotenv bcrypt jsonwebtoken @prisma/client node-cron express-rate-limit
-npm install -D prisma nodemon eslint jest
-
-npx prisma init
+npm install express cors helmet dotenv bcrypt jsonwebtoken mongoose node-cron express-rate-limit
+npm install -D nodemon eslint
 
 git init
-git add . && git commit -m "chore: khoi tao du an backend"
-git branch develop
+git branch -M main
 ```
 
-#### Thiết lập bảo vệ nhánh trên GitHub
-Vào **Settings → Branches → Add rule** cho `main` và `develop`:
+Tạo cấu trúc thư mục theo `ARCHITECTURE.md` §3.1:
+```bash
+mkdir -p src/modules/{auth,students,rooms,residencies,contracts,fees,payments,requests,dashboard}
+mkdir -p src/core/{config,middlewares,errors,utils,jobs} src/shared/constants
+```
+
+Thêm script vào `package.json`:
+```json
+{
+  "scripts": {
+    "dev":  "nodemon src/server.js",
+    "start": "node src/server.js",
+    "seed": "node src/seed.js",
+    "job":  "node src/core/jobs/daily-job.js run-now",
+    "lint": "eslint ."
+  }
+}
+```
+
+Tạo `.gitignore` (**bắt buộc có `.env`**):
+```gitignore
+node_modules
+.env
+.env.local
+*.log
+coverage/
+```
+
+Tạo `README.md` trỏ về tài liệu — xem mẫu ở `14-PHIEN-BAN-DON-GIAN-HOA.md` mục 13.1.
+
+Đẩy lên GitHub:
+```bash
+git add . && git commit -m "chore: initialize backend project structure"
+git remote add origin https://github.com/<tài-khoản>/BE_QuanLyKTX.git
+git push -u origin main
+```
+
+#### Thiết lập bảo vệ nhánh — làm trên **cả hai** repo
+
+**Settings → Branches → Add rule** cho `main`:
 - ✅ Require a pull request before merging
 - ✅ Require approvals: 1
-- ⬜ ~~Require status checks~~ — v1-lite không dùng CI; thay bằng quy ước **tự chạy `npm run lint` trước khi mở PR**
+- ⬜ ~~Require status checks~~ — không dùng CI; thay bằng quy ước **tự chạy `npm run lint` trước khi mở PR**
+
+#### Mời thành viên
+
+**Settings → Collaborators** trên cả hai repo → mời đủ 5 người. Người làm FE vẫn cần quyền đọc repo BE (để xem service khi nối API), và ngược lại.
 
 ### 3.4. Bảng công việc Sprint 0
 
@@ -204,7 +295,7 @@ Vào **Settings → Branches → Add rule** cho `main` và `develop`:
 | T2 tuần 1 | Họp khởi động, phân vai | Cả nhóm | Biên bản họp |
 | T3–T4 tuần 1 | Hoàn thiện tài liệu 01, 02 | PM, BA | 2 file .md |
 | T5–T6 tuần 1 | Tài liệu 03 (nghiệp vụ) | BA, BE Lead | `03` |
-| T7 tuần 1 | Mọi người cài môi trường | Cả nhóm | Ai cũng chạy được `node -v`, `psql` |
+| T7 tuần 1 | Mọi người cài môi trường + tạo cụm MongoDB Atlas | Cả nhóm | Ai cũng chạy được `node -v` và kết nối được Atlas bằng MongoDB Compass |
 | **Cả tuần 2** | **Tự học theo `14` mục 14.1** (~10 giờ/người) song song với việc hoàn thiện tài liệu | Cả nhóm | Ai cũng đọc hiểu được mẫu code ở `14` mục 15 |
 | T2–T3 tuần 2 | Tài liệu 04 (CSDL), 05 (kiến trúc) | BE Lead | ERD chốt |
 | T4–T5 tuần 2 | Tài liệu 06 (API), 07 (phân quyền) | BE Lead, FE Lead | Hợp đồng API chốt |
@@ -217,7 +308,7 @@ Vào **Settings → Branches → Add rule** cho `main` và `develop`:
 | # | Tiêu chí | ☐ |
 |---|----------|---|
 | 1 | 14 tài liệu hoàn chỉnh, cả nhóm đã đọc (đặc biệt là `14` mục 2 và 4.6) | ☐ |
-| 2 | Mọi thành viên chạy được Node, Git, PostgreSQL trên máy | ☐ |
+| 2 | Mọi thành viên chạy được Node, Git, MongoDB trên máy | ☐ |
 | 3 | 2 repo đã tạo, có nhánh `main` + `develop`, đã bật bảo vệ nhánh | ☐ |
 | 4 | Bảng task đã tạo, toàn bộ task Sprint 1 đã nhập | ☐ |
 | 5 | ERD và hợp đồng API đã được cả nhóm rà soát và đồng thuận | ☐ |
@@ -240,33 +331,33 @@ src/
 ├── routes/index.js
 ├── utils/{ApiError.js, ApiResponse.js, asyncHandler.js, logger.js}
 ```
-**Nghiệm thu:** `GET /api/v1/health` trả `{ "success": true, "data": { "status": "ok", "uptime": 12.3 } }`
+**Nghiệm thu:** `GET /api/health` trả `{ "success": true, "data": { "status": "ok", "uptime": 12.3 } }`
 
-**Ngày 2 – Prisma schema + migration**
+**Ngày 2 – Mongoose schema + migration**
 ```bash
-# Viết prisma/schema.prisma theo docs/04, mục 3 — 13 bảng
-npx prisma migrate dev --name init
-npx prisma studio   # kiểm tra bảng đã tạo đúng
+# Viết mongoose/các file *.model.js theo docs/04, mục 3 — 13 bảng
+npm run seed --name init
+mongosh / MongoDB Compass   # kiểm tra bảng đã tạo đúng
 ```
-> ✅ **v1-lite không cần viết index thủ công.** BR-20/BR-21 được đảm bảo bằng `UPDATE` có điều kiện ở tầng service (`14` mục 4.6), nên chạy `npx prisma migrate dev` là đủ. Nhờ vậy schema chạy được trên cả PostgreSQL và MySQL.
+> ✅ **Không cần migration.** Mongoose tự tạo collection và index từ file `*.model.js` ngay lần chạy đầu. BR-20/BR-21 được đảm bảo bằng `findOneAndUpdate` có điều kiện ở tầng service (`14-PHIEN-BAN-DON-GIAN-HOA.md` mục 4.6), cộng với partial unique index khai báo ngay trong schema.
 
 **Ngày 3 – Seed dữ liệu**
 ```bash
 npm install -D @faker-js/faker
-# Viết prisma/seed.js theo docs/04, mục 4
-npx prisma db seed
+# Viết mongoose/seed.js theo docs/04, mục 4
+npm run seed
 ```
 **Nghiệm thu:** CSDL có 3 tòa, 60 phòng, 400+ giường, 120 sinh viên, 4 tài khoản.
 
 **Ngày 4–5 – Xác thực**
-Cài `/auth/login`, `/auth/register`, `/auth/me`, `/auth/refresh`, `/auth/logout`, `/auth/change-password` + middleware `authenticate`, `authorize`.
+Cài `/api/auth/login`, `/api/auth/register`, `/api/auth/me`, `/api/auth/logout`, `/api/auth/change-password`, `/api/users/:id/reset-password` + middleware `authenticate`, `authorize`. **Không có** `/auth/refresh` — v1 dùng 1 JWT hạn 7 ngày.
 
 **Nghiệm thu:** Postman đăng nhập được cả 4 vai trò; gọi API không token trả 401; Viewer gọi API ghi trả 403.
 
 #### Frontend (T2–T5, song song)
 
 **Ngày 1 – Cấu trúc + provider**
-Tạo cây thư mục theo `05` mục 3.1; cấu hình `axiosClient`, `AuthProvider`, `ConfigProvider` (locale tiếng Việt). Viết luôn hook `useApi` (`14` mục 4.1) — dùng cho toàn bộ dự án sau này.
+Tạo cây thư mục theo `ARCHITECTURE.md` mục 3.1; cấu hình `axiosClient`, `AuthProvider`, `ConfigProvider` (locale tiếng Việt). Viết luôn hook `useApi` (`14` mục 4.1) — dùng cho toàn bộ dự án sau này.
 
 **Ngày 2 – Layout**
 `AdminLayout` (sidebar + header + breadcrumb), `PortalLayout`.
@@ -291,54 +382,119 @@ Tạo cây thư mục theo `05` mục 3.1; cấu hình `axiosClient`, `AuthProvi
 
 #### Quy trình deploy thử (rất quan trọng — làm ngay tuần 4)
 
-**Bước 1 – Tạo CSDL đám mây (Neon)**
-1. Đăng ký tại neon.tech (miễn phí).
-2. Tạo project `dms-ktx`, chọn region Singapore.
-3. Copy connection string dạng `postgresql://user:pass@ep-xxx.ap-southeast-1.aws.neon.tech/dms_ktx?sslmode=require`.
+Ba dịch vụ, đều miễn phí: **MongoDB Atlas** (dữ liệu) · **Render** (backend) · **Vercel** (frontend).
+
+```
+Trình duyệt ──► Vercel (React) ──► Render (Express) ──► Atlas (MongoDB)
+               repo FE_QuanLyKTX    repo BE_QuanLyKTX      database dms_ktx
+```
+
+**Bước 1 – Cơ sở dữ liệu**
+
+Đã tạo ở Sprint 0 (mục 3.2, Bước 3). Nếu muốn tách riêng dữ liệu thật với dữ liệu nghịch, tạo thêm một database trên **cùng cụm** bằng cách đổi tên trong chuỗi kết nối:
+
+| Môi trường | Chuỗi kết nối |
+|---|---|
+| Lập trình | `...mongodb.net/dms_ktx_dev?retryWrites=true&w=majority` |
+| Production | `...mongodb.net/dms_ktx?retryWrites=true&w=majority` |
+
+Cụm M0 miễn phí có 512 MB — thừa sức cho cả hai database của đồ án.
 
 **Bước 2 – Deploy backend lên Render**
+
 1. Đăng ký render.com, kết nối GitHub.
-2. **New → Web Service** → chọn repo `dms-ktx-backend`.
+2. **New → Web Service** → chọn repo **`BE_QuanLyKTX`**.
 3. Cấu hình:
-   - Branch: `main`
-   - Build Command: `npm install && npx prisma generate && npx prisma migrate deploy`
-   - Start Command: `npm start`
-   - Instance Type: Free
-4. Thêm biến môi trường (tab Environment) — toàn bộ danh sách ở `05` mục 6.1, chú ý:
-   - `DATABASE_URL` = chuỗi Neon
-   - `NODE_ENV=production`
-   - `CORS_ORIGIN` = URL frontend (điền sau bước 3)
-   - `JWT_ACCESS_SECRET` = chuỗi ngẫu nhiên dài (sinh bằng `openssl rand -base64 32`)
-5. Deploy → chờ build → mở `https://<ten-app>.onrender.com/api/v1/health`
+
+| Trường | Giá trị |
+|---|---|
+| Branch | `main` |
+| Root Directory | *(để trống — repo BE đứng riêng)* |
+| Runtime | Node |
+| Build Command | `npm install` |
+| Start Command | `npm start` |
+| Instance Type | Free |
+
+4. Tab **Environment** → thêm các biến:
+
+```bash
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=mongodb+srv://dms_user:MatKhau@cluster0.abc12.mongodb.net/dms_ktx?retryWrites=true&w=majority
+JWT_SECRET=<chuỗi ngẫu nhiên dài, xem bên dưới>
+JWT_EXPIRES_IN=7d
+BCRYPT_SALT_ROUNDS=10
+CORS_ORIGIN=https://<điền-sau-bước-3>.vercel.app
+ENABLE_CRON=true
+TZ=Asia/Ho_Chi_Minh
+```
+
+Sinh `JWT_SECRET`:
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
+```
+
+5. Deploy → theo dõi log → mở `https://<ten-app>.onrender.com/api/health`.
+   Log phải có dòng `MongoDB connected`. Nếu không, xem bảng lỗi bên dưới.
 
 **Bước 3 – Deploy frontend lên Vercel**
-1. Đăng ký vercel.com, kết nối GitHub.
-2. Import repo frontend.
-3. Framework Preset: **Vite** · Build Command: `npm run build` · Output Directory: `dist`
-4. Environment Variables: `VITE_API_BASE_URL` = `https://<ten-app>.onrender.com/api/v1`
+
+1. Đăng ký vercel.com, kết nối GitHub, **Import** repo **`FE_QuanLyKTX`**.
+2. Cấu hình:
+
+| Trường | Giá trị |
+|---|---|
+| Framework Preset | **Vite** |
+| Root Directory | *(để trống — repo FE đứng riêng)* |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+
+3. **Environment Variables**:
+```bash
+VITE_API_BASE_URL=https://<ten-app>.onrender.com/api
+VITE_USE_MOCK=false
+```
+4. Tạo file `vercel.json` ở gốc repo FE để React Router không bị 404 khi tải lại trang:
+```json
+{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+```
 5. Deploy.
 
 **Bước 4 – Nối hai đầu**
-1. Quay lại Render, sửa `CORS_ORIGIN` thành URL Vercel vừa nhận.
-2. Redeploy backend.
+
+1. Quay lại Render, sửa `CORS_ORIGIN` thành URL Vercel vừa nhận (**không có dấu `/` ở cuối**).
+2. Render tự deploy lại.
 3. Mở URL Vercel, thử đăng nhập.
 
-**Bước 5 – Nạp dữ liệu demo**
+**Bước 5 – Nạp dữ liệu mẫu lên Atlas**
+
 ```bash
-# Từ máy local, trỏ vào CSDL production
-DATABASE_URL="<chuoi-neon>" npx prisma db seed
+cd BE_QuanLyKTX
+# Trỏ tạm vào CSDL production rồi chạy seed
+MONGODB_URI="mongodb+srv://dms_user:MatKhau@cluster0.abc12.mongodb.net/dms_ktx?retryWrites=true&w=majority" npm run seed
 ```
+
+Trên Windows PowerShell:
+```powershell
+$env:MONGODB_URI="mongodb+srv://..."; npm run seed
+```
+
+Mở MongoDB Compass, kết nối vào cụm và kiểm tra database `dms_ktx` đã có đủ 12 collection.
 
 #### Các lỗi thường gặp khi deploy lần đầu
 
-| Lỗi | Nguyên nhân | Cách sửa |
-|-----|-------------|----------|
-| `CORS policy: No 'Access-Control-Allow-Origin'` | `CORS_ORIGIN` sai hoặc có dấu `/` cuối | Điền đúng URL, bỏ dấu `/` cuối |
-| `PrismaClientInitializationError` | Thiếu `sslmode=require` trong connection string | Thêm vào cuối chuỗi |
-| Build fail: `prisma generate` không chạy | Thiếu trong Build Command | Thêm `npx prisma generate` |
-| 404 khi refresh trang React | Thiếu cấu hình SPA rewrite | Tạo `vercel.json`: `{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}` |
-| API rất chậm lần gọi đầu | Render free tier ngủ sau 15 phút không dùng | Bình thường; chấp nhận, hoặc dùng cron-job.org ping mỗi 10 phút |
-| `JWT malformed` | Thiếu biến `JWT_ACCESS_SECRET` trên Render | Thêm biến môi trường, redeploy |
+| Triệu chứng | Nguyên nhân | Cách sửa |
+|---|---|---|
+| `MongooseServerSelectionError: Could not connect to any servers` | Chưa mở Network Access trên Atlas | Atlas → Network Access → thêm `0.0.0.0/0` |
+| Kết nối được nhưng **Atlas không thấy dữ liệu** | Chuỗi kết nối thiếu tên database → đang ghi vào `test` | Thêm `/dms_ktx` vào trước dấu `?` |
+| `MongoParseError: Invalid scheme` hoặc lỗi xác thực | Mật khẩu có ký tự đặc biệt chưa mã hóa | Đổi mật khẩu chỉ gồm chữ và số, hoặc dùng `encodeURIComponent` |
+| `Authentication failed` | Sai user/password, hoặc user chưa có quyền | Atlas → Database Access → kiểm tra lại role `Read and write to any database` |
+| `CORS policy: No 'Access-Control-Allow-Origin'` | `CORS_ORIGIN` sai hoặc thừa dấu `/` cuối | Điền đúng URL Vercel, bỏ dấu `/` |
+| Build Render fail: `package.json not found` | Chọn nhầm repo, hoặc `package.json` không nằm ở gốc repo BE | Kiểm tra lại repo đã chọn trên Render |
+| 404 khi tải lại trang React | Thiếu SPA rewrite | Tạo `vercel.json` ở gốc repo FE như bước 3.4 |
+| API rất chậm ở lần gọi đầu (~30 giây) | Render gói miễn phí ngủ sau 15 phút không dùng | Bình thường. Trước buổi demo, gọi thử API một lần để "đánh thức" |
+| `JWT malformed` | Thiếu biến `JWT_SECRET` trên Render | Thêm biến, deploy lại |
+| Cron chạy hai lần | Bật `ENABLE_CRON=true` trên nhiều instance | Chỉ bật trên một instance duy nhất |
 
 ### 4.3. Cột mốc nghiệm thu Sprint 1
 
@@ -363,16 +519,16 @@ DATABASE_URL="<chuoi-neon>" npx prisma db seed
 | 5 | T4 | API sơ đồ tòa + tra cứu giường trống | Màn hình chi tiết phòng & quản lý giường |
 | 5 | T5–T6 | **`ContractService` — `createApplication()` + `approve()`** (đọc `14` mục 4.6 trước) | Màn hình sơ đồ tòa nhà |
 | 6 | T2–T3 | API hợp đồng: tạo, từ chối, chấm dứt | Màn hình danh sách + chi tiết hợp đồng |
-| 6 | T4 | API chuyển phòng, hợp đồng sắp hết hạn | Màn hình đơn chờ duyệt (luồng duyệt) |
+| 6 | T4 | API kích hoạt hợp đồng, danh sách sắp hết hạn | Màn hình đăng ký lưu trú (Staff xếp giường) |
 | 6 | T5 | API yêu cầu gia hạn/trả phòng + duyệt | Màn hình tạo hợp đồng + `BedPicker` |
 | 6 | T6 | Cron jobs JOB-01 → JOB-05 | Màn hình danh sách & xử lý yêu cầu |
 | 6 | T7 | **Kiểm thử chéo + sửa lỗi** | **Kiểm thử chéo + sửa lỗi** |
 
 **⚠️ Cảnh báo cho tuần 5, T5–T6:** đây là phần nghiệp vụ quan trọng nhất hệ thống. Đọc **`14` mục 4.6** (có mã nguồn mẫu đầy đủ) trước khi code, rồi đối chiếu `03` mục 4.1. Bắt buộc:
-- Bọc `prisma.$transaction()`
-- Giữ chỗ giường bằng `tx.bed.updateMany({ where: { id, status: 'AVAILABLE' }, ... })` rồi **kiểm tra `updated.count === 0`**
+- Bọc `phiên ghi nhiều bước()`
+- Chiếm giường bằng `Bed.findOneAndUpdate({ _id: bedId, status: 'available' }, { status: 'occupied' }, { new: true })` rồi **kiểm tra kết quả có `null` không**
 - Kiểm tra đủ BR-20, BR-21, BR-06 (giới tính so với `room.gender`)
-- Sinh **2 hóa đơn** kỳ đầu (`DEPOSIT` + `MONTHLY`) **trong cùng** transaction — BR-25
+- Sinh **2 hóa đơn** kỳ đầu (`deposit` + `monthly`) **trong cùng** transaction — BR-25
 - Test ngay TC-72 bằng 2 trình duyệt
 
 **Cột mốc nghiệm thu Sprint 2:**
@@ -446,7 +602,7 @@ export const verifySignature = (query) => {
   const signData = new URLSearchParams(sortObject(params)).toString();
   const expected = crypto.createHmac('sha512', env.VNP_HASH_SECRET)
     .update(Buffer.from(signData, 'utf-8')).digest('hex');
-  return received === expected;   // BR-57
+  return received === expected;   // BR-61
 };
 ```
 
@@ -471,7 +627,7 @@ VNP_RETURN_URL=http://localhost:5173/portal/payment-result
 
 Ba test bảo mật quan trọng nhất kiểm tra bằng **Postman**, không cần thanh toán thật:
 ```
-POST http://localhost:5000/api/v1/payments/vnpay/verify
+POST http://localhost:5000/api/payments/vnpay/verify
 Body: { "vnp_TxnRef": "PAY...", "vnp_Amount": "24600000",
         "vnp_ResponseCode": "00", "vnp_SecureHash": "chuoi_bia_dat" }
 → phải trả 400 INVALID_SIGNATURE   (TC-103)
@@ -504,9 +660,9 @@ Body: { "vnp_TxnRef": "PAY...", "vnp_Amount": "24600000",
 | Tuần | Ngày | Backend | Frontend |
 |------|------|---------|----------|
 | 9 | T2 | API `/portal/*`: hồ sơ, cư trú, bạn cùng phòng | PortalLayout + trang chủ sinh viên |
-| 9 | T3 | API nộp đơn + hủy đơn | Màn hình chỗ ở của tôi + hợp đồng |
+| 9 | T3 | API cổng SV (chỉ đọc, lọc theo JWT) | Màn hình chỗ ở của tôi + hợp đồng |
 | 9 | T4 | API hóa đơn + thanh toán cho SV (có ownership check) | Màn hình tra cứu giường trống |
-| 9 | T5–T6 | API yêu cầu gia hạn/trả phòng cho SV | Màn hình nộp đơn 3 bước |
+| 9 | T5–T6 | API gửi yêu cầu gia hạn/trả phòng cho SV | Màn hình gửi yêu cầu |
 | 10 | T2 | API dashboard tổng hợp (tối ưu truy vấn) | Màn hình hóa đơn + thanh toán |
 | 10 | T3 | API báo cáo + xuất Excel | Màn hình kết quả thanh toán (có polling) |
 | 10 | T4–T5 | Tối ưu hiệu năng, thêm index | Dashboard + biểu đồ |
@@ -524,7 +680,7 @@ Test thủ công TC-121 → TC-124: đăng nhập SV C, thử truy cập dữ li
 
 | # | Tiêu chí | ☐ |
 |---|----------|---|
-| 1 | Sinh viên tự đăng ký tài khoản → nộp đơn → thanh toán → trả phòng trọn vẹn | ☐ |
+| 1 | Staff xếp giường → SV đăng nhập xem chỗ ở → thanh toán online → gửi yêu cầu trả phòng → Staff duyệt + quyết toán cọc | ☐ |
 | 2 | **TC-121 → TC-124 (IDOR) đều trả 403** | ☐ |
 | 3 | Cổng sinh viên chạy tốt trên màn hình 375px | ☐ |
 | 4 | Dashboard hiển thị đúng số liệu, phản hồi < 2 giây | ☐ |
@@ -567,25 +723,28 @@ Test thủ công TC-121 → TC-124: đăng nhập SV C, thử truy cập dữ li
 
 **Quy trình deploy:**
 ```bash
-# 1. Merge và tag
-git checkout main && git merge develop && git push
+# 1. Gộp và gắn nhãn phiên bản
+git checkout main && git pull
 git tag -a v1.0.0 -m "Phien ban bao ve do an" && git push --tags
 
-# 2. Backend: Render tự deploy khi push main. Theo dõi log build.
-# 3. Chạy migration trên production (Render Shell hoặc từ local)
-DATABASE_URL="<chuoi-production>" npx prisma migrate deploy
+# 2. Render và Vercel TỰ deploy khi có commit mới trên main — chỉ cần theo dõi log
 
-# 4. Nạp dữ liệu demo
-DATABASE_URL="<chuoi-production>" npx prisma db seed
+# 3. Nạp dữ liệu demo lên CSDL production
+cd BE_QuanLyKTX
+MONGODB_URI="<chuoi-atlas-production>" npm run seed
 
-# 5. Frontend: Vercel tự deploy khi push main.
+# 4. Sao lưu ngay sau khi nạp xong, phòng khi demo làm hỏng dữ liệu
+mongodump --uri="<chuoi-atlas-production>" --out=backup_truoc_bao_ve
 ```
+
+> 💡 **Mẹo trước buổi bảo vệ:** sao lưu một bản dữ liệu "đẹp" như trên. Nếu lúc diễn tập làm rối dữ liệu, khôi phục trong 30 giây bằng
+> `mongorestore --uri="..." --drop backup_truoc_bao_ve/dms_ktx`.
 
 **Smoke test sau deploy (15 phút):**
 
 | # | Kiểm tra | ☐ |
 |---|----------|---|
-| 1 | `GET /api/v1/health` trả 200 | ☐ |
+| 1 | `GET /api/health` trả 200 | ☐ |
 | 2 | Đăng nhập được cả 4 vai trò | ☐ |
 | 3 | Dashboard hiển thị số liệu | ☐ |
 | 4 | Danh sách sinh viên tải được | ☐ |
@@ -652,20 +811,21 @@ Thực hiện 3 kịch bản UAT-01, UAT-02, UAT-03 ở `11` mục 5. Lập biê
 ### 7.1. Khởi động môi trường local (mỗi ngày)
 
 ```bash
-# Terminal 1 – Backend
-cd dms-ktx-backend
-git pull origin develop
-npm install            # chỉ khi package.json đổi
-npx prisma generate    # chỉ khi schema đổi
-npx prisma migrate dev # chỉ khi có migration mới
-npm run dev            # chạy tại http://localhost:5000
+# Terminal 1 – Backend (trong repo BE_QuanLyKTX)
+cd BE_QuanLyKTX
+git pull origin main
+npm install          # chỉ khi package.json đổi
+npm run dev          # http://localhost:5000  — log phải có "MongoDB connected"
 
-# Terminal 2 – Frontend
+# Terminal 2 – Frontend (trong repo FE_QuanLyKTX)
 cd FE_QuanLyKTX
-git pull origin develop
+git pull origin main
 npm install
-npm run dev            # chạy tại http://localhost:5173
+npm run dev          # http://localhost:5173
 ```
+
+> Dùng MongoDB Atlas thì **không phải khởi động gì thêm** — cụm luôn chạy sẵn.
+> Dùng MongoDB cài trên máy thì bật service trước (`net start MongoDB` trên Windows, hoặc `docker start dms-mongo`).
 
 ### 7.2. Bắt đầu một task mới
 
@@ -675,50 +835,81 @@ git pull origin develop
 git checkout -b feature/contract-approval
 # ... code ...
 git add .
-git commit -m "feat(contract): add approval endpoint for applications"
+git commit -m "feat(contract): add activation endpoint for contracts"
 git push -u origin feature/contract-approval
 # Mở PR trên GitHub, gán reviewer
 ```
 
-### 7.3. Các lệnh Prisma hay dùng
+### 7.3. Các lệnh hay dùng với MongoDB / Mongoose
+
+**Không có lệnh migration.** Mongoose tự tạo collection và index từ file `*.model.js` ngay lần chạy đầu tiên — đây là điểm dễ hơn hẳn so với SQL.
 
 ```bash
-npx prisma migrate dev --name <ten_migration>  # Tạo migration mới
-npx prisma migrate deploy                       # Áp dụng migration lên production
-npx prisma generate                             # Sinh lại client sau khi đổi schema
-npx prisma studio                               # Mở giao diện xem dữ liệu
-npx prisma migrate reset                        # ⚠️ XÓA SẠCH dữ liệu và chạy lại từ đầu
-npx prisma db seed                              # Nạp dữ liệu mẫu
+npm run dev            # chạy backend, tự kết nối MongoDB theo MONGODB_URI
+npm run seed           # nạp dữ liệu mẫu
+npm run job            # chạy tay cron job để test, không phải chờ nửa đêm
+```
+
+**Xem dữ liệu:** mở **MongoDB Compass**, dán chuỗi `MONGODB_URI` → duyệt collection bằng giao diện. Đây là cách dễ nhất.
+
+**Nếu thích dùng dòng lệnh (`mongosh`):**
+```bash
+mongosh "<MONGODB_URI>"
+
+show collections                              # liệt kê collection
+db.students.countDocuments()                  # đếm bản ghi
+db.students.findOne()                         # xem 1 document mẫu
+db.beds.find({ status: 'available' }).count() # đếm giường trống
+db.getCollectionNames().forEach(c => print(c, db[c].countDocuments()))   # thống kê nhanh
+
+db.residencies.getIndexes()                   # kiểm tra index đã tạo đúng chưa
+db.dropDatabase()                             // ⚠️ XÓA SẠCH, chỉ dùng trên CSDL dev
+```
+
+**Kiểm tra partial unique index đã có hiệu lực** (rất nên làm sau khi viết model):
+```js
+db.residencies.getIndexes()
+// Phải thấy: { bedId: 1 }, unique: true,
+//            partialFilterExpression: { status: 'active' }
 ```
 
 ### 7.4. Sao lưu và khôi phục CSDL
 
+Cài **MongoDB Database Tools** (mongodb.com/try/download/database-tools) để có `mongodump` / `mongorestore`.
+
 ```bash
-# Sao lưu
-pg_dump -U postgres -d dms_ktx -F c -f backup_20261201.dump
+# Sao lưu toàn bộ database (cả local lẫn Atlas đều dùng chung cú pháp)
+mongodump --uri="<MONGODB_URI>" --out=backup_20261201
 
 # Khôi phục
-pg_restore -U postgres -d dms_ktx -c backup_20261201.dump
+mongorestore --uri="<MONGODB_URI>" --drop backup_20261201/dms_ktx
 
-# Sao lưu từ Neon (production)
-pg_dump "<chuoi-ket-noi-neon>" -F c -f backup_prod.dump
+# Sao lưu một collection
+mongodump --uri="<MONGODB_URI>" --collection=students --out=backup_students
+
+# Xuất JSON để đọc bằng mắt hoặc đưa vào phụ lục báo cáo
+mongoexport --uri="<MONGODB_URI>" --collection=students --out=students.json --jsonArray
 ```
 
-> **Quy tắc:** sao lưu CSDL production trước mỗi lần chạy migration.
+> **Quy tắc:** sao lưu CSDL production **trước mỗi lần** đổi cấu trúc dữ liệu lớn hoặc chạy script sửa dữ liệu hàng loạt.
+>
+> Atlas gói M0 miễn phí **không có snapshot tự động** — phải tự chạy `mongodump`. Đặt lịch nhắc mỗi tuần một lần, và bắt buộc chạy trước ngày bảo vệ.
 
 ### 7.5. Xử lý sự cố thường gặp
 
-| Triệu chứng | Cách xử lý |
-|-------------|-----------|
-| `EADDRINUSE: port 5000 already in use` | Windows: `netstat -ano \| findstr :5000` rồi `taskkill /PID <pid> /F` |
-| Prisma báo schema lệch với CSDL | `npx prisma migrate dev` — nếu vẫn lỗi thì `npx prisma migrate reset` (⚠️ mất dữ liệu local) |
-| FE gọi API bị CORS | Kiểm tra `CORS_ORIGIN` ở backend có đúng URL frontend không (không có dấu `/` cuối) |
-| Đăng nhập được nhưng mọi API trả 401 | Kiểm tra interceptor đã gắn header `Authorization` chưa; kiểm tra token trong DevTools |
-| Xung đột file migration khi merge | **Không** sửa migration cũ. Xóa migration của mình, pull về, tạo lại migration mới |
-| Node báo lỗi module không tìm thấy sau khi pull | `rm -rf node_modules package-lock.json && npm install` |
-| Deploy Render thất bại | Đọc log build; thường do thiếu biến môi trường hoặc thiếu `prisma generate` trong Build Command |
-
----
+| Triệu chứng | Nguyên nhân | Cách xử lý |
+|---|---|---|
+| `EADDRINUSE: port 5000 already in use` | Tiến trình cũ chưa tắt | Windows: `netstat -ano \| findstr :5000` rồi `taskkill /PID <pid> /F` |
+| `MongooseServerSelectionError` | Atlas chưa mở Network Access, hoặc `mongod` local chưa chạy | Atlas → Network Access → `0.0.0.0/0`. Local → khởi động service MongoDB |
+| `Authentication failed` | Sai user/password trong `MONGODB_URI` | Kiểm tra Database Access trên Atlas; đổi mật khẩu chỉ gồm chữ và số |
+| `MongoParseError` | Mật khẩu có ký tự đặc biệt chưa mã hóa | Dùng `encodeURIComponent(matKhau)` |
+| **Kết nối được nhưng Compass không thấy dữ liệu** | Chuỗi kết nối thiếu tên database → đang ghi vào `test` | Thêm `/dms_ktx` trước dấu `?` trong `MONGODB_URI` |
+| `E11000 duplicate key error` | Vi phạm unique index (VD: trùng `studentCode`, hoặc 2 Residency `active` trên 1 giường) | **Đây là index đang làm đúng việc.** Bắt lỗi ở service và trả mã lỗi nghiệp vụ thân thiện |
+| Index không được tạo | Mongoose tạo index bất đồng bộ, hoặc collection đã tồn tại từ trước | Kiểm tra bằng `db.<collection>.getIndexes()`. Nếu thiếu, xóa collection trên CSDL dev rồi chạy lại |
+| `Transaction numbers are only allowed on a replica set` | Gọi `session.startTransaction()` trên `mongod` standalone | v1 **không dùng** transaction (`ARCHITECTURE.md` §3.5). Nếu buộc phải dùng, chuyển sang Atlas hoặc bật replica set |
+| FE gọi API bị CORS | `CORS_ORIGIN` sai hoặc thừa dấu `/` cuối | Kiểm tra lại trên Render |
+| Đăng nhập được nhưng mọi API trả 401 | Interceptor chưa gắn header `Authorization` | Mở DevTools → Network → xem request header |
+| Lỗi module không tìm thấy sau khi pull | `node_modules` lệch | `rm -rf node_modules package-lock.json && npm install` |
 
 ## 8. Bảng theo dõi tiến độ tổng thể
 
@@ -747,10 +938,10 @@ Nếu đến cuối tuần 8 mà chưa đạt cột mốc Sprint 3, kích hoạt
 
 | Mức | Cắt gì | Tiết kiệm | Ảnh hưởng |
 |-----|--------|-----------|-----------|
-| 1 | Toàn bộ chức năng ưu tiên `C`: import Excel, xuất PDF | ~1 tuần | Không ảnh hưởng chức năng cốt lõi |
+| 1 | Sơ đồ tòa nhà trực quan (FR-26) → dùng bảng phòng thường | 2 ngày | Nhẹ, chỉ kém đẹp |
 | 2 | ZaloPay (chỉ giữ VNPay) | 2 ngày | Vẫn chứng minh được năng lực tích hợp thanh toán |
 | 3 | Sơ đồ tòa nhà trực quan (thay bằng bảng thường) | 2 ngày | Giảm tính thẩm mỹ |
-| 4 | Chuyển phòng (FR-29) | 2 ngày | Nêu rõ trong phần hạn chế của báo cáo |
+| 4 | Xuất CSV các báo cáo (FR-17) | 1 ngày | Nêu rõ trong phần hạn chế của báo cáo |
 | 5 | Biểu đồ dashboard (giữ lại thẻ chỉ số) | 2 ngày | Dashboard đơn giản hơn |
 | 6 | Các báo cáo ưu tiên `S` (công nợ, doanh thu) | 2 ngày | Chỉ còn báo cáo giường trống |
 
@@ -773,24 +964,24 @@ Nếu đến cuối tuần 8 mà chưa đạt cột mốc Sprint 3, kích hoạt
 |---|---------|-----------------|-----------|
 | 1 | Kiểm tra giường trống **rồi mới** ghi bằng hai câu lệnh riêng | Hai sinh viên cùng vào một giường khi thao tác đồng thời | Đưa điều kiện vào `where` của `updateMany` rồi kiểm tra `count === 0` (`14` mục 4.6). Test bằng TC-72 |
 | 2 | Bỏ qua giá trị trả về của `updateMany` | Race condition lọt lưới, hai hợp đồng trên một giường | **Luôn** kiểm tra `updated.count` và ném `409 BED_NOT_AVAILABLE` khi bằng 0 |
-| 3 | **Kiểm tra giới tính ở mức tòa nhà** | Tòa `MIXED` cho nam nữ ở chung phòng | Kiểm tra `room.gender`, không phải `building.gender_policy` (BR-06, BR-17). Test TC-63b |
-| 4 | Quên trạng thái `RESERVED` khi đếm giường | Dashboard cộng không khớp; giường đang giữ chỗ vẫn hiện "còn trống" | `totalBeds = occupied + reserved + available + maintenance`. Lọc `status = 'AVAILABLE'` khi tra cứu, không phải `status != 'OCCUPIED'` |
+| 3 | **Kiểm tra giới tính ở mức tòa nhà** | Tòa `mixed` cho nam nữ ở chung phòng | Kiểm tra `room.gender`, không phải `building.gender_policy` (BR-06, BR-06). Test TC-63b |
+| 4 | Đếm giường sót trạng thái `maintenance` | Dashboard cộng không khớp; giường bảo trì bị tính là còn trống | `total = occupied + available + maintenance`. Lọc `status: 'available'` khi tra cứu, **không** dùng `status != 'occupied'` |
 | 5 | Đổi trạng thái giường rải rác nhiều nơi | Trạng thái giường lệch với hợp đồng thực tế | Chỉ đổi qua `BedService.changeStatus()`; JOB-05 đối soát hằng ngày |
-| 6 | Lưu `monthly_price` bằng cách tham chiếu `room.price_per_month` lúc đọc | Tăng giá phòng làm thay đổi hóa đơn cũ của sinh viên | Chốt giá vào `contract.monthly_price` lúc ký; chuyển phòng mới cập nhật (BR-33) |
+| 6 | Lấy giá bằng cách đọc `Room.pricePerBed` tại thời điểm lập hóa đơn | Tăng giá phòng làm thay đổi cả hóa đơn cũ của sinh viên | Chốt giá vào `Contract.monthlyPrice` ngay lúc ký (BR-27) |
 
 ### 10.2. Nhóm hóa đơn & thanh toán
 
 | # | Cạm bẫy | Hậu quả nếu mắc | Cách phòng |
 |---|---------|-----------------|-----------|
-| 7 | **Gộp tiền cọc và tiền phòng tháng đầu vào một hóa đơn** | Hóa đơn đó chiếm khóa `(student, MONTHLY, kỳ)`; đợt lập hóa đơn cuối kỳ bỏ qua sinh viên ⇒ **thất thu toàn bộ tiền điện nước kỳ đầu** | Tách 2 hóa đơn: `DEPOSIT` (`period = null`) và `MONTHLY` (BR-25). Test TC-69, TC-69b |
+| 7 | **Gộp tiền cọc và tiền phòng tháng đầu vào một hóa đơn** | Hóa đơn đó chiếm khóa `(student, MONTHLY, kỳ)`; đợt lập hóa đơn cuối kỳ bỏ qua sinh viên ⇒ **thất thu toàn bộ tiền điện nước kỳ đầu** | Tách 2 hóa đơn: `deposit` (`period = null`) và `monthly` (BR-25). Test TC-69, TC-69b |
 | 8 | Lập hóa đơn hàng loạt theo logic "đã có thì bỏ qua" | Sinh viên vào ở giữa kỳ không bao giờ bị thu điện nước | Logic đúng là "bổ sung dòng phí còn thiếu" (BR-48, FR-59) |
-| 9 | Cộng dồn `paid_amount += amount` mỗi lần thanh toán | Sai số tích lũy; IPN trùng làm cộng đôi | Luôn tính lại `SUM(payment WHERE status='SUCCESS')` (BR-43) |
+| 9 | Cộng dồn `paid_amount += amount` mỗi lần thanh toán | Sai số tích lũy; IPN trùng làm cộng đôi | Luôn tính lại `SUM(payment WHERE status='success')` (BR-43) |
 | 10 | Dùng `Math.round()` khi chia đều điện nước | Tổng các phần **lớn hơn** tiền thực tế của phòng | Dùng `Math.floor()` + dồn dư cho MSSV nhỏ nhất (BR-51). Test TC-87 |
 | 11 | Dùng kiểu `float`/`double` cho tiền | Sai số dấu phẩy động, lệch vài đồng khi đối soát | `DECIMAL(12,2)` ở CSDL; tính bằng số nguyên đồng ở JS |
 | 12 | Ghi nhận thanh toán từ Return URL mà **không xác thực chữ ký** | Người dùng sửa URL là tự "thanh toán" được | Xác thực HMAC trước mọi thứ — đây là điều kiện bắt buộc để phương án Return URL an toàn (`14` mục 4.10) |
-| 13 | Không kiểm tra chữ ký trước khi xử lý | Bất kỳ ai cũng gọi được `verify` với dữ liệu giả để xóa nợ | Verify HMAC trước mọi thứ (BR-57). Test TC-103 bằng Postman |
-| 14 | Xử lý kết quả không idempotent | Người dùng tải lại trang kết quả ⇒ ghi nhận tiền 2 lần | Kiểm tra `payment.status === 'SUCCESS'` trong transaction rồi thoát sớm (BR-56). Test TC-104 |
-| 15 | Tính ra số tiền hoàn cọc nhưng không ghi nhận việc chi trả | Không đối soát được ai đã nhận lại cọc | Ghi bản ghi `payment` trạng thái `REFUNDED` gắn hóa đơn `SETTLEMENT` (BR-54a, BR-54b) |
+| 13 | Không kiểm tra chữ ký trước khi xử lý | Bất kỳ ai cũng gọi được `verify` với dữ liệu giả để xóa nợ | Verify HMAC trước mọi thứ (BR-61). Test TC-103 bằng Postman |
+| 14 | Xử lý kết quả không idempotent | Người dùng tải lại trang kết quả ⇒ ghi nhận tiền 2 lần | Kiểm tra `payment.status === 'success'` trong transaction rồi thoát sớm (BR-56). Test TC-104 |
+| 15 | Tính ra số tiền hoàn cọc nhưng không ghi nhận việc chi trả | Không đối soát được ai đã nhận lại cọc | Ghi bản ghi `payment` trạng thái `REFUNDED` gắn hóa đơn `settlement` (BR-77, BR-76) |
 | 16 | Để frontend tính tiền rồi gửi số tiền lên | Người dùng sửa request để trả ít hơn | Mọi phép tính tiền do backend làm; FE chỉ hiển thị |
 
 ### 10.3. Nhóm bảo mật & phân quyền
@@ -807,10 +998,10 @@ Nếu đến cuối tuần 8 mà chưa đạt cột mốc Sprint 3, kích hoạt
 
 | # | Cạm bẫy | Hậu quả nếu mắc | Cách phòng |
 |---|---------|-----------------|-----------|
-| 22 | FE và BE hiểu khác nhau về `price_per_month` | Hóa đơn lệch 8 lần | Đã chốt: **giá mỗi giường/tháng** (`03` mục 5.1). Ai đổi phải sửa tài liệu trước |
+| 22 | FE và BE hiểu khác nhau về `pricePerBed` | Hóa đơn lệch 8 lần | Đã chốt: **giá mỗi giường/tháng** (`03` mục 5.1). Ai đổi phải sửa tài liệu trước |
 | 23 | Vẽ giao diện cho chức năng không có trong `02` | Làm thừa, hoặc demo bị hỏi "cái này bấm vào không chạy?" | Mọi thành phần giao diện phải truy vết về một `FR-xx` |
 | 24 | Sửa migration đã merge | Schema lệch giữa các máy, mất dữ liệu | Luôn tạo migration mới |
-| 25 | Đổi API mà không báo phía còn lại | Nửa ngày công đổ sông | Cập nhật `06` trước, báo nhóm chat, rồi mới code |
+| 25 | Đổi API mà không báo phía còn lại | Nửa ngày công đổ sông | Cập nhật `API.md` trước, báo nhóm chat, rồi mới code |
 | 26 | Để dồn deploy đến tuần cuối | Sự cố hạ tầng sát ngày bảo vệ | Deploy thử từ tuần 4 (mục 4.2) |
 
 ---
@@ -821,4 +1012,5 @@ Nếu đến cuối tuần 8 mà chưa đạt cột mốc Sprint 3, kích hoạt
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | PM | Khởi tạo lộ trình 12 tuần, runbook triển khai, kế hoạch dự phòng |
 | v1.1 | 12/09/2026 | PM | Bổ sung mục 10 — 26 cạm bẫy khi cài đặt, rút ra từ đợt rà soát chéo tài liệu |
+| **v2.0** | **12/09/2026** | PM | **Rà soát theo bộ tài liệu v2.0:** cài MongoDB thay PostgreSQL; bỏ bước migration (Mongoose tự tạo index); bỏ task chuyển phòng; cột mốc nghiệm thu đổi theo luồng "Staff xếp giường" |
 | v1.2 | 12/09/2026 | PM | **Áp dụng v1-lite:** cập nhật lệnh cài đặt, bỏ bước tạo index thủ công, **bỏ ngrok** (test VNPay ngay trên localhost), gộp cron job, khối lượng 206 → 155 ngày công. Xem `14` |

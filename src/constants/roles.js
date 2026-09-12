@@ -1,15 +1,15 @@
 export const ROLES = {
-  ADMIN: 'ADMIN',
-  STAFF: 'STAFF',
-  VIEWER: 'VIEWER',
-  STUDENT: 'STUDENT',
+  ADMIN: 'admin',
+  STAFF: 'staff',
+  VIEWER: 'viewer',
+  STUDENT: 'student',
 };
 
 export const ROLE_LABEL = {
-  ADMIN: 'Quản trị viên',
-  STAFF: 'Nhân viên',
-  VIEWER: 'Người xem',
-  STUDENT: 'Sinh viên',
+  admin: 'Quản trị viên',
+  staff: 'Nhân viên',
+  viewer: 'Người xem',
+  student: 'Sinh viên',
 };
 
 /** Các vai trò làm việc trong khu quản trị */

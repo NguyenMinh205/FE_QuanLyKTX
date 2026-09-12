@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getErrorMessage } from '../api/axiosClient';
+import { getErrorMessage } from '../lib/axiosClient';
 
 /**
  * Gọi API và quản lý 3 trạng thái: đang tải / có dữ liệu / lỗi.
- * Thay cho TanStack Query (docs/14 mục 4.1).
  *
- * @param {Function} apiFunc  hàm gọi API, ví dụ: () => studentApi.getList(filters)
+ * Envelope của backend là { code, message, data } (API.md mục 1.1).
+ * Với endpoint danh sách, data có dạng { items, total, page, limit }
+ * nên hook tách sẵn thành `data` (mảng items) và `meta` (phân trang).
+ *
+ * @param {Function} apiFunc  hàm gọi API, VD: () => studentApi.getList(filters)
  * @param {Array}    deps     mảng phụ thuộc; đổi giá trị thì tự gọi lại API
  *
  * @example
@@ -15,20 +18,15 @@ import { getErrorMessage } from '../api/axiosClient';
  * );
  */
 export function useApi(apiFunc, deps = []) {
-  // Đếm số lần bấm refetch — tăng lên là kích hoạt gọi lại API
   const [reloadCount, setReloadCount] = useState(0);
 
-  // So sánh mảng phụ thuộc bằng NỘI DUNG thay vì bằng tham chiếu, nhờ vậy nơi gọi
+  // So sánh mảng phụ thuộc bằng NỘI DUNG thay vì tham chiếu, nhờ vậy nơi gọi
   // truyền thẳng object filters mà không bị gọi lại vô hạn
   const depsKey = JSON.stringify(deps);
-
-  // "Mã của lần gọi hiện tại" — đổi khi filters đổi hoặc khi refetch
   const requestKey = `${depsKey}|${reloadCount}`;
 
-  // result.key cho biết dữ liệu đang giữ thuộc về lần gọi nào
   const [result, setResult] = useState({ key: null, data: null, meta: null, error: null });
 
-  // Luôn giữ phiên bản mới nhất của apiFunc mà không phải đưa nó vào mảng phụ thuộc
   const apiFuncRef = useRef(apiFunc);
   useEffect(() => {
     apiFuncRef.current = apiFunc;
@@ -41,39 +39,35 @@ export function useApi(apiFunc, deps = []) {
       .current()
       .then((res) => {
         if (cancelled) return;
+        const body = res.data.data;
+
+        // Endpoint danh sách trả { items, total, page, limit }; endpoint chi tiết trả object
+        const isList = body && typeof body === 'object' && Array.isArray(body.items);
+
         setResult({
           key: requestKey,
-          data: res.data.data,
-          meta: res.data.meta ?? null,
+          data: isList ? body.items : body,
+          meta: isList ? { total: body.total, page: body.page, limit: body.limit } : null,
           error: null,
         });
       })
       .catch((err) => {
         if (cancelled) return;
-        setResult({
-          key: requestKey,
-          data: null,
-          meta: null,
-          error: getErrorMessage(err),
-        });
+        setResult({ key: requestKey, data: null, meta: null, error: getErrorMessage(err) });
       });
 
-    // Huỷ cập nhật state nếu component đã bị gỡ khỏi màn hình
-    // hoặc nếu người dùng đổi bộ lọc trước khi request cũ kịp về
     return () => {
       cancelled = true;
     };
   }, [requestKey]);
 
-  // Dữ liệu đang giữ chưa thuộc về lần gọi hiện tại ⇒ đang tải.
-  // Tính ra như thế này thay vì lưu vào state để tránh render thừa.
+  // Dữ liệu đang giữ chưa thuộc về lần gọi hiện tại ⇒ đang tải
   const loading = result.key !== requestKey;
 
   /** Gọi lại API — dùng sau khi thêm / sửa / xóa thành công */
   const refetch = useCallback(() => setReloadCount((n) => n + 1), []);
 
   return {
-    // Giữ nguyên dữ liệu cũ trong lúc tải lại để bảng không bị nháy trắng
     data: result.data,
     meta: result.meta,
     loading,

@@ -107,9 +107,9 @@ Các hạng mục sau **được xác định rõ là KHÔNG làm trong v1**, nh
 - Mỗi ký túc xá chỉ thuộc một trường; hệ thống vận hành cho một cơ sở duy nhất.
 - Vì không có email/SMS tự động, **thông báo trong ứng dụng cũng nằm ngoài phạm vi v1**. Cơ chế nhắc việc duy nhất là số đếm (badge) trên sidebar. Người dùng quên mật khẩu được nhân viên đặt lại hộ (FR-09).
 - Giá phòng là **giá mỗi sinh viên (mỗi giường) một tháng**, không phải giá cả phòng.
-- Tiền phòng tháng đầu thu đủ một tháng dù vào ở giữa tháng; tiền điện nước chia đều theo đầu người, không theo số ngày ở (BR-34, BR-51).
-- Tòa nhà `MIXED` nghĩa là tòa có **cả phòng nam và phòng nữ**, không phải nam nữ ở chung phòng (BR-17).
-- Dữ liệu sinh viên (MSSV, họ tên, lớp, khoa) do Ban quản lý KTX nhập hoặc import từ file Excel — **không** tích hợp trực tiếp API hệ thống đào tạo.
+- Tiền phòng tháng đầu thu đủ một tháng dù vào ở giữa tháng; tiền điện nước chia đều theo đầu người, không theo số ngày ở (BR-32, BR-51).
+- Tòa nhà `mixed` nghĩa là tòa có **cả phòng nam và phòng nữ**, không phải nam nữ ở chung phòng (BR-06).
+- Dữ liệu sinh viên (MSSV, họ tên, lớp, khoa) do Ban quản lý KTX **nhập tay** trên hệ thống, hoặc nạp sẵn bằng script seed khi khởi tạo — v1 **không** có chức năng import Excel và **không** tích hợp API hệ thống đào tạo (`PRD.md` §3).
 - Mỗi sinh viên tại một thời điểm chỉ có tối đa **một** hợp đồng đang hiệu lực.
 - Giá phòng cố định theo loại phòng, không có chính sách giảm giá theo diện ưu tiên trong v1.
 - Chỉ số điện/nước được nhân viên nhập thủ công theo kỳ (không có đồng hồ thông minh).
@@ -159,7 +159,7 @@ flowchart TB
     end
 
     subgraph Data["Lưu trữ"]
-        D1[("CSDL quan hệ<br/>PostgreSQL / MySQL")]
+        D1[("MongoDB<br/>(Mongoose ODM)")]
     end
 
     subgraph Ext["Dịch vụ ngoài"]
@@ -208,7 +208,7 @@ flowchart TB
 
 | ID | Rủi ro | Khả năng | Tác động | Phương án giảm thiểu |
 |----|--------|----------|----------|----------------------|
-| R1 | Hợp đồng API giữa FE và BE thay đổi liên tục | Cao | Cao | Chốt `06-DAC-TA-API.md` ở Sprint 1; mọi thay đổi phải qua PR và thông báo; FE bọc API trong lớp `services/` để giới hạn phạm vi ảnh hưởng |
+| R1 | Hợp đồng API giữa FE và BE thay đổi liên tục | Cao | Cao | Chốt `API.md` ở Sprint 1; mọi thay đổi phải qua PR và thông báo; FE bọc API trong lớp `services/` để giới hạn phạm vi ảnh hưởng |
 | R2 | Backend chậm hơn kế hoạch, FE không có API để nối | Cao | Trung bình | FE dùng **mock server** (MSW hoặc json-server) đúng theo đặc tả API ngay từ Sprint 1, chỉ đổi base URL khi BE sẵn sàng |
 | R3 | Tích hợp cổng thanh toán khó, tài liệu phức tạp | Trung bình | Cao | Làm sớm ở Sprint 5 (không để cuối); thiết kế `PaymentGateway` dạng interface; luôn có sẵn phương thức "ghi nhận thủ công" làm phương án dự phòng |
 | R4 | Thành viên bận thi/học, tiến độ trễ | Cao | Cao | Chia task nhỏ ≤ 1 ngày công; standup 2 buổi/tuần; mỗi chức năng có 1 người backup |

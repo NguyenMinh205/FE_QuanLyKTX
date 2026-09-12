@@ -1,9 +1,9 @@
 # 14 – PHIÊN BẢN ĐƠN GIẢN HÓA (v1-lite)
 
 **Hệ thống:** DMS-KTX
-**Phiên bản:** v1.0
+**Phiên bản:** v2.0 (MongoDB + Mongoose)
 **Ngày ban hành:** 12/09/2026
-**Trạng thái:** ✅ **Đang áp dụng** — thay thế các lựa chọn kỹ thuật tương ứng trong `03`, `04`, `05`, `06`, `09`, `11`, `13`
+**Trạng thái:** ✅ **Đang áp dụng** — thay thế các lựa chọn kỹ thuật tương ứng trong `03`, `DATA-SCHEMA.md`, `ARCHITECTURE.md`, `API.md`, `09`, `11`, `13`
 
 > 🎯 **Nhóm đã chọn BẬC B (mức nhẹ nhàng, dành cho người mới bắt đầu).** Đọc **mục 2** để nắm 21 thay đổi nền, rồi đọc **mục 13** để biết 10 thay đổi hạ thêm một bậc. Nếu chỉ có thời gian đọc một phần, đọc **mục 15 — mẫu code một module hoàn chỉnh** — đó là thứ dùng được ngay.
 
@@ -37,7 +37,7 @@ Sau khi rà soát bộ tài liệu thiết kế, nhóm nhận thấy **khối l�
 | Tầng kiến trúc backend | 3 | 2 | **2** (controller gộp vào route) |
 | Số file backend / module | 3 | 3 | **2** |
 | Cron job | 6 | 1 | **1** |
-| Repository Git | 2 | 2 | **1** (2 thư mục) |
+| Repository Git | 2 | 2 | **2** (tài liệu chỉ ở repo FE) |
 | Nhánh Git chính | main + develop | main + develop | **chỉ main** |
 | Khối lượng | ~206 MD | ~155 MD | **~120 MD** |
 | Test case thủ công | 128 | 65 | **50** |
@@ -53,8 +53,8 @@ Sau khi rà soát bộ tài liệu thiết kế, nhóm nhận thấy **khối l�
 | # | Hạng mục | Phương án cũ (khó) | Phương án mới (dễ) | Tiết kiệm |
 |---|----------|--------------------|--------------------|-----------|
 | **Kiến trúc backend** |
-| 1 | Phân tầng | Controller → Service → Repository | **Controller → Service** (Service gọi Prisma trực tiếp) | 5 MD |
-| 2 | Chống xếp trùng giường | `SELECT ... FOR UPDATE` + partial unique index | **`UPDATE ... WHERE status='AVAILABLE'` rồi kiểm tra số dòng bị ảnh hưởng** | 4 MD |
+| 1 | Phân tầng | Controller → Service → Repository | **Controller → Service** (Service gọi Mongoose trực tiếp) | 5 MD |
+| 2 | Chống xếp trùng giường | `SELECT ... FOR UPDATE` + partial unique index | **`UPDATE ... WHERE status='available'` rồi kiểm tra số dòng bị ảnh hưởng** | 4 MD |
 | 3 | Kiểm tra dữ liệu đầu vào | Zod schema cho từng endpoint | **Hàm `validate()` tự viết ~25 dòng** | 2 MD |
 | 4 | Tác vụ nền | 6 cron job riêng | **1 cron job chạy 4 việc + suy diễn trạng thái khi đọc** | 2 MD |
 | 5 | Nhật ký hệ thống | Bảng `audit_log` + màn hình tra cứu | **Ghi ra file log bằng `console.log` có định dạng** | 2 MD |
@@ -73,7 +73,7 @@ Sau khi rà soát bộ tài liệu thiết kế, nhóm nhận thấy **khối l�
 | **Xuất dữ liệu** |
 | 15 | Xuất Excel | Thư viện `exceljs` | **Xuất CSV (~8 dòng code)** | 1.5 MD |
 | 16 | Xuất PDF hợp đồng/hóa đơn | `pdfmake` / `puppeteer` | **In bằng trình duyệt (`window.print()` + CSS `@media print`)** | 2 MD |
-| 17 | Nhập hàng loạt | Import Excel có báo lỗi từng dòng | **Bỏ — dữ liệu nhập tay hoặc qua script seed** | 1.5 MD |
+| 17 | Nhập hàng loạt | Import Excel có báo lỗi từng dòng | **Bỏ hẳn khỏi phạm vi v1** — dữ liệu nhập tay hoặc qua script seed (`PRD.md` §3) | 1.5 MD |
 | **Chất lượng & vận hành** |
 | 18 | Tài liệu API | Swagger/OpenAPI sinh từ code | **Postman collection chia sẻ trong nhóm** | 1.5 MD |
 | 19 | Kiểm thử tự động | Jest + Supertest, độ phủ 60% | **~10 unit test cho các hàm tính tiền** | 3 MD |
@@ -179,8 +179,8 @@ export default function StudentListPage() {
 |----------|---------|---------|
 | Runtime | **Node.js 20 LTS** | |
 | Framework | **Express 4** | |
-| ORM | **Prisma 5** | Giữ lại — viết schema dễ hơn SQL tay rất nhiều, migration tự động |
-| CSDL | **PostgreSQL** (hoặc MySQL đều được) | Sau khi bỏ partial unique index, **hai hệ đều chạy như nhau** — chọn cái nào nhóm cài dễ hơn |
+| ORM | **Mongoose 5** | Giữ lại — viết schema dễ hơn SQL tay rất nhiều, migration tự động |
+| CSDL | **MongoDB 7+** | Mongoose tự tạo collection và index từ schema — không cần viết migration. Chạy được trên `mongod` thường vì v1 không dùng transaction (mục 4.6) |
 | Xác thực | **jsonwebtoken + bcrypt** | |
 | Bảo mật | **cors, helmet, express-rate-limit** | Mỗi cái 1 dòng cấu hình |
 | Cron | **node-cron** | Chỉ 1 job |
@@ -191,8 +191,8 @@ export default function StudentListPage() {
 
 **Lệnh cài đặt backend (đầy đủ):**
 ```bash
-npm install express cors helmet dotenv bcrypt jsonwebtoken @prisma/client node-cron express-rate-limit
-npm install -D prisma nodemon
+npm install express cors helmet dotenv bcrypt jsonwebtoken @mongoose/client node-cron express-rate-limit
+npm install -D mongoose nodemon
 ```
 
 ---
@@ -291,8 +291,8 @@ export function AuthProvider({ children }) {
     try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
   });
 
-  const login = async (username, password) => {
-    const res = await authApi.login({ username, password });
+  const login = async (email, password) => {
+    const res = await authApi.login({ email, password });
     const { token, user: u } = res.data.data;
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(u));
@@ -397,7 +397,7 @@ export const studentApi = {
 };
 ```
 
-> ⚠️ **Bắt buộc:** dữ liệu giả phải có **đúng cấu trúc** `{ success, data, meta }` như `06-DAC-TA-API.md`. Nếu không, khi nối API thật sẽ phải sửa lại toàn bộ màn hình.
+> ⚠️ **Bắt buộc:** dữ liệu giả phải có **đúng cấu trúc** `{ success, data, meta }` như `API.md`. Nếu không, khi nối API thật sẽ phải sửa lại toàn bộ màn hình.
 
 ### 4.5. Thay Zod bằng hàm `validate()` tự viết
 
@@ -462,86 +462,101 @@ export const createStudent = async (body) => {
 };
 ```
 
-### 4.6. ⭐ Chống xếp trùng giường — thay khóa hàng bằng UPDATE có điều kiện
+### 4.6. ⭐ Chống xếp trùng giường — cập nhật có điều kiện nguyên tử
 
-**Đây là thay đổi quan trọng nhất.** Phương án cũ (`SELECT ... FOR UPDATE` + partial unique index) đúng nhưng khó hiểu và khó viết đúng. Phương án mới **cũng đúng** mà chỉ là một câu `UPDATE` thường.
+**Đây là thay đổi quan trọng nhất.** Phương án "đọc trạng thái → kiểm tra → ghi" **sai** vì có khe hở giữa lúc đọc và lúc ghi: hai Staff cùng đọc thấy giường trống, cả hai cùng ghi thành công.
 
-**Nguyên lý:** một câu `UPDATE` đơn lẻ trong CSDL quan hệ là **thao tác nguyên tử**. Nếu đưa điều kiện "chỉ đổi khi trạng thái đang là AVAILABLE" vào mệnh đề `WHERE`, thì khi hai người cùng chạy, **chỉ một người nhận được kết quả "đã đổi 1 dòng"**, người còn lại nhận "đã đổi 0 dòng". Chỉ cần kiểm tra con số đó.
+**Cách sai:**
+```js
+const bed = await Bed.findById(bedId);
+if (bed.status !== 'available') throw new ApiError(409, ...);  // ❌ khe hở ở đây
+bed.status = 'occupied';
+await bed.save();
+```
+
+**Cách đúng** — đưa điều kiện vào **chính câu truy vấn**. Một `findOneAndUpdate` trên một document là **nguyên tử** trong MongoDB, không cần transaction, không cần replica set:
 
 ```js
-// services/contract.service.js
-export const createApplication = async ({ studentId, bedId, startDate, endDate }) => {
-  return prisma.$transaction(async (tx) => {
-    // 1. Kiểm tra sinh viên chưa có hợp đồng đang mở (BR-21)
-    const existing = await tx.contract.findFirst({
-      where: { studentId, status: { in: ['PENDING', 'ACTIVE'] } },
-    });
-    if (existing) {
-      throw new ApiError(422, 'Sinh viên đã có hợp đồng đang hiệu lực', 'STUDENT_HAS_ACTIVE_CONTRACT');
-    }
+// modules/residencies/residency.service.js
+const Bed = require('../rooms/bed.model');
+const Residency = require('./residency.model');
+const Contract = require('../contracts/contract.model');
+const { ApiError } = require('../../core/errors/ApiError');
 
-    // 2. Kiểm tra giới tính phòng khớp sinh viên (BR-06, BR-17)
-    const bed = await tx.bed.findUnique({
-      where: { id: bedId },
-      include: { room: true },
-    });
-    if (!bed) throw new ApiError(404, 'Không tìm thấy giường', 'NOT_FOUND');
-
-    const student = await tx.student.findUnique({ where: { id: studentId } });
-    if (bed.room.gender !== student.gender) {
-      throw new ApiError(422, `Phòng này chỉ dành cho sinh viên ${bed.room.gender === 'MALE' ? 'nam' : 'nữ'}`, 'GENDER_MISMATCH');
-    }
-
-    // 3. ⭐ GIỮ CHỖ GIƯỜNG — nguyên tử, chống hai người cùng chọn (BR-20)
-    const updated = await tx.bed.updateMany({
-      where: { id: bedId, status: 'AVAILABLE' },   // ← điều kiện nằm trong WHERE
-      data:  { status: 'RESERVED' },
-    });
-
-    if (updated.count === 0) {
-      // 0 dòng bị đổi ⇒ giường đã bị người khác lấy trong tích tắc vừa rồi
-      throw new ApiError(409, 'Giường này vừa được đăng ký, vui lòng chọn giường khác', 'BED_NOT_AVAILABLE');
-    }
-
-    // 4. Tạo hợp đồng
-    return tx.contract.create({
-      data: {
-        contractCode: await generateContractCode(tx),
-        studentId, bedId, startDate, endDate,
-        monthlyPrice: bed.room.pricePerMonth,
-        depositAmount: SETTINGS.DEFAULT_DEPOSIT,
-        status: 'PENDING',
-      },
-    });
+exports.createResidency = async ({ studentId, bedId, startDate }, actorId) => {
+  // 1. Sinh viên chưa có hợp đồng đang mở (BR-21)
+  const openContract = await Contract.findOne({
+    studentId,
+    status: { $in: ['pending', 'active'] },
   });
+  if (openContract) {
+    throw new ApiError(422, 'STUDENT_HAS_ACTIVE_CONTRACT', 'Sinh viên đã có hợp đồng đang hiệu lực');
+  }
+
+  // 2. Giới tính sinh viên khớp giới tính PHÒNG (BR-06)
+  const bed = await Bed.findById(bedId).populate('roomId');
+  if (!bed) throw new ApiError(404, 'NOT_FOUND', 'Không tìm thấy giường');
+
+  const student = await Student.findById(studentId);
+  if (bed.roomId.gender !== student.gender) {
+    const label = bed.roomId.gender === 'male' ? 'nam' : 'nữ';
+    throw new ApiError(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${label}`);
+  }
+
+  // 3. ⭐ CHIẾM GIƯỜNG — nguyên tử, chống hai người cùng chọn (BR-20)
+  const claimed = await Bed.findOneAndUpdate(
+    { _id: bedId, status: 'available' },   // điều kiện nằm TRONG query
+    { status: 'occupied' },
+    { new: true },
+  );
+  if (!claimed) {
+    // Không trả về document ⇒ giường vừa bị người khác chiếm
+    throw new ApiError(409, 'BED_NOT_AVAILABLE', 'Giường này vừa được xếp cho sinh viên khác');
+  }
+
+  // 4. Tạo Residency + Contract. Nếu lỗi, PHẢI trả giường lại.
+  try {
+    const residency = await Residency.create({
+      studentId, bedId, startDate, status: 'active', createdBy: actorId,
+    });
+    const contract = await Contract.create({
+      contractCode: await generateContractCode(),
+      residencyId: residency._id,
+      studentId, bedId, startDate,
+      monthlyPrice: bed.roomId.pricePerBed,   // chốt giá tại thời điểm ký (BR-27)
+      depositAmount: SETTINGS.DEFAULT_DEPOSIT,
+      status: 'pending',
+    });
+    return { residency, contract };
+  } catch (err) {
+    await Bed.findByIdAndUpdate(bedId, { status: 'available' });  // hoàn tác
+    throw err;
+  }
 };
 ```
 
-**Khi duyệt hợp đồng, dùng đúng kỹ thuật đó:**
+**Lớp bảo vệ thứ hai** ở tầng CSDL — partial unique index, MongoDB hỗ trợ sẵn:
+
 ```js
-const updated = await tx.bed.updateMany({
-  where: { id: contract.bedId, status: 'RESERVED' },
-  data:  { status: 'OCCUPIED' },
-});
-if (updated.count === 0) {
-  throw new ApiError(409, 'Giường không còn ở trạng thái giữ chỗ', 'BED_NOT_AVAILABLE');
-}
+// modules/residencies/residency.model.js
+residencySchema.index(
+  { bedId: 1 },
+  { unique: true, partialFilterExpression: { status: 'active' } },
+);
 ```
 
 **So sánh hai phương án:**
 
-| | `FOR UPDATE` + partial index | `updateMany` có điều kiện |
+| | Đọc-rồi-ghi | `findOneAndUpdate` có điều kiện |
 |---|---|---|
-| Số dòng code | ~15 (gồm truy vấn SQL thô) | **3** |
-| Cần viết SQL thô | Có (`$queryRaw`) | Không |
-| Cần migration thủ công | Có (partial index) | Không |
-| Chạy trên MySQL | Phải dùng cột sinh (rất rối) | **Chạy y hệt** |
-| Chống race condition | ✅ | ✅ |
+| Số dòng code | ~6 | **3** |
+| Cần transaction / replica set | Có (nếu muốn đúng) | **Không** |
+| Chống tranh chấp | ❌ Có khe hở | ✅ |
 | Dễ giải thích khi bảo vệ | Khó | **Dễ** |
 
-> 💡 **Điểm cộng khi báo cáo:** đây vẫn là một giải pháp race condition đàng hoàng, thậm chí còn dễ trình bày hơn. Viết vào mục 4.4.1 của báo cáo (`12` mục 4) theo mạch: *nêu vấn đề → vì sao kiểm tra rồi mới ghi là sai → vì sao UPDATE có điều kiện là đúng*.
+> 💡 **Điểm cộng khi báo cáo:** đây là một giải pháp race condition đàng hoàng và dễ trình bày. Viết vào mục 4.4.1 của báo cáo theo mạch: *nêu vấn đề → vì sao đọc-rồi-ghi là sai → vì sao điều kiện trong query là đúng*.
 
-**Test vẫn phải làm:** TC-72 (hai trình duyệt cùng nộp đơn vào một giường) vẫn phải đạt.
+**Test bắt buộc:** TC-42 (hai trình duyệt cùng xếp sinh viên vào một giường) phải đạt.
 
 ### 4.7. Xuất CSV thay cho Excel
 
@@ -589,48 +604,64 @@ Không cần thư viện. Tạo một trang chỉ để in, thêm CSS ẩn các 
 <div className="print-area">{/* nội dung hóa đơn */}</div>
 ```
 
-### 4.9. Gộp 6 cron job thành 1
+### 4.9. Gộp các tác vụ nền thành 1 cron job
 
 ```js
-// jobs/dailyJob.js
-import cron from 'node-cron';
+// core/jobs/daily-job.js
+const cron = require('node-cron');
+const Contract = require('../../modules/contracts/contract.model');
+const Residency = require('../../modules/residencies/residency.model');
+const Bed = require('../../modules/rooms/bed.model');
+const Invoice = require('../../modules/fees/invoice.model');
+const Payment = require('../../modules/payments/payment.model');
 
 async function runDailyTasks() {
   console.log('[CRON] Bắt đầu tác vụ hằng ngày', new Date().toISOString());
-  const today = new Date();
+  const now = new Date();
 
-  // 1. Hợp đồng hết hạn → EXPIRED, giải phóng giường (BR-28)
-  const expired = await prisma.contract.findMany({
-    where: { status: 'ACTIVE', endDate: { lt: today } },
-    select: { id: true, bedId: true },
-  });
+  // 1. Hợp đồng hết hạn → expired, đóng Residency, giải phóng giường (BR-28)
+  const expired = await Contract.find({ status: 'active', endDate: { $lt: now } });
   for (const c of expired) {
-    await prisma.$transaction([
-      prisma.contract.update({ where: { id: c.id }, data: { status: 'EXPIRED' } }),
-      prisma.bed.update({ where: { id: c.bedId }, data: { status: 'AVAILABLE' } }),
-    ]);
+    await Contract.findByIdAndUpdate(c._id, { status: 'expired' });
+    await Residency.findByIdAndUpdate(c.residencyId, { status: 'closed', endDate: now });
+    await Bed.findByIdAndUpdate(c.bedId, { status: 'available' });
   }
   console.log(`[CRON] Đã cho hết hạn ${expired.length} hợp đồng`);
 
-  // 2. Đơn chờ duyệt quá 7 ngày → CANCELLED (BR-27)
-  // 3. Hóa đơn quá hạn → OVERDUE (BR-60)
-  // 4. Giao dịch treo quá 15 phút → EXPIRED (BR-59)
-  // ... viết tương tự, mỗi việc ~10 dòng
+  // 2. Hóa đơn quá hạn → overdue (BR-56)
+  const r2 = await Invoice.updateMany(
+    { status: { $in: ['unpaid', 'partial'] }, dueDate: { $lt: now } },
+    { status: 'overdue' },
+  );
+  console.log(`[CRON] Đã đánh dấu quá hạn ${r2.modifiedCount} hóa đơn`);
+
+  // 3. Giao dịch treo quá 15 phút → expired (BR-64)
+  const limit = new Date(now - 15 * 60 * 1000);
+  const r3 = await Payment.updateMany(
+    { status: 'pending', createdAt: { $lt: limit } },
+    { status: 'expired' },
+  );
+  console.log(`[CRON] Đã cho hết hạn ${r3.modifiedCount} giao dịch treo`);
+
+  // 4. Đối soát trạng thái giường với Residency thực tế
+  // ... so sánh Bed.status với Residency active, ghi log nếu lệch và tự sửa
 
   console.log('[CRON] Hoàn tất');
 }
 
-// Chạy 00:05 mỗi ngày
-export function startJobs() {
+// Chạy 00:05 mỗi ngày, chỉ trên một instance
+function startJobs() {
   if (process.env.ENABLE_CRON !== 'true') return;
   cron.schedule('5 0 * * *', runDailyTasks, { timezone: 'Asia/Ho_Chi_Minh' });
 }
 
 // Cho phép chạy tay để test: npm run job
 if (process.argv[2] === 'run-now') runDailyTasks().then(() => process.exit(0));
+
+module.exports = { startJobs, runDailyTasks };
 ```
 
-> 💡 Thêm `"job": "node src/jobs/dailyJob.js run-now"` vào `package.json` để test job mà không phải chờ đến nửa đêm.
+> 💡 Thêm `"job": "node src/core/jobs/daily-job.js run-now"` vào `package.json` để test mà không phải chờ đến nửa đêm.
 
 ### 4.10. ⭐ Thanh toán VNPay — bỏ IPN, xác thực tại Return URL
 
@@ -653,7 +684,7 @@ sequenceDiagram
     SV->>VNP: Nhập thẻ test, xác nhận
     VNP->>FE: Chuyển hướng về /portal/payment-result?vnp_...&vnp_SecureHash=...
     FE->>API: POST /payments/vnpay/verify (gửi nguyên query params)
-    API->>API: Xác thực chữ ký HMAC (BR-57)
+    API->>API: Xác thực chữ ký HMAC (BR-61)
     API->>API: Nếu payment đã SUCCESS → bỏ qua (BR-56)
     API->>API: Ghi nhận thanh toán, cập nhật hóa đơn
     API-->>FE: Trạng thái cuối cùng
@@ -668,7 +699,7 @@ export const verifyVnpayReturn = asyncHandler(async (req, res) => {
   delete params.vnp_SecureHash;
   delete params.vnp_SecureHashType;
 
-  // 1. Xác thực chữ ký — không có secret thì không giả mạo được (BR-57)
+  // 1. Xác thực chữ ký — không có secret thì không giả mạo được (BR-61)
   const signData = new URLSearchParams(sortObject(params)).toString();
   const expectedHash = crypto
     .createHmac('sha512', process.env.VNP_HASH_SECRET)
@@ -693,41 +724,55 @@ export const verifyVnpayReturn = asyncHandler(async (req, res) => {
 ```
 
 ```js
-// services/payment.service.js — phần quan trọng: idempotent (BR-56)
-export const confirmPayment = async ({ transactionRef, amount, success, gatewayTxnId, raw }) => {
-  return prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.findUnique({ where: { transactionRef } });
-    if (!payment) throw new ApiError(404, 'Không tìm thấy giao dịch', 'NOT_FOUND');
+// modules/payments/payment.service.js — phần quan trọng: idempotent (BR-62)
+exports.confirmPayment = async ({ transactionRef, amount, success, gatewayTxnId, raw }) => {
+  const payment = await Payment.findOne({ transactionRef });
+  if (!payment) throw new ApiError(404, 'NOT_FOUND', 'Không tìm thấy giao dịch');
 
-    // Đã xử lý rồi thì trả về luôn, KHÔNG ghi nhận lần hai (BR-56)
-    if (payment.status === 'SUCCESS') {
-      return { alreadyConfirmed: true, payment };
-    }
-    // Số tiền không khớp → cần đối soát tay, không tự cập nhật (BR-58)
-    if (Number(payment.amount) !== amount) {
-      await tx.payment.update({
-        where: { id: payment.id },
-        data: { status: 'NEEDS_RECONCILIATION', gatewayResponse: raw },
-      });
-      throw new ApiError(422, 'Số tiền giao dịch không khớp, cần đối soát', 'AMOUNT_MISMATCH');
-    }
+  // Đã xử lý rồi thì trả về luôn, KHÔNG ghi nhận lần hai (BR-62)
+  if (payment.status === 'success') {
+    return { alreadyConfirmed: true, payment };
+  }
 
-    if (!success) {
-      await tx.payment.update({ where: { id: payment.id }, data: { status: 'FAILED', gatewayResponse: raw } });
-      return { payment, invoice: null };
-    }
+  // Số tiền không khớp → cần đối soát tay, không tự cập nhật (BR-63)
+  if (payment.amount !== amount) {
+    payment.gatewayRawResponse = raw;
+    await payment.save();
+    throw new ApiError(422, 'AMOUNT_MISMATCH', 'Số tiền giao dịch không khớp, cần đối soát');
+  }
 
-    await tx.payment.update({
-      where: { id: payment.id },
-      data: { status: 'SUCCESS', paidAt: new Date(), gatewayTxnId, gatewayResponse: raw },
-    });
-    const invoice = await recalculateInvoice(tx, payment.invoiceId);   // BR-43
-    return { payment, invoice };
-  });
+  payment.status = success ? 'success' : 'failed';
+  payment.gatewayTransactionId = gatewayTxnId;
+  payment.gatewayRawResponse = raw;
+  if (success) payment.paidAt = new Date();
+  await payment.save();
+
+  if (!success) return { alreadyConfirmed: false, payment, invoice: null };
+
+  const invoice = await recalculateInvoice(payment.invoiceId);   // BR-43
+  return { alreadyConfirmed: false, payment, invoice };
 };
+
+/** Luôn TÍNH LẠI paidAmount từ các Payment thành công, không cộng dồn (BR-43) */
+async function recalculateInvoice(invoiceId) {
+  const invoice = await Invoice.findById(invoiceId);
+  const agg = await Payment.aggregate([
+    { $match: { invoiceId: invoice._id, status: 'success', type: 'payment' } },
+    { $group: { _id: null, total: { $sum: '$amount' } } },
+  ]);
+  invoice.paidAmount = agg[0]?.total || 0;
+
+  if (invoice.paidAmount >= invoice.totalAmount)  invoice.status = 'paid';
+  else if (invoice.paidAmount > 0)                invoice.status = 'partial';
+  else if (invoice.dueDate < new Date())          invoice.status = 'overdue';
+  else                                            invoice.status = 'unpaid';
+
+  await invoice.save();
+  return invoice;
+}
 ```
 
-**Đánh đổi phải ghi vào báo cáo:** nếu sinh viên **đóng trình duyệt ngay sau khi thanh toán** mà chưa kịp quay về, giao dịch sẽ ở trạng thái `PENDING` dù tiền đã trừ. Khắc phục bằng **nút "Đối soát giao dịch"** cho nhân viên (đã có sẵn `POST /payments/:id/reconcile` — gọi API truy vấn kết quả của VNPay để cập nhật). Ở hệ thống chạy thật nên bổ sung IPN; ở phạm vi đồ án, phương án này là đủ.
+**Đánh đổi phải ghi vào báo cáo:** nếu sinh viên **đóng trình duyệt ngay sau khi thanh toán** mà chưa kịp quay về, giao dịch sẽ ở trạng thái `pending` dù tiền đã trừ. Khắc phục bằng **nút "Đối soát giao dịch"** cho nhân viên (đã có sẵn `POST /payments/:id/reconcile` — gọi API truy vấn kết quả của VNPay để cập nhật). Ở hệ thống chạy thật nên bổ sung IPN; ở phạm vi đồ án, phương án này là đủ.
 
 > ✅ **Vẫn giữ được điểm:** cả 3 test case bảo mật quan trọng nhất — chữ ký sai (TC-103), gửi trùng (TC-104), lệch số tiền (TC-105) — đều vẫn kiểm tra được bằng cách gọi thẳng `POST /payments/vnpay/verify` bằng Postman. **Không cần ngrok.**
 
@@ -775,14 +820,14 @@ export const SETTINGS = {
   ELECTRICITY_PRICE: 2500,              // đ/kWh
   WATER_PRICE: 12000,                   // đ/m³
   DEFAULT_DEPOSIT: 500000,
-  PAYMENT_TIMEOUT_MINUTES: 15,          // BR-59
+  PAYMENT_TIMEOUT_MINUTES: 15,          // BR-64
   DORMITORY_NAME: 'Ký túc xá ABC',
 };
 ```
 
 **Đánh đổi:** muốn đổi đơn giá điện phải sửa code và deploy lại, thay vì sửa trên giao diện. Với KTX, các giá này gần như không đổi trong một học kỳ nên không ảnh hưởng thực tế.
 
-> ⚠️ **Ngoại lệ quan trọng:** đơn giá điện/nước tại thời điểm lập hóa đơn **vẫn phải lưu vào bảng `utility_reading`** (cột `electricity_unit_price`, `water_unit_price`). Nếu chỉ đọc từ file hằng số, khi đổi giá thì hóa đơn cũ sẽ bị tính lại sai.
+> ⚠️ **Ngoại lệ quan trọng:** đơn giá điện/nước tại thời điểm lập hóa đơn **vẫn phải lưu vào collection `UtilityReading`** (cột `electricity_unit_price`, `water_unit_price`). Nếu chỉ đọc từ file hằng số, khi đổi giá thì hóa đơn cũ sẽ bị tính lại sai.
 
 ### 4.13. Bỏ bảng `audit_log` — ghi log ra file
 
@@ -800,34 +845,38 @@ Trên Render, log này xem được ở tab **Logs**. Đủ để truy vết khi
 
 ---
 
-## 5. Cơ sở dữ liệu sau đơn giản hóa — 13 bảng
+## 5. Cơ sở dữ liệu sau đơn giản hóa — 12 collection
 
-| # | Bảng | Trạng thái |
-|---|------|-----------|
-| 1 | `user` | Giữ (bỏ cột `locked_until`, `failed_login_count`) |
-| 2 | `student` | Giữ nguyên |
-| 3 | `building` | Giữ nguyên |
-| 4 | `room` | Giữ nguyên (có `gender` theo BR-17) |
-| 5 | `bed` | Giữ nguyên |
-| 6 | `contract` | Giữ nguyên (**không cần** partial unique index) |
-| 7 | `fee_type` | Giữ nguyên |
-| 8 | `invoice` | Giữ nguyên |
-| 9 | `invoice_item` | Giữ nguyên |
-| 10 | `payment` | Giữ nguyên |
-| 11 | `request` | Giữ nguyên |
-| 12 | `utility_reading` | Giữ nguyên |
-| 13 | `room_transfer` | Giữ nguyên |
-| ~~14~~ | ~~`audit_log`~~ | ❌ Bỏ → ghi log file (mục 4.13) |
-| ~~15~~ | ~~`system_config`~~ | ❌ Bỏ → file hằng số (mục 4.12) |
+Chi tiết đầy đủ ở `DATA-SCHEMA.md`. Bảng dưới chỉ tóm tắt những gì đã **bỏ bớt** so với thiết kế ban đầu.
 
-**Ràng buộc bỏ đi:**
-- ❌ `uq_contract_active_bed` (partial unique index) → thay bằng `updateMany` có điều kiện (mục 4.6)
-- ❌ `uq_contract_active_student` → kiểm tra bằng `findFirst` trong transaction
-- ✅ **Giữ lại** `uq_invoice_period` — ràng buộc này quan trọng và Prisma tạo được dễ dàng bằng `@@unique`
+| # | Collection | Trạng thái |
+|---|------------|-----------|
+| 1 | `User` | Giữ (bỏ trường đếm lần đăng nhập sai và khóa tạm) |
+| 2 | `Student` | Giữ |
+| 3 | `Building` | Giữ |
+| 4 | `Room` | Giữ — có thêm `gender` (BR-06) |
+| 5 | `Bed` | Giữ — chỉ 3 trạng thái, bỏ `reserved` |
+| 6 | `Residency` | Giữ |
+| 7 | `Contract` | Giữ |
+| 8 | `FeeType` | Giữ |
+| 9 | `UtilityReading` | Giữ |
+| 10 | `Invoice` | Giữ (nhúng `lineItems` thay vì tách collection riêng) |
+| 11 | `Payment` | Giữ |
+| 12 | `Request` | Giữ |
+| ~~13~~ | ~~`AuditLog`~~ | ❌ Bỏ → ghi log ra file (mục 4.13) |
+| ~~14~~ | ~~`SystemConfig`~~ | ❌ Bỏ → file hằng số (mục 4.12) |
+| ~~15~~ | ~~`RoomTransfer`~~ | ❌ Bỏ → chuyển phòng ngoài phạm vi v1 (`PRD.md` §3) |
 
-> ✅ **Lợi ích phụ:** sau khi bỏ partial unique index, **MySQL và PostgreSQL chạy giống hệt nhau**. Nhóm được tự do chọn hệ CSDL nào cài dễ hơn, không cần đọc mục 8 của `04` nữa.
+**Đơn giản hóa ở tầng dữ liệu:**
 
----
+- **`InvoiceItem` nhúng vào `Invoice`** thay vì tách collection riêng. MongoDB làm việc này tự nhiên; dòng phí không bao giờ được truy vấn độc lập khỏi hóa đơn.
+- **Không dùng transaction** — thay bằng `findOneAndUpdate` có điều kiện (mục 4.6). Nhờ đó chạy được trên `mongod` thường, không cần replica set.
+- **Partial unique index** thì vẫn dùng — MongoDB hỗ trợ sẵn bằng `partialFilterExpression`, viết ngay trong schema, không cần migration thủ công:
+
+```js
+residencySchema.index({ bedId: 1 }, { unique: true, partialFilterExpression: { status: 'active' } });
+requestSchema.index({ contractId: 1, type: 1 }, { unique: true, partialFilterExpression: { status: 'pending' } });
+```
 
 ## 6. Cấu trúc thư mục sau đơn giản hóa
 
@@ -839,14 +888,14 @@ src/
 ├── app.js
 ├── config/
 │   ├── env.js
-│   ├── database.js          # export prisma client
+│   ├── database.js          # export mongoose client
 │   └── settings.js          # ⭐ MỚI: hằng số thay bảng system_config
 ├── middlewares/
 │   ├── auth.middleware.js   # authenticate + authorize (gộp 1 file)
 │   └── error.middleware.js
 ├── routes/                  # 14 file router
 ├── controllers/             # mỏng: nhận req → gọi service → trả res
-├── services/                # ⭐ TOÀN BỘ nghiệp vụ + gọi Prisma trực tiếp
+├── services/                # ⭐ TOÀN BỘ nghiệp vụ + gọi Mongoose trực tiếp
 ├── utils/
 │   ├── ApiError.js
 │   ├── ApiResponse.js
@@ -923,7 +972,7 @@ Vẫn 12 tuần, nhưng **có thêm dư địa**:
 
 | Quy mô nhóm | Năng lực (MD) | Bậc A (155 MD) | **Bậc B (120 MD)** |
 |-------------|---------------|----------------|---------------------|
-| 6 người | 216 | kín 72% | **kín 56% — thoải mái** |
+| 5 người | 180 | kín 72% | **kín 56% — thoải mái** |
 | 5 người | 180 | kín 86% | **kín 67% — ổn** |
 | 4 người | 144 | kín 108% ❌ | **kín 83% — sát nhưng làm được** |
 | 3 người | 108 | không khả thi | **kín 111% ❌ — cần cắt thêm theo mục 9** |
@@ -990,10 +1039,10 @@ Chỉ dùng khi đến cuối tuần 8 vẫn chậm tiến độ. Cắt từ tr�
 | Bậc | Cắt gì | Tiết kiệm | Ảnh hưởng tới báo cáo |
 |-----|--------|-----------|------------------------|
 | 1 | Sơ đồ tòa nhà trực quan (FR-26) → dùng bảng phòng thường | 2 MD | Nhẹ, chỉ kém đẹp |
-| 2 | Chuyển phòng (FR-29) | 3 MD | Ghi vào mục Hạn chế |
-| 3 | Biểu đồ dashboard (FR-79) → giữ các thẻ chỉ số | 2 MD | Nhẹ |
+| 2 | Xuất CSV các báo cáo (FR-17) | 2 MD | Ghi vào mục Hạn chế |
+| 3 | Biểu đồ dashboard (FR-70) → giữ các thẻ chỉ số | 2 MD | Nhẹ |
 | 4 | Báo cáo công nợ + doanh thu (FR-81, 82) → giữ báo cáo giường trống | 3 MD | Ghi vào Hạn chế |
-| 5 | In PDF (FR-41, FR-71) | 1 MD | Không đáng kể |
+| 5 | In PDF (FR-33, FR-71) | 1 MD | Không đáng kể |
 | 6 | Vai trò Viewer → còn 3 vai trò | 2 MD | Nhẹ, RBAC vẫn chứng minh được |
 | 7 | Thanh toán online (FR-64) → chỉ ghi nhận thủ công | 6 MD | **Nặng** — mất một điểm nhấn kỹ thuật lớn |
 
@@ -1005,7 +1054,7 @@ Chỉ dùng khi đến cuối tuần 8 vẫn chậm tiến độ. Cắt từ tr�
 
 Đơn giản hóa **không phải điểm trừ** nếu trình bày đúng cách. Viết vào mục **3.1.4 "Lựa chọn công nghệ và lý do"** của báo cáo (xem `12` mục 1):
 
-> *"Nhóm cân nhắc giữa hai phương án chống tranh chấp khi xếp giường: khóa hàng bi quan (`SELECT ... FOR UPDATE`) kết hợp partial unique index, và cập nhật có điều kiện nguyên tử (`UPDATE ... WHERE status = 'AVAILABLE'`). Cả hai đều ngăn được tình trạng hai sinh viên cùng một giường. Nhóm chọn phương án thứ hai vì: (1) không cần viết SQL thô, giảm nguy cơ cài đặt sai; (2) không phụ thuộc partial index — tính năng chỉ PostgreSQL hỗ trợ — nên hệ thống chạy được trên cả MySQL; (3) mã nguồn ngắn hơn, dễ kiểm thử và dễ bảo trì. Đánh đổi là không khóa được nhiều bản ghi trong một thao tác phức tạp, nhưng nghiệp vụ của hệ thống không có nhu cầu đó."*
+> *"Nhóm cân nhắc hai phương án chống tranh chấp khi xếp giường: (a) dùng MongoDB transaction để bọc bước kiểm tra và bước ghi, và (b) cập nhật có điều kiện nguyên tử bằng `findOneAndUpdate`. Cả hai đều ngăn được tình trạng hai sinh viên cùng một giường. Nhóm chọn phương án (b) vì: (1) MongoDB transaction yêu cầu cụm chạy ở chế độ replica set, buộc mọi thành viên phải cấu hình thêm và không chạy được trên bản cài mặc định; (2) thao tác cập nhật một document vốn đã là nguyên tử, nên phương án (b) đúng mà không cần thêm hạ tầng; (3) mã nguồn ngắn hơn, dễ kiểm thử và dễ bảo trì. Đánh đổi là không bọc được nhiều document trong một đơn vị nguyên tử, nhưng nghiệp vụ xếp giường chỉ cần đảm bảo nguyên tử trên đúng một document `Bed`, nên đánh đổi này không gây rủi ro."*
 
 **Mẫu lập luận dùng lại được cho mọi lựa chọn:** *đã cân nhắc những phương án nào → chọn cái nào → vì ba lý do cụ thể → đánh đổi là gì → vì sao đánh đổi đó chấp nhận được trong bối cảnh này.*
 
@@ -1019,7 +1068,7 @@ Giảng viên đánh giá cao **lập luận có cân nhắc** hơn là dùng c�
 
 | # | Hạng mục | Bậc A | **Bậc B** | Tiết kiệm |
 |---|----------|-------|-----------|-----------|
-| B1 | Repository Git | 2 repo riêng | **1 repo, 2 thư mục** `frontend/` + `backend/` | Ít thao tác Git, 1 lần clone |
+| B1 | Repository Git | 2 repo, tài liệu nhân đôi | **2 repo, tài liệu chỉ ở repo FE** | Không bao giờ lệch tài liệu |
 | B2 | Nhánh Git | `main` + `develop` + `feature/*` | **`main` + `feature/*`** (bỏ `develop`) | Bớt một lần merge mỗi tính năng |
 | B3 | File backend mỗi module | route + controller + service | **route (gộp controller) + service** | ↓ 1 file × 14 module = 14 file |
 | B4 | Màn hình thêm/sửa | Trang riêng + route riêng | **Modal ngay trong trang danh sách** | ↓ 11 màn hình, ↓ 11 route |
@@ -1028,25 +1077,46 @@ Giảng viên đánh giá cao **lập luận có cân nhắc** hơn là dùng c�
 | B7 | Biểu đồ | 2 biểu đồ Recharts | **1 biểu đồ cột** + thanh `Progress` cho tỷ lệ lấp đầy | Bớt học 1 loại biểu đồ |
 | B8 | Lọc/tìm kiếm | Đồng bộ với URL query string | **State thường trong component** | Bớt `useSearchParams` |
 | B9 | Thứ tự làm việc | FE và BE song song từ đầu | **Làm mẫu trọn 1 module trước (mục 15), rồi nhân bản** | Học 1 lần, lặp 8 lần |
-| B10 | Tài liệu phải đọc trước khi code | 7 tài liệu | **3: `02` (chức năng) · `14` mục 15 (mẫu code) · `06` (API của module đang làm)** | Đỡ ngợp |
+| B10 | Tài liệu phải đọc trước khi code | 7 tài liệu | **3: `02` (chức năng) · `14` mục 15 (mẫu code) · `API.md` (API của module đang làm)** | Đỡ ngợp |
 
-### 13.1. B1 — Một repository, hai thư mục
+### 13.1. B1 — Hai repository, tài liệu để ở một nơi
 
+Nhóm dùng **2 repo riêng**, cả 5 thành viên đều có quyền trên cả hai:
+
+| Repo | Nội dung | Ai làm chính |
+|------|----------|--------------|
+| `FE_QuanLyKTX` | Code React + **toàn bộ `docs/`** | 2 người FE |
+| `BE_QuanLyKTX` | Code Node.js + Express + Mongoose | 3 người BE |
+
+**Tài liệu chỉ nằm ở một chỗ** — thư mục `docs/` của repo FE. Repo BE **không sao chép lại**, chỉ trỏ link trong `README.md` của nó:
+
+```markdown
+# BE_QuanLyKTX — Backend Hệ thống quản lý ký túc xá
+
+📖 **Toàn bộ tài liệu dự án nằm ở repo frontend:**
+https://github.com/<tài-khoản>/FE_QuanLyKTX/tree/main/docs
+
+Đọc trước khi code:
+- [PRD.md](...) — phạm vi v1
+- [ARCHITECTURE.md](...) — cấu trúc `modules/`, phân tầng, kết nối MongoDB
+- [API.md](...) — hợp đồng endpoint (**sửa file này trước khi đổi API**)
+- [DATA-SCHEMA.md](...) — 12 collection
+- [03-PHAN-TICH-NGHIEP-VU.md](...) — 67 quy tắc BR phải cài ở tầng service
 ```
-FE_QuanLyKTX/              ← repo duy nhất
-├── frontend/              ← toàn bộ code React (chuyển src/, index.html, vite.config.js vào đây)
-├── backend/               ← toàn bộ code Node.js
-├── docs/                  ← bộ tài liệu (giữ nguyên)
-└── README.md
-```
 
-```bash
-# Chạy 2 terminal
-cd frontend && npm run dev     # http://localhost:5173
-cd backend  && npm run dev     # http://localhost:5000
-```
+> ⚠️ **Tuyệt đối không sao chép `docs/` sang repo BE.** Hai bản sẽ lệch nhau chỉ sau vài ngày, và lúc đó không ai biết bản nào đúng. Một nguồn duy nhất, dù phải mở sang repo khác để đọc.
 
-**Khi deploy:** cả Vercel và Render đều có ô **Root Directory** — điền `frontend` cho Vercel, `backend` cho Render. Chỉ cần cấu hình một lần.
+**Vì sao 2 repo mà không phải 1?**
+
+| | 2 repo (đang dùng) | 1 repo 2 thư mục |
+|---|---|---|
+| Deploy | Render trỏ thẳng repo BE, Vercel trỏ repo FE — không cần cấu hình Root Directory | Phải điền Root Directory cho cả hai |
+| Lịch sử commit | Tách bạch, dễ thấy ai làm gì | Trộn lẫn |
+| Xung đột khi merge | Gần như không có giữa FE và BE | Hay đụng ở file gốc |
+| Tài liệu | Phải nhớ docs nằm ở repo FE | Nằm giữa, ai cũng thấy |
+| Clone khi vào dự án | 2 lần | 1 lần |
+
+Cả hai đều ổn. Nhóm đã chọn 2 repo — chỉ cần **nhớ đúng một điều: tài liệu ở repo FE**.
 
 ### 13.2. B2 — Chỉ dùng nhánh `main`
 
@@ -1074,12 +1144,12 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
-router.get('/', authenticate, authorize('ADMIN', 'STAFF', 'VIEWER'), asyncHandler(async (req, res) => {
+router.get('/', authenticate, authorize('admin', 'staff', 'viewer'), asyncHandler(async (req, res) => {
   const result = await studentService.getList(req.query);
   res.json({ success: true, data: result.data, meta: result.meta });
 }));
 
-router.post('/', authenticate, authorize('ADMIN', 'STAFF'), asyncHandler(async (req, res) => {
+router.post('/', authenticate, authorize('admin', 'staff'), asyncHandler(async (req, res) => {
   const student = await studentService.create(req.body);
   res.status(201).json({ success: true, message: 'Thêm sinh viên thành công', data: student });
 }));
@@ -1087,7 +1157,7 @@ router.post('/', authenticate, authorize('ADMIN', 'STAFF'), asyncHandler(async (
 export default router;
 ```
 
-**Quy tắc vẫn phải giữ:** file route **chỉ** đọc `req` và trả `res`. Mọi câu `if` nghiệp vụ và mọi lời gọi `prisma` nằm trong `services/`. Gộp file **không** có nghĩa là gộp trách nhiệm.
+**Quy tắc vẫn phải giữ:** file route **chỉ** đọc `req` và trả `res`. Mọi câu `if` nghiệp vụ và mọi lời gọi `mongoose` nằm trong `services/`. Gộp file **không** có nghĩa là gộp trách nhiệm.
 
 ### 13.4. B4 — Form thêm/sửa dùng Modal, không tạo trang riêng
 
@@ -1156,10 +1226,10 @@ Khoảng 20 dòng, tự responsive, bấm được — đủ để demo và ch�
 |---|--------|-----------|-----------|------------------|
 | 1 | JavaScript hiện đại: `async/await`, destructuring, spread, arrow function, optional chaining | 3h | javascript.info | Đọc hiểu được đoạn code ở mục 15 |
 | 2 | React cơ bản: component, props, `useState`, `useEffect`, render danh sách, xử lý sự kiện | 4h | react.dev — mục "Learn React" | Tự viết được một trang hiện danh sách từ mảng |
-| 3 | HTTP và REST: GET/POST/PATCH/DELETE, mã trạng thái, JSON body, header | 1h | Đọc `06` mục 1 + tự thử vài API công khai bằng Postman | Giải thích được 200/201/401/403/404/409/422 |
-| 4 | SQL cơ bản: SELECT, WHERE, JOIN, khóa chính/khóa ngoại | 2h | w3schools.com/sql | Đọc hiểu 6 truy vấn mẫu ở `04` mục 5 |
+| 3 | HTTP và REST: GET/POST/PATCH/DELETE, mã trạng thái, JSON body, header | 1h | Đọc `API.md` mục 1 + tự thử vài API công khai bằng Postman | Giải thích được 200/201/401/403/404/409/422 |
+| 4 | SQL cơ bản: SELECT, WHERE, JOIN, khóa chính/khóa ngoại | 2h | w3schools.com/sql | Đọc hiểu 6 truy vấn mẫu ở `DATA-SCHEMA.md` mục 5 |
 
-**Người làm Backend học thêm:** Express routing + middleware (2h), Prisma Quickstart (2h).
+**Người làm Backend học thêm:** Express routing + middleware (2h), Mongoose Quickstart (2h).
 **Người làm Frontend học thêm:** React Router (1h), Ant Design — riêng `Table` và `Form` (2h).
 
 ### 14.2. Học đúng lúc cho từng sprint
@@ -1167,7 +1237,7 @@ Khoảng 20 dòng, tự responsive, bấm được — đủ để demo và ch�
 | Sprint | Cần học trước | Thời lượng |
 |--------|---------------|------------|
 | S1 | JWT là gì, `localStorage`, axios interceptor | 2h |
-| S2 | **Transaction trong CSDL** — vì sao cần, `prisma.$transaction` | 2h |
+| S2 | **Transaction trong CSDL** — vì sao cần, `phiên ghi nhiều bước` | 2h |
 | S3 | HMAC/chữ ký số ở mức khái niệm (không cần hiểu toán) | 1h |
 | S4 | `useEffect` với mảng phụ thuộc, điều kiện render | 1h |
 | S5 | Biến môi trường, quy trình deploy | 2h |
@@ -1180,176 +1250,217 @@ Khoảng 20 dòng, tự responsive, bấm được — đủ để demo và ch�
 | Redux / TanStack Query / Zustand | Đã thay bằng `useApi` + Context, 2 file tự viết |
 | Docker, Kubernetes, CI/CD | Deploy bằng giao diện web của Vercel/Render |
 | GraphQL, WebSocket, microservices | Ngoài phạm vi hoàn toàn |
-| Viết SQL thô nâng cao | Prisma lo phần này |
+| Viết SQL thô nâng cao | Mongoose lo phần này |
 
 ---
 
-## 15. ⭐ Mẫu code một module hoàn chỉnh — làm 1 lần, nhân bản 8 lần
+## 15. ⭐ Mẫu code một module hoàn chỉnh — làm 1 lần, nhân bản cho các module sau
 
 > **Đây là phần quan trọng nhất của tài liệu.** Làm **trọn vẹn** module "Quản lý sinh viên" theo mẫu dưới đây trong Sprint 1. Tám module còn lại (tòa nhà, phòng, giường, hợp đồng, hóa đơn, thanh toán, yêu cầu, người dùng) **sao chép cấu trúc này rồi đổi tên và đổi trường** — không phải nghĩ lại từ đầu.
 
-### 15.1. Backend — file 1/2: `backend/prisma/schema.prisma` (phần của module)
-
-```prisma
-model Student {
-  id          BigInt   @id @default(autoincrement())
-  studentCode String   @unique @map("student_code") @db.VarChar(20)
-  fullName    String   @map("full_name") @db.VarChar(150)
-  dateOfBirth DateTime @map("date_of_birth") @db.Date
-  gender      String   @db.VarChar(10)
-  phone       String?  @db.VarChar(15)
-  email       String?  @unique @db.VarChar(150)
-  className   String?  @map("class_name") @db.VarChar(50)
-  faculty     String?  @db.VarChar(100)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  contracts   Contract[]
-  invoices    Invoice[]
-
-  @@map("student")
-}
-```
-
-### 15.2. Backend — file 2/2: `backend/src/services/student.service.js`
+### 15.1. Backend — file 1/3: `backend/src/modules/students/student.model.js`
 
 ```js
-import { prisma } from '../config/database.js';
-import { ApiError } from '../utils/ApiError.js';
-import { validate } from '../utils/validate.js';
+const mongoose = require('mongoose');
+const { GENDER, STUDENT_STATUS } = require('../../shared/constants/enums');
 
-// ---------- LẤY DANH SÁCH (có tìm kiếm, lọc, phân trang) ----------
-export const getList = async (query) => {
-  const page  = Number(query.page)  || 1;
+const studentSchema = new mongoose.Schema(
+  {
+    userId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },  // chỉ có khi SV đã tạo tài khoản
+    studentCode: { type: String, required: true, trim: true },
+    fullName:    { type: String, required: true, trim: true },
+    dob:         { type: Date, required: true },
+    gender:      { type: String, enum: GENDER, required: true },   // bắt buộc — cần cho BR-06
+    phone:       { type: String, required: true, trim: true },
+    email:       { type: String, trim: true, lowercase: true },
+    className:   { type: String, trim: true },
+    faculty:     { type: String, trim: true },
+    emergencyContact: {
+      name:         { type: String },
+      phone:        { type: String },
+      relationship: { type: String },
+    },
+    status: { type: String, enum: STUDENT_STATUS, default: 'active' },
+  },
+  { timestamps: true },
+);
+
+studentSchema.index({ studentCode: 1 }, { unique: true });
+studentSchema.index({ userId: 1 }, { unique: true, sparse: true });
+studentSchema.index({ fullName: 'text' });
+
+module.exports = mongoose.model('Student', studentSchema);
+```
+
+### 15.2. Backend — file 2/3: `backend/src/modules/students/student.service.js`
+
+```js
+const Student  = require('./student.model');
+const Contract = require('../contracts/contract.model');
+const Invoice  = require('../fees/invoice.model');
+const { ApiError } = require('../../core/errors/ApiError');
+const { validate } = require('../../core/utils/validate');
+
+// ---------- LẤY DANH SÁCH (tìm kiếm, lọc, phân trang) ----------
+exports.getList = async (query) => {
+  const page  = Number(query.page) || 1;
   const limit = Math.min(Number(query.limit) || 20, 100);
   const skip  = (page - 1) * limit;
 
-  // Xây điều kiện lọc
-  const where = { isActive: query.isActive === 'false' ? false : true };
-  if (query.search) {
-    where.OR = [
-      { fullName:    { contains: query.search, mode: 'insensitive' } },
-      { studentCode: { contains: query.search, mode: 'insensitive' } },
-      { phone:       { contains: query.search } },
-    ];
-  }
-  if (query.gender)  where.gender  = query.gender;
-  if (query.faculty) where.faculty = query.faculty;
+  const filter = { status: query.status || 'active' };
 
-  // Đếm và lấy dữ liệu cùng lúc cho nhanh
+  if (query.search) {
+    const kw = new RegExp(query.search.trim(), 'i');   // tìm gần đúng, không phân biệt hoa thường
+    filter.$or = [{ fullName: kw }, { studentCode: kw }, { phone: kw }];
+  }
+  if (query.gender)  filter.gender  = query.gender;
+  if (query.faculty) filter.faculty = query.faculty;
+
+  // Đếm và lấy dữ liệu song song cho nhanh
   const [total, students] = await Promise.all([
-    prisma.student.count({ where }),
-    prisma.student.findMany({
-      where, skip, take: limit,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        contracts: {
-          where: { status: 'ACTIVE' },
-          take: 1,
-          include: { bed: { include: { room: { include: { building: true } } } } },
-        },
-      },
-    }),
+    Student.countDocuments(filter),
+    Student.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
   ]);
 
-  // Làm phẳng dữ liệu cho frontend dễ dùng
-  const data = students.map((s) => {
-    const c = s.contracts[0];
+  // Gắn thêm chỗ ở hiện tại + công nợ (tra cứu theo lô, tránh N+1 query)
+  const ids = students.map((s) => s._id);
+  const contracts = await Contract.find({ studentId: { $in: ids }, status: 'active' })
+    .populate({ path: 'bedId', populate: { path: 'roomId', populate: 'buildingId' } })
+    .lean();
+
+  const byStudent = new Map(contracts.map((c) => [String(c.studentId), c]));
+
+  const items = students.map((s) => {
+    const c = byStudent.get(String(s._id));
     return {
-      id: Number(s.id),
+      id: s._id,
       studentCode: s.studentCode,
       fullName: s.fullName,
       gender: s.gender,
       phone: s.phone,
       className: s.className,
       faculty: s.faculty,
-      isActive: s.isActive,
+      status: s.status,
       residence: c ? {
-        buildingCode: c.bed.room.building.code,
-        roomNumber:   c.bed.room.roomNumber,
-        bedLabel:     c.bed.bedLabel,
+        buildingName: c.bedId.roomId.buildingId.name,
+        roomNumber:   c.bedId.roomId.roomNumber,
+        bedCode:      c.bedId.bedCode,
+        contractCode: c.contractCode,
+        endDate:      c.endDate,
       } : null,
     };
   });
 
-  return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return { items, total, page, limit };
 };
 
 // ---------- THÊM MỚI ----------
-export const create = async (body) => {
+exports.create = async (body) => {
   validate(body, {
     studentCode: { required: true, maxLength: 20 },
     fullName:    { required: true, maxLength: 150 },
     gender:      { required: true },
-    dateOfBirth: { required: true },
-    phone:       { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm 10 số, bắt đầu bằng 0' },
+    dob:         { required: true },
+    phone:       { required: true, pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm 10 số, bắt đầu bằng 0' },
   });
 
-  // BR-11: MSSV duy nhất
-  const existed = await prisma.student.findUnique({ where: { studentCode: body.studentCode } });
+  // BR-11: mã số sinh viên duy nhất
+  const existed = await Student.findOne({ studentCode: body.studentCode });
   if (existed) {
-    throw new ApiError(409, 'Mã số sinh viên đã tồn tại', 'STUDENT_CODE_EXISTS',
+    throw new ApiError(409, 'DUPLICATE_ENTRY', 'Mã số sinh viên đã tồn tại',
       [{ field: 'studentCode', message: 'Mã số sinh viên đã tồn tại' }]);
   }
 
-  const student = await prisma.student.create({
-    data: { ...body, dateOfBirth: new Date(body.dateOfBirth) },
-  });
-  return { ...student, id: Number(student.id) };
+  return Student.create(body);
 };
 
 // ---------- CẬP NHẬT ----------
-export const update = async (id, body) => {
-  const student = await prisma.student.findUnique({ where: { id: BigInt(id) } });
-  if (!student) throw new ApiError(404, 'Không tìm thấy sinh viên', 'NOT_FOUND');
-
-  const updated = await prisma.student.update({
-    where: { id: BigInt(id) },
-    data: { ...body, ...(body.dateOfBirth && { dateOfBirth: new Date(body.dateOfBirth) }) },
-  });
-  return { ...updated, id: Number(updated.id) };
+exports.update = async (id, body) => {
+  const student = await Student.findByIdAndUpdate(id, body, { new: true, runValidators: true });
+  if (!student) throw new ApiError(404, 'NOT_FOUND', 'Không tìm thấy sinh viên');
+  return student;
 };
 
 // ---------- VÔ HIỆU HÓA (BR-13, BR-14) ----------
-export const deactivate = async (id) => {
-  const activeContract = await prisma.contract.findFirst({
-    where: { studentId: BigInt(id), status: { in: ['PENDING', 'ACTIVE'] } },
+exports.deactivate = async (id) => {
+  const openContract = await Contract.findOne({
+    studentId: id,
+    status: { $in: ['pending', 'active'] },
   });
-  if (activeContract) {
-    throw new ApiError(422, 'Sinh viên đang có hợp đồng hiệu lực, không thể vô hiệu hóa',
-      'STUDENT_HAS_ACTIVE_CONTRACT');
+  if (openContract) {
+    throw new ApiError(422, 'STUDENT_HAS_ACTIVE_CONTRACT',
+      'Sinh viên đang có hợp đồng hiệu lực, không thể vô hiệu hóa');
   }
 
-  const unpaid = await prisma.invoice.findFirst({
-    where: { studentId: BigInt(id), status: { in: ['UNPAID', 'PARTIALLY_PAID', 'OVERDUE'] } },
+  const unpaid = await Invoice.findOne({
+    studentId: id,
+    status: { $in: ['unpaid', 'partial', 'overdue'] },
   });
   if (unpaid) {
-    throw new ApiError(422, 'Sinh viên còn công nợ chưa thanh toán', 'STUDENT_HAS_DEBT');
+    throw new ApiError(422, 'STUDENT_HAS_DEBT', 'Sinh viên còn công nợ chưa thanh toán');
   }
 
-  await prisma.student.update({ where: { id: BigInt(id) }, data: { isActive: false } });
-  return { id: Number(id), isActive: false };
+  return Student.findByIdAndUpdate(id, { status: 'inactive' }, { new: true });
 };
 ```
 
-> 💡 **Lưu ý về `BigInt`:** Prisma trả `BigInt` cho khóa chính, mà `JSON.stringify` không xử lý được kiểu này. Luôn `Number(x.id)` trước khi trả về. Hoặc đổi `BigInt` thành `Int` trong schema nếu thấy phiền — với quy mô đồ án thì `Int` là quá đủ.
+### 15.3. Backend — file 3/3: `backend/src/modules/students/student.routes.js`
 
-### 15.3. Frontend — file 1/3: `frontend/src/api/studentApi.js`
+Ở Bậc B, controller gộp luôn vào file route (mục 13.3) — mỗi module chỉ còn **2 file logic**.
 
 ```js
-import axiosClient from './axiosClient';
+const express = require('express');
+const studentService = require('./student.service');
+const { authenticate, authorize } = require('../../core/middlewares/auth.middleware');
+const { asyncHandler } = require('../../core/utils/asyncHandler');
+
+const router = express.Router();
+
+router.get('/', authenticate, authorize('admin', 'staff', 'viewer'), asyncHandler(async (req, res) => {
+  const data = await studentService.getList(req.query);
+  res.json({ code: 'OK', message: 'Success', data });
+}));
+
+router.post('/', authenticate, authorize('admin', 'staff'), asyncHandler(async (req, res) => {
+  const student = await studentService.create(req.body);
+  res.status(201).json({ code: 'OK', message: 'Thêm sinh viên thành công', data: student });
+}));
+
+router.put('/:id', authenticate, authorize('admin', 'staff'), asyncHandler(async (req, res) => {
+  const student = await studentService.update(req.params.id, req.body);
+  res.json({ code: 'OK', message: 'Cập nhật thành công', data: student });
+}));
+
+router.patch('/:id/deactivate', authenticate, authorize('admin', 'staff'), asyncHandler(async (req, res) => {
+  const student = await studentService.deactivate(req.params.id);
+  res.json({ code: 'OK', message: 'Đã vô hiệu hóa sinh viên', data: student });
+}));
+
+module.exports = router;
+```
+
+Đăng ký một dòng trong `app.js`:
+```js
+app.use('/api/students', require('./modules/students/student.routes'));
+```
+
+> ⚠️ File route **chỉ** đọc `req` và trả `res`. Mọi câu `if` nghiệp vụ và mọi lời gọi Mongoose nằm trong `student.service.js`. Gộp file **không** có nghĩa là gộp trách nhiệm.
+
+### 15.4. Frontend — file 1/3: `frontend/src/features/students/api/student.api.js`
+
+```js
+import axiosClient from '../../../lib/axiosClient';
 
 export const studentApi = {
-  getList:    (params) => axiosClient.get('/students', { params }),
-  getById:    (id)     => axiosClient.get(`/students/${id}`),
-  create:     (data)   => axiosClient.post('/students', data),
-  update:     (id, data) => axiosClient.patch(`/students/${id}`, data),
-  deactivate: (id)     => axiosClient.patch(`/students/${id}/status`, { isActive: false }),
+  getList:    (params)   => axiosClient.get('/students', { params }),
+  getById:    (id)       => axiosClient.get(`/students/${id}`),
+  create:     (data)     => axiosClient.post('/students', data),
+  update:     (id, data) => axiosClient.put(`/students/${id}`, data),
+  deactivate: (id)       => axiosClient.patch(`/students/${id}/deactivate`),
 };
 ```
 
-### 15.4. Frontend — file 2/3: `frontend/src/pages/students/StudentFormModal.jsx`
+### 15.5. Frontend — file 2/3: `frontend/src/features/students/components/StudentFormModal.jsx`
 
 > 💡 Với antd 6, đổi `import { ..., message } from 'antd'` thành `const { message } = App.useApp();` và `destroyOnClose` thành `destroyOnHidden` — xem mục 3.1.1.
 
@@ -1441,7 +1552,7 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
 }
 ```
 
-### 15.5. Frontend — file 3/3: `frontend/src/pages/students/StudentListPage.jsx`
+### 15.6. Frontend — file 3/3: `frontend/src/features/students/pages/StudentsPage.jsx`
 
 ```jsx
 import { useState } from 'react';
@@ -1539,15 +1650,15 @@ export default function StudentListPage() {
 }
 ```
 
-### 15.6. Cách nhân bản cho 8 module còn lại
+### 15.7. Cách nhân bản cho các module còn lại
 
 | Bước | Việc làm | Thời gian ước tính |
 |------|----------|--------------------|
-| 1 | Sao chép `student.service.js` → `building.service.js`, đổi `prisma.student` thành `prisma.building` | 15 phút |
+| 1 | Sao chép `student.service.js` → `building.service.js`, đổi model `Student` thành `Building` | 15 phút |
 | 2 | Sửa `where` tìm kiếm và danh sách trường trong `validate()` | 15 phút |
 | 3 | Thêm các quy tắc `BR-xx` riêng của module (tra `03` mục 3) | 30–60 phút |
-| 4 | Sao chép `student.routes.js`, đổi tên service và đường dẫn | 10 phút |
-| 5 | Sao chép `studentApi.js` → `buildingApi.js` | 5 phút |
+| 4 | Sao chép `student.routes.js`, đổi tên service + thêm 1 dòng `app.use` | 10 phút |
+| 5 | Sao chép `student.api.js` → `building.api.js` | 5 phút |
 | 6 | Sao chép 2 file màn hình, đổi `columns` và các `Form.Item` | 45 phút |
 | | **Tổng mỗi module CRUD** | **~2,5 giờ** |
 
@@ -1562,11 +1673,11 @@ Các module có nghiệp vụ phức tạp (hợp đồng, hóa đơn, thanh to�
 | # | Việc | Người | ☐ |
 |---|------|-------|---|
 | 1 | Cả nhóm đọc mục 2 (21 thay đổi), mục 13 (10 thay đổi Bậc B) và **mục 15 (mẫu code)** | Cả nhóm | ☐ |
-| 2 | Gộp về **1 repo** với 2 thư mục `frontend/` + `backend/` (B1) | Lead | ☐ |
+| 2 | Tạo repo `BE_QuanLyKTX`, thêm README trỏ về `docs/` ở repo FE (B1) | BE Lead | ☐ |
 | 3 | Bỏ nhánh `develop`, chỉ dùng `main` + `feature/*` (B2) | Lead | ☐ |
 | 4 | Cài đặt dependency theo mục 3 (5 gói FE, 8 gói BE) | Lead | ☐ |
 | 5 | Viết 3 file nền: `useApi.js`, `AuthContext.jsx`, `validate.js` | FE Lead + BE Lead | ☐ |
-| 6 | Bỏ `audit_log`, `system_config` khỏi `schema.prisma`; thêm `config/settings.js` | BE Lead | ☐ |
+| 6 | Bỏ `audit_log`, `system_config` khỏi `các file *.model.js`; thêm `config/settings.js` | BE Lead | ☐ |
 | 7 | **Làm trọn module "Quản lý sinh viên" theo mục 15 và chạy thật được** | Cả nhóm cùng làm | ☐ |
 | 8 | Mỗi người tự học theo mục 14.1 trong tuần 2 | Cả nhóm | ☐ |
 | 9 | Cập nhật bảng theo dõi tiến độ theo số ngày công mới (~120 MD) | PM | ☐ |
@@ -1578,5 +1689,6 @@ Các module có nghiệp vụ phức tạp (hợp đồng, hóa đơn, thanh to�
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 12/09/2026 | Cả nhóm | Ban hành phiên bản đơn giản hóa **Bậc A**: 21 thay đổi kỹ thuật, giữ nguyên 100% chức năng, giảm khối lượng 206 → 155 ngày công |
+| **v2.0** | **12/09/2026** | Cả nhóm | **Rà soát theo bộ tài liệu v2.0:** viết lại toàn bộ mã mẫu sang **Mongoose** (mục 4.6, 4.9, 4.10, 15); mục 15 nay có 3 file backend + 3 file frontend theo cấu trúc `features/`; mục 5 liệt kê 12 collection thay vì bảng SQL; lập luận báo cáo ở mục 10 viết lại theo MongoDB |
 | v1.2 | 12/09/2026 | FE Lead | Cài đặt thật và kiểm chứng: **antd 6.6.3** (không phải 5.x như thiết kế ban đầu), recharts 3.10.1, react-router-dom 7.18.3. Đã chạy `npm run build` thành công với React 19 + Vite 8. Bổ sung mục 3.1.1 nêu 2 khác biệt của antd 6 |
 | v1.1 | 12/09/2026 | Cả nhóm | Bổ sung **Bậc B** cho nhóm mới bắt đầu (mục 13): 10 thay đổi thêm — 1 repo, 1 nhánh Git, gộp controller vào route, form dùng modal, làm mẫu 1 module rồi nhân bản. Thêm **lộ trình tự học** (mục 14) và **mẫu code một module hoàn chỉnh** (mục 15). Khối lượng 155 → **120 ngày công**. Chức năng vẫn giữ nguyên 85 FR |

@@ -1,54 +1,74 @@
 /**
  * Nguồn duy nhất định nghĩa nhãn tiếng Việt + màu cho mọi trạng thái.
- * Xem docs/08 mục 4.2. KHÔNG viết chuỗi trạng thái trực tiếp ở bất kỳ đâu khác.
+ * Giá trị enum viết CHỮ THƯỜNG, khớp DATA-SCHEMA.md mục 1.
+ * KHÔNG viết chuỗi trạng thái trực tiếp ở bất kỳ đâu khác.
  */
 
 export const CONTRACT_STATUS = {
-  PENDING:    { label: 'Chờ duyệt',     color: 'warning' },
-  ACTIVE:     { label: 'Đang hiệu lực', color: 'success' },
-  REJECTED:   { label: 'Bị từ chối',    color: 'error' },
-  CANCELLED:  { label: 'Đã hủy',        color: 'default' },
-  EXPIRED:    { label: 'Hết hạn',       color: 'default' },
-  TERMINATED: { label: 'Đã chấm dứt',   color: 'default' },
+  pending:    { label: 'Chờ kích hoạt', color: 'warning' },
+  active:     { label: 'Đang hiệu lực', color: 'success' },
+  expired:    { label: 'Hết hạn',       color: 'default' },
+  terminated: { label: 'Đã chấm dứt',   color: 'default' },
+};
+
+export const RESIDENCY_STATUS = {
+  active: { label: 'Đang ở',     color: 'success' },
+  closed: { label: 'Đã kết thúc', color: 'default' },
 };
 
 export const INVOICE_STATUS = {
-  UNPAID:         { label: 'Chưa thanh toán',     color: 'warning' },
-  PARTIALLY_PAID: { label: 'Thanh toán một phần', color: 'processing' },
-  PAID:           { label: 'Đã thanh toán',       color: 'success' },
-  OVERDUE:        { label: 'Quá hạn',             color: 'error' },
-  CANCELLED:      { label: 'Đã hủy',              color: 'default' },
+  unpaid:    { label: 'Chưa thanh toán',     color: 'warning' },
+  partial:   { label: 'Thanh toán một phần', color: 'processing' },
+  paid:      { label: 'Đã thanh toán',       color: 'success' },
+  overdue:   { label: 'Quá hạn',             color: 'error' },
+  cancelled: { label: 'Đã hủy',              color: 'default' },
+};
+
+export const INVOICE_TYPE = {
+  deposit:    { label: 'Tiền cọc' },
+  monthly:    { label: 'Phí hằng tháng' },
+  settlement: { label: 'Thanh lý' },
+  other:      { label: 'Khác' },
 };
 
 export const BED_STATUS = {
-  AVAILABLE:   { label: 'Trống',      color: 'success' },
-  RESERVED:    { label: 'Giữ chỗ',    color: 'warning' },
-  OCCUPIED:    { label: 'Đã sử dụng', color: 'processing' },
-  MAINTENANCE: { label: 'Bảo trì',    color: 'default' },
+  available:   { label: 'Trống',      color: 'success' },
+  occupied:    { label: 'Đã sử dụng', color: 'processing' },
+  maintenance: { label: 'Bảo trì',    color: 'default' },
 };
 
 export const PAYMENT_STATUS = {
-  PENDING:              { label: 'Đang xử lý',   color: 'processing' },
-  SUCCESS:              { label: 'Thành công',   color: 'success' },
-  FAILED:               { label: 'Thất bại',     color: 'error' },
-  EXPIRED:              { label: 'Hết hạn',      color: 'default' },
-  REFUNDED:             { label: 'Đã hoàn tiền', color: 'warning' },
-  NEEDS_RECONCILIATION: { label: 'Cần đối soát', color: 'error' },
+  pending: { label: 'Đang xử lý', color: 'processing' },
+  success: { label: 'Thành công', color: 'success' },
+  failed:  { label: 'Thất bại',   color: 'error' },
+  expired: { label: 'Hết hạn',    color: 'default' },
+};
+
+export const PAYMENT_METHOD = {
+  cash:          { label: 'Tiền mặt' },
+  bank_transfer: { label: 'Chuyển khoản' },
+  vnpay:         { label: 'VNPay' },
+  zalopay:       { label: 'ZaloPay' },
 };
 
 export const REQUEST_STATUS = {
-  PENDING:   { label: 'Chờ xử lý',  color: 'warning' },
-  APPROVED:  { label: 'Đã duyệt',   color: 'success' },
-  REJECTED:  { label: 'Bị từ chối', color: 'error' },
-  CANCELLED: { label: 'Đã hủy',     color: 'default' },
+  pending:   { label: 'Chờ xử lý',  color: 'warning' },
+  approved:  { label: 'Đã duyệt',   color: 'success' },
+  rejected:  { label: 'Bị từ chối', color: 'error' },
+  cancelled: { label: 'Đã hủy',     color: 'default' },
+};
+
+export const REQUEST_TYPE = {
+  renewal:  { label: 'Gia hạn' },
+  checkout: { label: 'Trả phòng' },
 };
 
 export const GENDER = {
-  MALE:   { label: 'Nam' },
-  FEMALE: { label: 'Nữ' },
+  male:   { label: 'Nam' },
+  female: { label: 'Nữ' },
 };
 
 export const GENDER_OPTIONS = [
-  { value: 'MALE',   label: 'Nam' },
-  { value: 'FEMALE', label: 'Nữ' },
+  { value: 'male',   label: 'Nam' },
+  { value: 'female', label: 'Nữ' },
 ];

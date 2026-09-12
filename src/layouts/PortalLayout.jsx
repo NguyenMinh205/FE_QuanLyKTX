@@ -4,7 +4,7 @@ import {
   DollarOutlined, UserOutlined, LogoutOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 const { Header, Content, Footer } = Layout;
 const { useBreakpoint } = Grid;
@@ -36,7 +36,7 @@ export default function PortalLayout() {
         alignItems: 'center', justifyContent: 'space-between',
         borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <div style={{ fontWeight: 600 }}>🏢 KTX ABC</div>
+        <div style={{ fontWeight: 600 }}>🏢 KTX</div>
 
         {!isMobile && (
           <Menu mode="horizontal" selectedKeys={[location.pathname]} items={TABS}

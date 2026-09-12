@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, DatePicker, App } from 'antd';
 import dayjs from 'dayjs';
-import { studentApi } from '../../api/studentApi';
-import { GENDER_OPTIONS } from '../../constants/statuses';
-import { getErrorMessage, getFieldErrors } from '../../api/axiosClient';
+import { studentApi } from '../api/student.api';
+import { GENDER_OPTIONS } from '../../../constants/statuses';
+import { getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
 
 /**
- * Modal dùng chung cho cả THÊM MỚI và SỬA (docs/14 mục 13.4).
+ * Modal dùng chung cho cả THÊM MỚI và SỬA (ARCHITECTURE.md mục 4.2).
  * student = null  -> thêm mới
  * student != null -> sửa
  */
@@ -19,10 +19,7 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
   useEffect(() => {
     if (!open) return;
     if (isEdit) {
-      form.setFieldsValue({
-        ...student,
-        dateOfBirth: student.dateOfBirth ? dayjs(student.dateOfBirth) : null,
-      });
+      form.setFieldsValue({ ...student, dob: student.dob ? dayjs(student.dob) : null });
     } else {
       form.resetFields();
     }
@@ -32,10 +29,7 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
   const handleSubmit = async (values) => {
     setSaving(true);
     try {
-      const payload = {
-        ...values,
-        dateOfBirth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : null,
-      };
+      const payload = { ...values, dob: values.dob ? values.dob.format('YYYY-MM-DD') : null };
 
       if (isEdit) await studentApi.update(student.id, payload);
       else await studentApi.create(payload);
@@ -76,7 +70,7 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
             { pattern: /^[A-Za-z0-9]{6,20}$/, message: 'MSSV gồm 6–20 ký tự chữ và số' },
           ]}
         >
-          <Input placeholder="VD: SV2024001" disabled={isEdit} />
+          <Input placeholder="VD: SV2026001" disabled={isEdit} />
         </Form.Item>
 
         <Form.Item
@@ -91,12 +85,13 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
           name="gender"
           label="Giới tính"
           rules={[{ required: true, message: 'Vui lòng chọn giới tính' }]}
+          extra="Giới tính quyết định sinh viên được xếp vào phòng nào (BR-06)"
         >
           <Select options={GENDER_OPTIONS} placeholder="Chọn giới tính" />
         </Form.Item>
 
         <Form.Item
-          name="dateOfBirth"
+          name="dob"
           label="Ngày sinh"
           rules={[{ required: true, message: 'Vui lòng chọn ngày sinh' }]}
         >
@@ -106,21 +101,20 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
         <Form.Item
           name="phone"
           label="Số điện thoại"
-          rules={[{ pattern: /^0\d{9}$/, message: 'Số điện thoại gồm 10 số, bắt đầu bằng 0' }]}
+          rules={[
+            { required: true, message: 'Vui lòng nhập số điện thoại' },
+            { pattern: /^0\d{9}$/, message: 'Số điện thoại gồm 10 số, bắt đầu bằng 0' },
+          ]}
         >
           <Input placeholder="VD: 0912345678" />
         </Form.Item>
 
-        <Form.Item
-          name="email"
-          label="Email"
-          rules={[{ type: 'email', message: 'Email không hợp lệ' }]}
-        >
-          <Input placeholder="VD: sv2024001@sv.edu.vn" />
+        <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]}>
+          <Input placeholder="VD: sv2026001@sv.edu.vn" />
         </Form.Item>
 
         <Form.Item name="className" label="Lớp">
-          <Input placeholder="VD: CNTT2024A" />
+          <Input placeholder="VD: CNTT2026A" />
         </Form.Item>
 
         <Form.Item name="faculty" label="Khoa">

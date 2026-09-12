@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { AuthContext } from './AuthContext';
-import { authApi } from '../api/authApi';
+import { authApi } from '../lib/authApi';
 
 const readStoredUser = () => {
   try {
@@ -15,8 +15,8 @@ const readStoredUser = () => {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredUser);
 
-  const login = useCallback(async (username, password) => {
-    const res = await authApi.login({ username, password });
+  const login = useCallback(async (email, password) => {
+    const res = await authApi.login({ email, password });
     const { token, user: loggedInUser } = res.data.data;
 
     localStorage.setItem('token', token);

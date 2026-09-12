@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Layout, Menu, Dropdown, Avatar, Breadcrumb, Grid, Drawer, Button } from 'antd';
+import { Layout, Menu, Dropdown, Avatar, Grid, Drawer, Button } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, HomeOutlined, FileTextOutlined,
-  MailOutlined, DollarOutlined, BarChartOutlined, SettingOutlined,
+  MailOutlined, DollarOutlined, SettingOutlined,
   UserOutlined, LogoutOutlined, MenuOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { ROLES, ROLE_LABEL } from '../../constants/roles';
+import { useAuth } from '../context/AuthContext';
+import { ROLES, ROLE_LABEL } from '../constants/roles';
 
 const { Header, Sider, Content } = Layout;
 const { useBreakpoint } = Grid;
@@ -17,31 +17,30 @@ const buildMenu = (role) => {
     { key: '/admin/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/admin/students',  icon: <TeamOutlined />,      label: 'Sinh viên' },
     {
-      key: 'facilities', icon: <HomeOutlined />, label: 'Cơ sở vật chất',
+      key: 'rooms', icon: <HomeOutlined />, label: 'Cơ sở vật chất',
       children: [
-        { key: '/admin/buildings', label: 'Tòa nhà' },
-        { key: '/admin/rooms',     label: 'Phòng' },
+        { key: '/admin/buildings',      label: 'Tòa nhà' },
+        { key: '/admin/rooms',          label: 'Phòng' },
         { key: '/admin/beds/available', label: 'Giường trống' },
       ],
     },
     {
-      key: 'contracts', icon: <FileTextOutlined />, label: 'Hợp đồng',
+      key: 'residency', icon: <FileTextOutlined />, label: 'Lưu trú & hợp đồng',
       children: [
-        { key: '/admin/contracts',          label: 'Tất cả hợp đồng' },
-        { key: '/admin/contracts/pending',  label: 'Đơn chờ duyệt' },
+        { key: '/admin/residencies',        label: 'Đăng ký lưu trú' },
+        { key: '/admin/contracts',          label: 'Hợp đồng' },
         { key: '/admin/contracts/expiring', label: 'Sắp hết hạn' },
       ],
     },
     { key: '/admin/requests', icon: <MailOutlined />, label: 'Yêu cầu' },
     {
-      key: 'finance', icon: <DollarOutlined />, label: 'Tài chính',
+      key: 'fees', icon: <DollarOutlined />, label: 'Tài chính',
       children: [
-        { key: '/admin/invoices',         label: 'Hóa đơn' },
         { key: '/admin/utility-readings', label: 'Chỉ số điện nước' },
+        { key: '/admin/invoices',         label: 'Hóa đơn' },
         { key: '/admin/payments',         label: 'Thanh toán' },
       ],
     },
-    { key: '/admin/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
   ];
 
   if (role === ROLES.ADMIN) {
@@ -50,7 +49,6 @@ const buildMenu = (role) => {
       children: [
         { key: '/admin/users',     label: 'Tài khoản' },
         { key: '/admin/fee-types', label: 'Danh mục phí' },
-        { key: '/admin/settings',  label: 'Cấu hình' },
       ],
     });
   }
@@ -82,29 +80,19 @@ export default function AdminLayout() {
       mode="inline"
       theme="dark"
       selectedKeys={[location.pathname]}
-      defaultOpenKeys={['facilities', 'contracts', 'finance']}
+      defaultOpenKeys={['rooms', 'residency', 'fees']}
       items={menuItems}
       onClick={handleMenuClick}
       style={{ borderInlineEnd: 0 }}
     />
   );
 
-  // Breadcrumb đơn giản dựng từ nhãn menu
-  const currentLabel = (() => {
-    for (const item of menuItems) {
-      if (item.key === location.pathname) return item.label;
-      const child = item.children?.find((c) => c.key === location.pathname);
-      if (child) return `${item.label} / ${child.label}`;
-    }
-    return '';
-  })();
-
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {!isMobile && (
         <Sider width={240} style={{ overflow: 'auto', position: 'sticky', top: 0, height: '100vh' }}>
           <div style={{
-            height: 64, display: 'flex', alignItems: 'center', gap: 8,
+            height: 64, display: 'flex', alignItems: 'center',
             padding: '0 16px', color: '#fff', fontWeight: 600, fontSize: 15,
           }}>
             🏢 QUẢN LÝ KÝ TÚC XÁ
@@ -156,10 +144,6 @@ export default function AdminLayout() {
         </Header>
 
         <Content style={{ padding: isMobile ? 12 : 24, background: '#F5F5F5' }}>
-          {currentLabel && (
-            <Breadcrumb style={{ marginBottom: 16 }}
-              items={[{ title: 'Trang chủ' }, ...currentLabel.split(' / ').map((t) => ({ title: t }))]} />
-          )}
           <div style={{ background: '#fff', padding: isMobile ? 16 : 24, borderRadius: 8, minHeight: 400 }}>
             <Outlet />
           </div>
