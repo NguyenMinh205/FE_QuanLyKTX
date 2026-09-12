@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Bien moi truong - TUYET DOI khong commit (xem docs/07 muc 6)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# File tam
+coverage/
+*.sqlite
+uploads/
