@@ -672,11 +672,11 @@ npm run dev            # chạy tại http://localhost:5173
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b feature/T3.8-contract-approve
+git checkout -b feature/contract-approval
 # ... code ...
 git add .
-git commit -m "feat(contract): them API duyet don dang ky"
-git push -u origin feature/T3.8-contract-approve
+git commit -m "feat(contract): add approval endpoint for applications"
+git push -u origin feature/contract-approval
 # Mở PR trên GitHub, gán reviewer
 ```
 

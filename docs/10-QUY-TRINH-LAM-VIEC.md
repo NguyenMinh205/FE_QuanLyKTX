@@ -51,62 +51,86 @@ gitGraph
 ### 1.2. Quy ước đặt tên nhánh
 
 ```
-<loại>/<mã-task>-<mô-tả-ngắn-không-dấu>
+<type>/<short-description-in-english>
 ```
+
+> ⚠️ **Tên nhánh viết bằng TIẾNG ANH**, chữ thường, các từ nối bằng dấu gạch ngang. Không kèm mã task, không dùng tiếng Việt kể cả khi đã bỏ dấu.
+
+**`<type>`** dùng đúng bộ với commit: `feature` · `fix` · `refactor` · `docs` · `chore` · `hotfix`
 
 **Ví dụ đúng:**
 ```
-feature/T3.1-student-crud-api
-feature/T4.12-vnpay-integration
-fix/T7.5-invoice-total-calculation
-docs/update-api-spec
+feature/frontend-foundation
+feature/student-crud-api
+feature/vnpay-integration
+feature/contract-approval
+fix/invoice-total-calculation
+refactor/contract-service
+docs/update-api-contract
+chore/setup-eslint-prettier
 ```
 
-**Ví dụ sai:** `nguyen-lam`, `test`, `new-branch`, `sua-loi`
+**Ví dụ sai:**
+
+| Sai | Vì sao |
+|-----|--------|
+| `feature/T2.7-frontend-foundation` | Thừa mã task — mã task ghi trong mô tả PR, không ghi vào tên nhánh |
+| `feature/cau-hinh-nen-frontend` | Tiếng Việt không dấu — vẫn là tiếng Việt |
+| `feature/Quan-Ly-Sinh-Vien` | Tiếng Việt + viết hoa |
+| `nguyen-lam` | Đặt theo tên người, không biết nhánh làm gì |
+| `test`, `new-branch`, `sua-loi` | Không mô tả được nội dung |
+| `feature/add_student_page` | Dùng gạch dưới thay vì gạch ngang |
+
+> 💡 Mã task (`T3.8`) vẫn cần, nhưng ghi ở **mô tả Pull Request** trong mục "Yêu cầu liên quan" — xem mẫu PR ở mục 1.4.
 
 ### 1.3. Quy ước commit (Conventional Commits)
 
 ```
-<loại>(<phạm vi>): <mô tả ngắn bằng tiếng Việt không dấu hoặc tiếng Anh>
+<type>(<scope>): <short description in English>
 
-[phần thân tùy chọn]
+[optional body]
 
-[phần chân tùy chọn]
+[optional footer]
 ```
 
-| Loại | Dùng khi |
-|------|----------|
-| `feat` | Thêm tính năng mới |
-| `fix` | Sửa lỗi |
-| `refactor` | Sửa cấu trúc code, không đổi hành vi |
-| `style` | Định dạng code, không đổi logic |
-| `docs` | Sửa tài liệu |
-| `test` | Thêm/sửa test |
-| `chore` | Cấu hình, dependency, công cụ build |
-| `perf` | Tối ưu hiệu năng |
+> ⚠️ **Commit message viết bằng TIẾNG ANH.** Dùng động từ nguyên thể, chữ thường, không chấm cuối câu.
+
+| `type` | Dùng khi | Ví dụ |
+|--------|----------|-------|
+| `feat` | Thêm tính năng mới | `feat(student): add student list page` |
+| `fix` | Sửa lỗi | `fix(invoice): correct utility cost rounding` |
+| `refactor` | Sửa cấu trúc code, không đổi hành vi | `refactor(api): extract axios error helpers` |
+| `style` | Định dạng code, không đổi logic | `style: apply prettier formatting` |
+| `docs` | Sửa tài liệu | `docs: update API contract for payments` |
+| `test` | Thêm/sửa test | `test(money): cover utility split remainder` |
+| `chore` | Cấu hình, dependency, công cụ build | `chore: install antd and react-router` |
+| `perf` | Tối ưu hiệu năng | `perf(dashboard): add index on contract end_date` |
+
+**`<scope>` gợi ý:** `auth`, `student`, `building`, `room`, `bed`, `contract`, `invoice`, `payment`, `request`, `dashboard`, `report`, `portal`, `layout`, `api`, `config`.
 
 **Ví dụ:**
 ```
-feat(contract): them API duyet don dang ky luu tru
+feat(contract): add approval endpoint for residence applications
 
-- Cai dat ContractService.approve() voi transaction
-- Tu sinh hoa don ky dau (tien coc + tien phong)
-- Cap nhat trang thai giuong sang OCCUPIED
-- Ap dung BR-20, BR-21, BR-25
+- Implement ContractService.approve() inside a transaction
+- Generate first-period invoices (deposit + first month rent)
+- Update bed status to OCCUPIED
+- Enforce BR-20, BR-21, BR-25
 
 Closes #42
 ```
 
 ```
-fix(invoice): sua loi tinh sai tien dien khi chia le
+fix(invoice): correct rounding when splitting utility cost
 
-Truoc day dung Math.round() lam tong cac phan chia lon hon
-tien dien thuc te cua phong. Doi sang Math.floor() va don
-phan du vao sinh vien co MSSV nho nhat theo BR-51.
+Math.round() made the sum of per-student shares exceed the room total.
+Switched to Math.floor() and assigned the remainder to the student with
+the smallest student code, per BR-51.
 ```
 
 **Quy tắc:**
-- Mô tả ngắn ≤ 72 ký tự, dùng động từ, không viết hoa chữ đầu, không chấm cuối câu.
+- Mô tả ngắn ≤ 72 ký tự, **viết bằng tiếng Anh**, dùng động từ nguyên thể (`add`, `fix`, `update`, `remove`), không viết hoa chữ đầu, không chấm cuối câu.
+- Phần thân (nếu có) cũng viết tiếng Anh, cách dòng tiêu đề đúng 1 dòng trống.
 - **Một commit = một thay đổi logic.** Không gộp "sửa lỗi login + thêm màn hình hóa đơn" vào một commit.
 - Commit thường xuyên, tối thiểu mỗi ngày một lần push.
 
@@ -167,7 +191,7 @@ Chú ý phần giữ chỗ giường bằng `updateMany` có điều kiện ở 
 1. **Rebase thường xuyên** để giảm xung đột:
    ```bash
    git checkout develop && git pull
-   git checkout feature/cua-toi
+   git checkout feature/student-api
    git rebase develop
    ```
 2. Khi xung đột, mở file, giữ lại phần đúng, xóa các dấu `<<<<<<<`, `=======`, `>>>>>>>`.
@@ -187,7 +211,9 @@ Chú ý phần giữ chỗ giường bằng `updateMany` có điều kiện ở 
 | Dấu nháy | Nháy đơn `'` cho chuỗi JS, nháy kép `"` cho JSX attribute |
 | Độ dài dòng | Tối đa 100 ký tự |
 | Mã hóa file | UTF-8, kết thúc dòng LF |
-| Ngôn ngữ trong code | Tên biến/hàm bằng **tiếng Anh**; chuỗi hiển thị cho người dùng bằng **tiếng Việt** |
+| Ngôn ngữ trong code | Tên biến/hàm bằng **tiếng Anh**; chuỗi hiển thị cho người dùng bằng **tiếng Việt**; ghi chú (comment) bằng **tiếng Việt** |
+| Ngôn ngữ commit message | **Tiếng Anh** (xem mục 1.3) |
+| Ngôn ngữ tên nhánh Git | **Tiếng Anh** (xem mục 1.2) |
 
 ### 2.2. Quy ước đặt tên
 
@@ -597,4 +623,5 @@ Local · Chrome 140 · commit `a1b2c3d`
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | BE Lead, FE Lead | Chốt Git flow, quy ước code, DoD, quy trình review |
+| v1.2 | 12/09/2026 | Cả nhóm | Chốt **commit message và tên nhánh Git đều viết bằng tiếng Anh**. Tên nhánh theo dạng `<type>/<short-description>`, **không kèm mã task** (mã task ghi trong mô tả PR). Bổ sung bảng `type` kèm ví dụ, danh sách `scope` gợi ý, và bảng ví dụ sai |
 | v1.1 | 12/09/2026 | BE Lead | **Áp dụng v1-lite:** ví dụ mã nguồn đổi sang `updateMany` có điều kiện; bỏ tầng Repository khỏi quy ước phân tầng; bỏ yêu cầu CI trong DoD. Xem `14` |

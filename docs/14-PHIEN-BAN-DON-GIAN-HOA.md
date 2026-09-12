@@ -1052,10 +1052,10 @@ cd backend  && npm run dev     # http://localhost:5000
 
 ```bash
 git checkout main && git pull          # đầu mỗi buổi làm
-git checkout -b feature/them-sinh-vien
+git checkout -b feature/student-management
 # ... code ...
-git add . && git commit -m "feat: them man hinh danh sach sinh vien"
-git push -u origin feature/them-sinh-vien
+git add . && git commit -m "feat(student): add student list page"
+git push -u origin feature/student-management
 # Mở PR trên GitHub → 1 người xem qua → Merge vào main → xóa nhánh
 ```
 
