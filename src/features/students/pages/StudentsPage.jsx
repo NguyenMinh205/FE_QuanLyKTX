@@ -1,19 +1,20 @@
 import { useState } from 'react';
-import { Table, Button, Input, Space, Tag, Alert, App } from 'antd';
+import { Button, Space, Tag, Select, App } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { studentApi } from '../api/student.api';
 import { getErrorMessage } from '../../../lib/axiosClient';
-import { GENDER } from '../../../constants/statuses';
+import { GENDER, GENDER_OPTIONS } from '../../../constants/statuses';
 import PageHeader from '../../../components/PageHeader';
+import DataTable from '../../../components/DataTable';
 import MoneyText from '../../../components/MoneyText';
 import StudentFormModal from '../components/StudentFormModal';
 
 /**
- * Màn hình mẫu. Các module còn lại sao chép cấu trúc này —
- * xem 14-PHIEN-BAN-DON-GIAN-HOA.md mục 15.6.
+ * Màn hình mẫu cho mọi màn hình danh sách khác.
+ * Quy trình nhân bản: xem 14-PHIEN-BAN-DON-GIAN-HOA.md mục 15.7.
  */
 export default function StudentsPage() {
   const { user } = useAuth();
@@ -34,7 +35,7 @@ export default function StudentsPage() {
   const handleDeactivate = (record) => {
     modal.confirm({
       title: 'Xác nhận vô hiệu hóa',
-      content: `Vô hiệu hóa sinh viên ${record.fullName} (${record.studentCode})? Hồ sơ sẽ không còn hiển thị trong danh sách đang hoạt động.`,
+      content: `Vô hiệu hóa sinh viên ${record.fullName} (${record.studentCode})?`,
       okText: 'Vô hiệu hóa',
       okButtonProps: { danger: true },
       cancelText: 'Hủy',
@@ -53,17 +54,12 @@ export default function StudentsPage() {
   const columns = [
     { title: 'MSSV', dataIndex: 'studentCode', width: 130, fixed: 'left' },
     { title: 'Họ và tên', dataIndex: 'fullName', width: 180 },
-    {
-      title: 'Giới tính', dataIndex: 'gender', width: 100,
-      render: (g) => GENDER[g]?.label || '—',
-    },
+    { title: 'Giới tính', dataIndex: 'gender', width: 100, render: (g) => GENDER[g]?.label || '—' },
     { title: 'Lớp', dataIndex: 'className', width: 120 },
     { title: 'Khoa', dataIndex: 'faculty', width: 180, responsive: ['lg'] },
     {
-      title: 'Chỗ ở', dataIndex: 'residence', width: 160,
-      render: (r) => (r
-        ? <Tag color="blue">{r.bedCode}</Tag>
-        : <span style={{ color: '#8C8C8C' }}>—</span>),
+      title: 'Chỗ ở', dataIndex: 'residence', width: 150,
+      render: (r) => (r ? <Tag color="blue">{r.bedCode}</Tag> : <span style={{ color: '#8C8C8C' }}>—</span>),
     },
     {
       title: 'Công nợ', dataIndex: 'totalDebt', width: 130, align: 'right',
@@ -82,8 +78,6 @@ export default function StudentsPage() {
     },
   ];
 
-  if (error) return <Alert type="error" message={error} showIcon />;
-
   return (
     <>
       <PageHeader
@@ -94,27 +88,25 @@ export default function StudentsPage() {
           : null}
       />
 
-      <Input.Search
-        placeholder="Tìm theo họ tên, mã số sinh viên, số điện thoại..."
-        allowClear
-        style={{ maxWidth: 400, marginBottom: 16 }}
-        onSearch={(value) => setFilters({ ...filters, search: value, page: 1 })}
-      />
-
-      <Table
-        rowKey="id"
+      <DataTable
         columns={columns}
-        dataSource={data || []}
+        data={data}
+        meta={meta}
         loading={loading}
-        scroll={{ x: 1000 }}
-        pagination={{
-          current: meta?.page,
-          pageSize: meta?.limit,
-          total: meta?.total,
-          showSizeChanger: false,
-          showTotal: (total) => `Tổng ${total} sinh viên`,
-          onChange: (page) => setFilters({ ...filters, page }),
-        }}
+        error={error}
+        filters={filters}
+        onFiltersChange={setFilters}
+        searchPlaceholder="Tìm theo họ tên, mã số sinh viên, số điện thoại..."
+        unit="sinh viên"
+        extraFilters={
+          <Select
+            allowClear
+            placeholder="Giới tính"
+            style={{ width: 140 }}
+            options={GENDER_OPTIONS}
+            onChange={(v) => setFilters({ ...filters, gender: v, page: 1 })}
+          />
+        }
       />
 
       <StudentFormModal

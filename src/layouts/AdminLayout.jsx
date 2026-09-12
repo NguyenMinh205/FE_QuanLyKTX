@@ -128,7 +128,7 @@ export default function AdminLayout() {
             menu={{
               items: [
                 { key: 'password', icon: <UserOutlined />, label: 'Đổi mật khẩu',
-                  onClick: () => navigate('/change-password') },
+                  onClick: () => navigate('/admin/change-password') },
                 { type: 'divider' },
                 { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true,
                   onClick: handleLogout },

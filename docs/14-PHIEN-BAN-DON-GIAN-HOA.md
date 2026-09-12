@@ -1666,6 +1666,133 @@ Các module có nghiệp vụ phức tạp (hợp đồng, hóa đơn, thanh to�
 
 > ✅ **Kiểm chứng trước khi nhân bản:** module sinh viên phải chạy trọn vẹn — thêm được, sửa được, tìm kiếm được, phân trang đúng, vô hiệu hóa bị chặn khi còn hợp đồng. Chỉ khi đó mới sao chép. Nhân bản một khung sườn còn lỗi sẽ nhân luôn lỗi ra 8 chỗ.
 
+### 15.8. ⭐ Checklist 6 bước thêm một màn hình frontend
+
+Khung nền đã dựng xong, dữ liệu giả đã có đủ 8 module. Từ đây, thêm **bất kỳ** màn hình danh sách nào cũng chỉ còn 6 bước dưới đây. Ví dụ minh họa: làm màn hình **Quản lý phòng**.
+
+---
+
+**Bước 1 — Kiểm tra API client đã có chưa** *(2 phút)*
+
+Mở `src/features/rooms/api/room.api.js`. Nếu hàm cần dùng đã có thì bỏ qua bước này. Nếu thiếu, thêm một dòng theo đúng khuôn:
+
+```js
+getRooms: (params) => (USE_MOCK ? mockRooms.getRooms(params) : axiosClient.get('/rooms', { params })),
+```
+
+> ⚠️ Endpoint phải khớp **chính xác** với `API.md`. Nếu `API.md` chưa có endpoint đó, cập nhật `API.md` **trước** rồi báo cho người làm backend.
+
+---
+
+**Bước 2 — Kiểm tra dữ liệu giả đã có chưa** *(5 phút)*
+
+Mở `src/mocks/mockApi.js`, tìm `mockRooms`. Nếu hàm chưa có thì viết thêm, bám đúng khuôn của các hàm sẵn có:
+
+```js
+getRooms: async (q = {}) => {
+  await delay();
+  let rows = db.rooms.map((r) => ({ ...r, building: db.buildings.find((b) => b.id === r.buildingId) }));
+  if (q.buildingId) rows = rows.filter((r) => r.buildingId === q.buildingId);
+  if (q.search) rows = search(rows, q.search, ['code']);
+  return paginate(rows, q);
+},
+```
+
+> ⚠️ Dữ liệu giả phải trả về **đúng bao bì** `{ code, message, data }` như backend thật (`API.md` mục 1.1). Hàm `paginate()` và `ok()` trong `mockHelpers.js` đã lo việc đó — cứ dùng, đừng tự viết lại.
+
+---
+
+**Bước 3 — Tạo file trang** *(5 phút)*
+
+Sao chép `src/features/students/pages/StudentsPage.jsx` sang `src/features/rooms/pages/RoomsPage.jsx`. Đổi:
+
+- tên hàm `StudentsPage` → `RoomsPage`
+- `studentApi.getList` → `roomApi.getRooms`
+- đường dẫn import (số lượng `../` **không đổi** vì cùng độ sâu thư mục)
+
+---
+
+**Bước 4 — Sửa `columns`** *(20–40 phút)* — đây là phần tốn thời gian nhất
+
+```jsx
+const columns = [
+  { title: 'Mã phòng', dataIndex: 'code', width: 120, fixed: 'left' },
+  { title: 'Tòa nhà',  dataIndex: ['building', 'name'], width: 150 },
+  { title: 'Sức chứa', dataIndex: 'capacity', width: 100, align: 'center' },
+  { title: 'Trạng thái', dataIndex: 'status', width: 130,
+    render: (v) => <StatusTag type="room" value={v} /> },
+  { title: 'Thao tác', key: 'action', width: 120, fixed: 'right',
+    render: (_, record) => (can(user, 'room:update') ? <a onClick={() => openEdit(record)}>Sửa</a> : null) },
+];
+```
+
+Bốn quy ước bắt buộc, để 21 màn hình trông như một sản phẩm chứ không phải 21 bài tập rời rạc:
+
+| Quy ước | Lý do |
+|---------|-------|
+| Trạng thái luôn dùng `<StatusTag type="..." value={...} />` | Màu và nhãn tiếng Việt lấy tập trung từ `constants/statuses.js` |
+| Số tiền luôn dùng `<MoneyText value={...} />`, cột `align: 'right'` | Định dạng `646.000 đ` thống nhất; công nợ tự tô đỏ |
+| Ngày tháng luôn dùng `formatDate()` từ `utils/formatter.js` | Luôn ra `DD/MM/YYYY`, không lẫn định dạng Mỹ |
+| Cột đầu và cột "Thao tác" đặt `fixed: 'left'` / `fixed: 'right'` | Bảng rộng vẫn thao tác được khi cuộn ngang |
+
+---
+
+**Bước 5 — Sửa form trong modal** *(20–40 phút)*
+
+Sao chép `StudentFormModal.jsx` sang `RoomFormModal.jsx`, thay các `<Form.Item>` theo trường của phòng. Ba điểm dễ sai:
+
+```jsx
+// ĐÚNG — antd 6 dùng destroyOnHidden, KHÔNG phải destroyOnClose (đã bỏ)
+<Modal open={open} destroyOnHidden onCancel={onCancel} footer={null}>
+
+// ĐÚNG — message lấy từ App.useApp() để nhận được theme và tiếng Việt
+const { message } = App.useApp();   // KHÔNG import { message } from 'antd'
+
+// ĐÚNG — lỗi từng trường do backend trả về phải đổ ngược vào form
+const fieldErrors = getFieldErrors(err);
+if (fieldErrors) form.setFields(fieldErrors.map((e) => ({ name: e.field, errors: [e.message] })));
+else message.error(getErrorMessage(err));
+```
+
+---
+
+**Bước 6 — Nối route và kiểm tra** *(5 phút)*
+
+Trong `src/routes/AppRoutes.jsx`, thay dòng `PlaceholderPage` tương ứng:
+
+```diff
+- <Route path="/admin/rooms" element={<PlaceholderPage title="Quản lý phòng" module="rooms" apiGroup="/api/rooms" />} />
++ <Route path="/admin/rooms" element={<RoomsPage />} />
+```
+
+Tự kiểm tra trước khi tạo pull request:
+
+| ☐ | Kiểm tra |
+|---|----------|
+| ☐ | Danh sách hiện ra, phân trang bấm sang trang 2 đúng |
+| ☐ | Ô tìm kiếm lọc đúng và **quay về trang 1** |
+| ☐ | Thêm mới xong, bảng tự tải lại và thấy bản ghi vừa thêm |
+| ☐ | Sửa xong, giá trị trên bảng đổi theo |
+| ☐ | Nhập sai dữ liệu → hiện thông báo lỗi **tiếng Việt**, không phải tiếng Anh của backend |
+| ☐ | Đăng nhập bằng tài khoản `viewer` → các nút Thêm/Sửa/Xóa **biến mất** |
+| ☐ | Thu nhỏ cửa sổ còn ~400px → bảng cuộn ngang được, không vỡ giao diện |
+| ☐ | `npm run lint` không còn lỗi |
+| ☐ | `npm run build` chạy thành công |
+
+**Tổng thời gian một màn hình CRUD: ~1 giờ.** Màn hình có nghiệp vụ phức tạp (hóa đơn, lưu trú) lâu hơn — phần **thêm** nằm ở các quy tắc `BR-xx`, còn 6 bước trên thì không đổi.
+
+---
+
+### 15.9. Ba thứ đã dựng sẵn — dùng lại, đừng viết lại
+
+| Thứ | File | Dùng khi nào |
+|-----|------|--------------|
+| `useApi` | `src/hooks/useApi.js` | Mọi lần gọi API để **lấy** dữ liệu. Trả về `{ data, meta, loading, error, refetch }` — không cần tự quản `useState` cho 3 trạng thái |
+| `DataTable` | `src/components/DataTable.jsx` | Mọi màn hình danh sách. Đã gom sẵn ô tìm kiếm, phân trang phía server, trạng thái đang tải / lỗi / rỗng |
+| `ErrorBoundary` | `src/components/ErrorBoundary.jsx` | Đã bọc sẵn ở `main.jsx`. Một màn hình lỗi sẽ không làm trắng cả ứng dụng — **không cần đụng vào** |
+
+Gọi API để **ghi** dữ liệu (thêm/sửa/xóa) thì **không dùng** `useApi` — cứ `await` trực tiếp trong hàm xử lý sự kiện rồi gọi `refetch()`, như trong `StudentsPage.jsx`.
+
 ---
 
 ## 16. Việc cần làm ngay sau khi áp dụng tài liệu này
@@ -1681,6 +1808,7 @@ Các module có nghiệp vụ phức tạp (hợp đồng, hóa đơn, thanh to�
 | 7 | **Làm trọn module "Quản lý sinh viên" theo mục 15 và chạy thật được** | Cả nhóm cùng làm | ☐ |
 | 8 | Mỗi người tự học theo mục 14.1 trong tuần 2 | Cả nhóm | ☐ |
 | 9 | Cập nhật bảng theo dõi tiến độ theo số ngày công mới (~120 MD) | PM | ☐ |
+| 10 | Hai người FE đọc **mục 15.8** (checklist 6 bước) và nhận màn hình theo `09` mục 1.4 | 2 người FE | ☐ |
 
 ---
 
@@ -1689,6 +1817,7 @@ Các module có nghiệp vụ phức tạp (hợp đồng, hóa đơn, thanh to�
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 12/09/2026 | Cả nhóm | Ban hành phiên bản đơn giản hóa **Bậc A**: 21 thay đổi kỹ thuật, giữ nguyên 100% chức năng, giảm khối lượng 206 → 155 ngày công |
-| **v2.0** | **12/09/2026** | Cả nhóm | **Rà soát theo bộ tài liệu v2.0:** viết lại toàn bộ mã mẫu sang **Mongoose** (mục 4.6, 4.9, 4.10, 15); mục 15 nay có 3 file backend + 3 file frontend theo cấu trúc `features/`; mục 5 liệt kê 12 collection thay vì bảng SQL; lập luận báo cáo ở mục 10 viết lại theo MongoDB |
+| **v2.1** | **12/09/2026** | FE Lead | Thêm mục **15.8** (checklist 6 bước thêm một màn hình frontend, kèm 9 mục tự kiểm tra trước khi tạo pull request) và mục **15.9** (ba thứ đã dựng sẵn: `useApi`, `DataTable`, `ErrorBoundary`) |
+| v2.0 | 12/09/2026 | Cả nhóm | **Rà soát theo bộ tài liệu v2.0:** viết lại toàn bộ mã mẫu sang **Mongoose** (mục 4.6, 4.9, 4.10, 15); mục 15 nay có 3 file backend + 3 file frontend theo cấu trúc `features/`; mục 5 liệt kê 12 collection thay vì bảng SQL; lập luận báo cáo ở mục 10 viết lại theo MongoDB |
 | v1.2 | 12/09/2026 | FE Lead | Cài đặt thật và kiểm chứng: **antd 6.6.3** (không phải 5.x như thiết kế ban đầu), recharts 3.10.1, react-router-dom 7.18.3. Đã chạy `npm run build` thành công với React 19 + Vite 8. Bổ sung mục 3.1.1 nêu 2 khác biệt của antd 6 |
 | v1.1 | 12/09/2026 | Cả nhóm | Bổ sung **Bậc B** cho nhóm mới bắt đầu (mục 13): 10 thay đổi thêm — 1 repo, 1 nhánh Git, gộp controller vào route, form dùng modal, làm mẫu 1 module rồi nhân bản. Thêm **lộ trình tự học** (mục 14) và **mẫu code một module hoàn chỉnh** (mục 15). Khối lượng 155 → **120 ngày công**. Chức năng vẫn giữ nguyên 85 FR |

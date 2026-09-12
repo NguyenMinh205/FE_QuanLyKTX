@@ -46,6 +46,9 @@ export default function PortalLayout() {
 
         <Dropdown
           menu={{ items: [
+            { key: 'password', icon: <UserOutlined />, label: 'Đổi mật khẩu',
+              onClick: () => navigate('/portal/change-password') },
+            { type: 'divider' },
             { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true, onClick: handleLogout },
           ] }}
         >

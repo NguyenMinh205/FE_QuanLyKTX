@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 
 import { AuthProvider } from './context/AuthProvider';
+import ErrorBoundary from './components/ErrorBoundary';
 import App from './App.jsx';
 import './index.css';
 
@@ -26,15 +27,17 @@ const theme = {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ConfigProvider locale={viVN} theme={theme}>
-      {/* <AntApp> bắt buộc để message/modal nhận được theme + locale (docs/14 mục 3.1.1) */}
-      <AntApp>
-        <AuthProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </AuthProvider>
-      </AntApp>
-    </ConfigProvider>
+    <ErrorBoundary>
+      <ConfigProvider locale={viVN} theme={theme}>
+        {/* <AntApp> bắt buộc để message/modal nhận được theme + locale (docs/14 mục 3.1.1) */}
+        <AntApp>
+          <AuthProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </AuthProvider>
+        </AntApp>
+      </ConfigProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

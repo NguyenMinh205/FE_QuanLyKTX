@@ -57,6 +57,69 @@ Tải hai bên xấp xỉ bằng nhau — cách chia này hợp lý. Backend nhi
 
 Nhờ có lớp dữ liệu giả (`14` mục 4.4), frontend **không bị chặn** dù backend chưa xong module nào.
 
+### 1.4. Chia màn hình frontend cho 2 người
+
+Toàn bộ **21 màn hình** đã có sẵn đường dẫn trong `src/routes/AppRoutes.jsx`. Màn hình chưa làm hiện hiển thị `PlaceholderPage` nên ứng dụng luôn chạy được — **không ai bị chặn bởi ai**.
+
+Nguyên tắc chia: mỗi người sở hữu trọn một nhóm nghiệp vụ (một thư mục `features/<x>/`) để **hai người không bao giờ sửa cùng một file**, tránh xung đột khi gộp nhánh.
+
+#### Người 4 — Frontend Lead
+
+| # | Màn hình | Đường dẫn | API client | Độ khó | Ước tính |
+|---|----------|-----------|------------|:------:|----------|
+| — | *Khung nền, layout, routing, phân quyền* | — | — | 🔴 | ✅ xong |
+| 1 | Dashboard | `/admin/dashboard` | `dashboardApi` | 🟡 | 1,0 ngày |
+| 2 | Quản lý tòa nhà | `/admin/buildings` | `roomApi` | 🟢 | 0,5 ngày |
+| 3 | Quản lý phòng | `/admin/rooms` | `roomApi` | 🟡 | 1,0 ngày |
+| 4 | Tra cứu giường trống | `/admin/beds/available` | `roomApi` | 🟡 | 0,5 ngày |
+| 5 | Đăng ký lưu trú | `/admin/residencies` | `residencyApi` | 🔴 | 1,5 ngày |
+| 6 | Quản lý hợp đồng | `/admin/contracts` | `contractApi` | 🔴 | 1,5 ngày |
+| 7 | Hợp đồng sắp hết hạn | `/admin/contracts/expiring` | `contractApi` | 🟢 | 0,5 ngày |
+| 8 | Yêu cầu gia hạn / trả phòng | `/admin/requests` | `requestApi` | 🟡 | 1,0 ngày |
+| 9 | Quản lý tài khoản | `/admin/users` | `authApi` | 🟡 | 1,0 ngày |
+| | | | | | **~8,5 ngày** |
+
+Kiêm thêm: review toàn bộ pull request của frontend, xử lý các lỗi giao diện chung.
+
+#### Người 5 — Frontend Dev
+
+| # | Màn hình | Đường dẫn | API client | Độ khó | Ước tính |
+|---|----------|-----------|------------|:------:|----------|
+| 1 | Quản lý sinh viên | `/admin/students` | `studentApi` | 🟡 | ✅ xong — **dùng làm mẫu** |
+| 2 | Nhập chỉ số điện nước | `/admin/utility-readings` | `feeApi` | 🔴 | 1,5 ngày |
+| 3 | Quản lý hóa đơn | `/admin/invoices` | `feeApi` | 🔴 | 2,0 ngày |
+| 4 | Danh mục loại phí | `/admin/fee-types` | `feeApi` | 🟢 | 0,5 ngày |
+| 5 | Lịch sử thanh toán | `/admin/payments` | `paymentApi` | 🟡 | 1,0 ngày |
+| 6 | Cổng SV — Trang chủ | `/portal/home` | `portalApi` | 🟢 | ✅ xong |
+| 7 | Cổng SV — Chỗ ở của tôi | `/portal/my-residence` | `portalApi` | 🟢 | 0,5 ngày |
+| 8 | Cổng SV — Hợp đồng của tôi | `/portal/my-contracts` | `portalApi` | 🟢 | 0,5 ngày |
+| 9 | Cổng SV — Hóa đơn của tôi | `/portal/my-invoices` | `portalApi` | 🟡 | 1,0 ngày |
+| 10 | Cổng SV — Yêu cầu của tôi | `/portal/my-requests` | `portalApi` | 🟡 | 1,0 ngày |
+| 11 | Cổng SV — Hồ sơ cá nhân | `/portal/profile` | `portalApi` | 🟢 | 0,5 ngày |
+| | | | | | **~8,5 ngày** |
+
+Kiêm thêm: rà soát hiển thị trên màn hình điện thoại cho toàn bộ 21 màn hình.
+
+> 🟢 CRUD thuần — sao chép màn hình sinh viên là xong · 🟡 có thêm bộ lọc hoặc một quy tắc nghiệp vụ · 🔴 nhiều bước, nhiều trạng thái, cần đọc kỹ `03` trước khi code.
+
+#### Ba màn hình khó — đọc trước khi bắt tay
+
+| Màn hình | Vì sao khó | Đọc trước |
+|----------|------------|-----------|
+| Đăng ký lưu trú | Chọn giường phải lọc đúng giới tính; giường có thể bị người khác lấy mất giữa chừng → phải hiển thị lỗi `GENDER_MISMATCH` và `BED_NOT_AVAILABLE` một cách dễ hiểu | `03` BR-21→BR-27 |
+| Nhập chỉ số điện nước | Chỉ số mới không được nhỏ hơn chỉ số cũ; nhập theo phòng nhưng chia đều cho từng người | `03` BR-41→BR-46 |
+| Quản lý hóa đơn | Bốn trạng thái `unpaid → partial → paid → overdue`; nút hành động bật/tắt theo trạng thái; tiền còn nợ phải khớp từng đồng với backend | `03` BR-47→BR-55 |
+
+#### Quy ước làm việc giữa hai người
+
+| Việc | Quy ước |
+|------|---------|
+| Nhánh | `feature/<ten-man-hinh>` — ví dụ `feature/invoice-management`. Tên nhánh bằng tiếng Anh |
+| Phạm vi sửa | Chỉ sửa file trong thư mục `features/` mình phụ trách |
+| File dùng chung | `components/`, `hooks/`, `utils/`, `layouts/` — **báo nhau trước khi sửa** |
+| Gộp nhánh | Tạo pull request, người còn lại review rồi mới gộp vào `main` |
+| Dữ liệu giả | Cần thêm dữ liệu thì sửa `src/mocks/mockDb.js` — báo trong nhóm vì file này dùng chung |
+
 ---
 
 ## 2. Cấu trúc phân rã công việc (WBS)
@@ -369,6 +432,7 @@ flowchart LR
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | PM | Khởi tạo WBS, phân công, RACI, quy tắc phối hợp |
-| **v2.1** | **12/09/2026** | PM | Chốt mô hình **2 repo** và phân công **3 backend / 2 frontend**; thêm mục 1.1 (lý do chia), 1.2 (ai đọc tài liệu nào), 1.3 (hai điểm giao nhau bắt buộc phối hợp) |
+| **v2.2** | **12/09/2026** | FE Lead | Thêm mục **1.4**: chia 21 màn hình cho 2 người frontend (mỗi người ~8,5 ngày), đánh dấu 3 màn hình khó cần đọc nghiệp vụ trước, chốt quy ước nhánh và phạm vi sửa file |
+| v2.1 | 12/09/2026 | PM | Chốt mô hình **2 repo** và phân công **3 backend / 2 frontend**; thêm mục 1.1 (lý do chia), 1.2 (ai đọc tài liệu nào), 1.3 (hai điểm giao nhau bắt buộc phối hợp) |
 | v2.0 | 12/09/2026 | PM | **Rà soát theo bộ tài liệu v2.0:** nhóm 5 người; bỏ task chuyển phòng và task API nộp đơn; đổi tên task theo module mới (`residencies`, `fees`) |
 | v1.1 | 12/09/2026 | PM | **Áp dụng v1-lite:** khối lượng 206 → 155 ngày công; bỏ T2.12 (CI), T4.13 (ZaloPay), T7.2 (integration test); rút gọn T2.2, T2.10, T2.11, T3.15, T4.12, T7.1, T7.3. Chức năng giữ nguyên — xem `14` |

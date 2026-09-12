@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import LoginPage from '../features/auth/pages/LoginPage';
 import ForbiddenPage from '../features/auth/pages/ForbiddenPage';
 import NotFoundPage from '../features/auth/pages/NotFoundPage';
+import ChangePasswordPage from '../features/auth/pages/ChangePasswordPage';
 import DashboardPage from '../features/dashboard/pages/DashboardPage';
 import StudentsPage from '../features/students/pages/StudentsPage';
 import PortalHomePage from '../features/portal/pages/PortalHomePage';
@@ -34,6 +35,7 @@ export default function AppRoutes() {
       <Route element={<RoleRoute allowed={ADMIN_AREA_ROLES}><AdminLayout /></RoleRoute>}>
         <Route path="/admin/dashboard" element={<DashboardPage />} />
         <Route path="/admin/students" element={<StudentsPage />} />
+        <Route path="/admin/change-password" element={<ChangePasswordPage />} />
 
         <Route path="/admin/buildings" element={<PlaceholderPage title="Quản lý tòa nhà" module="rooms" apiGroup="/api/buildings" />} />
         <Route path="/admin/rooms" element={<PlaceholderPage title="Quản lý phòng" module="rooms" apiGroup="/api/rooms" />} />
@@ -56,6 +58,7 @@ export default function AppRoutes() {
       {/* ---------- Cổng sinh viên: chỉ student ---------- */}
       <Route element={<RoleRoute allowed={[STUDENT]}><PortalLayout /></RoleRoute>}>
         <Route path="/portal/home" element={<PortalHomePage />} />
+        <Route path="/portal/change-password" element={<ChangePasswordPage />} />
         <Route path="/portal/my-residence" element={<PlaceholderPage title="Chỗ ở của tôi" module="portal" apiGroup="/api/portal/my-residence" />} />
         <Route path="/portal/my-contracts" element={<PlaceholderPage title="Hợp đồng của tôi" module="portal" apiGroup="/api/portal/my-contracts" />} />
         <Route path="/portal/my-invoices" element={<PlaceholderPage title="Hóa đơn của tôi" module="portal" apiGroup="/api/portal/my-invoices" />} />

@@ -1,21 +1,19 @@
 import { Row, Col, Card, Statistic, Progress, Alert } from 'antd';
 import { HomeOutlined, CheckCircleOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
-import { mockDashboardSummary } from '../../../mocks/mockData';
+import { dashboardApi } from '../api/dashboard.api';
 import PageHeader from '../../../components/PageHeader';
 import { formatCurrency, formatPercent } from '../../../utils/formatter';
 
-// TODO: đổi sang dashboardApi.getSummary() khi backend xong — API.md mục 11
-const fetchSummary = () => mockDashboardSummary();
-
 export default function DashboardPage() {
-  const { data, loading, error } = useApi(fetchSummary, []);
+  const { data, loading, error } = useApi(() => dashboardApi.getSummary(), []);
 
   if (error) return <Alert type="error" message={error} showIcon />;
 
   const o = data?.occupancy;
   const r = data?.residents;
   const f = data?.finance;
+  const rq = data?.pendingRequests;
 
   return (
     <>
@@ -73,8 +71,8 @@ export default function DashboardPage() {
         style={{ marginTop: 24 }}
         type="info"
         showIcon
-        message="Đây là khung dashboard"
-        description="Số liệu đang lấy từ dữ liệu giả. Biểu đồ lấp đầy theo tòa sẽ bổ sung ở Sprint 4 — xem 08-THIET-KE-GIAO-DIEN.md."
+        message={`Đang chờ xử lý: ${rq?.renewal ?? 0} yêu cầu gia hạn · ${rq?.checkout ?? 0} yêu cầu trả phòng`}
+        description="Biểu đồ tỷ lệ lấp đầy theo tòa sẽ bổ sung ở Sprint 4 — xem 08-THIET-KE-GIAO-DIEN.md."
       />
     </>
   );

@@ -5,6 +5,7 @@ import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { ROLES } from '../../../constants/roles';
 import { getErrorMessage } from '../../../lib/axiosClient';
+import { USE_MOCK } from '../../../lib/env';
 
 const { Title, Text } = Typography;
 
@@ -80,7 +81,7 @@ export default function LoginPage() {
           </Button>
         </Form>
 
-        {import.meta.env.VITE_USE_MOCK === 'true' && (
+        {USE_MOCK && (
           <Alert
             style={{ marginTop: 16 }}
             type="info"
