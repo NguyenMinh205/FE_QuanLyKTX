@@ -1,7 +1,7 @@
 # 02 – ĐẶC TẢ YÊU CẦU PHẦN MỀM (SRS)
 
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
-**Phiên bản:** v1.1 (MVP)
+**Phiên bản:** v1.2 (MVP)
 **Kiến trúc:** Monolith theo tính năng (modular monolith)
 **Stack:** React + Vite (Frontend) · Node.js + Express.js (Backend) · MongoDB + Mongoose (Database)
 **Quy mô đội:** 5 người
@@ -17,12 +17,12 @@
 
 | Mã | Tác nhân | Mô tả | Cách có tài khoản |
 |----|----------|-------|-------------------|
-| AC-1 | **Admin** | Quản trị viên KTX. Toàn quyền hệ thống: quản lý người dùng, cấu hình danh mục phí. | Tạo sẵn khi khởi tạo hệ thống (seed) |
-| AC-2 | **Staff** | Nhân viên KTX. Nghiệp vụ hằng ngày: sinh viên, phòng/giường, lưu trú, hợp đồng, hóa đơn, thanh toán, duyệt yêu cầu. | Admin tạo |
-| AC-3 | **Student** | Sinh viên đang/sắp lưu trú. Chỉ thao tác trên dữ liệu của chính mình. | Tự đăng ký tài khoản, liên kết với hồ sơ do Staff quản lý |
+| AC-1 | **Admin** | Quản trị viên KTX. Toàn quyền hệ thống: quản lý người dùng, cấu hình danh mục phí và loại phòng. | Tạo sẵn khi khởi tạo hệ thống (seed) |
+| AC-2 | **Staff** | Nhân viên KTX. Nghiệp vụ hằng ngày: sinh viên, phòng, duyệt đơn đăng ký, hợp đồng, hóa đơn, thanh toán, duyệt yêu cầu, giao nhu yếu phẩm. | Admin tạo |
+| AC-3 | **Student** | Sinh viên đang/sắp lưu trú. Nộp đơn đăng ký chỗ ở, thanh toán, gửi yêu cầu, mua nhu yếu phẩm. Chỉ thao tác trên dữ liệu của chính mình. | Tự đăng ký tài khoản, liên kết với hồ sơ do Staff quản lý |
 | AC-4 | **Viewer** | Người xem báo cáo (ban giám hiệu, phòng ban liên quan). Chỉ đọc. | Admin tạo |
 | AC-5 | **Payment Gateway** (tác nhân hệ thống) | VNPay / ZaloPay. Gửi kết quả giao dịch về hệ thống qua webhook. | Không áp dụng |
-| AC-6 | **Scheduler** (tác nhân hệ thống) | Job nền chạy theo lịch: chuyển hợp đồng hết hạn, đánh dấu hóa đơn quá hạn. | Không áp dụng |
+| AC-6 | **Scheduler** (tác nhân hệ thống) | Job nền chạy theo lịch: chuyển hợp đồng hết hạn, đánh dấu hóa đơn quá hạn, hủy đơn nhu yếu phẩm quá hạn chưa thanh toán. | Không áp dụng |
 
 *Admin kế thừa toàn bộ quyền của Staff; Staff kế thừa quyền đọc của Viewer trên các báo cáo.*
 
@@ -43,8 +43,8 @@ flowchart LR
         U1["Quản lý người dùng & phân quyền"]
         U2["Quản lý danh mục phí"]
         U3["Quản lý sinh viên"]
-        U4["Quản lý tòa nhà / phòng / giường"]
-        U5["Đăng ký lưu trú & xếp giường"]
+        U4["Quản lý tòa nhà / loại phòng / phòng"]
+        U5["Duyệt đơn đăng ký & xếp phòng"]
         U6["Quản lý hợp đồng"]
         U7["Nhập chỉ số điện nước"]
         U8["Lập & quản lý hóa đơn"]
@@ -52,13 +52,16 @@ flowchart LR
         U10["Duyệt yêu cầu gia hạn / trả phòng"]
         U11["Xem dashboard & báo cáo"]
         U12["Đăng ký tài khoản / Đăng nhập"]
-        U13["Tra cứu phòng & giường trống"]
+        U13["Xem loại phòng & phòng còn chỗ"]
         U14["Xem thông tin cư trú & hợp đồng"]
         U15["Xem hóa đơn & lịch sử thanh toán"]
         U16["Thanh toán trực tuyến"]
         U17["Gửi yêu cầu gia hạn / trả phòng"]
         U18["Xử lý kết quả giao dịch (webhook)"]
-        U19["Tự động cập nhật trạng thái<br/>hợp đồng / hóa đơn"]
+        U19["Tự động cập nhật trạng thái<br/>hợp đồng / hóa đơn / đơn hàng"]
+        U20["Nộp đơn đăng ký chỗ ở"]
+        U21["Mua nhu yếu phẩm"]
+        U22["Quản lý nhu yếu phẩm & giao hàng"]
     end
 
     Admin --> U1
@@ -73,12 +76,15 @@ flowchart LR
     Staff --> U9
     Staff --> U10
     Staff --> U11
+    Staff --> U22
     Student --> U12
     Student --> U13
     Student --> U14
     Student --> U15
     Student --> U16
     Student --> U17
+    Student --> U20
+    Student --> U21
     Viewer --> U11
     Gateway --> U18
     Timer --> U19
@@ -118,41 +124,43 @@ flowchart LR
 | FR-16 | Sắp xếp danh sách theo họ tên, mã SV, ngày tạo. | S | Staff |
 | FR-17 | Xuất danh sách sinh viên đang lọc ra file CSV. | S | Staff, Viewer |
 
-### 3.3. M3 – Quản lý tòa nhà, phòng & giường
+### 3.3. M3 – Quản lý tòa nhà, loại phòng, phòng & giường
 
 | Mã | Yêu cầu | Ưu tiên | Tác nhân |
 |----|---------|---------|----------|
 | FR-20 | Staff thêm/sửa/ngừng hoạt động **tòa nhà**: mã, tên, địa chỉ, mô tả. | M | Staff |
-| FR-21 | Staff thêm/sửa/ngừng hoạt động **phòng** thuộc một tòa nhà: số phòng, **giới tính phòng**, sức chứa, giá thuê mỗi giường/tháng, trạng thái. | M | Staff |
-| FR-22 | Staff thêm/sửa/xóa **giường** thuộc một phòng: mã giường, trạng thái. Giường có 3 trạng thái: `available` · `occupied` · `maintenance`. | M | Staff |
-| FR-23 | Hỗ trợ sinh nhanh giường theo sức chứa của phòng (VD: phòng 4 người → tự tạo 4 giường). | S | Staff |
-| FR-24 | Hệ thống không cho phép số giường thực tế trong một phòng vượt quá sức chứa đã khai báo. | M | – |
+| FR-21 | Staff thêm/sửa/ngừng hoạt động **phòng** thuộc một tòa nhà: số phòng, tầng, **loại phòng**, **giới tính phòng**, trạng thái. Phòng **không có trường giá** và **không nhập sức chứa bằng tay** — cả hai lấy từ loại phòng. *(v1.2)* | M | Staff |
+| FR-22 | Khi tạo phòng, hệ thống **tự sinh đủ số giường** theo sức chứa của loại phòng, đánh số liên tục (VD `B203-01` … `B203-06`). **Không có chức năng thêm/xóa giường thủ công.** Giường có 3 trạng thái: `available` · `occupied` · `maintenance`. *(v1.2)* | M | – |
+| FR-23 | Admin quản lý **loại phòng**: hạng (Tiêu chuẩn / Chất lượng cao) × sức chứa (3 / 4 / 6 / 8 người), giá mỗi người/tháng, tiền cọc, danh sách đồ cấp sẵn. Mỗi tổ hợp hạng × sức chứa là duy nhất. *(v1.2)* | M | Admin |
+| FR-24 | Không cho đổi hạng/sức chứa của loại phòng đã có phòng sử dụng (`422 ROOM_TYPE_IN_USE`). Không cho đổi loại phòng hoặc giới tính của phòng đang có người ở (`422 ROOM_HAS_OCCUPANTS`). Đổi giá/tiền cọc **không** ảnh hưởng hợp đồng đã duyệt. *(v1.2)* | M | – |
 | FR-25 | Hệ thống không cho phép xóa tòa nhà/phòng/giường đang được sử dụng; chỉ cho chuyển sang ngừng hoạt động. | M | – |
-| FR-26 | Hiển thị sơ đồ trực quan theo tòa: mỗi phòng hiển thị `đã ở/sức chứa`, tô màu theo mức lấp đầy. | S | Staff, Viewer |
+| FR-26 | Hiển thị sơ đồ trực quan theo tòa và tầng: mỗi phòng hiển thị `đã ở/sức chứa`, loại phòng, tô màu theo mức lấp đầy; bấm vào phòng xem danh sách giường và người đang ở. | S | Staff, Viewer |
 | FR-27 | Cho phép chuyển giường sang `maintenance` và ngược lại; giường đang `occupied` không được chuyển sang `maintenance`. | M | Staff |
-| FR-28 | Cung cấp API/màn hình tra cứu **giường còn trống**, lọc theo tòa nhà, giới tính, khoảng giá. | M | Staff, Student |
-| ⭐ FR-29 | Mỗi phòng có thuộc tính **giới tính** (`male`/`female`) bắt buộc. Hệ thống **chặn** xếp sinh viên vào phòng không khớp giới tính, trả `422 GENDER_MISMATCH`. Việc kiểm tra thực hiện ở mức **phòng**, không phải mức tòa nhà. | M | – |
+| FR-28 | Cung cấp tra cứu **phòng còn chỗ**, lọc theo loại phòng và tòa nhà. **Số chỗ trống = số giường `available`** (không tính giường bảo trì). Với sinh viên, chỉ trả về phòng khớp giới tính của chính sinh viên đó. *(v1.2)* | M | Staff, Student |
+| ⭐ FR-29 | Mỗi phòng có thuộc tính **giới tính** (`male`/`female`) bắt buộc. Hệ thống **chặn** xếp sinh viên vào phòng không khớp giới tính, trả `422 GENDER_MISMATCH`. Việc kiểm tra thực hiện ở mức **phòng**, không phải mức tòa nhà, và thực hiện **cả khi nộp đơn lẫn khi duyệt đơn**. | M | – |
 
-### 3.4. M4 – Đăng ký lưu trú & hợp đồng
+### 3.4. M4 – Đơn đăng ký, lưu trú & hợp đồng
 
 | Mã | Yêu cầu | Ưu tiên | Tác nhân |
 |----|---------|---------|----------|
-| FR-30 | Staff tạo **Residency** gắn một sinh viên vào một giường cụ thể còn trống. | M | Staff |
-| FR-31 | Hệ thống không cho phép xếp sinh viên vào giường đang `occupied` hoặc `maintenance`. Việc chiếm giường phải dùng **cập nhật có điều kiện nguyên tử**, không đọc-rồi-ghi. | M | – |
-| FR-32 | Hệ thống không cho phép một sinh viên có đồng thời 2 hợp đồng ở trạng thái `pending` hoặc `active`. | M | – |
-| FR-33 | Staff tạo **Contract** liên kết 1:1 với Residency: ngày bắt đầu, ngày kết thúc, giá/tháng, tiền cọc, điều khoản. Trạng thái khởi tạo `pending`. | M | Staff |
-| FR-34 | Staff kích hoạt hợp đồng `pending` → `active`; giường chuyển `occupied`; hệ thống sinh **hai hóa đơn riêng**: một `deposit` (tiền cọc) và một `monthly` (tiền phòng kỳ đầu). | M | Staff |
-| FR-35 | Danh sách hợp đồng có phân trang, lọc theo trạng thái, tòa nhà, khoảng ngày, từ khóa sinh viên. | M | Staff, Viewer |
+| FR-30 | Sinh viên nộp **đơn đăng ký chỗ ở**: chọn loại phòng → chọn một phòng còn chỗ (khớp giới tính) → chọn ngày bắt đầu, ngày kết thúc → ghi chú (tùy chọn) → nộp. Staff lập được đơn thay cho sinh viên đến đăng ký trực tiếp. Mỗi sinh viên chỉ có **một** đơn `pending` (`409 DUPLICATE_PENDING_APPLICATION`). **Nộp đơn không giữ chỗ.** *(v1.2)* | M | Student, Staff |
+| FR-31 | Khi duyệt đơn, hệ thống **tự gán giường trống có số nhỏ nhất** trong phòng bằng **cập nhật có điều kiện nguyên tử**, không đọc-rồi-ghi. **Không ai chọn giường bằng tay.** Nếu phòng vừa hết chỗ → `409 ROOM_FULL` và không ghi thêm bất cứ dữ liệu nào. *(v1.2)* | M | – |
+| FR-32 | Một sinh viên không được có đồng thời hai hợp đồng `active`; sinh viên đang có hợp đồng `active` không được nộp đơn mới (`422 STUDENT_HAS_ACTIVE_CONTRACT`). | M | – |
+| FR-33 | Staff **duyệt hoặc từ chối** đơn (từ chối bắt buộc nhập lý do tối thiểu 10 ký tự). Khi duyệt, Staff được đổi sang phòng khác **cùng loại phòng** (`422 ROOM_TYPE_MISMATCH` nếu khác loại). Sinh viên tự hủy được đơn khi còn `pending`. *(v1.2)* | M | Staff, Student |
+| FR-34 | Khi duyệt đơn thành công, hệ thống tạo **Residency** và **Contract** trạng thái `active`, với **giá thuê và tiền cọc chốt theo loại phòng tại thời điểm duyệt**, rồi sinh **hai hóa đơn riêng**: một `deposit` (tiền cọc) và một `monthly` (tiền phòng kỳ đầu). Nếu một bước sau khi đã gán giường bị lỗi, hệ thống trả giường về `available`. *(v1.2)* | M | – |
+| FR-35 | Danh sách hợp đồng có phân trang, lọc theo trạng thái, tòa nhà, loại phòng, khoảng ngày, từ khóa sinh viên. | M | Staff, Viewer |
 | FR-36 | Scheduler tự chuyển hợp đồng sang `expired` khi quá ngày kết thúc mà không gia hạn, đồng thời giải phóng giường. | M | – |
 | FR-37 | Hệ thống cảnh báo hợp đồng sắp hết hạn trong N ngày (mặc định 30) trên dashboard và danh sách hợp đồng. | M | Staff, Admin |
 | FR-38 | Staff chấm dứt hợp đồng trước hạn kèm lý do; hệ thống giải phóng giường, đóng Residency và chốt công nợ. | M | Staff |
-| FR-39 | Hệ thống lưu lịch sử lưu trú của sinh viên (hợp đồng cũ, giường đã ở) để tra cứu. | S | Staff, Student |
+| FR-39 | Hệ thống lưu lịch sử lưu trú của sinh viên (đơn đăng ký, hợp đồng cũ, phòng và giường đã ở) để tra cứu. | S | Staff, Student |
+
+> **v1.2:** hợp đồng không còn trạng thái `pending`. Giai đoạn chờ nằm ở **đơn đăng ký**; hợp đồng chỉ được tạo khi đã có giường.
 
 ### 3.5. M5 – Phí, chỉ số điện nước & thanh toán
 
 | Mã | Yêu cầu | Ưu tiên | Tác nhân |
 |----|---------|---------|----------|
-| FR-45 | Admin quản lý **danh mục loại phí**: tiền phòng, tiền điện, tiền nước, tiền cọc, phí khác — mã, tên, đơn vị, đơn giá mặc định. | M | Admin |
+| FR-45 | Admin quản lý **danh mục loại phí**: tiền phòng, tiền điện, tiền nước, tiền cọc, nhu yếu phẩm, phí khác — mã, tên, đơn vị, đơn giá mặc định. *(Chỉ tiền điện và tiền nước dùng đơn giá này; tiền phòng và tiền cọc lấy từ hợp đồng.)* | M | Admin |
 | FR-46 | Staff tạo **hóa đơn** cho một sinh viên gồm một hoặc nhiều dòng phí, kỳ thanh toán, hạn thanh toán. | M | Staff |
 | FR-47 | Hệ thống hỗ trợ **lập hóa đơn hàng loạt** cho tất cả sinh viên đang ở trong một kỳ. Nếu sinh viên **đã có** hóa đơn `monthly` của kỳ đó, hệ thống **bổ sung các dòng phí còn thiếu** vào hóa đơn có sẵn thay vì bỏ qua sinh viên. | M | Staff |
 | FR-48 | Hệ thống tự sinh mã hóa đơn duy nhất theo định dạng `INV-YYYYMM-XXXXX`. | M | – |
@@ -178,7 +186,7 @@ flowchart LR
 | FR-63 | Staff xem danh sách yêu cầu, lọc theo loại và trạng thái; chi tiết yêu cầu hiển thị kèm công nợ của sinh viên. | M | Staff |
 | FR-64 | Staff duyệt hoặc từ chối yêu cầu (từ chối bắt buộc nhập lý do). | M | Staff |
 | FR-65 | Khi duyệt **gia hạn**: cập nhật `endDate` của hợp đồng, sinh hóa đơn tiền phòng cho các kỳ gia hạn. **Không** thu lại tiền cọc. | M | – |
-| FR-66 | Khi duyệt **trả phòng**: hợp đồng → `terminated`, Residency → `closed`, giường → `available`, công nợ được chốt. | M | – |
+| FR-66 | Khi duyệt **trả phòng**: trước tiên hủy các đơn nhu yếu phẩm chưa thanh toán của sinh viên (FR-106), sau đó hợp đồng → `terminated`, Residency → `closed`, giường → `available`, công nợ được chốt. | M | – |
 | FR-67 | Sinh viên xem được trạng thái (`pending`/`approved`/`rejected`) các yêu cầu đã gửi và tự hủy được yêu cầu khi còn `pending`. | M | Student |
 | ⭐ FR-68 | Khi duyệt trả phòng, hệ thống **quyết toán tiền cọc**: `tiền hoàn = tiền cọc − công nợ còn lại`. Nếu dương → tạo hóa đơn `settlement` và ghi nhận việc chi trả bằng một bản ghi `Payment` loại `refund`. Nếu âm → tạo hóa đơn `settlement` ghi phần sinh viên còn nợ. | M | – |
 | ⭐ FR-69 | Nếu sinh viên còn công nợ khi duyệt trả phòng, hệ thống trả `422 STUDENT_HAS_DEBT` kèm số tiền; Staff phải gửi lại với cờ `forceConfirm: true` để tiếp tục. | M | Staff |
@@ -191,7 +199,7 @@ flowchart LR
 | FR-71 | Dashboard hiển thị số sinh viên đang lưu trú và số hợp đồng theo từng trạng thái. | M | Admin, Staff, Viewer |
 | FR-72 | Dashboard hiển thị tổng công nợ và số hóa đơn quá hạn. | M | Admin, Staff, Viewer |
 | FR-73 | Dashboard hiển thị danh sách hợp đồng sắp hết hạn trong N ngày tới. | M | Admin, Staff |
-| FR-74 | Dashboard hiển thị số yêu cầu đang chờ xử lý và danh sách giường còn trống. | M | Staff, Viewer |
+| FR-74 | Dashboard hiển thị số yêu cầu gia hạn/trả phòng đang chờ, số **đơn đăng ký chờ duyệt**, số **đơn nhu yếu phẩm chờ nhận** và số chỗ còn trống theo loại phòng. | M | Staff, Viewer |
 | FR-75 | Người dùng có thể lọc số liệu dashboard theo tòa nhà. | S | Admin, Staff, Viewer |
 
 ### 3.8. M8 – Cổng tự phục vụ sinh viên
@@ -201,7 +209,7 @@ flowchart LR
 | FR-80 | Sinh viên tự đăng ký tài khoản (email + mật khẩu), liên kết với hồ sơ sinh viên có sẵn do Staff quản lý. | M | Student |
 | FR-81 | Nếu thông tin không khớp hồ sơ đang quản lý, hệ thống từ chối đăng ký và yêu cầu liên hệ Staff. | M | Student |
 | FR-82 | Sinh viên xem thông tin cư trú hiện tại: tòa nhà, phòng, giường, ngày bắt đầu/kết thúc hợp đồng, tóm tắt công nợ. | M | Student |
-| FR-83 | Sinh viên xem danh sách phòng/giường còn trống (chỉ đọc): tòa nhà, phòng, sức chứa, số chỗ còn lại, giá. | M | Student |
+| FR-83 | Sinh viên xem **loại phòng** (giá, tiền cọc, đồ cấp sẵn, số chỗ còn) và **phòng còn chỗ** khớp giới tính; nộp, theo dõi và hủy đơn đăng ký của mình (FR-30, FR-33). Sinh viên chưa có chỗ ở thấy lời mời đăng ký ngay trên trang chủ. *(v1.2)* | M | Student |
 | FR-84 | Sinh viên xem hóa đơn của mình, chi tiết từng dòng phí và lịch sử thanh toán. | M | Student |
 | FR-85 | **Ràng buộc bảo mật:** mọi API của cổng sinh viên lấy danh tính từ **JWT**, không bao giờ từ tham số client gửi lên. Truy cập dữ liệu người khác bị từ chối với mã `403`. | M | – |
 | FR-86 | Sinh viên không được sửa thông tin cá nhân; màn hình hồ sơ ở chế độ chỉ đọc. | M | – |
@@ -211,11 +219,24 @@ flowchart LR
 | Mã | Yêu cầu | Ưu tiên |
 |----|---------|---------|
 | FR-90 | Mọi danh sách hỗ trợ phân trang `?page=&limit=`, trả về `{ items, total, page, limit }`. | M |
-| FR-91 | Scheduler chạy **một job nền** hằng ngày: chuyển hợp đồng hết hạn, đánh dấu hóa đơn quá hạn, hết hạn giao dịch treo. | M |
+| FR-91 | Scheduler chạy **một job nền** hằng ngày: chuyển hợp đồng hết hạn, đánh dấu hóa đơn quá hạn, hết hạn giao dịch treo, **hủy đơn nhu yếu phẩm quá hạn chưa thanh toán**. | M |
 | FR-92 | Hệ thống hiển thị thông báo lỗi thân thiện bằng tiếng Việt cho người dùng cuối; ghi log kỹ thuật chi tiết ở server. | M |
 | FR-93 | Dữ liệu nhạy cảm (SĐT người thân, thông tin định danh) chỉ hiển thị cho Admin/Staff, không lộ qua API cổng sinh viên. | M |
 
-**Tổng: 69 yêu cầu chức năng** (66 gốc + 3 bổ sung ⭐).
+### 3.10. M10 – Nhu yếu phẩm *(v1.2)*
+
+| Mã | Yêu cầu | Ưu tiên | Tác nhân |
+|----|---------|---------|----------|
+| FR-100 | Staff quản lý **danh mục nhu yếu phẩm**: tên, nhóm (Chăn ga gối đệm / Đồ dùng cá nhân / Điện), đơn vị, giá, đường dẫn ảnh, **loại phòng được cấp sẵn**, trạng thái đang bán / ngừng bán. Không quản lý tồn kho. | M | Staff |
+| FR-101 | Sinh viên có hợp đồng `active` xem cửa hàng: thấy danh sách đồ **đã cấp sẵn** trong phòng mình, và chỉ thấy sản phẩm đang bán **không** được cấp sẵn cho loại phòng của mình. | M | Student |
+| FR-102 | Sinh viên đặt hàng, mỗi sản phẩm 1–5 cái. **Tổng tiền tính ở server theo giá hiện hành**, không nhận giá từ client. Mỗi đơn tạo **một hóa đơn `supplies` riêng**, hạn thanh toán 3 ngày. Chặn sản phẩm đã cấp sẵn (`422 SUPPLY_ALREADY_INCLUDED`) hoặc đã ngừng bán (`422 SUPPLY_ITEM_INACTIVE`). | M | Student |
+| FR-103 | Khi hóa đơn `supplies` được thanh toán đủ — trực tuyến hoặc tại quầy — đơn chuyển sang `ready` (chờ nhận hàng) **đúng một lần**, kể cả khi cổng thanh toán gửi webhook lặp lại. | M | – |
+| FR-104 | Staff bấm **xác nhận đã giao** cho đơn `ready` → `delivered`, lưu người giao và thời điểm giao. | M | Staff |
+| FR-105 | Sinh viên hoặc Staff **hủy đơn** khi đơn còn `pending_payment` và hóa đơn chưa có thanh toán nào; hủy đơn thì hóa đơn đi kèm cũng bị hủy (`422 ORDER_NOT_CANCELLABLE` nếu không đủ điều kiện). | M | Student, Staff |
+| ⭐ FR-106 | Scheduler **tự hủy** đơn `pending_payment` đã quá hạn thanh toán, kèm hóa đơn. Khi duyệt trả phòng, hệ thống cũng hủy các đơn này **trước** khi tính công nợ. Mục đích: hàng sinh viên chưa nhận **không bao giờ bị trừ vào tiền cọc**. | M | – |
+| FR-107 | Staff xem danh sách đơn theo trạng thái, tìm theo mã đơn / MSSV / họ tên, kèm số đếm chờ thanh toán / chờ nhận / đã giao hôm nay. Sinh viên xem lịch sử đơn của chính mình. | M | Staff, Student |
+
+**Tổng: 87 yêu cầu chức năng**, trong đó 5 yêu cầu ⭐ là quy tắc nghiệp vụ cốt lõi được bổ sung sau bản PRD đầu tiên.
 
 ---
 
@@ -231,7 +252,7 @@ flowchart LR
 | NFR-06 | Bảo mật | Toàn bộ API (trừ đăng nhập/đăng ký/webhook) yêu cầu JWT hợp lệ. | Test bảo mật |
 | NFR-07 | Bảo mật | Dùng Mongoose (không nối chuỗi query) chống injection; escape đầu ra chống XSS; bật CORS whitelist. | Code review |
 | NFR-08 | Bảo mật | Dữ liệu nhạy cảm chỉ hiển thị cho Admin/Staff, không lộ qua cổng sinh viên. | Test phân quyền |
-| NFR-09 | Khả dụng | Giao diện responsive, dùng tốt từ ≥ 360px đến desktop. | Kiểm thử thủ công |
+| NFR-09 | Khả dụng | **Ưu tiên giao diện máy tính** (≥ 1280px) cho cả khu quản trị và cổng sinh viên; giao diện vẫn responsive và dùng được từ 360px trở lên. *(v1.2)* | Kiểm thử thủ công |
 | NFR-10 | Khả dụng | Mọi form có validation phía client + phía server, báo lỗi ngay tại trường nhập liệu. | Kiểm thử thủ công |
 | NFR-11 | Khả dụng | Thao tác nguy hiểm (vô hiệu hóa SV, chấm dứt hợp đồng, hủy hóa đơn, duyệt trả phòng) có hộp thoại xác nhận. | Kiểm thử thủ công |
 | NFR-12 | Tương thích | Hoạt động đúng trên Chrome, Edge, Firefox bản mới nhất và 1 bản trước đó. | Kiểm thử chéo trình duyệt |
@@ -275,29 +296,36 @@ flowchart LR
 
 ---
 
-### UC-02: Staff đăng ký sinh viên vào phòng/giường
+### UC-02: Sinh viên nộp đơn đăng ký, Staff duyệt và xếp phòng *(viết lại v1.2)*
 
 | Mục | Nội dung |
 |-----|----------|
-| **Tác nhân chính** | Staff |
-| **Yêu cầu liên quan** | FR-29, FR-30, FR-31, FR-32, FR-33, FR-34 |
-| **Điều kiện trước** | Hồ sơ sinh viên đã tồn tại; sinh viên không có hợp đồng `pending`/`active` |
-| **Điều kiện sau** | Residency + Contract được tạo, giường `occupied`, sinh 2 hóa đơn kỳ đầu |
+| **Tác nhân chính** | Student (nộp đơn), Staff (duyệt) |
+| **Yêu cầu liên quan** | FR-28, FR-29, FR-30, FR-31, FR-32, FR-33, FR-34 |
+| **Điều kiện trước** | Hồ sơ sinh viên đã tồn tại; sinh viên không có hợp đồng `active` và không có đơn `pending` |
+| **Điều kiện sau** | Đơn `approved`; Residency + Contract `active` được tạo; một giường chuyển `occupied`; sinh 2 hóa đơn kỳ đầu |
 
 **Luồng chính:**
-1. Staff mở hồ sơ sinh viên → "Đăng ký lưu trú".
-2. Hệ thống chỉ hiển thị phòng có `gender` khớp giới tính sinh viên và còn giường trống.
-3. Staff chọn giường cụ thể, nhập ngày bắt đầu.
-4. Hệ thống **chiếm giường bằng cập nhật có điều kiện nguyên tử**: `findOneAndUpdate({_id, status:'available'}, {status:'occupied'})`. Nếu trả về `null` ⇒ giường vừa bị người khác lấy → `409`.
-5. Hệ thống tạo Residency, rồi tạo Contract trạng thái `pending`; Staff nhập ngày kết thúc, giá, tiền cọc, điều khoản.
-6. Staff kích hoạt hợp đồng → Contract `active`; hệ thống sinh **hai hóa đơn**: `deposit` và `monthly`.
-7. Hệ thống hiển thị thông báo thành công kèm mã hai hóa đơn.
+1. Sinh viên vào "Đăng ký chỗ ở", chọn **loại phòng**; hệ thống hiển thị giá, tiền cọc, đồ cấp sẵn và số chỗ còn của từng loại (chỉ tính phòng khớp giới tính).
+2. Sinh viên chọn **một phòng** còn chỗ thuộc loại đó, chọn ngày bắt đầu/kết thúc, xem chi phí ban đầu (cọc + tiền phòng kỳ đầu) và nộp đơn.
+3. Hệ thống kiểm tra giới tính, hợp đồng đang mở, đơn đang chờ và phòng còn chỗ; tạo `Application` trạng thái `pending`. **Không giữ chỗ.**
+4. Staff mở hàng đợi "Duyệt đơn đăng ký" (đơn cũ nhất lên đầu), xem thông tin sinh viên, công nợ, sơ đồ giường của phòng và dự kiến hóa đơn.
+5. Staff bấm "Duyệt và xếp phòng" (có thể đổi sang phòng khác **cùng loại** trước khi bấm).
+6. Hệ thống **gán giường trống số nhỏ nhất bằng cập nhật có điều kiện nguyên tử**: `findOneAndUpdate({roomId, status:'available'}, {status:'occupied'}, {sort:{bedNumber:1}})`. Nếu trả về `null` ⇒ phòng vừa hết chỗ → `409`.
+7. Hệ thống tạo Residency, tạo Contract `active` với giá và tiền cọc chốt theo loại phòng, sinh **hai hóa đơn**: `deposit` và `monthly`; đơn chuyển `approved`.
+8. Hệ thống hiển thị thông báo kèm mã giường, mã hợp đồng và mã hai hóa đơn; sinh viên thấy trạng thái mới trên trang chủ.
+
+**Luồng thay thế:**
+- **A1 – Staff lập đơn hộ:** sinh viên đến văn phòng; Staff tạo đơn thay ở bước 1–3 rồi duyệt ngay.
+- **A2 – Từ chối:** Staff nhập lý do (≥ 10 ký tự) → đơn `rejected`, không đụng tới giường.
+- **A3 – Sinh viên hủy đơn:** khi đơn còn `pending` → `cancelled`.
 
 **Luồng ngoại lệ:**
-- **E1 – Giường vừa bị chiếm:** `409 BED_NOT_AVAILABLE`, gợi ý chọn giường khác, làm mới danh sách.
+- **E1 – Phòng vừa hết chỗ:** `409 ROOM_FULL`, không ghi dữ liệu nào; giao diện tải lại danh sách phòng cùng loại để Staff chọn phòng khác và duyệt lại.
 - **E2 – Sinh viên đã có hợp đồng đang mở:** `422 STUDENT_HAS_ACTIVE_CONTRACT`.
 - **E3 – Giới tính không khớp phòng:** `422 GENDER_MISMATCH` (FR-29).
-- **E4 – Số giường đã đạt sức chứa:** `409 ROOM_CAPACITY_EXCEEDED`.
+- **E4 – Đổi sang phòng khác loại:** `422 ROOM_TYPE_MISMATCH`.
+- **E5 – Đã có đơn đang chờ:** `409 DUPLICATE_PENDING_APPLICATION`.
 
 ---
 
@@ -392,7 +420,7 @@ flowchart LR
 3. Staff mở danh sách yêu cầu, xem chi tiết **kèm tình trạng công nợ**.
 4. Staff bấm "Duyệt".
 5. Nếu sinh viên còn nợ → `422 STUDENT_HAS_DEBT` kèm số tiền; Staff xác nhận lại với `forceConfirm: true` (FR-69).
-6. Hệ thống thực hiện: `Request` → `approved`; `Contract` → `terminated`; `Residency` → `closed`; `Bed` → `available`.
+6. Hệ thống **hủy các đơn nhu yếu phẩm chưa thanh toán** của sinh viên (FR-106), rồi thực hiện: `Request` → `approved`; `Contract` → `terminated`; `Residency` → `closed`; `Bed` → `available`.
 7. Hệ thống **quyết toán tiền cọc** (FR-68): tính `hoàn = cọc − công nợ`, tạo hóa đơn `settlement`, và nếu hoàn > 0 thì ghi một `Payment` loại `refund` để lưu vết đã chi trả.
 8. Hệ thống hiển thị bảng tóm tắt quyết toán cho Staff; sinh viên xem được trạng thái mới.
 
@@ -411,11 +439,39 @@ flowchart LR
 
 **Luồng chính:**
 1. Người dùng truy cập Dashboard.
-2. Hệ thống hiển thị: số liệu giường (tổng/occupied/available/maintenance, tỷ lệ lấp đầy), số sinh viên đang ở, hợp đồng theo trạng thái, tổng công nợ, hóa đơn quá hạn, hợp đồng sắp hết hạn, yêu cầu chờ xử lý.
+2. Hệ thống hiển thị: số liệu giường (tổng/occupied/available/maintenance, tỷ lệ lấp đầy), số sinh viên đang ở, hợp đồng theo trạng thái, tổng công nợ, hóa đơn quá hạn, hợp đồng sắp hết hạn, yêu cầu chờ xử lý, đơn đăng ký chờ duyệt, đơn nhu yếu phẩm chờ nhận.
 3. Người dùng lọc theo tòa nhà; hệ thống tải lại số liệu.
 
 **Luồng ngoại lệ:**
 - **E1 – Người dùng là Viewer:** Các nút thao tác nhanh bị ẩn; chỉ hiển thị số liệu.
+
+---
+
+### UC-08: Sinh viên mua nhu yếu phẩm *(v1.2)*
+
+| Mục | Nội dung |
+|-----|----------|
+| **Tác nhân chính** | Student, Staff |
+| **Yêu cầu liên quan** | FR-101 → FR-106 |
+| **Điều kiện trước** | Sinh viên có hợp đồng `active` |
+| **Điều kiện sau** | Đơn `delivered`, hóa đơn `supplies` `paid` — hoặc đơn và hóa đơn cùng `cancelled` |
+
+**Luồng chính:**
+1. Sinh viên mở "Mua sắm"; hệ thống hiển thị đồ đã cấp sẵn trong phòng và các sản phẩm được mua (đã loại đồ cấp sẵn).
+2. Sinh viên thêm số lượng vào giỏ, bấm "Đặt hàng".
+3. Hệ thống tính lại tổng tiền theo giá hiện hành, tạo `SupplyOrder` trạng thái `pending_payment` và một hóa đơn `supplies` hạn 3 ngày.
+4. Sinh viên thanh toán hóa đơn (trực tuyến theo UC-05 hoặc tại quầy).
+5. Khi hóa đơn `paid`, hệ thống chuyển đơn sang `ready` (đúng một lần).
+6. Sinh viên đến văn phòng nhận hàng; Staff bấm "Xác nhận đã giao" → đơn `delivered`.
+
+**Luồng thay thế:**
+- **A1 – Hủy đơn:** sinh viên hoặc Staff hủy khi đơn còn `pending_payment` → đơn và hóa đơn `cancelled`.
+- **A2 – Quá hạn thanh toán:** Scheduler tự hủy đơn và hóa đơn (FR-106).
+
+**Luồng ngoại lệ:**
+- **E1 – Sản phẩm đã cấp sẵn:** `422 SUPPLY_ALREADY_INCLUDED`.
+- **E2 – Sản phẩm ngừng bán trong lúc đặt:** `422 SUPPLY_ITEM_INACTIVE`, giao diện tải lại danh sách.
+- **E3 – Hủy đơn đã thanh toán:** `422 ORDER_NOT_CANCELLABLE`.
 
 ---
 
@@ -425,13 +481,14 @@ flowchart LR
 |------|---------|----------|-------------|----------|
 | M1 Xác thực | FR-01 → FR-09 | UC-01 | `auth` | `/api/auth/*`, `/api/users/*` |
 | M2 Sinh viên | FR-10 → FR-17 | – | `students` | `/api/students/*` |
-| M3 Cơ sở vật chất | FR-20 → FR-29 | UC-02 | `rooms` | `/api/buildings/*`, `/api/rooms/*`, `/api/beds/*` |
-| M4 Lưu trú & hợp đồng | FR-30 → FR-39 | UC-02 | `residencies`, `contracts` | `/api/residencies/*`, `/api/contracts/*` |
+| M3 Cơ sở vật chất | FR-20 → FR-29 | UC-02 | `rooms` | `/api/buildings/*`, `/api/room-types/*`, `/api/rooms/*`, `/api/beds/*` |
+| M4 Đơn đăng ký, lưu trú & hợp đồng | FR-30 → FR-39 | UC-02 | `residencies`, `contracts` | `/api/applications/*`, `/api/residencies/*`, `/api/contracts/*`, `/api/portal/my-applications` |
 | M5 Tài chính | FR-45 → FR-59 | UC-03, UC-04, UC-05 | `fees`, `payments` | `/api/fee-types/*`, `/api/utility-readings/*`, `/api/invoices/*`, `/api/payments/*` |
 | M6 Yêu cầu | FR-60 → FR-69 | UC-06 | `requests` | `/api/requests/*`, `/api/portal/my-requests` |
 | M7 Dashboard | FR-70 → FR-75 | UC-07 | `dashboard` | `/api/dashboard/*` |
-| M8 Cổng sinh viên | FR-80 → FR-86 | UC-05, UC-06 | (dùng lại các module) | `/api/portal/*` |
+| M8 Cổng sinh viên | FR-80 → FR-86 | UC-02, UC-05, UC-06, UC-08 | (dùng lại các module) | `/api/portal/*` |
 | M9 Hệ thống chung | FR-90 → FR-93 | – | `core` | (middleware xuyên suốt) |
+| M10 Nhu yếu phẩm | FR-100 → FR-107 | UC-08 | `supplies` | `/api/supply-items/*`, `/api/supply-orders/*`, `/api/portal/supply-items`, `/api/portal/my-supply-orders` |
 
 ---
 
@@ -440,4 +497,5 @@ flowchart LR
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 12/09/2026 | Cả nhóm | Khởi tạo SRS dựa trên `PRD.md`; 66 yêu cầu chức năng và 19 yêu cầu phi chức năng. |
+| **v1.2** | **13/09/2026** | Cả nhóm | **Đăng ký theo phòng, không theo giường** (`PRD.md` §2.10). Viết lại M3 (FR-21→FR-24, FR-28: loại phòng, giường tự sinh, phòng còn chỗ) và M4 (FR-30→FR-34: đơn đăng ký, tự gán giường, hợp đồng bỏ `pending`). Thêm **M10 Nhu yếu phẩm** (FR-100→FR-107) và UC-08. Viết lại UC-02. Sửa FR-45, FR-66, FR-74, FR-83, FR-91; NFR-09 chuyển sang ưu tiên giao diện máy tính. **Tổng: 87 FR / 20 NFR / 8 use case.** |
 | v1.1 | 12/09/2026 | Cả nhóm | Bổ sung 3 yêu cầu theo `PRD.md` §2.9: **FR-29** giới tính phòng, **FR-59** chỉ số điện nước + chia đều, **FR-68/69** quyết toán tiền cọc. Thêm UC-03 (nhập chỉ số) và UC-06 (quyết toán khi trả phòng). Làm rõ FR-34 (tách 2 hóa đơn) và FR-47 (bổ sung dòng phí thay vì bỏ qua). Thêm NFR-20 (giao diện tiếng Việt); NFR-15 đổi sang cập nhật nguyên tử thay vì bắt buộc transaction. **Tổng: 69 FR / 20 NFR.** |

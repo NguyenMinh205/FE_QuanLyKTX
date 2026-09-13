@@ -23,12 +23,16 @@ function RootRedirect() {
   return <Navigate to={user.role === STUDENT ? '/portal/home' : '/admin/dashboard'} replace />;
 }
 
+/** Màn hình chưa làm — mã SCR và API tra ở docs/08 mục 5 */
+const todo = (title, module, apiGroup) => <PlaceholderPage title={title} module={module} apiGroup={apiGroup} />;
+
 export default function AppRoutes() {
   return (
     <Routes>
       {/* ---------- Công khai ---------- */}
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={todo('Đăng ký tài khoản sinh viên', 'auth', '/api/auth/register')} />
       <Route path="/403" element={<ForbiddenPage />} />
 
       {/* ---------- Khu quản trị: admin / staff / viewer ---------- */}
@@ -37,33 +41,37 @@ export default function AppRoutes() {
         <Route path="/admin/students" element={<StudentsPage />} />
         <Route path="/admin/change-password" element={<ChangePasswordPage />} />
 
-        <Route path="/admin/buildings" element={<PlaceholderPage title="Quản lý tòa nhà" module="rooms" apiGroup="/api/buildings" />} />
-        <Route path="/admin/rooms" element={<PlaceholderPage title="Quản lý phòng" module="rooms" apiGroup="/api/rooms" />} />
-        <Route path="/admin/beds/available" element={<PlaceholderPage title="Tra cứu giường trống" module="rooms" apiGroup="/api/beds/available" />} />
-        <Route path="/admin/residencies" element={<PlaceholderPage title="Đăng ký lưu trú" module="residencies" apiGroup="/api/residencies" />} />
-        <Route path="/admin/contracts" element={<PlaceholderPage title="Quản lý hợp đồng" module="contracts" apiGroup="/api/contracts" />} />
-        <Route path="/admin/contracts/expiring" element={<PlaceholderPage title="Hợp đồng sắp hết hạn" module="contracts" apiGroup="/api/contracts/expiring" />} />
-        <Route path="/admin/requests" element={<PlaceholderPage title="Yêu cầu gia hạn / trả phòng" module="requests" apiGroup="/api/requests" />} />
-        <Route path="/admin/utility-readings" element={<PlaceholderPage title="Nhập chỉ số điện nước" module="fees" apiGroup="/api/utility-readings" />} />
-        <Route path="/admin/invoices" element={<PlaceholderPage title="Quản lý hóa đơn" module="fees" apiGroup="/api/invoices" />} />
-        <Route path="/admin/payments" element={<PlaceholderPage title="Lịch sử thanh toán" module="payments" apiGroup="/api/payments" />} />
+        <Route path="/admin/buildings" element={todo('Tòa nhà', 'rooms', '/api/buildings')} />
+        <Route path="/admin/room-types" element={todo('Loại phòng', 'rooms', '/api/room-types')} />
+        <Route path="/admin/rooms" element={todo('Quản lý phòng', 'rooms', '/api/rooms')} />
+        <Route path="/admin/applications" element={todo('Duyệt đơn đăng ký', 'applications', '/api/applications')} />
+        <Route path="/admin/contracts" element={todo('Quản lý hợp đồng', 'contracts', '/api/contracts')} />
+        <Route path="/admin/requests" element={todo('Yêu cầu gia hạn / trả phòng', 'requests', '/api/requests')} />
+        <Route path="/admin/utility-readings" element={todo('Nhập chỉ số điện nước', 'fees', '/api/utility-readings')} />
+        <Route path="/admin/invoices" element={todo('Quản lý hóa đơn', 'fees', '/api/invoices')} />
+        <Route path="/admin/invoices/:id" element={todo('Chi tiết hóa đơn', 'fees', '/api/invoices/:id')} />
+        <Route path="/admin/payments" element={todo('Lịch sử thanh toán', 'payments', '/api/payments')} />
+        <Route path="/admin/supplies" element={todo('Nhu yếu phẩm', 'supplies', '/api/supply-orders')} />
       </Route>
 
       {/* ---------- Chỉ admin ---------- */}
       <Route element={<RoleRoute allowed={[ADMIN]}><AdminLayout /></RoleRoute>}>
-        <Route path="/admin/users" element={<PlaceholderPage title="Quản lý tài khoản" module="auth" apiGroup="/api/users" />} />
-        <Route path="/admin/fee-types" element={<PlaceholderPage title="Danh mục loại phí" module="fees" apiGroup="/api/fee-types" />} />
+        <Route path="/admin/users" element={todo('Quản lý tài khoản', 'auth', '/api/users')} />
+        <Route path="/admin/fee-types" element={todo('Danh mục loại phí', 'fees', '/api/fee-types')} />
       </Route>
 
       {/* ---------- Cổng sinh viên: chỉ student ---------- */}
       <Route element={<RoleRoute allowed={[STUDENT]}><PortalLayout /></RoleRoute>}>
         <Route path="/portal/home" element={<PortalHomePage />} />
         <Route path="/portal/change-password" element={<ChangePasswordPage />} />
-        <Route path="/portal/my-residence" element={<PlaceholderPage title="Chỗ ở của tôi" module="portal" apiGroup="/api/portal/my-residence" />} />
-        <Route path="/portal/my-contracts" element={<PlaceholderPage title="Hợp đồng của tôi" module="portal" apiGroup="/api/portal/my-contracts" />} />
-        <Route path="/portal/my-invoices" element={<PlaceholderPage title="Hóa đơn của tôi" module="portal" apiGroup="/api/portal/my-invoices" />} />
-        <Route path="/portal/my-requests" element={<PlaceholderPage title="Yêu cầu của tôi" module="portal" apiGroup="/api/portal/my-requests" />} />
-        <Route path="/portal/profile" element={<PlaceholderPage title="Hồ sơ cá nhân" module="portal" apiGroup="/api/portal/profile" />} />
+        <Route path="/portal/apply" element={todo('Đăng ký chỗ ở', 'portal', '/api/portal/my-applications')} />
+        <Route path="/portal/my-residence" element={todo('Chỗ ở & hợp đồng', 'portal', '/api/portal/my-residence')} />
+        <Route path="/portal/my-invoices" element={todo('Hóa đơn của tôi', 'portal', '/api/portal/my-invoices')} />
+        <Route path="/portal/payment-result" element={todo('Kết quả thanh toán', 'payments', '/api/payments')} />
+        <Route path="/portal/my-requests" element={todo('Yêu cầu của tôi', 'portal', '/api/portal/my-requests')} />
+        <Route path="/portal/shop" element={todo('Mua sắm nhu yếu phẩm', 'portal', '/api/portal/supply-items')} />
+        <Route path="/portal/my-orders" element={todo('Đơn hàng của tôi', 'portal', '/api/portal/my-supply-orders')} />
+        <Route path="/portal/profile" element={todo('Hồ sơ cá nhân', 'portal', '/api/portal/profile')} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

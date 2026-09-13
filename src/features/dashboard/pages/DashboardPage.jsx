@@ -71,8 +71,8 @@ export default function DashboardPage() {
         style={{ marginTop: 24 }}
         type="info"
         showIcon
-        message={`Đang chờ xử lý: ${rq?.renewal ?? 0} yêu cầu gia hạn · ${rq?.checkout ?? 0} yêu cầu trả phòng`}
-        description="Biểu đồ tỷ lệ lấp đầy theo tòa sẽ bổ sung ở Sprint 4 — xem 08-THIET-KE-GIAO-DIEN.md."
+        message={`Cần xử lý: ${data?.pendingApplications ?? 0} đơn đăng ký chờ duyệt · ${rq?.renewal ?? 0} yêu cầu gia hạn · ${rq?.checkout ?? 0} yêu cầu trả phòng · ${data?.supplyOrdersReady ?? 0} đơn nhu yếu phẩm chờ nhận`}
+        description="Biểu đồ tỷ lệ lấp đầy theo tòa bổ sung theo docs/08 mục 6.1."
       />
     </>
   );

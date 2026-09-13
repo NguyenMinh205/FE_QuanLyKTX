@@ -1,8 +1,12 @@
 # 08 – THIẾT KẾ GIAO DIỆN (UI/UX)
 
 **Hệ thống:** DMS-KTX
-**Phiên bản:** v2.0 (MongoDB + Mongoose)
+**Phiên bản:** v3.0 (đăng ký theo phòng · nhu yếu phẩm · ưu tiên máy tính)
 **Đối tượng:** Nhóm Frontend
+
+> **Bản thiết kế hình ảnh nằm trên Stitch.** Tài liệu này là **đặc tả hành vi**: màn hình nào có, ai được vào, gọi API nào, xử lý lỗi ra sao. Khi hình trên Stitch và tài liệu này khác nhau về **hành vi hoặc dữ liệu**, lấy theo tài liệu này; khác nhau về **bố cục, màu, khoảng cách**, lấy theo Stitch.
+>
+> Endpoint xem `API.md`, quy tắc nghiệp vụ xem `03`, mã yêu cầu xem `02`.
 
 ---
 
@@ -10,13 +14,14 @@
 
 | # | Nguyên tắc | Áp dụng cụ thể |
 |---|------------|----------------|
-| 1 | **Rõ ràng hơn đẹp mắt** | Đây là hệ thống quản trị nội bộ. Ưu tiên bảng dữ liệu dễ đọc, nhãn rõ ràng hơn là hiệu ứng động. |
-| 2 | **Giảm số cú nhấp cho tác vụ thường xuyên** | Duyệt đơn, ghi nhận thanh toán, tra cứu giường trống phải thao tác được trong ≤ 3 cú nhấp từ dashboard. |
-| 3 | **Trạng thái luôn nhìn thấy được** | Mọi trạng thái (hợp đồng, hóa đơn, giường) hiển thị bằng thẻ màu (Tag) thống nhất toàn hệ thống. |
-| 4 | **Xác nhận trước hành động không thể hoàn tác** | Chấm dứt hợp đồng, hủy hóa đơn, vô hiệu hóa sinh viên đều phải có modal xác nhận nêu rõ hậu quả (NFR-11). |
-| 5 | **Thông báo lỗi hữu ích** | Không hiện "Có lỗi xảy ra". Phải nói rõ lỗi gì và cách xử lý: "Giường A5 vừa được sinh viên khác đăng ký. Vui lòng chọn giường khác." |
-| 6 | **Hai giao diện tách biệt** | Khu quản trị (dày đặc dữ liệu, sidebar) và cổng sinh viên (thoáng, tối giản, ưu tiên mobile) có bố cục riêng. |
-| 7 | **Responsive** | Khu quản trị tối ưu cho desktop ≥ 1280px nhưng vẫn dùng được trên tablet. Cổng sinh viên **ưu tiên mobile trước** (NFR-09). |
+| 1 | **Rõ ràng hơn đẹp mắt** | Hệ thống quản trị nội bộ. Ưu tiên bảng dữ liệu dễ đọc, nhãn rõ ràng hơn hiệu ứng động. |
+| 2 | **Giảm số cú nhấp cho tác vụ thường xuyên** | Duyệt đơn, ghi nhận thanh toán, xác nhận giao hàng thao tác được trong ≤ 3 cú nhấp từ dashboard. |
+| 3 | **Trạng thái luôn nhìn thấy được** | Mọi trạng thái hiển thị bằng thẻ màu (`<StatusTag>`) thống nhất toàn hệ thống. |
+| 4 | **Xác nhận trước hành động không thể hoàn tác** | Chấm dứt hợp đồng, hủy hóa đơn, duyệt trả phòng, vô hiệu hóa sinh viên đều có modal xác nhận nêu rõ hậu quả (NFR-11). |
+| 5 | **Thông báo lỗi hữu ích** | Không hiện "Có lỗi xảy ra". Phải nói rõ lỗi gì và cách xử lý: "Phòng B203 vừa hết chỗ. Vui lòng chọn phòng khác cùng loại." |
+| 6 | **Hai giao diện tách biệt** | Khu quản trị (dày dữ liệu, sidebar trái) và cổng sinh viên (thoáng, menu ngang trên cùng, không sidebar). |
+| 7 | **Ưu tiên máy tính** | Cả hai khu thiết kế và code cho màn hình **≥ 1280px trước** (NFR-09). Bản điện thoại là phần mở rộng làm sau; trong lúc chờ, giao diện chỉ cần không vỡ ở 360px. |
+| 8 | **Không ai chọn giường** | Không màn hình nào có ô chọn giường. Giường chỉ **hiển thị** (sơ đồ phòng, kết quả sau khi duyệt) — hệ thống tự gán (BR-38). |
 
 ---
 
@@ -26,115 +31,117 @@
 flowchart TB
     ROOT["/"] --> LOGIN["/login"]
     ROOT --> REG["/register"]
-    ROOT --> F403["/403 - Không có quyền"]
-    ROOT --> F404["/404"]
+    ROOT --> F403["/403"]
+    ROOT --> F404["* (404)"]
 
-    LOGIN -->|"ADMIN / STAFF / VIEWER"| ADMIN["/admin"]
-    LOGIN -->|"STUDENT"| PORTAL["/portal"]
+    LOGIN -->|"admin / staff / viewer"| ADMIN["/admin"]
+    LOGIN -->|"student"| PORTAL["/portal"]
 
     ADMIN --> A1["/admin/dashboard"]
     ADMIN --> A2["/admin/students"]
-    A2 --> A2a["/admin/students/new"]
-    A2 --> A2b["/admin/students/:id"]
     ADMIN --> A3["/admin/buildings"]
-    A3 --> A3a["/admin/buildings/:id"]
-    A3 --> A3b["/admin/buildings/:id/map"]
-    ADMIN --> A4["/admin/rooms"]
-    A4 --> A4a["/admin/rooms/:id"]
-    ADMIN --> A5["/admin/beds/available"]
-    ADMIN --> A6["/admin/contracts"]
-    A6 --> A6a["/admin/contracts/pending"]
-    A6 --> A6b["/admin/contracts/new"]
-    A6 --> A6c["/admin/contracts/:id"]
-    A6 --> A6d["/admin/contracts/expiring"]
-    ADMIN --> A7["/admin/requests"]
-    A7 --> A7a["/admin/requests/:id"]
-    ADMIN --> A8["/admin/invoices"]
-    A8 --> A8a["/admin/invoices/new"]
-    A8 --> A8b["/admin/invoices/generate"]
-    A8 --> A8c["/admin/invoices/:id"]
+    ADMIN --> A4["/admin/room-types"]
+    ADMIN --> A5["/admin/rooms"]
+    ADMIN --> A6["/admin/applications"]
+    ADMIN --> A7["/admin/contracts"]
+    ADMIN --> A8["/admin/requests"]
     ADMIN --> A9["/admin/utility-readings"]
-    ADMIN --> A10["/admin/payments"]
-    ADMIN --> A11["/admin/reports"]
-    ADMIN --> A12["/admin/users - chỉ ADMIN"]
-    ADMIN --> A13["/admin/fee-types - chỉ ADMIN"]
-    ADMIN --> A14["/admin/settings - chỉ ADMIN"]
+    ADMIN --> A10["/admin/invoices"]
+    A10 --> A10a["/admin/invoices/:id"]
+    ADMIN --> A11["/admin/payments"]
+    ADMIN --> A12["/admin/supplies"]
+    ADMIN --> A13["/admin/users — chỉ admin"]
+    ADMIN --> A14["/admin/fee-types — chỉ admin"]
+    ADMIN --> A15["/admin/change-password"]
 
     PORTAL --> P1["/portal/home"]
-    PORTAL --> P2["/portal/my-residence"]
-    PORTAL --> P3["/portal/available-beds"]
-    PORTAL --> P4["/portal/apply"]
-    PORTAL --> P5["/portal/my-contracts"]
-    PORTAL --> P6["/portal/my-invoices"]
-    P6 --> P6a["/portal/my-invoices/:id"]
-    PORTAL --> P7["/portal/payment-result"]
-    PORTAL --> P8["/portal/my-requests"]
-    P8 --> P8a["/portal/my-requests/new"]
+    PORTAL --> P2["/portal/apply"]
+    PORTAL --> P3["/portal/my-residence"]
+    PORTAL --> P4["/portal/my-invoices"]
+    PORTAL --> P5["/portal/payment-result"]
+    PORTAL --> P6["/portal/my-requests"]
+    PORTAL --> P7["/portal/shop"]
+    PORTAL --> P8["/portal/my-orders"]
     PORTAL --> P9["/portal/profile"]
+    PORTAL --> P10["/portal/change-password"]
 ```
+
+> **v3.0 bỏ:** `/admin/beds/available`, `/admin/residencies`, `/admin/contracts/new`, `/admin/contracts/expiring` (thành tab), `/admin/reports`, `/admin/settings`, `/portal/available-beds`, `/portal/my-contracts` (gộp vào "Chỗ ở & hợp đồng").
 
 ---
 
 ## 3. Bố cục chung
 
-### 3.1. Khu quản trị (AdminLayout)
+### 3.1. Khu quản trị — `AdminLayout`
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ [☰] 🏢 QUẢN LÝ KÝ TÚC XÁ                  [Nguyễn Văn A ▾ (Nhân viên)]  │ ← Header 64px
-├────────────┬─────────────────────────────────────────────────────────────┤
-│            │  Trang chủ / Quản lý sinh viên                              │ ← Breadcrumb
-│ 📊 Dashboard│ ┌─────────────────────────────────────────────────────────┐ │
-│            │ │                                                         │ │
-│ 👥 Sinh viên│ │              NỘI DUNG TRANG                             │ │
-│            │ │                                                         │ │
-│ 🏢 Cơ sở   ▸│ │                                                         │ │
-│   Tòa nhà   │ │                                                         │ │
-│   Phòng     │ │                                                         │ │
-│   Giường trống│                                                         │ │
-│            │ │                                                         │ │
-│ 📋 Hợp đồng▸│ │                                                         │ │
-│   Tất cả    │ │                                                         │ │
-│   Chờ duyệt 5│                                                         │ │
-│   Sắp hết hạn│ │                                                         │ │
-│            │ │                                                         │ │
-│ 📨 Yêu cầu 3│ │                                                         │ │
-│            │ │                                                         │ │
-│ 💰 Tài chính▸│ │                                                        │ │
-│   Hóa đơn   │ │                                                         │ │
-│   Chỉ số ĐN │ │                                                         │ │
-│   Thanh toán│ │                                                         │ │
-│            │ │                                                         │ │
-│ 📈 Báo cáo  │ │                                                         │ │
-│            │ │                                                         │ │
-│ ⚙️ Hệ thống▸│ │                                                         │ │
-│   (ADMIN)   │ └─────────────────────────────────────────────────────────┘ │
-└────────────┴─────────────────────────────────────────────────────────────┘
-   Sidebar 240px (thu gọn còn 80px)
+│ [☰] 🏢 QUẢN LÝ KÝ TÚC XÁ                      [Lê Thị Nhân Viên ▾]       │ ← Header 64px
+├────────────────┬─────────────────────────────────────────────────────────┤
+│ Dashboard      │  Trang chủ / Hóa đơn                                    │ ← Breadcrumb
+│ Sinh viên      │  Tiêu đề trang                        [Nút hành động]   │
+│ Cơ sở vật chất▸│ ┌─────────────────────────────────────────────────────┐ │
+│   Tòa nhà      │ │                                                     │ │
+│   Loại phòng   │ │                 NỘI DUNG TRANG                      │ │
+│   Phòng        │ │                                                     │ │
+│ Lưu trú & HĐ  ▸│ │                                                     │ │
+│   Duyệt đơn  5 │ │                                                     │ │
+│   Hợp đồng     │ │                                                     │ │
+│ Yêu cầu      3 │ │                                                     │ │
+│ Tài chính     ▸│ │                                                     │ │
+│   Chỉ số ĐN    │ │                                                     │ │
+│   Hóa đơn      │ │                                                     │ │
+│   Thanh toán   │ │                                                     │ │
+│ Nhu yếu phẩm 4 │ │                                                     │ │
+│ Hệ thống      ▸│ │                                                     │ │
+│   Tài khoản    │ └─────────────────────────────────────────────────────┘ │
+│   Loại phí     │                                                         │
+└────────────────┴─────────────────────────────────────────────────────────┘
+   Sidebar 240px
 ```
+
+**Menu chuẩn** — nằm duy nhất ở `src/layouts/AdminLayout.jsx`. **Không chép sidebar từ từng frame Stitch**: các frame sinh ra ở nhiều đợt khác nhau nên sidebar giữa chúng không khớp.
+
+| Nhóm | Mục | Đường dẫn | Badge | Ai thấy |
+|------|-----|-----------|-------|---------|
+| – | Dashboard | `/admin/dashboard` | | A S V |
+| – | Sinh viên | `/admin/students` | | A S V |
+| Cơ sở vật chất | Tòa nhà · Loại phòng · Phòng | `/admin/buildings` · `/admin/room-types` · `/admin/rooms` | | A S V |
+| Lưu trú & hợp đồng | Duyệt đơn đăng ký · Hợp đồng | `/admin/applications` · `/admin/contracts` | số đơn chờ duyệt | A S V |
+| – | Yêu cầu | `/admin/requests` | số yêu cầu chờ | A S V |
+| Tài chính | Chỉ số điện nước · Hóa đơn · Thanh toán | `/admin/utility-readings` · `/admin/invoices` · `/admin/payments` | | A S V |
+| – | Nhu yếu phẩm | `/admin/supplies` | số đơn chờ nhận | A S V |
+| Hệ thống | Tài khoản · Danh mục loại phí | `/admin/users` · `/admin/fee-types` | | **A** |
 
 **Quy tắc:**
-- Sidebar hiển thị **số đếm (badge)** ở mục cần xử lý: yêu cầu gia hạn/trả phòng đang chờ (lấy từ `GET /api/dashboard/summary`).
-- **Không có biểu tượng chuông thông báo** — hệ thống thông báo nằm ngoài phạm vi v1. Badge trên sidebar là cơ chế nhắc việc duy nhất.
-- Các mục menu ẩn/hiện theo vai trò — dùng hàm `can()` ở `utils/permission.js`.
-- Trên màn hình < 992px, sidebar tự thu gọn thành drawer.
+- Badge lấy từ `GET /api/dashboard/summary`. **Không có biểu tượng chuông thông báo** — thông báo nằm ngoài phạm vi v1; badge là cơ chế nhắc việc duy nhất.
+- Mục menu ẩn/hiện theo vai trò bằng `can()` ở `utils/permission.js`. Viewer thấy menu nhưng mọi nút ghi đều ẩn.
+- Dưới 992px sidebar thu thành drawer (đã có sẵn).
 
-### 3.2. Cổng sinh viên (PortalLayout)
+### 3.2. Cổng sinh viên — `PortalLayout`
 
 ```
-┌────────────────────────────────────────────┐
-│ 🏢 KTX ABC                 [Trần Thị B ▾] │ ← Header
-├────────────────────────────────────────────┤
-│                                            │
-│              NỘI DUNG TRANG                │
-│         (tối đa 960px, căn giữa)           │
-│                                            │
-├────────────────────────────────────────────┤
-│  🏠      🛏️       📄       💰      👤     │ ← Tab bar dưới (mobile)
-│ Trang  Chỗ ở  Hợp đồng  Hóa đơn  Cá nhân  │
-└────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 🏢 KTX ABC   Trang chủ  Chỗ ở & hợp đồng  Hóa đơn  Yêu cầu  Mua sắm  🛒2 [Bích ▾] │ ← Header 64px
+├──────────────────────────────────────────────────────────────────────────┤
+│                  ┌────────────────────────────────────┐                  │
+│                  │  NỘI DUNG — tối đa 1200px, căn giữa │                  │
+│                  │  Lưới 12 cột: nội dung chính 8 cột │                  │
+│                  │  + cột tóm tắt/hành động 4 cột     │                  │
+│                  └────────────────────────────────────┘                  │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
-Trên desktop, tab bar chuyển thành menu ngang trên header.
+
+| Vị trí | Nội dung |
+|--------|----------|
+| Menu ngang | Trang chủ `/portal/home` · Chỗ ở & hợp đồng `/portal/my-residence` · Hóa đơn `/portal/my-invoices` · Yêu cầu `/portal/my-requests` · Mua sắm `/portal/shop` |
+| Biểu tượng giỏ hàng | Số món trong giỏ; bấm vào mở `/portal/shop` |
+| Dropdown avatar | Đơn hàng của tôi · Hồ sơ cá nhân · Đổi mật khẩu · Đăng xuất |
+
+**Quy tắc:**
+- **Không có sidebar.** Đây là cổng sinh viên, không phải khu quản trị.
+- Sinh viên **chưa có hợp đồng `active`**: mục "Chỗ ở & hợp đồng", "Mua sắm" và giỏ hàng hiển thị mờ, bấm vào về trang chủ.
+- Trên điện thoại (làm sau): menu ngang chuyển thành tab bar dưới đáy — đã có bản thiết kế mobile trên Stitch.
 
 ---
 
@@ -145,499 +152,309 @@ Trên desktop, tab bar chuyển thành menu ngang trên header.
 | Mục đích | Màu | Mã | Dùng ở đâu |
 |----------|-----|-----|-----------|
 | Chính (Primary) | Xanh dương | `#1677FF` | Nút chính, link, mục menu đang chọn |
-| Thành công | Xanh lá | `#52C41A` | Đã thanh toán, hợp đồng hiệu lực, giường trống |
-| Cảnh báo | Cam | `#FAAD14` | Sắp hết hạn, thanh toán một phần, chờ duyệt |
-| Nguy hiểm | Đỏ | `#FF4D4F` | Quá hạn, từ chối, hành động xóa |
-| Trung tính | Xám | `#8C8C8C` | Đã kết thúc, đã hủy, dữ liệu không hoạt động |
-| Thông tin | Xanh ngọc | `#13C2C2` | Bảo trì, ghi chú |
+| Thành công | Xanh lá | `#52C41A` | Đã thanh toán, hợp đồng hiệu lực, còn chỗ |
+| Cảnh báo | Cam | `#FAAD14` | Sắp hết hạn, một phần, chờ duyệt, chờ thanh toán |
+| Nguy hiểm | Đỏ | `#FF4D4F` | Quá hạn, từ chối, hết chỗ, hành động xóa |
+| Trung tính | Xám | `#8C8C8C` | Đã kết thúc, đã hủy, ngừng bán |
+| Hạng Chất lượng cao | Vàng kim | `#D4A017` | Thẻ hạng phòng `premium` |
 | Nền | Xám nhạt | `#F5F5F5` | Nền trang |
 
 ### 4.2. Ánh xạ trạng thái → nhãn + màu
 
-Toàn bộ định nghĩa này nằm ở **một file duy nhất** `src/constants/statuses.js` và dùng lại ở mọi nơi:
+**Nguồn duy nhất là `src/constants/statuses.js`.** Bảng dưới để tra cứu nhanh và đưa vào báo cáo; nếu lệch với file code, **file code đúng** và phải sửa bảng này.
 
-```js
-export const CONTRACT_STATUS = {
-  PENDING:    { label: 'Chờ duyệt',      color: 'warning' },
-  ACTIVE:     { label: 'Đang hiệu lực',  color: 'success' },
-  REJECTED:   { label: 'Bị từ chối',     color: 'error'   },
-  CANCELLED:  { label: 'Đã hủy',         color: 'default' },
-  EXPIRED:    { label: 'Hết hạn',        color: 'default' },
-  TERMINATED: { label: 'Đã chấm dứt',    color: 'default' },
-};
-
-export const INVOICE_STATUS = {
-  UNPAID:         { label: 'Chưa thanh toán',      color: 'warning' },
-  partial: { label: 'Thanh toán một phần',  color: 'processing' },
-  PAID:           { label: 'Đã thanh toán',        color: 'success' },
-  OVERDUE:        { label: 'Quá hạn',              color: 'error'   },
-  CANCELLED:      { label: 'Đã hủy',               color: 'default' },
-};
-
-export const BED_STATUS = {
-  AVAILABLE:   { label: 'Trống',       color: 'success' },
-  OCCUPIED:    { label: 'Đã sử dụng',  color: 'processing' },
-  MAINTENANCE: { label: 'Bảo trì',     color: 'default' },
-};
-
-export const PAYMENT_STATUS = {
-  PENDING:                { label: 'Đang xử lý',      color: 'processing' },
-  SUCCESS:                { label: 'Thành công',      color: 'success' },
-  FAILED:                 { label: 'Thất bại',        color: 'error' },
-  EXPIRED:                { label: 'Hết hạn',         color: 'default' },
-  REFUNDED:               { label: 'Đã hoàn tiền',    color: 'warning' },
-  NEEDS_RECONCILIATION:   { label: 'Cần đối soát',    color: 'error' },
-};
-
-export const REQUEST_STATUS = {
-  PENDING:   { label: 'Chờ xử lý',  color: 'warning' },
-  APPROVED:  { label: 'Đã duyệt',   color: 'success' },
-  REJECTED:  { label: 'Bị từ chối', color: 'error'   },
-  CANCELLED: { label: 'Đã hủy',     color: 'default' },
-};
-```
+| Thực thể | Giá trị | Nhãn | Màu (`Tag color`) |
+|----------|---------|------|-------------------|
+| Đơn đăng ký | `pending` · `approved` · `rejected` · `cancelled` | Chờ duyệt · Đã duyệt · Bị từ chối · Đã hủy | `warning` · `success` · `error` · `default` |
+| Hợp đồng | `active` · `expired` · `terminated` | Đang hiệu lực · Hết hạn · Đã chấm dứt | `success` · `default` · `default` |
+| Giường | `available` · `occupied` · `maintenance` | Trống · Đã sử dụng · Bảo trì | `success` · `processing` · `default` |
+| Hóa đơn | `unpaid` · `partial` · `paid` · `overdue` · `cancelled` | Chưa thanh toán · Thanh toán một phần · Đã thanh toán · Quá hạn · Đã hủy | `warning` · `processing` · `success` · `error` · `default` |
+| Loại hóa đơn | `deposit` · `monthly` · `settlement` · `supplies` · `other` | Tiền cọc · Hàng tháng · Quyết toán · Nhu yếu phẩm · Khác | `blue` · `default` · `cyan` · `purple` · `default` |
+| Thanh toán | `pending` · `success` · `failed` · `expired` | Đang xử lý · Thành công · Thất bại · Hết hạn | `processing` · `success` · `error` · `default` |
+| Yêu cầu | `pending` · `approved` · `rejected` · `cancelled` | Chờ xử lý · Đã duyệt · Bị từ chối · Đã hủy | `warning` · `success` · `error` · `default` |
+| Đơn nhu yếu phẩm | `pending_payment` · `ready` · `delivered` · `cancelled` | Chờ thanh toán · Chờ nhận hàng · Đã giao · Đã hủy | `warning` · `processing` · `success` · `default` |
+| Hạng phòng | `standard` · `premium` | Tiêu chuẩn · Chất lượng cao | `geekblue` · `gold` |
 
 ### 4.3. Quy ước định dạng
 
-| Loại dữ liệu | Định dạng | Ví dụ |
-|--------------|-----------|-------|
-| Tiền tệ | Dấu chấm phân cách nghìn + " đ" | `646.000 đ` |
-| Ngày | `DD/MM/YYYY` | `15/12/2026` |
-| Ngày giờ | `DD/MM/YYYY HH:mm` | `15/12/2026 14:30` |
-| Kỳ | `Tháng MM/YYYY` | `Tháng 10/2026` |
-| Tỷ lệ phần trăm | 2 chữ số thập phân | `87,75%` |
-| Số điện thoại | Nhóm 4-3-3 | `0912 345 678` |
+| Loại dữ liệu | Định dạng | Ví dụ | Hàm |
+|--------------|-----------|-------|-----|
+| Tiền tệ | Dấu chấm phân cách nghìn + " đ", căn phải | `443.750 đ` | `<MoneyText>` / `formatCurrency` |
+| Giá loại phòng | Tiền + "/người/tháng" | `320.000 đ/người/tháng` | `formatCurrency` |
+| Ngày | `DD/MM/YYYY` | `15/12/2026` | `formatDate` |
+| Ngày giờ | `DD/MM/YYYY HH:mm` | `15/12/2026 14:30` | `formatDateTime` |
+| Kỳ | `Tháng MM/YYYY` | `Tháng 10/2026` | `formatPeriod` |
+| Tên loại phòng | `Hạng · N người` | `Tiêu chuẩn · 6 người` | lấy trường `name` từ API |
+| Chỗ ở | `Tòa · Phòng · Giường` | `Tòa B · B203 · Giường 03` | – |
+| Tỷ lệ phần trăm | 2 chữ số thập phân | `87,75%` | `formatPercent` |
+| Số điện thoại | Nhóm 4-3-3 | `0912 345 678` | `formatPhone` |
 
 ---
 
 ## 5. Danh sách màn hình
 
-### 5.1. Nhóm công khai & xác thực
+**Cột "Thiết kế":** 🎨 = có bản vẽ trên Stitch · 📋 = không vẽ, code theo khuôn màn hình "Quản lý sinh viên" (`14` mục 15.8).
 
-| Mã | Màn hình | Đường dẫn | Quyền | FR |
-|----|----------|-----------|-------|-----|
-| SCR-01 | Đăng nhập | `/login` | Public | FR-01 |
-| SCR-02 | Đăng ký tài khoản sinh viên | `/register` | Public | FR-85 |
-| SCR-03 | Đổi mật khẩu | `/change-password` | Tất cả | FR-07, FR-09 |
-| SCR-04 | Không có quyền truy cập | `/403` | Tất cả | – |
-| SCR-05 | Không tìm thấy trang | `/404` | Tất cả | – |
+### 5.1. Công khai & xác thực
+
+| Mã | Màn hình | Đường dẫn | Quyền | FR | Thiết kế |
+|----|----------|-----------|-------|-----|:--:|
+| SCR-01 | Đăng nhập | `/login` | Public | FR-01 | 🎨 |
+| SCR-02 | Đăng ký tài khoản sinh viên | `/register` | Public | FR-80, FR-81 | 📋 |
+| SCR-03 | Đổi mật khẩu | `/admin/change-password`, `/portal/change-password` | Tất cả | FR-07, FR-09 | ✅ đã code |
+| SCR-04 | Không có quyền | `/403` | Tất cả | – | ✅ đã code |
+| SCR-05 | Không tìm thấy trang | `*` | Tất cả | – | ✅ đã code |
 
 ### 5.2. Khu quản trị
 
-| Mã | Màn hình | Đường dẫn | Quyền | FR |
-|----|----------|-----------|-------|-----|
-| SCR-10 | Dashboard | `/admin/dashboard` | A S V | FR-75→79 |
-| SCR-11 | Danh sách sinh viên | `/admin/students` | A S V | FR-15 |
-| SCR-12 | Thêm/Sửa sinh viên | `/admin/students/new`, `/:id/edit` | A S | FR-10, FR-13 |
-| SCR-13 | Chi tiết sinh viên | `/admin/students/:id` | A S V | FR-12 |
-| SCR-21 | Danh sách tòa nhà | `/admin/buildings` | A S V | FR-20 |
-| SCR-22 | Sơ đồ tòa nhà | `/admin/buildings/:id/map` | A S V | FR-26 |
-| SCR-23 | Danh sách phòng | `/admin/rooms` | A S V | FR-21 |
-| SCR-24 | Chi tiết phòng & quản lý giường | `/admin/rooms/:id` | A S V | FR-22, FR-23 |
-| SCR-25 | Tra cứu giường trống | `/admin/beds/available` | A S V | FR-28 |
-| SCR-31 | Danh sách hợp đồng | `/admin/contracts` | A S V | FR-36 |
-| SCR-32 | Đăng ký lưu trú (xếp sinh viên vào giường) | `/admin/residencies` | A S | FR-30, FR-31 |
-| SCR-33 | Tạo hợp đồng | `/admin/contracts/new` | A S | FR-31 |
-| SCR-34 | Chi tiết hợp đồng | `/admin/contracts/:id` | A S V | FR-36, FR-39 |
-| SCR-35 | Hợp đồng sắp hết hạn | `/admin/contracts/expiring` | A S | FR-38 |
-| SCR-41 | Danh sách yêu cầu | `/admin/requests` | A S V | FR-48 |
-| SCR-42 | Chi tiết & xử lý yêu cầu | `/admin/requests/:id` | A S | FR-49 |
-| SCR-51 | Danh sách hóa đơn | `/admin/invoices` | A S V | FR-58 |
-| SCR-52 | Tạo hóa đơn thủ công | `/admin/invoices/new` | A S | FR-58 |
-| SCR-53 | Lập hóa đơn hàng loạt | `/admin/invoices/generate` | A S | FR-59 |
-| SCR-54 | Chi tiết hóa đơn | `/admin/invoices/:id` | A S V | FR-70 |
-| SCR-55 | Nhập chỉ số điện nước | `/admin/utility-readings` | A S | FR-56 |
-| SCR-56 | Lịch sử thanh toán | `/admin/payments` | A S V | FR-67 |
-| SCR-57 | Trung tâm báo cáo | `/admin/reports` | A S V | FR-80→82 |
-| SCR-81 | Quản lý tài khoản | `/admin/users` | A | FR-06 |
-| SCR-82 | Danh mục loại phí | `/admin/fee-types` | A | FR-55 |
-| SCR-83 | Cấu hình hệ thống | `/admin/settings` | A | – |
-| SCR-84 | Đặt lại mật khẩu người dùng (modal trong SCR-81) | `/admin/users` | A S | FR-09 |
+| Mã | Màn hình | Đường dẫn | Quyền | FR | Thiết kế |
+|----|----------|-----------|-------|-----|:--:|
+| SCR-10 | Dashboard | `/admin/dashboard` | A S V | FR-70→FR-75 | 🎨 |
+| SCR-11 | Quản lý sinh viên (thêm/sửa trong modal) | `/admin/students` | A S V | FR-10→FR-17 | 🎨 ✅ đã code |
+| SCR-21 | Tòa nhà | `/admin/buildings` | A S V | FR-20, FR-25 | 📋 |
+| SCR-22 | Loại phòng (sửa trong drawer) | `/admin/room-types` | A (ghi) · S V (xem) | FR-23, FR-24 | 🎨 |
+| SCR-23 | Phòng — sơ đồ tầng + drawer chi tiết | `/admin/rooms` | A S V | FR-21, FR-22, FR-26→FR-28 | 🎨 |
+| SCR-31 | Duyệt đơn đăng ký | `/admin/applications` | A S V | FR-30→FR-34 | 🎨 |
+| SCR-32 | Hợp đồng (tab sắp hết hạn + drawer chi tiết) | `/admin/contracts` | A S V | FR-35→FR-39 | 🎨 |
+| SCR-41 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | `/admin/requests` | A S V | FR-63→FR-69 | 🎨 |
+| SCR-51 | Nhập chỉ số điện nước | `/admin/utility-readings` | A S V | FR-59 | 🎨 |
+| SCR-52 | Danh sách hóa đơn | `/admin/invoices` | A S V | FR-46, FR-49, FR-58 | 🎨 |
+| SCR-53 | Lập hóa đơn hàng loạt (modal trong SCR-52) | – | A S | FR-47 | 🎨 |
+| SCR-54 | Chi tiết hóa đơn | `/admin/invoices/:id` | A S V | FR-49, FR-58 | 🎨 |
+| SCR-55 | Ghi nhận thanh toán (modal trong SCR-52/54) | – | A S | FR-50, FR-51 | 🎨 |
+| SCR-56 | Lịch sử thanh toán | `/admin/payments` | A S V | FR-56 | 📋 |
+| SCR-71 | Nhu yếu phẩm — tab Đơn hàng + tab Danh mục | `/admin/supplies` | A S V | FR-100, FR-104, FR-105, FR-107 | 🎨 |
+| SCR-81 | Tài khoản (+ modal đặt lại mật khẩu) | `/admin/users` | A | FR-06, FR-09 | 📋 |
+| SCR-82 | Danh mục loại phí | `/admin/fee-types` | A | FR-45 | 📋 |
 
 ### 5.3. Cổng sinh viên
 
-| Mã | Màn hình | Đường dẫn | FR |
-|----|----------|-----------|-----|
-| SCR-61 | Trang chủ sinh viên | `/portal/home` | FR-82 |
-| SCR-62 | Chỗ ở của tôi | `/portal/my-residence` | FR-82 |
-| SCR-63 | Tra cứu giường trống | `/portal/available-beds` | FR-83 |
-| SCR-64 | Nộp đơn đăng ký | `/portal/apply` | FR-30 |
-| SCR-65 | Hợp đồng của tôi | `/portal/my-contracts` | FR-91 |
-| SCR-66 | Hóa đơn của tôi | `/portal/my-invoices` | FR-70 |
-| SCR-67 | Chi tiết hóa đơn & thanh toán | `/portal/my-invoices/:id` | FR-64, FR-70 |
-| SCR-68 | Kết quả thanh toán | `/portal/payment-result` | FR-65 |
-| SCR-69 | Yêu cầu của tôi | `/portal/my-requests` | FR-53 |
-| SCR-70 | Gửi yêu cầu mới | `/portal/my-requests/new` | FR-45, FR-46 |
-| SCR-72 | Hồ sơ cá nhân (chỉ đọc) | `/portal/profile` | FR-90 |
+| Mã | Màn hình | Đường dẫn | FR | Thiết kế |
+|----|----------|-----------|-----|:--:|
+| SCR-61 | Trang chủ — 3 trạng thái (mục 6.9) | `/portal/home` | FR-82, FR-83 | 🎨 |
+| SCR-62 | Đăng ký chỗ ở — 3 bước | `/portal/apply` | FR-30, FR-83 | 🎨 |
+| SCR-63 | Chỗ ở & hợp đồng | `/portal/my-residence` | FR-82, FR-39 | 📋 |
+| SCR-64 | Hóa đơn — danh sách + chi tiết cùng một màn hình | `/portal/my-invoices` | FR-84, FR-52 | 🎨 |
+| SCR-65 | Kết quả thanh toán | `/portal/payment-result` | FR-52, FR-53 | 🎨 |
+| SCR-66 | Yêu cầu của tôi (+ modal tạo yêu cầu) | `/portal/my-requests` | FR-60→FR-62, FR-67 | 🎨 |
+| SCR-67 | Mua sắm — cửa hàng + giỏ hàng cùng một màn hình | `/portal/shop` | FR-101, FR-102 | 🎨 |
+| SCR-68 | Đơn hàng của tôi | `/portal/my-orders` | FR-105, FR-107 | 🎨 |
+| SCR-69 | Hồ sơ cá nhân (chỉ đọc) | `/portal/profile` | FR-86 | 📋 |
+
+**Tổng: 31 màn hình** — 5 công khai, 17 quản trị, 9 sinh viên. 21 có bản vẽ, 10 code theo khuôn.
 
 ---
 
-## 6. Đặc tả chi tiết các màn hình trọng yếu
+## 6. Đặc tả các màn hình trọng yếu
 
-### SCR-10: Dashboard
+### 6.1. SCR-10 Dashboard
+
+- 8 thẻ chỉ số (2 hàng × 4): tổng giường · đã sử dụng · còn trống · tỷ lệ lấp đầy · sinh viên đang ở · hợp đồng sắp hết hạn · tổng công nợ · hóa đơn quá hạn. Nguồn: `GET /api/dashboard/summary`.
+- Biểu đồ thanh ngang "Tỷ lệ lấp đầy theo tòa" từ `GET /api/dashboard/occupancy` (recharts).
+- Dải thông tin cuối trang: số đơn đăng ký chờ duyệt, yêu cầu gia hạn, yêu cầu trả phòng, đơn nhu yếu phẩm chờ nhận — mỗi mục là link sang màn hình đã lọc sẵn.
+- ⚠️ Số giường luôn thỏa `tổng = đã sử dụng + còn trống + bảo trì` (FR-70). Tỷ lệ lấp đầy = `đã sử dụng / (tổng − bảo trì)`.
+- Viewer: ẩn các link hành động, chỉ hiện số liệu.
+
+### 6.2. SCR-22 Loại phòng
+
+- Lưới thẻ 3 cột, lọc bằng segmented "Tất cả · Tiêu chuẩn · Chất lượng cao".
+- Mỗi thẻ: tag hạng, sức chứa, tên, giá `/người/tháng`, chip "Cấp sẵn trong phòng" (= `amenities` + `includedSupplies`), số phòng và số chỗ trống (`GET /api/room-types?withAvailability=true`). "Hết chỗ" tô đỏ.
+- Drawer "Sửa loại phòng": radio hạng, chọn sức chứa, giá, tiền cọc, danh sách tiện nghi (Select `mode="tags"`), ghi chú cam "Đổi giá không ảnh hưởng hợp đồng đã ký".
+- ⚠️ Khi loại phòng **đã có phòng dùng**, hai ô hạng và sức chứa **bị khóa** kèm tooltip. Nếu vẫn gửi lên và nhận `422 ROOM_TYPE_IN_USE`, hiện lỗi ngay trên form.
+- Chỉ Admin thấy nút "Thêm loại phòng" và link "Sửa".
+
+### 6.3. SCR-23 Phòng
+
+- Bộ lọc: tòa nhà, loại phòng, tầng, tình trạng (Còn chỗ / Đã đầy / Có giường bảo trì). Toggle "Sơ đồ | Danh sách" (danh sách dùng `<DataTable>`).
+- Sơ đồ: mỗi tầng một thẻ, mỗi phòng một ô hiển thị mã phòng, tag loại (`TC · 6`), `đã ở/sức chứa`, thanh lấp đầy. Màu nền: xanh nhạt còn chỗ · cam nhạt còn 1 chỗ · xám đã đầy · viền đỏ có giường bảo trì.
+- Bấm ô → drawer `GET /api/rooms/:id`: danh sách giường kèm tên người ở; giường trống xanh; giường bảo trì đỏ có link "Mở lại"; giường trống có link "Bảo trì" (`PATCH /api/beds/:id/status`).
+- ⚠️ **Không có nút "Xếp sinh viên vào giường".** Muốn xếp chỗ, Staff lập đơn hộ ở SCR-31.
+- Form thêm phòng: tòa, số phòng, tầng, **loại phòng**, **giới tính**. Không có ô giá, không có ô sức chứa. Thành công hiện "Đã tạo phòng B203 với 6 giường".
+- Sửa phòng đang có người: ô loại phòng và giới tính bị khóa (`ROOM_HAS_OCCUPANTS`).
+
+### 6.4. SCR-31 Duyệt đơn đăng ký ⭐
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Dashboard                              [Tòa nhà: Tất cả ▾] [🔄 Làm mới]  │
-├──────────────────────────────────────────────────────────────────────────┤
-│ ┌──────────────┐┌──────────────┐┌──────────────┐┌──────────────┐        │
-│ │ 🛏️ TỔNG GIƯỜNG││ ✅ ĐÃ SỬ DỤNG││ 🟢 CÒN TRỐNG ││ 📊 TỶ LỆ LẤP ĐẦY│      │
-│ │     420      ││     358      ││      50      ││   87,75%     │        │
-│ │              ││   ▲ +12 tuần ││              ││ ████████░░   │        │
-│ └──────────────┘└──────────────┘└──────────────┘└──────────────┘        │
-│ ┌──────────────┐┌──────────────┐┌──────────────┐┌──────────────┐        │
-│ │ 👥 SV ĐANG Ở  ││ 📋 HĐ HIỆU LỰC││ 💰 TỔNG CÔNG NỢ││ ⚠️ HĐ QUÁ HẠN │      │
-│ │     358      ││     358      ││  48.620.000đ ││      27      │        │
-│ │              ││  5 chờ duyệt ││              ││ 12.480.000đ  │        │
-│ └──────────────┘└──────────────┘└──────────────┘└──────────────┘        │
-├────────────────────────────────┬─────────────────────────────────────────┤
-│ TỶ LỆ LẤP ĐẦY THEO TÒA         │ DOANH THU 12 THÁNG                      │
-│  B1 ████████████████░░ 91%     │      ╱╲    ╱╲                           │
-│  B2 ██████████████░░░░ 87%     │   ╱╲╱  ╲╱╲╱  ╲___                       │
-│  B3 ███████████░░░░░░░ 72%     │  1  3  5  7  9  11                      │
-├────────────────────────────────┴─────────────────────────────────────────┤
-│ ⚠️ HỢP ĐỒNG SẮP HẾT HẠN (23)                          [Xem tất cả →]     │
-│ ┌────────────┬──────────────┬────────┬──────────┬─────────┬───────────┐ │
-│ │ Mã HĐ      │ Sinh viên    │ Phòng  │ Hết hạn  │ Còn lại │ Thao tác  │ │
-│ ├────────────┼──────────────┼────────┼──────────┼─────────┼───────────┤ │
-│ │HD-2026-0042│Trần Thị B    │B2-301  │30/09/2026│ 🟠 19 ng│[Chi tiết] │ │
-│ └────────────┴──────────────┴────────┴──────────┴─────────┴───────────┘ │
-├──────────────────────────────────────────────────────────────────────────┤
-│ 📥 CẦN XỬ LÝ                                                             │
-│  • 5 đơn đăng ký chờ duyệt      [Xử lý →]                               │
-│  • 3 yêu cầu gia hạn chờ duyệt  [Xử lý →]                               │
-│  • 2 yêu cầu trả phòng chờ duyệt [Xử lý →]                              │
-└──────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────┬──────────────────────────────────────────────┐
+│ [Chờ duyệt 5] [Đã duyệt] [Từ chối] │ SINH VIÊN                                 │
+│ ┌───────────────────────────┐ │ Trần Thị Bích · SV2024001 · Nữ · CNTT2024A    │
+│ │▌Trần Thị Bích · SV2024001 │ │ 0912 345 678          [🟢 Không có công nợ]   │
+│ │ TC · 6 người · Phòng B203 │ ├──────────────────────────────────────────────┤
+│ │ Nộp 27/08/2026 14:02      │ │ PHÒNG XẾP CHO SINH VIÊN                       │
+│ └───────────────────────────┘ │ Loại đăng ký: Tiêu chuẩn · 6 người · 320.000đ │
+│ ┌───────────────────────────┐ │ Phòng: [B203 — Tòa B, tầng 2 — còn 2 chỗ ▾]  │
+│ │ Lê Minh Châu · SV2024017  │ │  [01 Mai][02 Lan][03 ★ Tự động gán]           │
+│ │ CLC · 4 người             │ │  [04 Hương][05 Ngọc][06 trống]                │
+│ └───────────────────────────┘ │ Hệ thống gán giường trống số nhỏ nhất.        │
+│                               ├──────────────────────────────────────────────┤
+│                               │ HÓA ĐƠN SẼ TẠO: Cọc 500.000 · T9 320.000      │
+│                               │ Tổng 820.000 đ · Hạn 08/09/2026               │
+│                               │                  [Từ chối] [Duyệt và xếp phòng]│
+└───────────────────────────────┴──────────────────────────────────────────────┘
 ```
 
-**Ghi chú kỹ thuật:**
-- Gọi song song 5 API bằng `Promise.all` trong một hook `useApi` riêng, hiển thị skeleton riêng cho từng khối.
-- Viewer: ẩn cột "Thao tác" và toàn bộ khối "Cần xử lý".
-- Thẻ chỉ số bấm được → điều hướng sang màn hình tương ứng đã lọc sẵn.
+| Hành vi | Chi tiết |
+|---------|----------|
+| Danh sách trái | `GET /api/applications?status=pending`, **đơn cũ nhất lên đầu**. Chọn một đơn → `GET /api/applications/:id` |
+| Sơ đồ giường | Chỉ để **xem**. Ô có ngôi sao là giường số nhỏ nhất đang trống — dự đoán, không phải lựa chọn. Không bấm được |
+| Đổi phòng | Dropdown chỉ liệt kê phòng **cùng loại, cùng giới tính** còn chỗ (`GET /api/rooms/available?roomTypeId=`) |
+| Duyệt | Modal xác nhận → `PATCH /api/applications/:id/approve { roomId }` → thông báo "Đã xếp Trần Thị Bích vào B203 · Giường 03. Hợp đồng HD-2026-00087" → bỏ đơn khỏi danh sách |
+| ⚠️ `409 ROOM_FULL` | Banner đỏ trên thẻ "Phòng xếp cho sinh viên", **tự tải lại dropdown**, giữ nguyên đơn đang mở để Staff chọn phòng khác và bấm duyệt lại. **Không** đóng panel, **không** dùng toast tự tắt |
+| Từ chối | Modal bắt buộc lý do ≥ 10 ký tự (BR-37) |
+| Lập đơn hộ | Nút "Lập đơn cho sinh viên" góc phải tiêu đề → modal: chọn sinh viên (tìm từ xa), loại phòng, phòng, ngày → `POST /api/applications` |
+| Viewer | Xem được, ẩn hai nút hành động |
+
+### 6.5. SCR-41 Yêu cầu gia hạn / trả phòng ⭐
+
+- Bố cục hai cột như SCR-31: danh sách trái (lọc Tất cả · Gia hạn · Trả phòng), chi tiết phải.
+- **Gia hạn:** hiện ngày kết thúc hiện tại → ngày đề nghị, số tháng thêm, công nợ.
+- **Trả phòng — thẻ "Quyết toán tiền cọc"** là trọng tâm: tiền cọc đã nộp · trừ công nợ chưa thanh toán (link mở danh sách hóa đơn còn nợ) · vạch kẻ đậm · **"Hoàn trả cho sinh viên"** (xanh) hoặc **"Sinh viên còn phải nộp thêm"** (đỏ).
+- Checklist trước khi duyệt: ✓ đã có chỉ số điện nước kỳ này · ✓ không có đơn nhu yếu phẩm `ready` chưa giao · ☐ đã kiểm tra tài sản và thu hồi chìa khóa (ô cuối phải tích mới bật nút duyệt).
+- ⚠️ Con số công nợ hiển thị là **sau khi đã loại đơn nhu yếu phẩm chưa thanh toán** — backend hủy các đơn đó khi duyệt (BR-97). Ghi rõ dòng xám: "Đơn nhu yếu phẩm chưa thanh toán sẽ tự hủy, không trừ vào tiền cọc".
+- Nhận `422 STUDENT_HAS_DEBT` → modal "Sinh viên còn nợ X đ. Vẫn duyệt?" → gửi lại với `forceConfirm: true` (BR-75).
+- Nút duyệt đổi nhãn theo kết quả: "Duyệt và hoàn 556.250 đ" hoặc "Duyệt và lập hóa đơn 312.000 đ".
+
+### 6.6. SCR-51 Nhập chỉ số điện nước ⭐
+
+- Chọn kỳ + tòa. Hộp xám hiển thị đơn giá điện/nước. Thanh tiến độ "Đã nhập 17/20 phòng".
+- Bảng **sửa trực tiếp**: cột chỉ số cũ chỉ đọc (tự lấy từ kỳ trước), cột chỉ số mới là `InputNumber`, cột tiêu thụ và "Mỗi người phải trả" tự tính khi gõ.
+- ⚠️ Chỉ số mới < chỉ số cũ → viền đỏ + chữ "Nhỏ hơn chỉ số cũ" ngay dưới ô, **trước khi gửi**. Backend vẫn kiểm tra lại (`INVALID_METER_READING`).
+- Rê chuột lên ô tiền mỗi người → tooltip công thức: "Điện 90 kWh × 3.500 = 315.000 đ · Nước … · Tổng … ÷ 4 người".
+- ⚠️ Số hiển thị ở giao diện chỉ để tham khảo. **Số tiền thật do backend chia** theo `Math.floor` + dồn phần dư (BR-54, `03` mục 4.3) — frontend không tự làm tròn rồi gửi lên.
+- Phòng không có người: hiện "Phòng trống — không chia", không bắt nhập.
+- Phòng đã lập hóa đơn: cả hàng chỉ đọc, tag "Đã lập hóa đơn" (`READING_ALREADY_INVOICED`).
+- Thanh cố định đáy trang: số phòng lỗi / chưa nhập + nút "Lưu N phòng" (chỉ lưu các hàng đã sửa và hợp lệ).
+
+### 6.7. SCR-52 → SCR-55 Hóa đơn & thanh toán
+
+| Màn hình | Điểm chính |
+|----------|------------|
+| SCR-52 Danh sách | 4 thẻ tổng: phải thu · đã thu · còn nợ · quá hạn. Lọc: kỳ, **loại hóa đơn**, trạng thái, tòa. Cột "Còn lại" đỏ đậm khi > 0. Link "Thu tiền" mở SCR-55 |
+| SCR-53 Lập hàng loạt | Modal: tháng, năm, tòa. Cảnh báo cam liệt kê phòng **chưa có chỉ số** + link "Nhập ngay". Khung xem trước (số hóa đơn, tổng tiền, số bỏ qua). Nút xác nhận **bị khóa** đến khi tích ô "Tôi đã kiểm tra chỉ số điện nước". Khóa nút khi đang gọi API, tránh bấm đúp |
+| SCR-54 Chi tiết | 3 thẻ tổng/đã trả/còn lại · thông tin chung · bảng dòng phí (dòng điện nước ghi rõ "chia đều N người") · timeline lịch sử thanh toán. Nút "Hủy hóa đơn" **vô hiệu hóa kèm tooltip** khi đã có thanh toán thành công (BR-46) |
+| SCR-55 Ghi nhận thanh toán | Số tiền mặc định = còn lại, chip "Thu đủ / Thu một phần". Hình thức Tiền mặt / Chuyển khoản — chọn chuyển khoản thì bắt buộc mã giao dịch. Nhập vượt số còn lại → lỗi đỏ ngay dưới ô + khóa nút (BR-44, `PAYMENT_EXCEEDS_REMAINING`). Nút ghi rõ "Xác nhận thu 243.750 đ" |
+
+> Hóa đơn loại `supplies` hiển thị thêm link "Xem đơn hàng DH-…". Thu tiền cho hóa đơn này ở quầy thì đơn hàng tự chuyển "Chờ nhận hàng" — không cần thao tác gì thêm.
+
+### 6.8. SCR-71 Nhu yếu phẩm (quản trị)
+
+- **Tab Đơn hàng:** 3 thẻ đếm (`summary` trong response): chờ thanh toán · chờ nhận hàng · đã giao hôm nay. Lọc: tìm kiếm, trạng thái, khoảng ngày. Cột thao tác theo trạng thái:
+
+  | Trạng thái | Thao tác |
+  |------------|----------|
+  | Chờ thanh toán | Link đỏ "Hủy đơn" (modal nhập lý do) |
+  | Chờ nhận hàng | Nút xanh "Xác nhận đã giao" (modal xác nhận) |
+  | Đã giao / Đã hủy | — |
+
+- **Tab Danh mục sản phẩm:** bảng ảnh thu nhỏ · tên · nhóm · giá · loại phòng cấp sẵn · trạng thái đang bán/ngừng bán. Form sản phẩm: ô **đường dẫn ảnh** (không upload — PRD §3), chọn nhiều loại phòng được cấp sẵn.
+- Ghi chú dưới bảng: "Sản phẩm được cấp sẵn cho loại phòng nào sẽ tự ẩn khỏi cửa hàng của sinh viên ở loại phòng đó."
+
+### 6.9. SCR-61 Trang chủ sinh viên
+
+| Tình huống | Hiển thị |
+|------------|----------|
+| **Chưa có chỗ, chưa có đơn** | Thẻ chào mừng lớn "Bạn chưa có chỗ ở tại ký túc xá" + nút "Đăng ký chỗ ở" → `/portal/apply`; hàng 3 thẻ loại phòng còn chỗ |
+| **Đơn đang chờ duyệt** | Thẻ cam "Đơn đăng ký đang chờ duyệt": phòng, loại, thời điểm nộp + nút "Hủy đơn" |
+| **Đơn bị từ chối** (đơn gần nhất) | Thẻ đỏ hiện lý do + nút "Đăng ký lại" |
+| **Đang lưu trú** | Cột trái: thẻ công nợ nổi bật (nếu > 0, nút "Thanh toán ngay") · "Chỗ ở của tôi" và "Hợp đồng" cạnh nhau · bảng "Hóa đơn gần đây". Cột phải: thẻ "Nhu yếu phẩm" gợi ý 3 món chưa có + dải "Đơn DH-… đang chờ bạn nhận" nếu có |
+| Hợp đồng sắp hết hạn | Thêm thẻ "Hợp đồng còn N ngày" + nút "Gia hạn" → mở modal ở SCR-66 |
+
+Nguồn dữ liệu: `GET /api/portal/my-residence`, `GET /api/portal/my-applications`, `GET /api/portal/my-invoices?status=unpaid`.
+
+### 6.10. SCR-62 Đăng ký chỗ ở ⭐
+
+| Bước | Cột trái (8) | Cột phải (4) |
+|------|--------------|--------------|
+| 1. Loại phòng | Segmented "Tiêu chuẩn / Chất lượng cao" + lưới thẻ loại phòng 3 cột: sức chứa, giá, đồ cấp sẵn, "Còn N chỗ". Loại hết chỗ hiển thị mờ, không chọn được | Thẻ tóm tắt loại đã chọn + "Tiếp tục" |
+| 2. Chọn phòng | Chọn tòa (chỉ tòa có phòng khớp giới tính) + bảng phòng: phòng · tầng · sơ đồ chấm giường (chỉ xem) · còn trống · nút chọn. Dòng xám: "Giường sẽ được ban quản lý tự sắp xếp khi duyệt đơn." | Thẻ tóm tắt phòng đã chọn + "Tiếp tục" |
+| 3. Xác nhận | Thông tin chỗ ở + chọn ngày bắt đầu/kết thúc (hiện số tháng) + ghi chú · thẻ "Phòng đã có sẵn" + gợi ý cam "Phòng chưa có đệm, chăn, gối — có thể mua ở mục Nhu yếu phẩm sau khi vào ở" | Thẻ "Chi phí ban đầu": tiền cọc · tiền phòng tháng đầu · tổng · ô "Tôi đồng ý với nội quy" · nút "Nộp đơn" |
+
+- Dải thông tin xanh đầu trang: "Hiển thị phòng dành cho sinh viên nữ" — **lọc giới tính ở backend**, sinh viên không bao giờ thấy phòng sai giới tính.
+- **Tải lại danh sách phòng** khi vào bước 2 và ngay trước khi nộp.
+- ⚠️ `409 ROOM_FULL` khi nộp → quay về bước 2, banner đỏ "Phòng B203 vừa hết chỗ, vui lòng chọn phòng khác", danh sách tự tải lại, **giữ nguyên** loại phòng và ngày đã chọn.
+- `409 DUPLICATE_PENDING_APPLICATION` → thông báo và điều hướng về trang chủ (đã có đơn đang chờ).
+- Sinh viên đã có hợp đồng `active` vào `/portal/apply` → điều hướng về trang chủ.
+
+### 6.11. SCR-64 Hóa đơn của tôi & SCR-65 Kết quả thanh toán
+
+- **Một màn hình hai cột:** trái 5 cột là danh sách hóa đơn (tab Chưa thanh toán / Đã thanh toán, tổng đang nợ ở trên); phải 7 cột là chi tiết hóa đơn đang chọn. Không chuyển trang để xem chi tiết.
+- Chi tiết: số tiền lớn, hạn, bảng dòng phí, mục thu gọn "Cách tính tiền điện nước", nút "Thanh toán qua VNPay", dòng xám "Hoặc nộp tiền mặt tại văn phòng".
+- **Luồng thanh toán:**
+  1. Bấm → `POST /api/payments/online/checkout` → nhận `redirectUrl` → `window.location.href = redirectUrl`.
+  2. Trước khi chuyển, lưu `transactionRef` vào `sessionStorage`.
+  3. Cổng trả về `/portal/payment-result?ref=…` → SCR-65 hiện **"Đang kiểm tra giao dịch"**, gọi lại tối đa 5 lần cách nhau 2 giây (webhook có thể về chậm).
+  4. Sau 5 lần vẫn `pending` → "Giao dịch đang được xử lý, vui lòng kiểm tra lại sau ít phút" + nút làm mới. ⚠️ **Không** hiện "Thất bại" khi chưa chắc chắn.
+- SCR-65 thành công: dấu tích xanh, số tiền, mã giao dịch, thời gian, mã hóa đơn; nếu là hóa đơn `supplies` thêm dòng "Đơn hàng đã sẵn sàng, mời bạn đến văn phòng nhận". Thất bại: dấu X đỏ + "Bạn chưa bị trừ tiền" + "Thử lại".
+
+### 6.12. SCR-66 Yêu cầu của tôi
+
+- Bảng: loại · nội dung · ngày gửi · trạng thái · lý do từ chối (nếu có). Nút "Tạo yêu cầu" góc phải mở modal 560px.
+- Modal: segmented "Gia hạn | Trả phòng". Gia hạn → chọn ngày kết thúc mới (> ngày hiện tại, BR-72), hiện "Thêm N tháng". Trả phòng → ngày dự kiến + lý do bắt buộc + hộp xanh "Tiền cọc X đ sẽ được trừ vào công nợ còn lại (Y đ) và quyết toán khi ban quản lý duyệt".
+- `409 DUPLICATE_PENDING_REQUEST` → banner đỏ trong modal, khóa nút gửi.
+- Yêu cầu `pending` có link "Hủy" (`DELETE /api/portal/my-requests/:id`).
+
+### 6.13. SCR-67 Mua sắm & SCR-68 Đơn hàng của tôi
+
+- **SCR-67 một màn hình:** trái 9 cột = banner "Phòng B203 · Tiêu chuẩn · 6 người — đã được cấp sẵn: …" · chip nhóm sản phẩm · lưới sản phẩm 4 cột (ảnh, tên, giá, nút "+" hoặc bộ tăng giảm số lượng 1–5). Phải 3 cột = thẻ giỏ hàng cố định: các món + số lượng, nơi nhận "Văn phòng ban quản lý — Tầng 1, Tòa A", tổng tiền, nút "Đặt hàng".
+- Giỏ hàng lưu ở **state của trang + `sessionStorage`** (mất khi đóng trình duyệt là chấp nhận được). Không có API giỏ hàng.
+- Tổng tiền trong giỏ **chỉ để hiển thị** — request chỉ gửi `{ supplyItemId, quantity }`; số tiền thật lấy từ response (BR-92).
+- Đặt hàng thành công → thông báo kèm mã đơn + nút "Thanh toán ngay" (mở hóa đơn ở SCR-64) → xóa giỏ.
+- `422 SUPPLY_ITEM_INACTIVE` / `SUPPLY_ALREADY_INCLUDED` → thông báo tên sản phẩm, bỏ món đó khỏi giỏ, tải lại danh sách.
+- Sinh viên chưa có hợp đồng `active` → trang trống "Bạn cần có chỗ ở để mua nhu yếu phẩm" + link đăng ký.
+- **SCR-68:** bảng mã đơn · ngày · sản phẩm · tổng · trạng thái · thao tác (Chờ thanh toán → "Thanh toán" + "Hủy"; Chờ nhận hàng → dòng "Nhận tại văn phòng, giờ 8:00–17:00"). Tab trạng thái phía trên. Có trạng thái rỗng.
 
 ---
 
-### SCR-11: Danh sách sinh viên
+## 7. Component dùng chung
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Quản lý sinh viên                    [📥 Import] [📤 Export] [+ Thêm SV] │
-├──────────────────────────────────────────────────────────────────────────┤
-│ [🔍 Tìm tên, MSSV, SĐT...] [Trạng thái ▾][Tòa ▾][Phòng ▾][Khoa ▾] [Xóa lọc]│
-├──────────────────────────────────────────────────────────────────────────┤
-│ ┌──┬─────────┬──────────────┬────┬──────────┬──────────┬─────────┬─────┐│
-│ │# │ MSSV    │ Họ tên       │ GT │ Lớp      │ Chỗ ở    │ Công nợ │ ... ││
-│ ├──┼─────────┼──────────────┼────┼──────────┼──────────┼─────────┼─────┤│
-│ │1 │SV2024001│Trần Thị B    │ Nữ │CNTT2024A │B2-301-A3 │ 646.000đ│ ⋮   ││
-│ │2 │SV2024002│Nguyễn Văn C  │Nam │KT2024B   │  —       │      0đ │ ⋮   ││
-│ └──┴─────────┴──────────────┴────┴──────────┴──────────┴─────────┴─────┘│
-│                                     ◀ 1 2 3 ... 7 ▶   Tổng: 137 SV      │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+| Component | Mục đích | Dùng ở | Tình trạng |
+|-----------|----------|--------|:--:|
+| `<DataTable>` | Bảng có ô tìm kiếm, phân trang server, tải/lỗi/rỗng | Mọi danh sách | ✅ |
+| `<StatusTag type value>` | Thẻ trạng thái theo `constants/statuses.js` | Khắp nơi | ✅ |
+| `<MoneyText value danger>` | Định dạng tiền, tô đỏ khi là nợ | Hóa đơn, dashboard | ✅ |
+| `<PageHeader>` | Tiêu đề + mô tả + nút hành động | Mọi trang | ✅ |
+| `<EmptyState>` | Trạng thái rỗng có nút hành động | Mọi danh sách | ✅ |
+| `<ErrorBoundary>` | Bắt lỗi render | Bọc toàn App | ✅ |
+| `<StatCard>` | Thẻ chỉ số | SCR-10, SCR-52, SCR-71 | ⏳ |
+| `<RoomTypeTag>` | Tag hạng + sức chứa, VD `TC · 6` | SCR-22, 23, 31, 32, 62 | ⏳ |
+| `<BedDots>` | Dãy chấm/ô giường **chỉ xem** (trống / có người / bảo trì) | SCR-23, 31, 62 | ⏳ |
+| `<TwoPaneLayout>` | Danh sách trái + chi tiết phải | SCR-31, 41, 64 | ⏳ |
+| `<StudentSelect>` | Chọn sinh viên có tìm kiếm từ xa | SCR-31 (lập đơn hộ) | ⏳ |
+| `<RecordPaymentModal>` | Ghi nhận thanh toán | SCR-52, 54 | ⏳ |
 
-**Đặc tả:**
-- Ô tìm kiếm áp dụng **debounce 400ms** trước khi gọi API.
-- Bộ lọc lưu vào URL query string để có thể chia sẻ link và giữ nguyên khi quay lại (dùng `useSearchParams`).
-- Cột "Chỗ ở" hiện `—` khi chưa lưu trú, bấm được để mở phòng.
-- Cột "Công nợ" tô đỏ khi > 0.
-- Menu `⋮`: Xem chi tiết · Sửa · Tạo hợp đồng (nếu chưa có) · Vô hiệu hóa.
-- Phân trang phía server, mặc định 20 bản ghi/trang.
+> ⚠️ **v3.0 bỏ `<BedPicker>`.** Không màn hình nào cho chọn giường.
 
 ---
 
-### SCR-22: Sơ đồ tòa nhà
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Sơ đồ Tòa B2 - Nữ          🟩 Trống  🟨 Còn chỗ  🟥 Đầy  ⬜ Bảo trì      │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Tầng 5 │ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                                │
-│        │ │ 501 │ │ 502 │ │ 503 │ │ 504 │                                │
-│        │ │ 8/8 │ │ 6/8 │ │ 8/8 │ │ 0/8 │                                │
-│        │ │ 🟥  │ │ 🟨  │ │ 🟥  │ │ ⬜  │                                │
-│        │ └─────┘ └─────┘ └─────┘ └─────┘                                │
-│ Tầng 4 │ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                                │
-│        │ │ 401 │ │ 402 │ │ 403 │ │ 404 │                                │
-│        │ │ 7/8 │ │ 8/8 │ │ 5/8 │ │ 8/8 │                                │
-│        │ │ 🟨  │ │ 🟥  │ │ 🟨  │ │ 🟥  │                                │
-│        │ └─────┘ └─────┘ └─────┘ └─────┘                                │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-**Đặc tả:**
-- Rê chuột lên ô phòng → tooltip hiện loại phòng, giá, số giường trống.
-- Bấm vào ô → mở drawer bên phải hiển thị danh sách giường và người ở, có nút "Xếp sinh viên vào giường trống".
-- Dữ liệu từ `GET /buildings/:id/map`, màu lấy theo trường `fillLevel`.
-
----
-
-### SCR-32: Đăng ký lưu trú — Staff xếp sinh viên vào giường
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Đơn đăng ký chờ duyệt (5)                                                │
-├──────────────────────────────────────────────────────────────────────────┤
-│ ┌──────────────────────────────────────────────────────────────────────┐│
-│ │ HD-2026-00043 · Nộp lúc 27/08/2026 14:02          [🟠 Chờ duyệt]     ││
-│ │ ──────────────────────────────────────────────────────────────────── ││
-│ │ 👤 Trần Thị B (SV2024001) · Nữ · CNTT2024A · 0912 345 678           ││
-│ │ 🛏️ Tòa B2 - Phòng 301 - Giường A5 · 400.000đ/tháng                  ││
-│ │ 📅 01/09/2026 → 30/06/2027 (10 tháng)                                ││
-│ │ 💬 "Em muốn ở gần bạn cùng lớp"                                      ││
-│ │                                                                      ││
-│ │ ℹ️ Hóa đơn sẽ tạo khi duyệt: cọc 500.000đ + phòng T9 400.000đ       ││
-│ │                                            = 900.000đ (hạn 08/09)    ││
-│ │                                                                      ││
-│ │                         [✗ Từ chối]  [✓ Duyệt đơn]                  ││
-│ └──────────────────────────────────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-**Đặc tả:**
-- Hiển thị dạng thẻ (card) thay vì bảng, vì nhân viên cần xem đủ thông tin để ra quyết định ngay.
-- Khối "Hóa đơn sẽ tạo khi duyệt" giúp nhân viên biết trước hệ quả tài chính (dữ liệu từ `estimatedFirstInvoice`).
-- Bấm "Duyệt" → modal xác nhận → gọi API → hiện thông báo kèm mã hóa đơn vừa tạo.
-- Bấm "Từ chối" → modal bắt buộc nhập lý do (tối thiểu 10 ký tự).
-- Nếu API trả `409 BED_NOT_AVAILABLE` → hiện cảnh báo đỏ ngay trên thẻ đó và gợi ý "Chọn giường khác".
-
----
-
-### SCR-53: Lập hóa đơn hàng loạt
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Lập hóa đơn theo kỳ                                                      │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Bước 1: Chọn kỳ                                                          │
-│   Kỳ thanh toán: [Tháng 10 ▾] [2026 ▾]    Hạn thanh toán: [10/11/2026]  │
-│   Phạm vi: (•) Tất cả tòa nhà  ( ) Chọn tòa: [B1][B2][B3]              │
-│   Khoản phí: [✓] Tiền phòng  [✓] Tiền điện  [✓] Tiền nước              │
-│                                                     [Kiểm tra dữ liệu →] │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Bước 2: Xem trước                                                        │
-│ ✅ 58/60 phòng đã có chỉ số điện nước                                    │
-│ ⚠️ 2 phòng chưa nhập chỉ số — sẽ bị bỏ qua:                             │
-│    • B2-405: chưa nhập  [Nhập ngay →]                                   │
-│    • B3-201: chưa nhập  [Nhập ngay →]                                   │
-│ ⚠️ 1 sinh viên đã có hóa đơn kỳ này — sẽ bỏ qua: SV2024033             │
-│                                                                          │
-│ 📊 Dự kiến: 118 hóa đơn · Tổng tiền 76.228.000đ                         │
-│                                        [Quay lại]  [✓ Xác nhận lập]     │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Bước 3: Kết quả                                                          │
-│ ✅ Đã lập thành công 118 hóa đơn, tổng 76.228.000đ                      │
-│                          [Xem danh sách hóa đơn] [Lập kỳ khác]          │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-**Đặc tả:**
-- Dùng component `Steps` của Ant Design, 3 bước.
-- Bước 2 **bắt buộc** — không cho lập ngay từ bước 1, để nhân viên nhìn thấy cảnh báo trước.
-- Nút "Nhập ngay" mở modal nhập chỉ số cho phòng đó mà không rời khỏi luồng.
-- Đây là thao tác tạo nhiều bản ghi → nút xác nhận phải khóa trong lúc đang gọi API, tránh nhấn đúp.
-
----
-
-### SCR-54: Chi tiết hóa đơn
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Hóa đơn INV-202610-00201            [🟠 Thanh toán một phần]             │
-│                                  [🖨 In PDF] [💵 Ghi nhận TT] [✗ Hủy HĐ] │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Sinh viên: Trần Thị B (SV2024001)      Kỳ: Tháng 10/2026                │
-│ Chỗ ở: Tòa B2 - Phòng 301 - Giường A3  Ngày lập: 01/11/2026             │
-│ Hợp đồng: HD-2026-00042                Hạn TT: 10/11/2026               │
-├──────────────────────────────────────────────────────────────────────────┤
-│ ┌────┬──────────────────────────────────┬──────┬───────────┬───────────┐│
-│ │ #  │ Khoản phí                        │ SL   │ Đơn giá   │ Thành tiền││
-│ ├────┼──────────────────────────────────┼──────┼───────────┼───────────┤│
-│ │ 1  │ Tiền phòng tháng 10/2026         │ 1    │  400.000  │  400.000  ││
-│ │ 2  │ Tiền điện T10/2026 (60 kWh/người)│ 60   │    2.500  │  150.000  ││
-│ │ 3  │ Tiền nước T10/2026 (8 m³/người)  │ 8    │   12.000  │   96.000  ││
-│ ├────┴──────────────────────────────────┴──────┴───────────┼───────────┤│
-│ │                                              TỔNG TIỀN   │  646.000đ ││
-│ │                                              ĐÃ THANH TOÁN│ -400.000đ ││
-│ │                                              CÒN NỢ      │  246.000đ ││
-│ └──────────────────────────────────────────────────────────┴───────────┘│
-├──────────────────────────────────────────────────────────────────────────┤
-│ LỊCH SỬ THANH TOÁN                                                       │
-│ ┌────────────┬───────────┬──────────┬──────────┬────────────┬──────────┐│
-│ │ Mã GD      │ Ngày      │ Số tiền  │ Phương thức│ Trạng thái │ Người ghi││
-│ ├────────────┼───────────┼──────────┼──────────┼────────────┼──────────┤│
-│ │PAY...ABC123│05/11 10:23│ 400.000đ │VNPay     │🟢 Thành công│ (online) ││
-│ └────────────┴───────────┴──────────┴──────────┴────────────┴──────────┘│
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-**Đặc tả:**
-- Nút "Hủy hóa đơn" **bị vô hiệu hóa** (kèm tooltip giải thích) khi hóa đơn đã có thanh toán thành công (BR-47).
-- Nút "Ghi nhận TT" mở modal: số tiền (mặc định = còn nợ, không cho nhập vượt), phương thức, ngày, ghi chú.
-- Sau khi ghi nhận thành công, hóa đơn cập nhật tại chỗ (invalidate query), không cần tải lại trang.
-
----
-
-### SCR-61: Trang chủ sinh viên (ưu tiên mobile)
-
-```
-┌────────────────────────────────────┐
-│ Xin chào, Trần Thị B 👋            │
-├────────────────────────────────────┤
-│ ┌────────────────────────────────┐ │
-│ │ 🏠 CHỖ Ở CỦA TÔI               │ │
-│ │ Tòa B2 · Phòng 301 · Giường A3 │ │
-│ │ HĐ: 01/09/2026 → 30/06/2027    │ │
-│ │ 🟢 Đang hiệu lực · còn 292 ngày│ │
-│ │                    [Chi tiết →]│ │
-│ └────────────────────────────────┘ │
-│ ┌────────────────────────────────┐ │
-│ │ ⚠️ CẦN THANH TOÁN              │ │
-│ │        246.000 đ               │ │
-│ │ Hạn: 10/11/2026 (còn 3 ngày)   │ │
-│ │        [💳 Thanh toán ngay]     │ │
-│ └────────────────────────────────┘ │
-│ ┌────────────────────────────────┐ │
-│ │ THAO TÁC NHANH                 │ │
-│ │ [📄 Hóa đơn] [📋 Hợp đồng]     │ │
-│ │ [📨 Gửi yêu cầu] [🛏️ Giường trống]│
-│ └────────────────────────────────┘ │
-├────────────────────────────────────┤
-│ 🏠    🛏️    📄    💰    👤         │
-└────────────────────────────────────┘
-```
-
-**Các trạng thái hiển thị khác nhau:**
-
-| Tình huống sinh viên | Nội dung hiển thị |
-|----------------------|-------------------|
-| Chưa lưu trú | Thẻ "Bạn chưa được xếp chỗ ở" + hướng dẫn liên hệ văn phòng KTX (v1: **Staff xếp giường**, sinh viên không tự đăng ký) |
-| Đã có hợp đồng `pending` | Thẻ "Hợp đồng của bạn đang chờ kích hoạt" + thông tin giường Staff đã xếp |
-| Đơn bị từ chối | Thẻ đỏ hiện lý do từ chối + nút "Đăng ký lại" |
-| Đang lưu trú, không nợ | Thẻ chỗ ở (xanh) + "Bạn đã thanh toán đầy đủ ✅" |
-| Đang lưu trú, có nợ | Thẻ chỗ ở + thẻ cảnh báo công nợ (cam/đỏ nếu quá hạn) |
-| Hợp đồng sắp hết hạn | Thêm thẻ "Hợp đồng sắp hết hạn, bạn có muốn gia hạn?" + nút gửi yêu cầu |
-
----
-
-### SCR-64: Nộp đơn đăng ký (luồng 3 bước)
-
-```
-Bước 1: Chọn chỗ ở            Bước 2: Chọn thời gian      Bước 3: Xác nhận
-┌──────────────────────┐      ┌──────────────────────┐    ┌──────────────────┐
-│ Tòa nhà              │      │ Ngày bắt đầu         │    │ 📋 THÔNG TIN ĐƠN │
-│ [Tòa B2 - Nữ    ▾]  │      │ [01/09/2026     📅]  │    │                  │
-│                      │      │                      │    │ Tòa B2 · P.301   │
-│ Lọc: [Loại phòng ▾]  │      │ Ngày kết thúc        │    │ Giường A5        │
-│      [Giá tối đa ▾]  │      │ [30/06/2027     📅]  │    │ 01/09 → 30/06    │
-│                      │      │                      │    │ (10 tháng)       │
-│ Phòng còn trống:     │      │ ⏱ Thời hạn: 10 tháng│    │                  │
-│ ┌──────────────────┐ │      │                      │    │ 💰 CHI PHÍ       │
-│ │ P.301 · 2 chỗ    │ │      │ Ghi chú (tùy chọn)   │    │ Cọc:    500.000đ │
-│ │ 400.000đ/tháng   │ │      │ [________________]   │    │ Phòng T9:400.000đ│
-│ │ ○ A5  ○ A7       │ │      │                      │    │ ───────────────  │
-│ └──────────────────┘ │      │                      │    │ Tổng:   900.000đ │
-│ ┌──────────────────┐ │      │                      │    │ Hạn TT: 08/09    │
-│ │ P.305 · 3 chỗ    │ │      │                      │    │                  │
-│ └──────────────────┘ │      │                      │    │ [✓] Tôi đồng ý   │
-│         [Tiếp theo →]│      │ [← Quay lại][Tiếp →] │    │    với nội quy   │
-└──────────────────────┘      └──────────────────────┘    │  [✓ Nộp đơn]     │
-                                                           └──────────────────┘
-```
-
-**Đặc tả:**
-- Bước 1 chỉ hiện tòa nhà phù hợp giới tính của sinh viên (BR-06) — lọc ở backend, không để sinh viên chọn rồi mới báo lỗi.
-- Chọn giường xong, **làm mới danh sách trước khi sang bước 3** để giảm khả năng chọn phải giường vừa bị người khác lấy.
-- Nếu API trả `409 BED_NOT_AVAILABLE` → quay về bước chọn giường, hiện thông báo rõ ràng, tự động tải lại danh sách giường trống.
-- Ô "Tôi đồng ý với nội quy" bắt buộc tích mới cho nộp.
-
----
-
-### SCR-67: Chi tiết hóa đơn & thanh toán (sinh viên)
-
-```
-┌────────────────────────────────────┐
-│ ← Hóa đơn tháng 10/2026            │
-│ INV-202610-00201  [🟠 Còn nợ]      │
-├────────────────────────────────────┤
-│ Tiền phòng                400.000đ │
-│ Tiền điện (60 kWh)        150.000đ │
-│ Tiền nước (8 m³)           96.000đ │
-│ ─────────────────────────────────  │
-│ Tổng cộng                 646.000đ │
-│ Đã thanh toán            -400.000đ │
-│ ═════════════════════════════════  │
-│ CÒN NỢ                    246.000đ │
-│ Hạn thanh toán: 10/11/2026         │
-├────────────────────────────────────┤
-│ 💳 THANH TOÁN                      │
-│ Số tiền: [246.000        ] đ       │
-│          (tối đa 246.000đ)         │
-│                                    │
-│ Chọn phương thức:                  │
-│  (•) 🔵 VNPay                      │
-│      (v1-lite chỉ hỗ trợ VNPay)    │
-│                                    │
-│      [Thanh toán 246.000 đ]        │
-├────────────────────────────────────┤
-│ LỊCH SỬ THANH TOÁN                 │
-│ 05/11 · 400.000đ · VNPay · ✅      │
-└────────────────────────────────────┘
-```
-
-**Xử lý luồng thanh toán:**
-1. Bấm thanh toán → gọi API → nhận `paymentUrl` → `window.location.href = paymentUrl`.
-2. Trước khi chuyển hướng, lưu `transactionRef` vào `sessionStorage` để đối chiếu khi quay về.
-3. Sau khi cổng chuyển về `/portal/payment-result?ref=...`, màn hình SCR-68 **hiển thị trạng thái đang kiểm tra**, gọi `GET /payments/:ref`, thử lại tối đa 5 lần cách nhau 2 giây (vì IPN có thể chưa kịp về).
-4. Sau 5 lần vẫn `pending` → hiện "Giao dịch đang được xử lý, vui lòng kiểm tra lại sau ít phút" kèm nút làm mới. **Không** hiển thị "Thất bại" khi chưa chắc chắn.
-
----
-
-## 7. Component dùng chung cần xây dựng
-
-| Component | Mục đích | Dùng ở |
-|-----------|----------|--------|
-| `<DataTable>` | Bọc Ant Table: phân trang server, sắp xếp, trạng thái loading/empty thống nhất | Mọi màn hình danh sách |
-| `<StatusTag status type>` | Hiển thị thẻ trạng thái theo `constants/statuses.js` | Khắp nơi |
-| `<MoneyText value>` | Định dạng tiền tệ, tô đỏ khi là số nợ | Hóa đơn, dashboard |
-| `<ConfirmModal>` | Hộp thoại xác nhận có mô tả hậu quả | Mọi hành động nguy hiểm |
-| `<FilterBar>` | Thanh lọc đồng bộ với URL query string | Màn hình danh sách |
-| `<EmptyState>` | Trạng thái rỗng có minh họa + nút hành động | Mọi danh sách |
-| `<PageHeader>` | Tiêu đề + breadcrumb + nút hành động | Mọi trang |
-| `<BedPicker>` | Chọn giường còn trống, đã lọc sẵn theo giới tính sinh viên | SCR-32, SCR-33 |
-| `<StudentSelect>` | Ô chọn sinh viên có tìm kiếm từ xa | SCR-33, SCR-52 |
-| `<InvoiceItemsEditor>` | Bảng nhập các dòng phí, tự tính tổng | SCR-52 |
-| `<StatCard>` | Thẻ chỉ số dashboard | SCR-10 |
-| `<ErrorBoundary>` | Bắt lỗi render, hiện màn hình lỗi thân thiện | Bọc toàn App |
-
----
-
-## 8. Xử lý trạng thái loading, rỗng và lỗi
+## 8. Xử lý trạng thái tải, rỗng và lỗi
 
 | Tình huống | Cách hiển thị |
 |------------|---------------|
-| Đang tải lần đầu | **Skeleton** đúng hình dạng nội dung (không dùng spinner toàn trang) |
-| Đang tải lại (đã có dữ liệu) | Giữ dữ liệu cũ, hiện thanh loading mảnh phía trên bảng |
-| Danh sách rỗng (chưa có dữ liệu) | `<EmptyState>` + nút "Thêm mới" |
-| Danh sách rỗng (do lọc) | "Không tìm thấy kết quả phù hợp" + nút "Xóa bộ lọc" |
+| Đang tải lần đầu | Skeleton hoặc `loading` của Table/Card (không dùng spinner toàn trang) |
+| Danh sách rỗng (chưa có dữ liệu) | `<EmptyState>` + nút "Thêm mới" nếu có quyền |
+| Danh sách rỗng (do lọc) | "Không có dữ liệu phù hợp" |
 | Lỗi mạng | "Không kết nối được máy chủ" + nút "Thử lại" |
-| Lỗi 403 | Chuyển sang `/403`, không hiện dữ liệu gì |
-| Lỗi 422 (vi phạm nghiệp vụ) | Hiện `message` từ API ngay tại form/thẻ liên quan, không dùng toast biến mất |
-| Lỗi 409 (xung đột) | Cảnh báo nổi bật + tự động làm mới dữ liệu liên quan |
-| Đang gửi form | Khóa nút submit, hiện spinner trong nút, chặn nhấn đúp |
-| Đăng nhập bằng mật khẩu tạm | `user.mustChangePassword = true` → điều hướng cưỡng bức sang SCR-03, chặn mọi route khác cho tới khi đổi xong (BR-85) |
-| Thành công | Toast xanh ở góc trên bên phải, tự tắt sau 3 giây |
+| Lỗi 403 | Chuyển sang `/403` |
+| Lỗi 422 (vi phạm nghiệp vụ) | Hiện `message` từ API **ngay tại form/thẻ liên quan**; không dùng toast tự tắt |
+| Lỗi 409 (xung đột: `ROOM_FULL`, trùng đơn…) | Banner đỏ nổi bật + **tự tải lại** dữ liệu liên quan + giữ nguyên những gì người dùng đã nhập |
+| Lỗi theo từng trường (`VALIDATION_ERROR`) | `form.setFields` từ `getFieldErrors(err)` |
+| Đang gửi form | Khóa nút, spinner trong nút, chặn bấm đúp |
+| Đăng nhập bằng mật khẩu tạm | `user.mustChangePassword = true` → điều hướng cưỡng bức sang SCR-03 (BR-85) |
+| Thành công | `message.success` từ `App.useApp()`, tự tắt sau 3 giây |
 
 ---
 
-## 9. Checklist responsive
+## 9. Kích thước màn hình
 
-| Màn hình | Desktop ≥1280 | Tablet 768–1279 | Mobile <768 |
-|----------|---------------|-----------------|-------------|
-| Khu quản trị – Dashboard | 4 thẻ/hàng | 2 thẻ/hàng | 1 thẻ/hàng |
-| Khu quản trị – Bảng | Đầy đủ cột | Ẩn cột phụ, cuộn ngang | Chuyển sang dạng thẻ |
-| Khu quản trị – Sidebar | Cố định 240px | Thu gọn 80px (chỉ icon) | Drawer bật/tắt |
-| Cổng SV – tất cả | Tối đa 960px căn giữa | Full width có lề | Full width, tab bar dưới |
-| Form | 2 cột | 1 cột | 1 cột, input full width |
+| Khu vực | ≥ 1280px (**làm trước**) | 992–1279px | < 992px (làm sau) |
+|---------|--------------------------|------------|-------------------|
+| Quản trị — sidebar | Cố định 240px | Cố định 240px | Drawer bật/tắt |
+| Quản trị — thẻ chỉ số | 4 thẻ/hàng | 2 thẻ/hàng | 1 thẻ/hàng |
+| Quản trị — bảng | Đủ cột | Cuộn ngang, cột đầu và cột thao tác cố định | Cuộn ngang |
+| Quản trị — màn hai cột (SCR-31, 41) | Trái 400px + phải | Trái 320px + phải | Xếp chồng |
+| Cổng SV — nội dung | Tối đa 1200px, lưới 8 + 4 | Lưới 8 + 4 hẹp | 1 cột, tab bar dưới đáy (theo bản mobile trên Stitch) |
+| Cổng SV — lưới sản phẩm | 4 cột | 3 cột | 2 cột |
+| Form trong modal/drawer | 2 cột nếu > 6 trường | 1 cột | 1 cột |
 
 ---
 
@@ -646,5 +463,6 @@ Bước 1: Chọn chỗ ở            Bước 2: Chọn thời gian      Bướ
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | Nhóm Frontend | Chốt sitemap, 36 màn hình, design system, wireframe các màn hình trọng yếu |
-| **v2.0** | **12/09/2026** | FE Lead | **Rà soát theo bộ tài liệu v2.0:** trạng thái đổi sang chữ thường, bỏ `reserved`; SCR-32 đổi từ "Đơn chờ duyệt" thành "Đăng ký lưu trú" (Staff xếp giường); bỏ luồng sinh viên tự nộp đơn; cấu trúc thư mục theo `features/` |
-| v1.1 | 12/09/2026 | FE Lead | Rà soát chéo: đổi mã Trung tâm báo cáo SCR-71 → **SCR-57** để dải 61–72 dành trọn cho cổng sinh viên (trước đó bị chồng lấn); thêm SCR-84 (đặt lại mật khẩu); **bỏ biểu tượng chuông thông báo** khỏi 2 layout vì thông báo nằm ngoài phạm vi v1 (`01` mục 3.2) — giao diện không được vẽ chức năng không tồn tại |
+| v1.1 | 12/09/2026 | FE Lead | Đổi mã Trung tâm báo cáo SCR-71 → SCR-57; thêm SCR-84; bỏ biểu tượng chuông thông báo |
+| v2.0 | 12/09/2026 | FE Lead | Trạng thái đổi sang chữ thường, bỏ `reserved`; SCR-32 thành "Đăng ký lưu trú" (Staff xếp giường) |
+| **v3.0** | **13/09/2026** | FE Lead | **Viết lại toàn bộ theo mô hình đăng ký theo phòng, nhu yếu phẩm và bản thiết kế Stitch.** 31 màn hình (21 có bản vẽ, 10 code theo khuôn). **Ưu tiên máy tính** cho cả cổng sinh viên: menu ngang, lưới 8 + 4, gộp hóa đơn danh sách + chi tiết, gộp cửa hàng + giỏ hàng. Thêm SCR-22 Loại phòng, SCR-31 Duyệt đơn, SCR-62 Đăng ký chỗ ở, SCR-67/68 Mua sắm, SCR-71 Nhu yếu phẩm. Bỏ tra cứu giường trống, tạo hợp đồng, báo cáo, cấu hình, `<BedPicker>`. Menu chuẩn cho hai layout (mục 3). Bảng trạng thái mục 4.2 viết lại khớp `statuses.js` (bản cũ còn khóa viết hoa và hợp đồng `PENDING`/`REJECTED`). Sửa toàn bộ mã FR theo `02` v1.2 (bản cũ còn trỏ số FR trước khi đánh lại). |

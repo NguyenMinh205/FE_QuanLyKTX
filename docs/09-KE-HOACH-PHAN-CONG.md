@@ -15,11 +15,11 @@
 
 | # | Vai trò | Người đảm nhận | Trách nhiệm chính | Repo chính |
 |---|---------|----------------|-------------------|------------|
-| 1 | **Backend Lead** *(kiêm Nhóm trưởng / PM)* | _(điền tên)_ | Thiết kế schema Mongoose, khởi tạo dự án BE, xác thực & phân quyền, module `residencies`/`contracts`, review code BE. Kiêm: lập kế hoạch, theo dõi tiến độ, chủ trì họp, báo cáo GVHD | `BE_QuanLyKTX` |
-| 2 | **Backend Dev 1** | _(điền tên)_ | Module `students`, `rooms` (building/room/bed), `dashboard` | `BE_QuanLyKTX` |
-| 3 | **Backend Dev 2** | _(điền tên)_ | Module `fees` (chỉ số điện nước + hóa đơn), `payments` (VNPay), `requests`, cron job | `BE_QuanLyKTX` |
-| 4 | **Frontend Lead** *(kiêm BA)* | _(điền tên)_ | Khung nền FE, layout, routing, phân quyền, dashboard, review code FE. Kiêm: duy trì tài liệu `01`–`03`, làm rõ yêu cầu, viết test case, nghiệm thu UAT | `FE_QuanLyKTX` |
-| 5 | **Frontend Dev** | _(điền tên)_ | Các màn hình CRUD, màn hình tài chính, cổng sinh viên, responsive | `FE_QuanLyKTX` |
+| 1 | **Backend Lead**  | Vũ Xuân Khánh | Thiết kế schema Mongoose, khởi tạo dự án BE, xác thực & phân quyền, module `residencies`/`contracts`, review code BE. Kiêm: lập kế hoạch, theo dõi tiến độ, chủ trì họp, báo cáo GVHD | `BE_QuanLyKTX` |
+| 2 | **Backend Dev 1** | Nguyễn Huy Hoàng | Module `students`, `rooms` (building/room/bed), `dashboard` | `BE_QuanLyKTX` |
+| 3 | **Backend Dev 2** | Vũ Tiến Khang | Module `fees` (chỉ số điện nước + hóa đơn), `payments` (VNPay), `requests`, cron job | `BE_QuanLyKTX` |
+| 4 | **Frontend Lead** *(kiêm BA)* | Nguyễn Quang Minh | Khung nền FE, layout, routing, phân quyền, dashboard, review code FE. Kiêm: duy trì tài liệu `01`–`03`, làm rõ yêu cầu, viết test case, nghiệm thu UAT | `FE_QuanLyKTX` |
+| 5 | **Frontend Dev** | Lại Hải Nam | Các màn hình CRUD, màn hình tài chính, cổng sinh viên, responsive | `FE_QuanLyKTX` |
 
 ### 1.1. Vì sao chia 3 backend / 2 frontend
 
@@ -59,66 +59,74 @@ Nhờ có lớp dữ liệu giả (`14` mục 4.4), frontend **không bị chặ
 
 ### 1.4. Chia màn hình frontend cho 2 người
 
-Toàn bộ **21 màn hình** đã có sẵn đường dẫn trong `src/routes/AppRoutes.jsx`. Màn hình chưa làm hiện hiển thị `PlaceholderPage` nên ứng dụng luôn chạy được — **không ai bị chặn bởi ai**.
+Danh sách đầy đủ **31 màn hình** nằm ở `08` mục 5 (21 có bản vẽ Stitch, 10 code theo khuôn). Thứ tự làm: **giao diện máy tính trước**, bản điện thoại làm sau khi xong toàn bộ.
 
-Nguyên tắc chia: mỗi người sở hữu trọn một nhóm nghiệp vụ (một thư mục `features/<x>/`) để **hai người không bao giờ sửa cùng một file**, tránh xung đột khi gộp nhánh.
+Màn hình chưa làm hiển thị `PlaceholderPage` nên ứng dụng luôn chạy được — **không ai bị chặn bởi ai**.
 
-#### Người 4 — Frontend Lead
+**Nguyên tắc chia:** mỗi người sở hữu trọn một luồng nghiệp vụ, **cả phía quản trị lẫn phía sinh viên**. Người làm màn "Duyệt đơn" cũng làm màn "Đăng ký chỗ ở" — hiểu cả hai đầu thì mới xử lý đúng lỗi `ROOM_FULL`. Hai người **không sửa chung file** trong `features/`.
 
-| # | Màn hình | Đường dẫn | API client | Độ khó | Ước tính |
-|---|----------|-----------|------------|:------:|----------|
-| — | *Khung nền, layout, routing, phân quyền* | — | — | 🔴 | ✅ xong |
-| 1 | Dashboard | `/admin/dashboard` | `dashboardApi` | 🟡 | 1,0 ngày |
-| 2 | Quản lý tòa nhà | `/admin/buildings` | `roomApi` | 🟢 | 0,5 ngày |
-| 3 | Quản lý phòng | `/admin/rooms` | `roomApi` | 🟡 | 1,0 ngày |
-| 4 | Tra cứu giường trống | `/admin/beds/available` | `roomApi` | 🟡 | 0,5 ngày |
-| 5 | Đăng ký lưu trú | `/admin/residencies` | `residencyApi` | 🔴 | 1,5 ngày |
-| 6 | Quản lý hợp đồng | `/admin/contracts` | `contractApi` | 🔴 | 1,5 ngày |
-| 7 | Hợp đồng sắp hết hạn | `/admin/contracts/expiring` | `contractApi` | 🟢 | 0,5 ngày |
-| 8 | Yêu cầu gia hạn / trả phòng | `/admin/requests` | `requestApi` | 🟡 | 1,0 ngày |
-| 9 | Quản lý tài khoản | `/admin/users` | `authApi` | 🟡 | 1,0 ngày |
-| | | | | | **~8,5 ngày** |
+#### Người 4 — Frontend Lead: phòng, đơn đăng ký, hợp đồng, yêu cầu
 
-Kiêm thêm: review toàn bộ pull request của frontend, xử lý các lỗi giao diện chung.
+| # | Màn hình | Mã | Đường dẫn | API client | Độ khó | Ước tính |
+|---|----------|----|-----------|------------|:------:|----------|
+| — | *Khung nền, layout, routing, phân quyền, mock* | – | – | – | 🔴 | ✅ xong |
+| 1 | Loại phòng | SCR-22 | `/admin/room-types` | `roomApi` | 🟡 | 1,0 ngày |
+| 2 | Tòa nhà | SCR-21 | `/admin/buildings` | `roomApi` | 🟢 | 0,5 ngày |
+| 3 | Phòng — sơ đồ tầng + drawer | SCR-23 | `/admin/rooms` | `roomApi` | 🟡 | 1,5 ngày |
+| 4 | **Duyệt đơn đăng ký** | SCR-31 | `/admin/applications` | `applicationApi` | 🔴 | 2,0 ngày |
+| 5 | **Cổng SV — Đăng ký chỗ ở 3 bước** | SCR-62 | `/portal/apply` | `portalApi` | 🔴 | 2,0 ngày |
+| 6 | Cổng SV — Trang chủ (3 trạng thái) | SCR-61 | `/portal/home` | `portalApi` | 🟡 | 1,0 ngày |
+| 7 | Hợp đồng (tab sắp hết hạn + drawer) | SCR-32 | `/admin/contracts` | `contractApi` | 🟡 | 1,0 ngày |
+| 8 | **Yêu cầu gia hạn / trả phòng + quyết toán** | SCR-41 | `/admin/requests` | `requestApi` | 🔴 | 1,5 ngày |
+| 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `/portal/my-requests` | `portalApi` | 🟡 | 1,0 ngày |
+| 10 | Dashboard | SCR-10 | `/admin/dashboard` | `dashboardApi` | 🟡 | 1,0 ngày |
+| 11 | Tài khoản | SCR-81 | `/admin/users` | `authApi` | 🟢 | 1,0 ngày |
+| | | | | | | **~13,5 ngày** |
 
-#### Người 5 — Frontend Dev
+Kiêm thêm: review toàn bộ pull request frontend; giữ `AdminLayout`, `PortalLayout`, `AppRoutes.jsx` và `mocks/` nhất quán.
 
-| # | Màn hình | Đường dẫn | API client | Độ khó | Ước tính |
-|---|----------|-----------|------------|:------:|----------|
-| 1 | Quản lý sinh viên | `/admin/students` | `studentApi` | 🟡 | ✅ xong — **dùng làm mẫu** |
-| 2 | Nhập chỉ số điện nước | `/admin/utility-readings` | `feeApi` | 🔴 | 1,5 ngày |
-| 3 | Quản lý hóa đơn | `/admin/invoices` | `feeApi` | 🔴 | 2,0 ngày |
-| 4 | Danh mục loại phí | `/admin/fee-types` | `feeApi` | 🟢 | 0,5 ngày |
-| 5 | Lịch sử thanh toán | `/admin/payments` | `paymentApi` | 🟡 | 1,0 ngày |
-| 6 | Cổng SV — Trang chủ | `/portal/home` | `portalApi` | 🟢 | ✅ xong |
-| 7 | Cổng SV — Chỗ ở của tôi | `/portal/my-residence` | `portalApi` | 🟢 | 0,5 ngày |
-| 8 | Cổng SV — Hợp đồng của tôi | `/portal/my-contracts` | `portalApi` | 🟢 | 0,5 ngày |
-| 9 | Cổng SV — Hóa đơn của tôi | `/portal/my-invoices` | `portalApi` | 🟡 | 1,0 ngày |
-| 10 | Cổng SV — Yêu cầu của tôi | `/portal/my-requests` | `portalApi` | 🟡 | 1,0 ngày |
-| 11 | Cổng SV — Hồ sơ cá nhân | `/portal/profile` | `portalApi` | 🟢 | 0,5 ngày |
-| | | | | | **~8,5 ngày** |
+#### Người 5 — Frontend Dev: tài chính, nhu yếu phẩm, trang cá nhân sinh viên
 
-Kiêm thêm: rà soát hiển thị trên màn hình điện thoại cho toàn bộ 21 màn hình.
+| # | Màn hình | Mã | Đường dẫn | API client | Độ khó | Ước tính |
+|---|----------|----|-----------|------------|:------:|----------|
+| 1 | Quản lý sinh viên | SCR-11 | `/admin/students` | `studentApi` | 🟡 | ✅ xong — **dùng làm mẫu** |
+| 2 | Danh mục loại phí | SCR-82 | `/admin/fee-types` | `feeApi` | 🟢 | 0,5 ngày |
+| 3 | **Nhập chỉ số điện nước** | SCR-51 | `/admin/utility-readings` | `feeApi` | 🔴 | 1,5 ngày |
+| 4 | Hóa đơn + lập hàng loạt (modal) | SCR-52, 53 | `/admin/invoices` | `feeApi` | 🟡 | 1,5 ngày |
+| 5 | **Chi tiết hóa đơn + ghi nhận thanh toán** | SCR-54, 55 | `/admin/invoices/:id` | `feeApi`, `paymentApi` | 🔴 | 1,5 ngày |
+| 6 | Lịch sử thanh toán | SCR-56 | `/admin/payments` | `paymentApi` | 🟢 | 0,5 ngày |
+| 7 | Cổng SV — Hóa đơn + kết quả thanh toán | SCR-64, 65 | `/portal/my-invoices`, `/portal/payment-result` | `portalApi`, `paymentApi` | 🟡 | 2,0 ngày |
+| 8 | Nhu yếu phẩm (quản trị, 2 tab) | SCR-71 | `/admin/supplies` | `supplyApi` | 🟡 | 1,5 ngày |
+| 9 | Cổng SV — Mua sắm + Đơn hàng của tôi | SCR-67, 68 | `/portal/shop`, `/portal/my-orders` | `portalApi` | 🟡 | 2,0 ngày |
+| 10 | Cổng SV — Chỗ ở & hợp đồng | SCR-63 | `/portal/my-residence` | `portalApi` | 🟢 | 0,5 ngày |
+| 11 | Cổng SV — Hồ sơ cá nhân | SCR-69 | `/portal/profile` | `portalApi` | 🟢 | 0,5 ngày |
+| 12 | Đăng ký tài khoản sinh viên | SCR-02 | `/register` | `authApi` | 🟢 | 0,5 ngày |
+| | | | | | | **~12,5 ngày** |
 
-> 🟢 CRUD thuần — sao chép màn hình sinh viên là xong · 🟡 có thêm bộ lọc hoặc một quy tắc nghiệp vụ · 🔴 nhiều bước, nhiều trạng thái, cần đọc kỹ `03` trước khi code.
+Kiêm thêm: sau khi xong toàn bộ bản máy tính, làm bản điện thoại cho cổng sinh viên theo các frame mobile trên Stitch.
 
-#### Ba màn hình khó — đọc trước khi bắt tay
+> 🟢 CRUD thuần — sao chép màn sinh viên là xong · 🟡 có thêm bộ lọc, tab hoặc một quy tắc nghiệp vụ · 🔴 nhiều bước, nhiều trạng thái — **đọc tài liệu ở bảng dưới trước khi code**.
+
+#### Năm màn hình khó — đọc trước khi bắt tay
 
 | Màn hình | Vì sao khó | Đọc trước |
 |----------|------------|-----------|
-| Đăng ký lưu trú | Chọn giường phải lọc đúng giới tính; giường có thể bị người khác lấy mất giữa chừng → phải hiển thị lỗi `GENDER_MISMATCH` và `BED_NOT_AVAILABLE` một cách dễ hiểu | `03` BR-21→BR-27 |
-| Nhập chỉ số điện nước | Chỉ số mới không được nhỏ hơn chỉ số cũ; nhập theo phòng nhưng chia đều cho từng người | `03` BR-41→BR-46 |
-| Quản lý hóa đơn | Bốn trạng thái `unpaid → partial → paid → overdue`; nút hành động bật/tắt theo trạng thái; tiền còn nợ phải khớp từng đồng với backend | `03` BR-47→BR-55 |
+| Duyệt đơn đăng ký | Giường chỉ **hiển thị**, không cho chọn; đổi phòng chỉ trong cùng loại; gặp `ROOM_FULL` phải giữ nguyên đơn đang mở và tải lại danh sách phòng | `08` mục 6.4 · `03` BR-33→BR-38 |
+| Đăng ký chỗ ở | 3 bước giữ trạng thái qua lại; lọc giới tính ở backend; `ROOM_FULL` khi nộp phải quay về bước 2 mà không mất ngày đã chọn | `08` mục 6.10 · `03` BR-06, BR-34 |
+| Yêu cầu + quyết toán | Hai loại yêu cầu hiển thị khác nhau; `STUDENT_HAS_DEBT` → hỏi lại rồi gửi `forceConfirm`; con số hoàn cọc đổi màu theo dấu | `08` mục 6.5 · `03` BR-74→BR-77, BR-97 |
+| Nhập chỉ số điện nước | Bảng sửa trực tiếp; chặn chỉ số mới < cũ trước khi gửi; số tiền trên giao diện chỉ để xem, backend mới là người chia | `08` mục 6.6 · `03` BR-50→BR-55 |
+| Chi tiết hóa đơn + ghi nhận thanh toán | Không cho thu vượt số còn lại; nút hủy tắt khi đã có thanh toán; hóa đơn `supplies` tự kéo đơn hàng sang "chờ nhận" | `08` mục 6.7 · `03` BR-43→BR-46 |
 
 #### Quy ước làm việc giữa hai người
 
 | Việc | Quy ước |
 |------|---------|
-| Nhánh | `feature/<ten-man-hinh>` — ví dụ `feature/invoice-management`. Tên nhánh bằng tiếng Anh |
+| Nhánh | `feature/<ten-man-hinh>` — ví dụ `feature/application-review`. Tên nhánh bằng tiếng Anh, không kèm mã task |
 | Phạm vi sửa | Chỉ sửa file trong thư mục `features/` mình phụ trách |
-| File dùng chung | `components/`, `hooks/`, `utils/`, `layouts/` — **báo nhau trước khi sửa** |
+| File dùng chung | `components/`, `hooks/`, `utils/`, `layouts/`, `routes/AppRoutes.jsx` — **báo nhau trước khi sửa** |
+| Dữ liệu giả | `src/mocks/mockDb.js` dùng chung — báo trong nhóm trước khi thêm/sửa; chạy lại smoke test mock nếu có |
 | Gộp nhánh | Tạo pull request, người còn lại review rồi mới gộp vào `main` |
-| Dữ liệu giả | Cần thêm dữ liệu thì sửa `src/mocks/mockDb.js` — báo trong nhóm vì file này dùng chung |
+| Trước khi mở PR | `npm run lint` sạch **và** `npm run build` chạy được |
 
 ---
 
@@ -146,8 +154,8 @@ flowchart TB
     W2 --> W24["2.4 Layout, routing, component chung"]
 
     W3 --> W31["3.1 Quản lý sinh viên"]
-    W3 --> W32["3.2 Tòa nhà / Phòng / Giường"]
-    W3 --> W33["3.3 Hợp đồng lưu trú"]
+    W3 --> W32["3.2 Tòa nhà / Loại phòng / Phòng"]
+    W3 --> W33["3.3 Đơn đăng ký & hợp đồng"]
     W3 --> W34["3.4 Yêu cầu gia hạn / trả phòng"]
 
     W4 --> W41["4.1 Danh mục phí & chỉ số ĐN"]
@@ -156,13 +164,13 @@ flowchart TB
     W4 --> W44["4.4 Tích hợp VNPay"]
 
     W5 --> W51["5.1 Đăng ký tài khoản SV"]
-    W5 --> W52["5.2 Tra cứu giường trống (chỉ đọc)"]
+    W5 --> W52["5.2 Đăng ký chỗ ở"]
     W5 --> W53["5.3 Hóa đơn & thanh toán online"]
     W5 --> W54["5.4 Gửi yêu cầu"]
+    W5 --> W55["5.5 Nhu yếu phẩm"]
 
     W6 --> W61["6.1 API tổng hợp"]
     W6 --> W62["6.2 Dashboard + biểu đồ"]
-    W6 --> W63["6.3 Báo cáo + xuất Excel"]
 
     W7 --> W71["7.1 Unit & Integration test"]
     W7 --> W72["7.2 Kiểm thử hệ thống"]
@@ -201,16 +209,16 @@ flowchart TB
 | ID | Công việc | Người | MD | Phụ thuộc | Kết quả bàn giao |
 |----|-----------|-------|-----|-----------|------------------|
 | T2.1 | Khởi tạo repo backend, cấu trúc thư mục, ESLint/Prettier | BE Lead | 1 | T1.7 | Repo BE chạy được `GET /health` |
-| T2.2 | Cài Mongoose, viết `các file *.model.js` **13 bảng**, chạy migration | BE Lead | 1.5 | T1.6 | CSDL tạo được từ migration (không cần viết index thủ công) |
-| T2.3 | Viết script seed dữ liệu mẫu | BE Dev | 1.5 | T2.2 | `npm run seed` chạy thành công |
+| T2.2 | Cài Mongoose, viết các file `*.model.js` cho **16 collection** | BE Lead | 1.5 | T1.6 | Server khởi động, Mongoose tự tạo collection + index |
+| T2.3 | Viết script seed dữ liệu mẫu (loại phòng, phòng tự sinh giường, đơn đăng ký, sản phẩm) | BE Dev | 1.5 | T2.2 | `npm run seed` chạy thành công, đủ dữ liệu cho `11` mục 2.3 |
 | T2.4 | Middleware nền: error handler, response chuẩn, logger, requestId | BE Lead | 1 | T2.1 | Mọi lỗi trả đúng định dạng |
-| T2.5 | API xác thực: login, register, refresh, logout, me, đặt lại mật khẩu (FR-09) | BE Lead | 2 | T2.2, T2.4 | 7 endpoint `/auth/*` + `/users/:id/reset-password` chạy được |
+| T2.5 | API xác thực: login, register, logout, me, đổi mật khẩu, đặt lại mật khẩu (FR-09) | BE Lead | 2 | T2.2, T2.4 | `/auth/*` + `/users/:id/reset-password` chạy được |
 | T2.6 | Middleware RBAC + kiểm tra ownership | BE Lead | 1 | T2.5 | `authorize()` hoạt động đúng ma trận |
 | T2.7 | Cấu hình FE: React Router, Axios, Ant Design + viết hook `useApi` và `AuthContext` | FE Lead | 1.5 | T1.7 | App chạy, gọi được API (`14` mục 4.1–4.2) |
 | T2.8 | AdminLayout, PortalLayout, sidebar, header | FE Lead | 2 | T2.7 | 2 layout hoàn chỉnh |
-| T2.9 | Màn hình đăng nhập/đăng ký, authStore, ProtectedRoute, RoleRoute | FE Lead | 2 | T2.5, T2.8 | Đăng nhập thật vào được hệ thống |
-| T2.10 | Component dùng chung: StatusTag, MoneyText, ConfirmModal, EmptyState, PageHeader + hook `useApi` + `AuthContext` | FE Dev | 2.5 | T2.8 | Thư viện component nội bộ (`14` mục 4.1–4.3) |
-| T2.11 | Dữ liệu giả trong `mocks/mockData.js` theo đặc tả `API.md` | FE Dev | 0.5 | T1.8 | FE làm được khi BE chưa xong |
+| T2.9 | Màn hình đăng nhập, `AuthProvider`, `RoleRoute` | FE Lead | 2 | T2.5, T2.8 | ✅ đã xong |
+| T2.10 | Component dùng chung: `DataTable`, `StatusTag`, `MoneyText`, `EmptyState`, `PageHeader`, `ErrorBoundary` + hook `useApi` | FE Dev | 2.5 | T2.8 | ✅ đã xong (`14` mục 15.9) |
+| T2.11 | Lớp dữ liệu giả `mocks/mockDb.js` + `mocks/mockApi.js` theo `API.md` | FE Lead | 0.5 | T1.8 | ✅ đã xong — FE làm được khi BE chưa xong |
 | ~~T2.12~~ | ~~Thiết lập CI~~ — v1-lite: chạy `npm run lint` tay trước khi mở PR | – | 0 | – | – |
 
 ### Giai đoạn 3 – Phân hệ Quản trị (Tuần 4–6)
@@ -218,22 +226,22 @@ flowchart TB
 | ID | Công việc | Người | MD | Phụ thuộc | Kết quả bàn giao |
 |----|-----------|-------|-----|-----------|------------------|
 | T3.1 | API sinh viên: CRUD, tìm kiếm, lọc, export | BE Dev | 3 | T2.6 | 10 endpoint `/students/*` |
-| T3.2 | Màn hình danh sách + form + chi tiết sinh viên | FE Dev | 3 | T2.10, T3.1 | SCR-11, 12, 13 |
-| T3.3 | API tòa nhà / phòng / giường (gồm sinh giường, đổi trạng thái) | BE Dev | 3 | T2.6 | `/buildings`, `/rooms`, `/beds` |
-| T3.4 | API sơ đồ tòa nhà + tra cứu giường trống | BE Dev | 1.5 | T3.3 | `/buildings/:id/map`, `/beds/available` |
-| T3.5 | Màn hình tòa nhà, phòng, chi tiết phòng & giường | FE Dev | 3 | T3.3 | SCR-21, 23, 24 |
-| T3.6 | Màn hình sơ đồ tòa nhà (trực quan) | FE Lead | 2 | T3.4 | SCR-22 |
-| T3.7 | Màn hình tra cứu giường trống | FE Dev | 1 | T3.4 | SCR-25 |
-| T3.8 | **Service hợp đồng: tạo, duyệt, từ chối (transaction)** | BE Lead | 3 | T3.3 | BR-20, BR-21, BR-25 hoạt động đúng |
-| T3.9 | API kích hoạt, chấm dứt hợp đồng, danh sách sắp hết hạn | BE Lead | 2 | T3.8 | `/api/contracts/*` đầy đủ |
-| T3.10 | Màn hình danh sách + chi tiết hợp đồng | FE Dev | 2.5 | T3.8 | SCR-31, 34 |
-| T3.11 | Màn hình đăng ký lưu trú (Staff xếp SV vào giường) | FE Lead | 2 | T3.8 | SCR-32 |
-| T3.12 | Màn hình tạo hợp đồng + BedPicker | FE Lead | 2 | T3.8 | SCR-33 |
+| T3.2 | Màn hình quản lý sinh viên (danh sách + modal thêm/sửa) | FE Dev | 3 | T2.10, T3.1 | ✅ đã xong — SCR-11 |
+| T3.3 | API tòa nhà / **loại phòng** / phòng (giường tự sinh) + đổi trạng thái giường | BE Dev | 3.5 | T2.6 | `/buildings`, `/room-types`, `/rooms`, `/beds/:id/status` — BR-04, BR-09, BR-10 |
+| T3.4 | API phòng còn chỗ (lọc giới tính theo JWT) + chi tiết phòng kèm giường | BE Dev | 1 | T3.3 | `/rooms/available`, `/rooms/:id` — BR-05, BR-06 |
+| T3.5 | Màn hình tòa nhà + loại phòng | FE Lead | 1.5 | T3.3 | SCR-21, SCR-22 |
+| T3.6 | Màn hình phòng: sơ đồ tầng + drawer chi tiết | FE Lead | 1.5 | T3.4 | SCR-23 |
+| ~~T3.7~~ | ~~Màn hình tra cứu giường trống~~ — bỏ ở v2.3: không ai chọn giường | – | 0 | – | – |
+| T3.8 | **Service đơn đăng ký: nộp, duyệt (gán giường nguyên tử + bù trừ), từ chối, hủy** | BE Lead | 3.5 | T3.3 | BR-20, BR-21, BR-25, BR-33→BR-38; TC-42, TC-44, TC-53 đạt |
+| T3.9 | API hợp đồng: danh sách, chi tiết, sửa điều khoản, chấm dứt, sắp hết hạn | BE Lead | 1.5 | T3.8 | `/api/contracts/*` đầy đủ |
+| T3.10 | Màn hình hợp đồng (tab sắp hết hạn + drawer chi tiết) | FE Lead | 1 | T3.9 | SCR-32 |
+| T3.11 | **Màn hình duyệt đơn đăng ký** (+ lập đơn hộ) | FE Lead | 2 | T3.8 | SCR-31 |
+| ~~T3.12~~ | ~~Màn hình tạo hợp đồng + BedPicker~~ — bỏ ở v2.3: hợp đồng sinh ra khi duyệt đơn | – | 0 | – | – |
 | T3.13 | API yêu cầu gia hạn / trả phòng + duyệt | BE Lead | 2.5 | T3.9 | `/requests/*` |
-| T3.14 | Màn hình danh sách & xử lý yêu cầu | FE Dev | 2 | T3.13 | SCR-41, 42 |
-| T3.15 | **1 cron job** `dailyJob.js` gồm 4 tác vụ | BE Dev | 1 | T3.9 | Job chạy đúng lịch, idempotent (`14` mục 4.9) |
+| T3.14 | Màn hình yêu cầu gia hạn / trả phòng + quyết toán | FE Lead | 1.5 | T3.13 | SCR-41 |
+| T3.15 | **1 cron job** `dailyJob.js` gồm 5 tác vụ (có tự hủy đơn nhu yếu phẩm quá hạn) | BE Dev | 1 | T3.9 | Job chạy đúng lịch, idempotent (`03` mục 7) |
 | T3.16 | API quản lý tài khoản (Admin) | BE Dev | 1.5 | T2.6 | `/users/*` |
-| T3.17 | Màn hình quản lý tài khoản | FE Dev | 1.5 | T3.16 | SCR-81 |
+| T3.17 | Màn hình quản lý tài khoản | FE Lead | 1 | T3.16 | SCR-81 |
 
 ### Giai đoạn 4 – Phân hệ Tài chính (Tuần 6–8)
 
@@ -241,44 +249,48 @@ flowchart TB
 |----|-----------|-------|-----|-----------|------------------|
 | T4.1 | API danh mục phí | BE Dev | 1 | T2.6 | `/fee-types/*` |
 | T4.2 | API chỉ số điện nước (gồm nhập hàng loạt) | BE Dev | 2 | T3.3 | `/utility-readings/*` |
-| T4.3 | Màn hình danh mục phí + nhập chỉ số ĐN | FE Dev | 2 | T4.1, T4.2 | SCR-82, SCR-55 |
+| T4.3 | Màn hình danh mục phí + nhập chỉ số điện nước | FE Dev | 2 | T4.1, T4.2 | SCR-82, SCR-51 |
 | T4.4 | **Service hóa đơn: tạo, tính tổng, đổi trạng thái** | BE Dev | 3 | T3.8, T4.1 | BR-40→48 |
-| T4.5 | **Lập hóa đơn hàng loạt theo kỳ (chia đều điện nước)** | BE Dev | 3 | T4.2, T4.4 | UC-04, BR-51 |
-| T4.6 | API hủy hóa đơn, xuất Excel | BE Dev | 1 | T4.4 | |
-| T4.7 | Màn hình danh sách + chi tiết hóa đơn | FE Dev | 2.5 | T4.4 | SCR-51, 54 |
-| T4.8 | Màn hình tạo hóa đơn thủ công | FE Dev | 2 | T4.4 | SCR-52 |
-| T4.9 | Màn hình lập hóa đơn hàng loạt (3 bước) | FE Lead | 2.5 | T4.5 | SCR-53 |
-| T4.10 | API ghi nhận thanh toán thủ công + tính lại hóa đơn | BE Dev | 2 | T4.4 | BR-43, BR-44 |
-| T4.11 | Màn hình lịch sử thanh toán + modal ghi nhận | FE Dev | 2 | T4.10 | SCR-56 |
+| T4.5 | **Lập hóa đơn hàng loạt theo kỳ (chia đều điện nước)** | BE Dev | 3 | T4.2, T4.4 | UC-04, BR-48, BR-54 |
+| T4.6 | API hủy hóa đơn | BE Dev | 0.5 | T4.4 | BR-46 |
+| T4.7 | Màn hình danh sách hóa đơn + lập hàng loạt (modal) | FE Dev | 1.5 | T4.5 | SCR-52, SCR-53 |
+| T4.8 | Màn hình chi tiết hóa đơn + modal ghi nhận thanh toán | FE Dev | 1.5 | T4.10 | SCR-54, SCR-55 |
+| ~~T4.9~~ | ~~Màn hình lập hóa đơn hàng loạt 3 bước~~ — gộp thành modal ở T4.7 | – | 0 | – | – |
+| T4.10 | API ghi nhận thanh toán thủ công + tính lại hóa đơn + kéo đơn nhu yếu phẩm sang `ready` | BE Dev | 2 | T4.4 | BR-43, BR-44, BR-95 |
+| T4.11 | Màn hình lịch sử thanh toán | FE Dev | 0.5 | T4.10 | SCR-56 |
 | T4.12 | **Tích hợp VNPay: tạo URL + xác thực chữ ký tại Return URL** (không dùng IPN/ngrok) | BE Lead | 2 | T4.10 | UC-05, BR-55→58, `14` mục 4.10 |
 | ~~T4.13~~ | ~~Tích hợp ZaloPay~~ — v1-lite: chỉ VNPay | – | 0 | – | – |
 | T4.14 | Xử lý idempotent + nút đối soát thủ công | BE Lead | 1.5 | T4.12 | BR-56 |
 
-### Giai đoạn 5 – Cổng sinh viên (Tuần 8–9)
+### Giai đoạn 5 – Cổng sinh viên & Nhu yếu phẩm (Tuần 8–9)
 
 | ID | Công việc | Người | MD | Phụ thuộc | Kết quả bàn giao |
 |----|-----------|-------|-----|-----------|------------------|
-| T5.1 | API `/portal/*`: hồ sơ, cư trú, bạn cùng phòng, giường trống | BE Dev | 2 | T3.4 | Lọc theo JWT (BR-85) |
+| T5.1 | API `/portal/*`: hồ sơ, chỗ ở (kèm đồ cấp sẵn, bạn cùng phòng), đơn đăng ký của tôi | BE Dev | 2 | T3.8 | Lọc theo JWT (BR-86) |
 | T5.2 | API cổng SV: hồ sơ, chỗ ở, hợp đồng (chỉ đọc, lọc theo JWT) | BE Lead | 1.5 | T3.8 | FR-82, FR-85 |
 | T5.3 | API hóa đơn & thanh toán online cho sinh viên | BE Dev | 1.5 | T4.12 | Có kiểm tra ownership |
 | T5.4 | API gửi/hủy yêu cầu | BE Dev | 1 | T3.13 | BR-70→78 |
-| T5.5 | PortalLayout + trang chủ sinh viên (đủ 6 trạng thái) | FE Dev | 2.5 | T5.1 | SCR-61 |
-| T5.6 | Màn hình chỗ ở của tôi + hợp đồng | FE Dev | 2 | T5.1 | SCR-62, 65 |
-| T5.7 | Màn hình tra cứu giường trống (chỉ đọc) + gửi yêu cầu gia hạn/trả phòng | FE Lead | 2.5 | T5.2 | SCR-63, 64 |
-| T5.8 | Màn hình hóa đơn + chi tiết + thanh toán | FE Dev | 2.5 | T5.3 | SCR-66, 67 |
-| T5.9 | Màn hình kết quả thanh toán (có polling) | FE Lead | 1.5 | T5.3 | SCR-68 |
-| T5.10 | Màn hình yêu cầu + gửi yêu cầu mới | FE Dev | 2 | T5.4 | SCR-69, 70 |
-| T5.11 | Responsive toàn bộ cổng sinh viên | FE Dev | 1.5 | T5.10 | NFR-09 |
+| T5.5 | Trang chủ sinh viên (3 trạng thái) | FE Lead | 1 | T5.1 | SCR-61 |
+| T5.6 | Màn hình chỗ ở & hợp đồng + hồ sơ + đăng ký tài khoản | FE Dev | 1.5 | T5.1 | SCR-63, SCR-69, SCR-02 |
+| T5.7 | **Màn hình đăng ký chỗ ở 3 bước** | FE Lead | 2 | T3.4, T5.1 | SCR-62 |
+| T5.8 | Màn hình hóa đơn (danh sách + chi tiết cùng trang) + thanh toán | FE Dev | 1.5 | T5.3 | SCR-64 |
+| T5.9 | Màn hình kết quả thanh toán (có polling) | FE Dev | 0.5 | T5.3 | SCR-65 |
+| T5.10 | Màn hình yêu cầu của tôi (+ modal tạo) | FE Lead | 1 | T5.4 | SCR-66 |
+| T5.11 | Rà soát giao diện máy tính cổng sinh viên ở 1280px (bản điện thoại làm sau) | FE Dev | 0.5 | T5.10 | NFR-09 |
+| T5.12 | API danh mục nhu yếu phẩm (CRUD, loại phòng cấp sẵn) | BE Dev | 1 | T3.3 | `/supply-items/*`, `/portal/supply-items` — BR-90 |
+| T5.13 | **Service đơn nhu yếu phẩm: đặt (tính giá ở server), hủy, giao, `markReady`, tự hủy quá hạn** | BE Dev | 3 | T4.10, T5.12 | BR-91→BR-97; TC-152, TC-156, TC-160 đạt |
+| T5.14 | Màn hình nhu yếu phẩm quản trị (tab đơn hàng + tab danh mục) | FE Dev | 1.5 | T5.13 | SCR-71 |
+| T5.15 | Màn hình mua sắm (cửa hàng + giỏ) + đơn hàng của tôi | FE Dev | 2 | T5.13 | SCR-67, SCR-68 |
 
-### Giai đoạn 6 – Dashboard & Báo cáo (Tuần 9–10)
+### Giai đoạn 6 – Dashboard (Tuần 9–10)
 
 | ID | Công việc | Người | MD | Phụ thuộc | Kết quả bàn giao |
 |----|-----------|-------|-----|-----------|------------------|
 | T6.1 | API dashboard tổng hợp (tối ưu truy vấn) | BE Dev | 2.5 | T4.4 | `/dashboard/*`, đạt NFR-02 |
-| T6.2 | API báo cáo + xuất Excel | BE Dev | 2 | T6.1 | `/reports/*` |
+| ~~T6.2~~ | ~~API báo cáo + xuất Excel~~ — bỏ ở v2.3: không có trong `08` v3.0; xuất CSV sinh viên nằm ở T3.1 | – | 0 | – | – |
 | T6.3 | Màn hình dashboard + thẻ chỉ số | FE Lead | 2.5 | T6.1 | SCR-10 |
-| T6.4 | Biểu đồ lấp đầy + doanh thu (Recharts) | FE Lead | 2 | T6.1 | FR-70 |
-| T6.5 | Trung tâm báo cáo + nút xuất file | FE Dev | 2 | T6.2 | SCR-57 |
+| T6.4 | Biểu đồ tỷ lệ lấp đầy theo tòa (Recharts) | FE Lead | 1 | T6.1 | FR-70 |
+| ~~T6.5~~ | ~~Trung tâm báo cáo~~ — bỏ ở v2.3 | – | 0 | – | – |
 
 ### Giai đoạn 7 – Kiểm thử & Hoàn thiện (Tuần 10–11)
 
@@ -286,12 +298,12 @@ flowchart TB
 |----|-----------|-------|-----|-----------|------------------|
 | T7.1 | ~10 unit test cho 3 hàm tính tiền | BE Dev | 1 | GĐ 4 | `14` mục 8.1 |
 | ~~T7.2~~ | ~~Integration test~~ — v1-lite: test bằng Postman thủ công | – | 0 | – | – |
-| T7.3 | Thực thi 65 test case trọng tâm | BA | 2 | GĐ 6 | `11` mục 4 + `14` mục 8.2 |
+| T7.3 | Thực thi test case, ưu tiên 16 test "không được cắt" | BA | 2 | GĐ 6 | `11` mục 4 + mục 6 |
 | T7.4 | Kiểm thử phân quyền theo ma trận | BA, BE Lead | 1.5 | T7.3 | Checklist mục 6 của `07` |
 | T7.5 | Sửa lỗi đợt 1 | Cả nhóm | 4 | T7.3 | Hết lỗi Critical/High |
 | T7.6 | Rà soát bảo mật (chạy `/security-review`) | BE Lead | 1 | T7.5 | Checklist `07` đạt đủ |
 | T7.7 | Tối ưu hiệu năng (index, N+1 query) | BE Lead | 1.5 | T7.5 | Đạt NFR-01, NFR-02 |
-| T7.8 | Rà soát giao diện, responsive, thông báo tiếng Việt | FE Lead | 2 | T7.5 | NFR-09, NFR-19 |
+| T7.8 | Rà soát giao diện máy tính, thông báo tiếng Việt | FE Lead | 2 | T7.5 | NFR-09, NFR-20 |
 | T7.9 | Sửa lỗi đợt 2 | Cả nhóm | 3 | T7.5 | Hết lỗi Medium |
 
 ### Giai đoạn 8 – Triển khai & Bàn giao (Tuần 11–12)
@@ -311,24 +323,28 @@ flowchart TB
 
 ## 4. Tổng hợp khối lượng
 
-| Giai đoạn | Bản đầu (MD) | **v1-lite (MD)** | Tỷ trọng |
-|-----------|--------------|------------------|----------|
+| Giai đoạn | v1-lite (MD) | **v2.3 — cộng từ bảng mục 3 (MD)** | Tỷ trọng |
+|-----------|--------------|-------------------------------------|----------|
 | 1. Khởi động & Phân tích | 25 | **25** | 16% |
-| 2. Nền tảng kỹ thuật | 19 | **13** | 8% |
-| 3. Phân hệ Quản trị | 37 | **31** | 20% |
-| 4. Phân hệ Tài chính | 32 | **23** | 15% |
-| 5. Cổng sinh viên | 21 | **18** | 12% |
-| 6. Dashboard & Báo cáo | 11 | **9** | 6% |
-| 7. Kiểm thử & Hoàn thiện | 20 | **14** | 9% |
-| 8. Triển khai & Bàn giao | 14.5 | **12** | 8% |
-| Dự phòng | 27 | **10** | 6% |
-| **Tổng cộng** | **~206** | **~155 ngày công** | 100% |
+| 2. Nền tảng kỹ thuật | 13 | **16,5** | 10% |
+| 3. Phân hệ Quản trị | 31 | **29** | 18% |
+| 4. Phân hệ Tài chính | 23 | **20,5** | 13% |
+| 5. Cổng sinh viên & Nhu yếu phẩm | 18 | **21,5** | 14% |
+| 6. Dashboard | 9 | **6** | 4% |
+| 7. Kiểm thử & Hoàn thiện | 14 | **16** | 10% |
+| 8. Triển khai & Bàn giao | 12 | **14,5** | 9% |
+| Dự phòng | 10 | **10** | 6% |
+| **Tổng cộng** | **~155** | **~159 ngày công** | 100% |
+
+> **Cột v2.3 được cộng trực tiếp từ cột MD của các bảng ở mục 3**, không ước lượng tay. Nó chênh với cột v1-lite vì hai lý do: (1) v1-lite là số ước lượng từ trước và chưa từng khớp với tổng các bảng; (2) thay đổi ở `PRD.md` §2.10 — bỏ tra cứu giường, tạo hợp đồng, BedPicker, báo cáo; thêm loại phòng, đơn đăng ký, nhu yếu phẩm.
+>
+> ⚠️ Bảng mục 1.1 (~120 MD theo "Bậc B" của `14`) là **một cách tính khác** và hiện chưa khớp với bảng này. Khi lập kế hoạch sprint, **dùng bảng mục 3–4**.
 
 **Diễn giải:** với nhóm 5 người làm bán thời gian (trung bình 3 ngày công/người/tuần), năng lực = 18 MD/tuần × 12 tuần = **216 ngày công**.
 
-| | Bản đầu | v1-lite |
+| | Bản đầu | v1-lite → v2.3 |
 |---|---------|---------|
-| Khối lượng / Năng lực | 206/216 = **95%** — kín, không có chỗ cho sai sót | 155/216 = **72%** — còn ~28% dư địa cho việc học, gỡ lỗi, thi cử |
+| Khối lượng / Năng lực | 206/216 = **95%** — kín, không có chỗ cho sai sót | 155/216 = **72%** · **v2.3: 159/216 = 74%** |
 
 Chi tiết 21 thay đổi giúp giảm 51 ngày công: [`14-PHIEN-BAN-DON-GIAN-HOA.md`](14-PHIEN-BAN-DON-GIAN-HOA.md) mục 2.
 
@@ -432,7 +448,8 @@ flowchart LR
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | PM | Khởi tạo WBS, phân công, RACI, quy tắc phối hợp |
-| **v2.2** | **12/09/2026** | FE Lead | Thêm mục **1.4**: chia 21 màn hình cho 2 người frontend (mỗi người ~8,5 ngày), đánh dấu 3 màn hình khó cần đọc nghiệp vụ trước, chốt quy ước nhánh và phạm vi sửa file |
+| **v2.3** | **13/09/2026** | FE Lead | **Đăng ký theo phòng + nhu yếu phẩm + ưu tiên máy tính.** Mục 1.4 chia lại 31 màn hình theo luồng nghiệp vụ (FE Lead ~13,5 ngày · FE Dev ~12,5 ngày), 5 màn hình khó kèm tài liệu phải đọc. Bảng công việc: viết lại T3.3→T3.12 (loại phòng, đơn đăng ký), thêm T5.12→T5.15 (nhu yếu phẩm), gạch tra cứu giường, BedPicker, tạo hợp đồng, báo cáo; đánh dấu các task FE đã xong. Mục 4 **cộng lại từ bảng**: ~159 MD (74% năng lực). |
+| v2.2 | 12/09/2026 | FE Lead | Thêm mục **1.4**: chia 21 màn hình cho 2 người frontend (mỗi người ~8,5 ngày), đánh dấu 3 màn hình khó cần đọc nghiệp vụ trước, chốt quy ước nhánh và phạm vi sửa file |
 | v2.1 | 12/09/2026 | PM | Chốt mô hình **2 repo** và phân công **3 backend / 2 frontend**; thêm mục 1.1 (lý do chia), 1.2 (ai đọc tài liệu nào), 1.3 (hai điểm giao nhau bắt buộc phối hợp) |
 | v2.0 | 12/09/2026 | PM | **Rà soát theo bộ tài liệu v2.0:** nhóm 5 người; bỏ task chuyển phòng và task API nộp đơn; đổi tên task theo module mới (`residencies`, `fees`) |
 | v1.1 | 12/09/2026 | PM | **Áp dụng v1-lite:** khối lượng 206 → 155 ngày công; bỏ T2.12 (CI), T4.13 (ZaloPay), T7.2 (integration test); rút gọn T2.2, T2.10, T2.11, T3.15, T4.12, T7.1, T7.3. Chức năng giữ nguyên — xem `14` |

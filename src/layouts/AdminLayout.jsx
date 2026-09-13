@@ -1,38 +1,47 @@
 import { useState } from 'react';
-import { Layout, Menu, Dropdown, Avatar, Grid, Drawer, Button } from 'antd';
+import { Layout, Menu, Dropdown, Avatar, Grid, Drawer, Button, Badge } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, HomeOutlined, FileTextOutlined,
-  MailOutlined, DollarOutlined, SettingOutlined,
+  MailOutlined, DollarOutlined, SettingOutlined, ShoppingOutlined,
   UserOutlined, LogoutOutlined, MenuOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ROLES, ROLE_LABEL } from '../constants/roles';
+import { useApi } from '../hooks/useApi';
+import { dashboardApi } from '../features/dashboard/api/dashboard.api';
 
 const { Header, Sider, Content } = Layout;
 const { useBreakpoint } = Grid;
 
-const buildMenu = (role) => {
+/** Nhãn menu kèm số đếm việc cần xử lý — cơ chế nhắc việc duy nhất của v1 (docs/08 mục 3.1) */
+const withBadge = (label, count) => (count
+  ? <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+      {label}<Badge count={count} size="small" style={{ boxShadow: 'none' }} />
+    </span>
+  : label);
+
+/** Menu chuẩn — nguồn duy nhất, KHÔNG chép sidebar từ các frame Stitch */
+const buildMenu = (role, counts = {}) => {
   const items = [
     { key: '/admin/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/admin/students',  icon: <TeamOutlined />,      label: 'Sinh viên' },
     {
       key: 'rooms', icon: <HomeOutlined />, label: 'Cơ sở vật chất',
       children: [
-        { key: '/admin/buildings',      label: 'Tòa nhà' },
-        { key: '/admin/rooms',          label: 'Phòng' },
-        { key: '/admin/beds/available', label: 'Giường trống' },
+        { key: '/admin/buildings',  label: 'Tòa nhà' },
+        { key: '/admin/room-types', label: 'Loại phòng' },
+        { key: '/admin/rooms',      label: 'Phòng' },
       ],
     },
     {
       key: 'residency', icon: <FileTextOutlined />, label: 'Lưu trú & hợp đồng',
       children: [
-        { key: '/admin/residencies',        label: 'Đăng ký lưu trú' },
-        { key: '/admin/contracts',          label: 'Hợp đồng' },
-        { key: '/admin/contracts/expiring', label: 'Sắp hết hạn' },
+        { key: '/admin/applications', label: withBadge('Duyệt đơn đăng ký', counts.applications) },
+        { key: '/admin/contracts',    label: 'Hợp đồng' },
       ],
     },
-    { key: '/admin/requests', icon: <MailOutlined />, label: 'Yêu cầu' },
+    { key: '/admin/requests', icon: <MailOutlined />, label: withBadge('Yêu cầu', counts.requests) },
     {
       key: 'fees', icon: <DollarOutlined />, label: 'Tài chính',
       children: [
@@ -41,6 +50,7 @@ const buildMenu = (role) => {
         { key: '/admin/payments',         label: 'Thanh toán' },
       ],
     },
+    { key: '/admin/supplies', icon: <ShoppingOutlined />, label: withBadge('Nhu yếu phẩm', counts.supplies) },
   ];
 
   if (role === ROLES.ADMIN) {
@@ -48,7 +58,7 @@ const buildMenu = (role) => {
       key: 'system', icon: <SettingOutlined />, label: 'Hệ thống',
       children: [
         { key: '/admin/users',     label: 'Tài khoản' },
-        { key: '/admin/fee-types', label: 'Danh mục phí' },
+        { key: '/admin/fee-types', label: 'Danh mục loại phí' },
       ],
     });
   }
@@ -63,7 +73,15 @@ export default function AdminLayout() {
   const isMobile = !screens.lg;
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const menuItems = buildMenu(user?.role);
+  const { data: summary } = useApi(() => dashboardApi.getSummary(), []);
+  const menuItems = buildMenu(user?.role, {
+    applications: summary?.pendingApplications,
+    requests: (summary?.pendingRequests?.renewal ?? 0) + (summary?.pendingRequests?.checkout ?? 0),
+    supplies: summary?.supplyOrdersReady,
+  });
+
+  // Trang chi tiết (VD /admin/invoices/:id) vẫn sáng mục cha
+  const selectedKey = location.pathname.split('/').slice(0, 3).join('/');
 
   const handleMenuClick = ({ key }) => {
     navigate(key);
@@ -79,7 +97,7 @@ export default function AdminLayout() {
     <Menu
       mode="inline"
       theme="dark"
-      selectedKeys={[location.pathname]}
+      selectedKeys={[selectedKey]}
       defaultOpenKeys={['rooms', 'residency', 'fees']}
       items={menuItems}
       onClick={handleMenuClick}

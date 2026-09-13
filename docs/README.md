@@ -4,7 +4,7 @@
 > **Kiến trúc:** Modular Monolith theo tính năng (vertical slice)
 > **Quy mô đội:** 5 người (3 backend · 2 frontend) · **Thời lượng:** 12 tuần
 > **Repo:** `FE_QuanLyKTX` (React + tài liệu này) · `BE_QuanLyKTX` (Node.js + Express)
-> **Phiên bản tài liệu:** v2.0 · **Cập nhật:** 12/09/2026
+> **Phiên bản tài liệu:** v2.1 · **Cập nhật:** 13/09/2026
 
 ---
 
@@ -19,7 +19,7 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 | [PRD.md](PRD.md) | **Làm gì, không làm gì?** Phạm vi v1 — ranh giới cứng | Cả nhóm |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | **Code để ở đâu?** Cấu trúc thư mục, phân tầng, quy ước đặt tên | Cả nhóm |
 | [API.md](API.md) | **Gọi API thế nào?** Endpoint, envelope, mã lỗi | FE + BE |
-| [DATA-SCHEMA.md](DATA-SCHEMA.md) | **Dữ liệu hình dạng ra sao?** 12 collection, index, ràng buộc | BE |
+| [DATA-SCHEMA.md](DATA-SCHEMA.md) | **Dữ liệu hình dạng ra sao?** 16 collection, index, ràng buộc | BE |
 
 > ⚠️ **Bốn tài liệu này là chuẩn.** Khi một tài liệu tiếng Việt nói khác, lấy theo tầng 1.
 
@@ -28,7 +28,7 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 | # | Tài liệu | Nội dung |
 |---|----------|----------|
 | 01 | [Tổng quan dự án](01-TONG-QUAN-DU-AN.md) | Bối cảnh, khảo sát hiện trạng, mục tiêu, rủi ro — nguyên liệu cho Chương 1 báo cáo |
-| 02 | [Đặc tả yêu cầu (SRS)](02-DAC-TA-YEU-CAU.md) | **69 FR / 20 NFR / 7 use case chi tiết** — mọi chức năng phải truy vết về đây |
+| 02 | [Đặc tả yêu cầu (SRS)](02-DAC-TA-YEU-CAU.md) | **87 FR / 20 NFR / 8 use case chi tiết** — mọi chức năng phải truy vết về đây |
 | 03 | [Phân tích nghiệp vụ](03-PHAN-TICH-NGHIEP-VU.md) | Quy tắc nghiệp vụ, máy trạng thái, luồng quy trình, công thức tính tiền |
 | 07 | [Phân quyền & bảo mật](07-PHAN-QUYEN-BAO-MAT.md) | Ma trận RBAC, luồng JWT, chống IDOR, checklist bảo mật |
 | 08 | [Thiết kế giao diện](08-THIET-KE-GIAO-DIEN.md) | Sitemap, danh sách màn hình, wireframe, bảng màu & trạng thái |
@@ -51,7 +51,7 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 |---|---|
 | **Thành viên mới (30 phút)** | `PRD.md` → `ARCHITECTURE.md` → [`14` mục 15 (mẫu code)](14-PHIEN-BAN-DON-GIAN-HOA.md) → `13` mục 3 (cài môi trường) |
 | **Backend** | `DATA-SCHEMA.md` → `API.md` (module đang làm) → `03` (quy tắc BR) → `07` |
-| **Frontend** | `API.md` → [`14` mục 15.3–15.5](14-PHIEN-BAN-DON-GIAN-HOA.md) → `08` → `07` (ma trận RBAC) |
+| **Frontend** | `08` (31 màn hình, desktop trước) → `09` mục 1.4 (ai làm màn nào) → [`14` mục 15.8 (checklist 6 bước)](14-PHIEN-BAN-DON-GIAN-HOA.md) → `API.md` → `07` (ma trận RBAC) |
 | **Viết báo cáo** | `12` trước tiên, rồi lấy nội dung từ `01`, `02`, `03`, `DATA-SCHEMA.md` |
 | **Quản lý tiến độ** | `09` → `13` |
 
@@ -68,6 +68,7 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 | `SCR-xx` | Màn hình giao diện | `08` mục 5 |
 | `TC-xx` | Ca kiểm thử | `11` mục 4 |
 | ⭐ | Ba nghiệp vụ bổ sung 12/09/2026 | `PRD.md` §2.9 |
+| 🆕 | Đăng ký theo phòng + nhu yếu phẩm, 13/09/2026 | `PRD.md` §2.10 |
 
 **Ưu tiên:** `M` Must (bắt buộc v1) · `S` Should · `C` Could · `W` Won't
 
@@ -82,7 +83,7 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 | Phân trang | `data: { items, total, page, limit }` | `API.md` §1.2 |
 | Base URL | `/api` | `API.md` |
 | Xác thực | 1 JWT hạn 7 ngày, không refresh token | `02` FR-08 |
-| Chống tranh chấp giường | `findOneAndUpdate` có điều kiện, **không** đọc-rồi-ghi | `ARCHITECTURE.md` §3.5 |
+| Chống tranh chấp giường | Hệ thống **tự gán** giường trống số nhỏ nhất bằng **một** lệnh `findOneAndUpdate` có điều kiện — không ai chọn giường, không đọc-rồi-ghi | `ARCHITECTURE.md` §3.5 · `03` mục 4.1 |
 | Giao diện & comment | Tiếng Việt | `10` mục 2.1 |
 | Tên nhánh & commit | Tiếng Anh | `10` mục 1.2, 1.3 |
 | Tiền tệ | Số nguyên VND, không dùng số thực | `DATA-SCHEMA.md` §1 |
@@ -93,8 +94,9 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 
 | Hạng mục | Trạng thái |
 |----------|-----------|
-| Tài liệu | ✅ v2.0 — đã hợp nhất bộ PRD/ARCHITECTURE/API/DATA-SCHEMA |
-| Frontend — khung nền | ✅ Chạy được: đăng nhập, layout, routing, phân quyền, module Sinh viên mẫu |
+| Tài liệu | ✅ v2.1 — đăng ký theo phòng, nhu yếu phẩm, ưu tiên máy tính |
+| Thiết kế giao diện | ✅ 21 màn hình trên Stitch (bản máy tính cho quản trị + bản điện thoại cho cổng SV); bản máy tính cổng SV đang làm |
+| Frontend — khung nền | ✅ Chạy được: đăng nhập, layout, routing, phân quyền, dữ liệu giả đủ 10 module, module Sinh viên mẫu, `DataTable`, đổi mật khẩu |
 | Frontend — thư viện | ✅ antd 6.6.3, react-router-dom 7.18.3, axios, dayjs, recharts |
 | Frontend — nối API thật | ⏳ Đang chạy chế độ dữ liệu giả (`VITE_USE_MOCK=true`) |
 | Backend | ❌ Repo `BE_QuanLyKTX` chưa tạo — xem `13` mục 3.3 |
@@ -104,7 +106,8 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 **Việc tiếp theo:**
 1. Tạo cụm MongoDB Atlas (`13` mục 3.2) — cả nhóm dùng chung một cụm.
 2. Tạo repo `BE_QuanLyKTX` và dựng cấu trúc thư mục (`13` mục 3.3).
-3. Làm trọn module `students` ở cả hai đầu (`14` mục 15), chạy thông end-to-end, rồi mới nhân bản cho các module còn lại.
+3. Backend: làm trọn module `students` (`14` mục 15), rồi `rooms` + `residencies` — chỗ khó nhất là `claimBedInRoom` và `applicationService.approve` (`14` mục 4.6).
+4. Frontend: hai bạn nhận màn hình theo `09` mục 1.4 và code song song trên dữ liệu giả.
 
 > 📖 **Tài liệu này dùng chung cho cả hai repo.** Người làm backend đọc trực tiếp tại đây, **không sao chép sang repo BE** — hai bản sẽ lệch nhau chỉ sau vài ngày.
 
@@ -127,4 +130,5 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 | v1.0 | 11/09/2026 | Khởi tạo 15 tài liệu tiếng Việt (PostgreSQL + Prisma, kiến trúc theo tầng) |
 | v1.1 | 12/09/2026 | Rà soát chéo: sửa 10 lỗi nhất quán, 11 vấn đề nghiệp vụ |
 | v1.2 | 12/09/2026 | Áp dụng phiên bản đơn giản hóa (Bậc A + Bậc B) cho nhóm mới bắt đầu |
-| **v2.0** | **12/09/2026** | **Hợp nhất với bộ `PRD`/`ARCHITECTURE`/`API`/`DATA-SCHEMA`.** Đổi sang **MongoDB + Mongoose**, kiến trúc **theo tính năng**, envelope `{code,message,data}`, enum chữ thường, thêm thực thể `Residency`. Xóa `04`/`05`/`06` (đã bị thay thế). Giữ lại 3 nghiệp vụ từ bộ cũ: giới tính phòng, chỉ số điện nước, quyết toán tiền cọc |
+| **v2.1** | **13/09/2026** | **Đăng ký theo phòng, không theo giường** (`PRD.md` §2.10). Thêm `RoomType`, `Application`, `SupplyItem`, `SupplyOrder` (16 collection); hệ thống tự gán giường khi duyệt đơn; hợp đồng bỏ `pending`; module nhu yếu phẩm. `08` viết lại thành 31 màn hình ưu tiên máy tính theo bản Stitch. **87 FR · 81 BR · 111 TC.** Nhân đợt này sửa loạt mẫu code và tham chiếu hỏng sẵn có ở `07`, `10`, `13`, `14` (cú pháp Prisma sót lại, envelope sai, so sánh ObjectId, mã test trỏ sai). |
+| v2.0 | 12/09/2026 | **Hợp nhất với bộ `PRD`/`ARCHITECTURE`/`API`/`DATA-SCHEMA`.** Đổi sang **MongoDB + Mongoose**, kiến trúc **theo tính năng**, envelope `{code,message,data}`, enum chữ thường, thêm thực thể `Residency`. Xóa `04`/`05`/`06` (đã bị thay thế). Giữ lại 3 nghiệp vụ từ bộ cũ: giới tính phòng, chỉ số điện nước, quyết toán tiền cọc |

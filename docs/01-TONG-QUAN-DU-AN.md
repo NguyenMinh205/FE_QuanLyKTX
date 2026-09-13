@@ -2,7 +2,7 @@
 
 **Tên đề tài:** Xây dựng hệ thống web quản lý ký túc xá
 **Tên hệ thống:** DMS-KTX (Dormitory Management System)
-**Phiên bản:** v1.0 – Baseline
+**Phiên bản:** v1.1 – Đăng ký theo phòng
 **Ngày lập:** 11/09/2026
 
 ---
@@ -76,13 +76,14 @@ Xây dựng ứng dụng web (SPA React + REST API Node.js) giúp Ban quản lý
 | Nhóm chức năng | Nội dung tóm tắt | Ưu tiên |
 |----------------|------------------|---------|
 | **M1. Quản lý sinh viên** | Thêm/xem/sửa/vô hiệu hóa hồ sơ; tìm kiếm & lọc theo tên, MSSV, phòng, trạng thái lưu trú | M |
-| **M2. Quản lý tòa nhà – phòng – giường** | Cấu trúc 3 cấp; trạng thái giường (trống/đã sử dụng/bảo trì); kiểm soát sức chứa | M |
-| **M3. Đăng ký lưu trú & hợp đồng** | Xếp sinh viên vào giường cụ thể, tạo hồ sơ lưu trú; vòng đời hợp đồng (chờ duyệt → hiệu lực → hết hạn/chấm dứt); cảnh báo sắp hết hạn | M |
+| **M2. Quản lý tòa nhà – loại phòng – phòng – giường** | Cấu trúc 3 cấp tòa → phòng → giường; **loại phòng** = hạng (Tiêu chuẩn / Chất lượng cao) × sức chứa (3/4/6/8 người) quyết định giá, tiền cọc, đồ cấp sẵn; giường **tự sinh** theo sức chứa; trạng thái giường (trống/đã sử dụng/bảo trì) | M |
+| **M3. Đơn đăng ký, lưu trú & hợp đồng** | Sinh viên nộp **đơn đăng ký theo phòng**; nhân viên duyệt, **hệ thống tự gán giường**; vòng đời hợp đồng (hiệu lực → hết hạn/chấm dứt); cảnh báo sắp hết hạn | M |
 | **M4. Phí & thanh toán** | Danh mục phí (tiền phòng, điện, nước, cọc, khác); tạo & theo dõi hóa đơn; thanh toán toàn phần/một phần; VNPay/ZaloPay + ghi nhận thủ công | M |
-| **M5. Dashboard & báo cáo** | Thống kê giường, tỷ lệ lấp đầy, công nợ quá hạn, hợp đồng sắp hết hạn; xuất Excel/CSV | M |
+| **M5. Dashboard** | Thống kê giường, tỷ lệ lấp đầy, công nợ quá hạn, hợp đồng sắp hết hạn, đơn chờ duyệt; xuất CSV danh sách sinh viên | M |
 | **M6. Xác thực & phân quyền** | Đăng nhập/đăng xuất JWT; 4 vai trò: Admin, Nhân viên, Sinh viên, Người xem | M |
-| **M7. Cổng sinh viên** | Đăng ký tài khoản, đăng nhập; xem phòng/giường trống, thông tin cư trú, hợp đồng, hóa đơn, lịch sử thanh toán; chỉ truy cập dữ liệu của chính mình | M |
-| **M8. Gia hạn & trả phòng** | Sinh viên gửi yêu cầu; nhân viên duyệt/từ chối; duyệt trả phòng → kết thúc hợp đồng + giải phóng giường | M |
+| **M7. Cổng sinh viên** | Đăng ký tài khoản, đăng nhập; xem loại phòng và **nộp đơn đăng ký chỗ ở**; thông tin cư trú, hợp đồng, hóa đơn, lịch sử thanh toán; chỉ truy cập dữ liệu của chính mình | M |
+| **M8. Gia hạn & trả phòng** | Sinh viên gửi yêu cầu; nhân viên duyệt/từ chối; duyệt trả phòng → kết thúc hợp đồng + giải phóng giường + quyết toán tiền cọc | M |
+| **M9. Nhu yếu phẩm** | Danh mục đồ dùng (đệm, vỏ đệm, chăn, gối…); sinh viên chỉ mua được món **không** được cấp sẵn theo loại phòng; thanh toán qua hóa đơn riêng; nhận tại văn phòng; đơn quá hạn chưa trả tự hủy | M |
 
 ### 3.2. Ngoài phạm vi (Out-of-scope) – v1
 
@@ -100,15 +101,17 @@ Các hạng mục sau **được xác định rõ là KHÔNG làm trong v1**, nh
 | 8 | Phân tích BI, dự báo nâng cao | Vượt năng lực và thời gian của nhóm | Không |
 | 9 | Đa ngôn ngữ (i18n) | Người dùng mục tiêu là sinh viên/nhân viên Việt Nam | v2 |
 | 10 | Ký hợp đồng điện tử (chữ ký số) | Yêu cầu pháp lý phức tạp, cần nhà cung cấp CA | Không |
+| 11 | Sinh viên hoặc nhân viên **chọn giường cụ thể** | Thực tế KTX đăng ký theo loại phòng; giường do ban quản lý sắp xếp. Tự gán còn giúp chống xếp trùng ở đúng một chỗ | Không |
+| 12 | Quản lý tồn kho, giao tận phòng, đổi trả nhu yếu phẩm | Là nghiệp vụ bán hàng riêng; v1 chỉ cần đặt – trả tiền – nhận tại văn phòng | v2 |
 
 ### 3.3. Giả định và ràng buộc
 
 **Giả định:**
 - Mỗi ký túc xá chỉ thuộc một trường; hệ thống vận hành cho một cơ sở duy nhất.
 - Vì không có email/SMS tự động, **thông báo trong ứng dụng cũng nằm ngoài phạm vi v1**. Cơ chế nhắc việc duy nhất là số đếm (badge) trên sidebar. Người dùng quên mật khẩu được nhân viên đặt lại hộ (FR-09).
-- Giá phòng là **giá mỗi sinh viên (mỗi giường) một tháng**, không phải giá cả phòng.
-- Tiền phòng tháng đầu thu đủ một tháng dù vào ở giữa tháng; tiền điện nước chia đều theo đầu người, không theo số ngày ở (BR-32, BR-51).
-- Tòa nhà `mixed` nghĩa là tòa có **cả phòng nam và phòng nữ**, không phải nam nữ ở chung phòng (BR-06).
+- Giá phòng là **giá mỗi sinh viên một tháng**, đặt theo **loại phòng**, không phải giá cả phòng. Giá và tiền cọc được chốt vào hợp đồng lúc duyệt đơn.
+- Tiền phòng tháng đầu thu đủ một tháng dù vào ở giữa tháng; tiền điện nước chia đều theo đầu người, không theo số ngày ở (BR-32, BR-54).
+- Một tòa nhà có thể có **cả phòng nam và phòng nữ**; giới tính được ràng buộc ở mức **phòng**, không bao giờ nam nữ ở chung phòng (BR-06).
 - Dữ liệu sinh viên (MSSV, họ tên, lớp, khoa) do Ban quản lý KTX **nhập tay** trên hệ thống, hoặc nạp sẵn bằng script seed khi khởi tạo — v1 **không** có chức năng import Excel và **không** tích hợp API hệ thống đào tạo (`PRD.md` §3).
 - Mỗi sinh viên tại một thời điểm chỉ có tối đa **một** hợp đồng đang hiệu lực.
 - Giá phòng cố định theo loại phòng, không có chính sách giảm giá theo diện ưu tiên trong v1.
@@ -209,12 +212,12 @@ flowchart TB
 | ID | Rủi ro | Khả năng | Tác động | Phương án giảm thiểu |
 |----|--------|----------|----------|----------------------|
 | R1 | Hợp đồng API giữa FE và BE thay đổi liên tục | Cao | Cao | Chốt `API.md` ở Sprint 1; mọi thay đổi phải qua PR và thông báo; FE bọc API trong lớp `services/` để giới hạn phạm vi ảnh hưởng |
-| R2 | Backend chậm hơn kế hoạch, FE không có API để nối | Cao | Trung bình | FE dùng **mock server** (MSW hoặc json-server) đúng theo đặc tả API ngay từ Sprint 1, chỉ đổi base URL khi BE sẵn sàng |
+| R2 | Backend chậm hơn kế hoạch, FE không có API để nối | Cao | Trung bình | FE dùng **lớp dữ liệu giả** `src/mocks/` trả đúng envelope của `API.md` (đã dựng xong); nối backend chỉ cần đặt `VITE_USE_MOCK=false` |
 | R3 | Tích hợp cổng thanh toán khó, tài liệu phức tạp | Trung bình | Cao | Làm sớm ở Sprint 5 (không để cuối); thiết kế `PaymentGateway` dạng interface; luôn có sẵn phương thức "ghi nhận thủ công" làm phương án dự phòng |
 | R4 | Thành viên bận thi/học, tiến độ trễ | Cao | Cao | Chia task nhỏ ≤ 1 ngày công; standup 2 buổi/tuần; mỗi chức năng có 1 người backup |
 | R5 | Phình phạm vi (scope creep) | Cao | Cao | Danh sách out-of-scope ở mục 3.2 là ràng buộc; ý tưởng mới ghi vào Backlog v2, không đưa vào sprint đang chạy |
-| R6 | Lỗi logic nghiệp vụ: xếp trùng giường, tính sai công nợ | Trung bình | Cao | Ràng buộc unique ở DB; dùng transaction cho thao tác xếp giường & thanh toán; unit test cho hàm tính tiền |
-| R7 | Mất mã nguồn / xung đột Git nghiêm trọng | Thấp | Cao | Push lên remote hằng ngày; theo Git flow ở `10-QUY-TRINH-LAM-VIEC.md`; cấm push thẳng vào `main` |
+| R6 | Lỗi logic nghiệp vụ: xếp trùng giường, tính sai công nợ | Trung bình | Cao | Partial unique index ở DB; **một hàm duy nhất** gán giường bằng cập nhật có điều kiện nguyên tử (`03` mục 4.1); unit test cho hàm tính tiền |
+| R7 | Mất mã nguồn / xung đột Git nghiêm trọng | Thấp | Cao | Push lên remote hằng ngày; theo quy trình nhánh ở `10-QUY-TRINH-LAM-VIEC.md`; mọi thay đổi vào `main` qua pull request |
 | R8 | Deploy thất bại sát ngày bảo vệ | Trung bình | Cao | Deploy thử ("dry run") ngay cuối Sprint 2 với phiên bản tối thiểu, không để đến tuần cuối |
 
 ---
@@ -224,3 +227,4 @@ flowchart TB
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | Cả nhóm | Khởi tạo tài liệu tổng quan, chốt phạm vi MVP |
+| **v1.1** | **13/09/2026** | Cả nhóm | Đăng ký theo phòng (`PRD.md` §2.10): M2 thêm loại phòng, M3 thành đơn đăng ký + tự gán giường, thêm **M9 Nhu yếu phẩm**; M5 bỏ báo cáo Excel. Ngoài phạm vi thêm mục 11–12. R2 trỏ về lớp dữ liệu giả đã dựng, R6 bỏ "transaction". |

@@ -4,7 +4,7 @@
 **Pattern:** Modular Monolith — Feature-Based (Vertical Slice) Organization
 **Audience:** Developers (new hires + AI coding assistants)
 
-> This document defines **how the codebase is organized**, not what each feature does. See `PRD.md` for feature scope. Every new feature (Student, Room/Bed, Residency/Contract, Fee/Payment, Auth, Dashboard, Renewal/Checkout Request) must follow the structure described here.
+> This document defines **how the codebase is organized**, not what each feature does. See `PRD.md` for feature scope. Every new feature (Student, Room Type/Room/Bed, Application/Residency/Contract, Fee/Payment, Auth, Dashboard, Renewal/Checkout Request, Supplies) must follow the structure described here.
 
 > **📦 Two repositories.** The project lives in two GitHub repos; all five team members have access to both.
 >
@@ -56,12 +56,13 @@ backend/
 │   ├── modules/                # feature-based modules (business domain)
 │   │   ├── auth/
 │   │   ├── students/
-│   │   ├── rooms/              # buildings + rooms + beds
-│   │   ├── residencies/
+│   │   ├── rooms/              # buildings + room types + rooms + beds
+│   │   ├── residencies/        # applications + residencies
 │   │   ├── contracts/
 │   │   ├── fees/               # fee types + utility readings + invoices
 │   │   ├── payments/
 │   │   ├── requests/           # renewal/checkout requests
+│   │   ├── supplies/           # supply items + supply orders (v1.2)
 │   │   └── dashboard/
 │   ├── core/                   # cross-cutting infrastructure
 │   │   ├── config/             # env, db connection, app config
@@ -112,6 +113,14 @@ app.use('/api/rooms', roomRoutes);
 ### 3.4 Cross-Feature Communication
 
 - If `contracts` needs to update `rooms` (bed status), call the **room service function** directly (`bedService.markBedAvailable(bedId)`), not the room model. This keeps data access private to each module.
+- The main cross-module calls in v1.2:
+
+  | Caller | Calls | When |
+  |---|---|---|
+  | `application.service` | `bedService.claimBedInRoom(roomId)` → `contractService.createFromApplication(...)` → `invoiceService.createInitialInvoices(...)` | approving an application |
+  | `payment.service` | `supplyOrderService.markReady(invoiceId)` | a `supplies` invoice becomes `paid` |
+  | `request.service` | `supplyOrderService.cancelUnpaidForStudent(studentId)` → `bedService.markBedAvailable(bedId)` | approving a checkout |
+  | daily job | `supplyOrderService.cancelOverdue()` | once a day |
 - Avoid circular imports between modules — if two features need to share logic, extract it into `shared/`.
 
 ### 3.5 ⚠️ Atomicity without MongoDB transactions
@@ -119,23 +128,24 @@ app.use('/api/rooms', roomRoutes);
 **MongoDB transactions require a replica set.** A plain local `mongod` cannot run `session.startTransaction()` — it fails at runtime. Rather than force every developer to configure a replica set, v1 uses **atomic conditional updates**, which are a native single-document guarantee in MongoDB and need no transaction at all.
 
 ```js
-// Claim a bed — atomic. Two simultaneous requests: only one gets a document back.
+// bedService.claimBedInRoom — atomic. Takes the lowest-numbered free bed of the room.
+// Two simultaneous approvals for the last slot: only one gets a document back.
 const bed = await Bed.findOneAndUpdate(
-  { _id: bedId, status: 'available' },   // the condition lives in the query
-  { status: 'occupied' },
-  { new: true }
+  { roomId, status: 'available' },        // the condition lives in the query
+  { $set: { status: 'occupied' } },
+  { sort: { bedNumber: 1 }, new: true }
 );
 if (!bed) {
-  throw new ApiError(409, 'BED_NOT_AVAILABLE', 'Bed is no longer available');
+  throw new ApiError(409, 'ROOM_FULL', 'Phòng đã hết chỗ, vui lòng chọn phòng khác cùng loại');
 }
 ```
 
 This is the mechanism that prevents double-booking. A **partial unique index** on `Residency` (see `DATA-SCHEMA.md` §3.6) backs it up as a second line of defense.
 
-**When a real transaction is genuinely needed** (checkout approval touches Request + Contract + Residency + Bed + Invoice), either:
+**When a real transaction is genuinely needed** (application approval touches Bed + Residency + Contract + two Invoices + Application; checkout approval touches Request + SupplyOrder + Contract + Residency + Bed + Invoice), either:
 1. Use **MongoDB Atlas** (free tier is a replica set) — recommended, and needed for deployment anyway; or
 2. Run local MongoDB as a single-node replica set: `mongod --replSet rs0` then `rs.initiate()`; or
-3. Order the writes so the **riskiest one happens first** and later failures are recoverable by re-running — acceptable for v1.
+3. Order the writes so the **riskiest one happens first** and later failures are recoverable by re-running — acceptable for v1. For application approval the bed claim is first; if a later write fails, release the bed before re-throwing (`DATA-SCHEMA.md` §3.14).
 
 Whichever is chosen, write it down in `13-LO-TRINH-TRIEN-KHAI.md` so the whole team sets up the same way.
 
@@ -152,13 +162,15 @@ frontend/
 │   │   ├── auth/
 │   │   ├── students/
 │   │   ├── rooms/
+│   │   ├── applications/         # duyệt đơn đăng ký (v1.2)
 │   │   ├── residencies/
 │   │   ├── contracts/
 │   │   ├── fees/
 │   │   ├── payments/
 │   │   ├── requests/
+│   │   ├── supplies/             # catalog + order management (v1.2)
 │   │   ├── dashboard/
-│   │   └── portal/               # student self-service screens
+│   │   └── portal/               # student self-service screens (desktop first)
 │   ├── components/               # shared/dumb UI components (StatusTag, MoneyText...)
 │   ├── layouts/                  # AdminLayout, PortalLayout
 │   ├── routes/                   # route definitions, role guards
@@ -239,7 +251,7 @@ features/students/
 
 1. Scaffold `backend/` root structure above. *(Frontend is already scaffolded — see `README.md` §5.)*
 2. Set up `core/config`, DB connection, and `app.js` module registration skeleton (backend).
-3. Implement modules in PRD priority order: `auth` → `students` → `rooms` (Building/Room/Bed) → `residencies`/`contracts` → `fees`/`payments` → `requests` → `dashboard`.
+3. Implement modules in PRD priority order: `auth` → `students` → `rooms` (Building/RoomType/Room/Bed) → `residencies` (Application/Residency) + `contracts` → `fees`/`payments` → `requests` → `supplies` → `dashboard`.
 4. Build **one module end to end first** (`students`), verify it works, then clone the structure for the rest. See `14-PHIEN-BAN-DON-GIAN-HOA.md` §15.
 
 ---
@@ -353,6 +365,8 @@ Mongoose builds the indexes declared in each schema automatically on first conne
 ```js
 // Verify the two indexes that protect core business rules
 db.residencies.getIndexes()   // { bedId: 1 } unique, partialFilterExpression: { status: 'active' }
+db.applications.getIndexes()  // { studentId: 1 } unique, partialFilterExpression: { status: 'pending' }
+db.beds.getIndexes()          // { roomId: 1, bedNumber: 1 } unique
 db.invoices.getIndexes()      // { studentId, type, billingPeriod } unique partial
 ```
 
@@ -363,5 +377,6 @@ db.invoices.getIndexes()      // { studentId, type, billingPeriod } unique parti
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial architecture |
+| **1.3** | **13/09/2026** | Added `supplies` module (BE + FE); `rooms` now holds room types, `residencies` holds applications. §3.4 lists the v1.2 cross-module calls. §3.5 example switched to claiming the lowest free bed of a room (`ROOM_FULL`). |
 | 1.2 | 12/09/2026 | Added §9 Environment Variables and §10 MongoDB Connection: connection helper with fail-fast startup, the database-name-in-URI pitfall, and how Mongoose builds indexes without migrations. |
 | 1.1 | 12/09/2026 | Dropped the optional repository layer and per-feature hooks folder (v1 simplification). Added §3.5 on achieving atomicity without MongoDB transactions. Added `portal` frontend feature. Clarified naming: lowercase enum values, English branches/commits, Vietnamese UI/comments. |

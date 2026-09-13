@@ -21,7 +21,7 @@ npm run dev
 
 Mở http://localhost:5173
 
-> ✅ **Chạy được ngay, không cần backend.** Dự án có sẵn lớp dữ liệu giả (`src/mocks/`) mô phỏng đầy đủ 8 module. Khi backend xong, đặt `VITE_USE_MOCK=false` trong `.env` là chuyển sang gọi API thật, **không phải sửa một dòng code màn hình nào**.
+> ✅ **Chạy được ngay, không cần backend.** Dự án có sẵn lớp dữ liệu giả (`src/mocks/`) mô phỏng đầy đủ 10 module theo mô hình **đăng ký theo phòng** (loại phòng, đơn đăng ký tự gán giường, nhu yếu phẩm). Khi backend xong, đặt `VITE_USE_MOCK=false` trong `.env` là chuyển sang gọi API thật, **không phải sửa một dòng code màn hình nào**.
 
 ### Tài khoản đăng nhập thử
 
@@ -30,7 +30,9 @@ Mở http://localhost:5173
 | Quản trị | `admin@dorm.local` | `Admin@123` | Toàn bộ, kể cả quản lý tài khoản và danh mục phí |
 | Nhân viên | `staff@dorm.local` | `Staff@123` | Nghiệp vụ hằng ngày, không vào được phần hệ thống |
 | Người xem | `viewer@dorm.local` | `Viewer@123` | Chỉ xem — **mọi nút Thêm/Sửa/Xóa đều bị ẩn** |
-| Sinh viên | `sv001@dorm.local` | `Student@123` | Cổng sinh viên, chỉ thấy dữ liệu của chính mình |
+| Sinh viên đang ở | `sv001@dorm.local` | `Student@123` | Cổng sinh viên: phòng Tiêu chuẩn, có công nợ, có đơn nhu yếu phẩm |
+| Sinh viên chưa có chỗ | `sv002@dorm.local` | `Student@123` | Trang chủ mời đăng ký chỗ ở |
+| Sinh viên phòng CLC | `sv004@dorm.local` | `Student@123` | Phòng Chất lượng cao — cửa hàng ẩn "Đệm mút" vì đã cấp sẵn |
 
 ---
 
@@ -60,7 +62,7 @@ src/
 ├── hooks/           useApi — gọi API và quản 3 trạng thái tải/lỗi/dữ liệu
 ├── layouts/         Khung trang: AdminLayout (quản trị), PortalLayout (sinh viên)
 ├── lib/             axiosClient, authApi, env
-├── mocks/           Dữ liệu giả — mockDb (dữ liệu) + mockApi (các endpoint)
+├── mocks/           Dữ liệu giả — mockDb (dữ liệu) + mockApi (các endpoint, ném đúng mã lỗi)
 ├── routes/          AppRoutes, RoleRoute (chặn theo vai trò)
 └── utils/           formatter (tiền, ngày), permission (ẩn/hiện nút)
 ```

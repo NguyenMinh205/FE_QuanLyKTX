@@ -369,35 +369,42 @@ catch (err) {
 
 ### 4.4. Thay MSW bằng dữ liệu giả trong file API
 
-```js
-// src/api/studentApi.js
-import axiosClient from './axiosClient';
-import { mockStudents } from '../mocks/mockData';
+Đã cài xong trong repo — đây là đúng code đang chạy.
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+```js
+// src/features/students/api/student.api.js
+import axiosClient from '../../../lib/axiosClient';
+import { mockStudents } from '../../../mocks/mockApi';
+import { USE_MOCK } from '../../../lib/env';
 
 export const studentApi = {
-  getList: (params) => {
-    if (USE_MOCK) {
-      // Giả lập độ trễ mạng và đúng cấu trúc response của backend
-      return new Promise((resolve) =>
-        setTimeout(() => resolve({
-          data: {
-            success: true,
-            data: mockStudents,
-            meta: { page: 1, limit: 20, total: mockStudents.length, totalPages: 1 },
-          },
-        }), 300)
-      );
-    }
-    return axiosClient.get('/students', { params });
-  },
-
-  create: (data) => axiosClient.post('/students', data),
+  getList: (params) => (USE_MOCK ? mockStudents.getList(params) : axiosClient.get('/students', { params })),
+  create:  (data)   => (USE_MOCK ? mockStudents.create(data)    : axiosClient.post('/students', data)),
 };
 ```
 
-> ⚠️ **Bắt buộc:** dữ liệu giả phải có **đúng cấu trúc** `{ success, data, meta }` như `API.md`. Nếu không, khi nối API thật sẽ phải sửa lại toàn bộ màn hình.
+```js
+// src/mocks/mockHelpers.js — bọc đúng envelope của API.md §1.1
+export const ok = (data, message = 'Success') => ({ data: { code: 'OK', message, data } });
+
+export const paginate = (rows, { page = 1, limit = 20 } = {}) =>
+  ok({ items: rows.slice((page - 1) * limit, page * limit), total: rows.length, page, limit });
+
+// Ném lỗi giống hệt axios để màn hình xử lý lỗi y như khi nối backend thật
+export const fail = (status, code, message, extra = null) => {
+  const err = new Error(message);
+  err.response = { status, data: { code, message, data: extra } };
+  throw err;
+};
+```
+
+| File | Vai trò |
+|------|---------|
+| `src/mocks/mockDb.js` | Dữ liệu mẫu nhất quán: tòa, loại phòng, phòng, giường, sinh viên, đơn đăng ký, hợp đồng, hóa đơn, sản phẩm, đơn hàng |
+| `src/mocks/mockApi.js` | Mỗi hàm tương ứng một endpoint trong `API.md`, **ném đúng lỗi nghiệp vụ** (`ROOM_FULL`, `GENDER_MISMATCH`, `SUPPLY_ALREADY_INCLUDED`…) |
+| `src/lib/env.js` | Công tắc `USE_MOCK` — mặc định **bật**, đặt `VITE_USE_MOCK=false` để nối backend thật |
+
+> ⚠️ **Bắt buộc:** dữ liệu giả phải trả **đúng envelope** `{ code, message, data }` và danh sách phải có `{ items, total, page, limit }` như `API.md` §1.1–1.2. Nếu lệch, khi nối API thật sẽ phải sửa lại toàn bộ màn hình. *(Bản v2.1 của mục này ghi `{ success, data, meta }` — sai, đã sửa.)*
 
 ### 4.5. Thay Zod bằng hàm `validate()` tự viết
 
@@ -444,7 +451,8 @@ export function validate(body, rules) {
   }
 
   if (errors.length) {
-    throw new ApiError(400, 'Dữ liệu không hợp lệ', 'VALIDATION_ERROR', errors);
+    // Lỗi theo từng trường đặt trong data.errors — frontend đọc bằng getFieldErrors() (API.md §1.1)
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
   }
 }
 ```
@@ -464,76 +472,92 @@ export const createStudent = async (body) => {
 
 ### 4.6. ⭐ Chống xếp trùng giường — cập nhật có điều kiện nguyên tử
 
-**Đây là thay đổi quan trọng nhất.** Phương án "đọc trạng thái → kiểm tra → ghi" **sai** vì có khe hở giữa lúc đọc và lúc ghi: hai Staff cùng đọc thấy giường trống, cả hai cùng ghi thành công.
+**Đây là thay đổi quan trọng nhất.** Từ v2.2 sinh viên đăng ký theo **phòng**, hệ thống **tự gán giường** khi Staff duyệt đơn (`PRD.md` §2.10). Phương án "tìm giường trống → kiểm tra → ghi" **sai** vì có khe hở giữa lúc tìm và lúc ghi: hai Staff cùng duyệt hai đơn nhắm chỗ cuối cùng, cả hai cùng tìm thấy giường 06, cả hai cùng ghi thành công.
 
 **Cách sai:**
 ```js
-const bed = await Bed.findById(bedId);
-if (bed.status !== 'available') throw new ApiError(409, ...);  // ❌ khe hở ở đây
+const bed = await Bed.findOne({ roomId, status: 'available' }).sort({ bedNumber: 1 });
+if (!bed) throw new ApiError(409, 'ROOM_FULL', '...');   // ❌ khe hở nằm giữa dòng trên và dòng dưới
 bed.status = 'occupied';
 await bed.save();
 ```
 
-**Cách đúng** — đưa điều kiện vào **chính câu truy vấn**. Một `findOneAndUpdate` trên một document là **nguyên tử** trong MongoDB, không cần transaction, không cần replica set:
+**Cách đúng** — gộp "tìm" và "ghi" vào **một câu lệnh**. Một `findOneAndUpdate` trên một document là **nguyên tử** trong MongoDB, không cần transaction, không cần replica set:
 
 ```js
-// modules/residencies/residency.service.js
-const Bed = require('../rooms/bed.model');
-const Residency = require('./residency.model');
-const Contract = require('../contracts/contract.model');
-const { ApiError } = require('../../core/errors/ApiError');
+// modules/rooms/bed.service.js — HÀM CHIẾM GIƯỜNG DUY NHẤT của cả hệ thống
+exports.claimBedInRoom = async (roomId) => {
+  const bed = await Bed.findOneAndUpdate(
+    { roomId, status: 'available' },          // điều kiện nằm TRONG query
+    { $set: { status: 'occupied' } },
+    { sort: { bedNumber: 1 }, new: true },    // lấy giường số nhỏ nhất
+  );
+  if (!bed) {
+    throw new ApiError(409, 'ROOM_FULL', 'Phòng đã hết chỗ, vui lòng chọn phòng khác cùng loại');
+  }
+  return bed;
+};
 
-exports.createResidency = async ({ studentId, bedId, startDate }, actorId) => {
-  // 1. Sinh viên chưa có hợp đồng đang mở (BR-21)
-  const openContract = await Contract.findOne({
-    studentId,
-    status: { $in: ['pending', 'active'] },
-  });
-  if (openContract) {
-    throw new ApiError(422, 'STUDENT_HAS_ACTIVE_CONTRACT', 'Sinh viên đã có hợp đồng đang hiệu lực');
+exports.markBedAvailable = (bedId) => Bed.findByIdAndUpdate(bedId, { status: 'available' });
+```
+
+```js
+// modules/residencies/application.service.js — dùng hàm trên khi duyệt đơn
+exports.approve = async (applicationId, actorId, { roomId } = {}) => {
+  const app = await Application.findById(applicationId).populate('studentId');
+  if (!app) throw new ApiError(404, 'NOT_FOUND', 'Không tìm thấy đơn đăng ký');
+  if (app.status !== 'pending') {
+    throw new ApiError(422, 'APPLICATION_NOT_PENDING', 'Đơn đăng ký đã được xử lý');
   }
 
-  // 2. Giới tính sinh viên khớp giới tính PHÒNG (BR-06)
-  const bed = await Bed.findById(bedId).populate('roomId');
-  if (!bed) throw new ApiError(404, 'NOT_FOUND', 'Không tìm thấy giường');
+  // 1. Phòng xếp: mặc định phòng sinh viên chọn; Staff đổi thì phải CÙNG LOẠI (BR-35)
+  const room = await Room.findById(roomId || app.requestedRoomId).populate('roomTypeId');
+  if (!room) throw new ApiError(404, 'NOT_FOUND', 'Không tìm thấy phòng');
+  if (!room.roomTypeId._id.equals(app.roomTypeId)) {
+    throw new ApiError(422, 'ROOM_TYPE_MISMATCH', 'Chỉ được đổi sang phòng cùng loại với đơn đăng ký');
+  }
 
-  const student = await Student.findById(studentId);
-  if (bed.roomId.gender !== student.gender) {
-    const label = bed.roomId.gender === 'male' ? 'nam' : 'nữ';
+  // 2. Kiểm tra LẠI giới tính — Staff có thể vừa đổi phòng (BR-06)
+  if (room.gender !== app.studentId.gender) {
+    const label = room.gender === 'male' ? 'nam' : 'nữ';
     throw new ApiError(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${label}`);
   }
 
-  // 3. ⭐ CHIẾM GIƯỜNG — nguyên tử, chống hai người cùng chọn (BR-20)
-  const claimed = await Bed.findOneAndUpdate(
-    { _id: bedId, status: 'available' },   // điều kiện nằm TRONG query
-    { status: 'occupied' },
-    { new: true },
-  );
-  if (!claimed) {
-    // Không trả về document ⇒ giường vừa bị người khác chiếm
-    throw new ApiError(409, 'BED_NOT_AVAILABLE', 'Giường này vừa được xếp cho sinh viên khác');
-  }
+  // 3. ⭐ GÁN GIƯỜNG — nguyên tử (BR-20). Thất bại ở đây thì CHƯA GHI GÌ CẢ.
+  const bed = await bedService.claimBedInRoom(room._id);
 
-  // 4. Tạo Residency + Contract. Nếu lỗi, PHẢI trả giường lại.
+  // 4. Các bước sau. Lỗi thì PHẢI trả giường lại (BR-36).
   try {
     const residency = await Residency.create({
-      studentId, bedId, startDate, status: 'active', createdBy: actorId,
+      studentId: app.studentId._id, bedId: bed._id, applicationId: app._id,
+      startDate: app.startDate, status: 'active', createdBy: actorId,
     });
     const contract = await Contract.create({
       contractCode: await generateContractCode(),
-      residencyId: residency._id,
-      studentId, bedId, startDate,
-      monthlyPrice: bed.roomId.pricePerBed,   // chốt giá tại thời điểm ký (BR-27)
-      depositAmount: SETTINGS.DEFAULT_DEPOSIT,
-      status: 'pending',
+      applicationId: app._id, residencyId: residency._id,
+      studentId: app.studentId._id, bedId: bed._id, roomTypeId: room.roomTypeId._id,
+      startDate: app.startDate, endDate: app.endDate,
+      monthlyPrice:  room.roomTypeId.pricePerMonth,   // chốt giá lúc duyệt (BR-27)
+      depositAmount: room.roomTypeId.depositAmount,
+      status: 'active',
     });
-    return { residency, contract };
+    const invoices = await invoiceService.createInitialInvoices(contract);   // HAI hóa đơn (BR-25)
+
+    Object.assign(app, {
+      status: 'approved', assignedRoomId: room._id, assignedBedId: bed._id,
+      contractId: contract._id, reviewedBy: actorId, reviewedAt: new Date(),
+    });
+    await app.save();
+
+    return { application: app, assigned: { roomNumber: room.roomNumber, bedCode: bed.bedCode }, contract, invoices };
   } catch (err) {
-    await Bed.findByIdAndUpdate(bedId, { status: 'available' });  // hoàn tác
+    await bedService.markBedAvailable(bed._id);   // hoàn tác
     throw err;
   }
 };
 ```
+
+> 💡 **Vì sao tự gán lại dễ hơn cho nhóm:** trước đây có nhiều chỗ nhận `bedId` từ client và mỗi chỗ phải tự chiếm giường đúng cách. Giờ **cả hệ thống chỉ có một hàm chiếm giường** — `claimBedInRoom` — nên chỉ cần viết đúng và kiểm thử đúng một lần.
 
 **Lớp bảo vệ thứ hai** ở tầng CSDL — partial unique index, MongoDB hỗ trợ sẵn:
 
@@ -556,7 +580,7 @@ residencySchema.index(
 
 > 💡 **Điểm cộng khi báo cáo:** đây là một giải pháp race condition đàng hoàng và dễ trình bày. Viết vào mục 4.4.1 của báo cáo theo mạch: *nêu vấn đề → vì sao đọc-rồi-ghi là sai → vì sao điều kiện trong query là đúng*.
 
-**Test bắt buộc:** TC-42 (hai trình duyệt cùng xếp sinh viên vào một giường) phải đạt.
+**Test bắt buộc:** TC-42 (hai Staff cùng duyệt hai đơn nhắm chỗ cuối cùng) và TC-53 (lỗi giữa chừng phải trả giường) phải đạt.
 
 ### 4.7. Xuất CSV thay cho Excel
 
@@ -614,6 +638,7 @@ const Residency = require('../../modules/residencies/residency.model');
 const Bed = require('../../modules/rooms/bed.model');
 const Invoice = require('../../modules/fees/invoice.model');
 const Payment = require('../../modules/payments/payment.model');
+const supplyOrderService = require('../../modules/supplies/supply-order.service');
 
 async function runDailyTasks() {
   console.log('[CRON] Bắt đầu tác vụ hằng ngày', new Date().toISOString());
@@ -628,14 +653,19 @@ async function runDailyTasks() {
   }
   console.log(`[CRON] Đã cho hết hạn ${expired.length} hợp đồng`);
 
-  // 2. Hóa đơn quá hạn → overdue (BR-56)
+  // 2. Đơn nhu yếu phẩm quá hạn chưa thanh toán → hủy cả đơn và hóa đơn (BR-97)
+  //    Chạy TRƯỚC bước 3, để các hóa đơn này không bị đánh dấu overdue rồi mới hủy
+  const cancelledOrders = await supplyOrderService.cancelOverdue(now);
+  console.log(`[CRON] Đã tự hủy ${cancelledOrders} đơn nhu yếu phẩm quá hạn`);
+
+  // 3. Hóa đơn quá hạn → overdue (BR-56)
   const r2 = await Invoice.updateMany(
     { status: { $in: ['unpaid', 'partial'] }, dueDate: { $lt: now } },
     { status: 'overdue' },
   );
   console.log(`[CRON] Đã đánh dấu quá hạn ${r2.modifiedCount} hóa đơn`);
 
-  // 3. Giao dịch treo quá 15 phút → expired (BR-64)
+  // 4. Giao dịch treo quá 15 phút → expired (BR-64)
   const limit = new Date(now - 15 * 60 * 1000);
   const r3 = await Payment.updateMany(
     { status: 'pending', createdAt: { $lt: limit } },
@@ -643,7 +673,7 @@ async function runDailyTasks() {
   );
   console.log(`[CRON] Đã cho hết hạn ${r3.modifiedCount} giao dịch treo`);
 
-  // 4. Đối soát trạng thái giường với Residency thực tế
+  // 5. Đối soát trạng thái giường với Residency thực tế
   // ... so sánh Bed.status với Residency active, ghi log nếu lệch và tự sửa
 
   console.log('[CRON] Hoàn tất');
@@ -708,7 +738,7 @@ export const verifyVnpayReturn = asyncHandler(async (req, res) => {
 
   if (receivedHash !== expectedHash) {
     console.warn('[BẢO MẬT] Chữ ký VNPay không hợp lệ:', params.vnp_TxnRef);
-    throw new ApiError(400, 'Chữ ký giao dịch không hợp lệ', 'INVALID_SIGNATURE');
+    throw new ApiError(400, 'GATEWAY_SIGNATURE_INVALID', 'Chữ ký giao dịch không hợp lệ');
   }
 
   const result = await paymentService.confirmPayment({
@@ -719,7 +749,7 @@ export const verifyVnpayReturn = asyncHandler(async (req, res) => {
     raw: params,
   });
 
-  res.json(ApiResponse.success(result));
+  res.json({ code: 'OK', message: 'Success', data: result });
 });
 ```
 
@@ -815,12 +845,14 @@ axiosClient.interceptors.response.use(
 // config/settings.js
 export const SETTINGS = {
   CONTRACT_EXPIRING_WARNING_DAYS: 30,   // BR-29
-  CONTRACT_PENDING_EXPIRE_DAYS: 7,      // BR-27
+  INITIAL_INVOICE_DUE_DAYS: 7,          // BR-26: max(startDate, ngày duyệt) + 7
   INVOICE_DUE_DAY_OF_MONTH: 10,
   ELECTRICITY_PRICE: 2500,              // đ/kWh
   WATER_PRICE: 12000,                   // đ/m³
-  DEFAULT_DEPOSIT: 500000,
   PAYMENT_TIMEOUT_MINUTES: 15,          // BR-64
+  SUPPLY_ORDER_DUE_DAYS: 3,             // BR-94
+  SUPPLY_MAX_QUANTITY: 5,               // BR-93
+  // Giá thuê và tiền cọc KHÔNG nằm ở đây — thuộc từng loại phòng (RoomType)
   DORMITORY_NAME: 'Ký túc xá ABC',
 };
 ```
@@ -838,34 +870,38 @@ export const logAction = (userId, action, entity, entityId, extra = '') => {
 };
 
 // Dùng ở service
-logAction(approverId, 'APPROVE', 'contract', contractId, `bed=${bed.bedLabel}`);
+logAction(actorId, 'APPROVE', 'application', app.applicationCode, `bed=${bed.bedCode}`);
 ```
 
 Trên Render, log này xem được ở tab **Logs**. Đủ để truy vết khi cần, và vẫn trình bày được trong báo cáo là "có ghi nhật ký thao tác".
 
 ---
 
-## 5. Cơ sở dữ liệu sau đơn giản hóa — 12 collection
+## 5. Cơ sở dữ liệu sau đơn giản hóa — 16 collection
 
-Chi tiết đầy đủ ở `DATA-SCHEMA.md`. Bảng dưới chỉ tóm tắt những gì đã **bỏ bớt** so với thiết kế ban đầu.
+Chi tiết đầy đủ ở `DATA-SCHEMA.md`. Bảng dưới tóm tắt những gì đã **bỏ bớt** so với thiết kế ban đầu và những gì **thêm** ở v2.2.
 
 | # | Collection | Trạng thái |
 |---|------------|-----------|
 | 1 | `User` | Giữ (bỏ trường đếm lần đăng nhập sai và khóa tạm) |
 | 2 | `Student` | Giữ |
 | 3 | `Building` | Giữ |
-| 4 | `Room` | Giữ — có thêm `gender` (BR-06) |
-| 5 | `Bed` | Giữ — chỉ 3 trạng thái, bỏ `reserved` |
-| 6 | `Residency` | Giữ |
-| 7 | `Contract` | Giữ |
-| 8 | `FeeType` | Giữ |
-| 9 | `UtilityReading` | Giữ |
-| 10 | `Invoice` | Giữ (nhúng `lineItems` thay vì tách collection riêng) |
-| 11 | `Payment` | Giữ |
-| 12 | `Request` | Giữ |
-| ~~13~~ | ~~`AuditLog`~~ | ❌ Bỏ → ghi log ra file (mục 4.13) |
-| ~~14~~ | ~~`SystemConfig`~~ | ❌ Bỏ → file hằng số (mục 4.12) |
-| ~~15~~ | ~~`RoomTransfer`~~ | ❌ Bỏ → chuyển phòng ngoài phạm vi v1 (`PRD.md` §3) |
+| 4 | `RoomType` | 🆕 v2.2 — hạng × sức chứa, giá, tiền cọc, đồ cấp sẵn |
+| 5 | `Room` | Giữ — có `gender` (BR-06); **bỏ `pricePerBed`**, thêm `roomTypeId` |
+| 6 | `Bed` | Giữ — chỉ 3 trạng thái, **tự sinh**, thêm `bedNumber` |
+| 7 | `Application` | 🆕 v2.2 — đơn đăng ký, duyệt thì tự gán giường |
+| 8 | `Residency` | Giữ |
+| 9 | `Contract` | Giữ — **bỏ trạng thái `pending`** |
+| 10 | `FeeType` | Giữ |
+| 11 | `UtilityReading` | Giữ |
+| 12 | `Invoice` | Giữ (nhúng `lineItems`); thêm loại `supplies` |
+| 13 | `Payment` | Giữ |
+| 14 | `Request` | Giữ |
+| 15 | `SupplyItem` | 🆕 v2.2 — danh mục nhu yếu phẩm |
+| 16 | `SupplyOrder` | 🆕 v2.2 — đơn nhu yếu phẩm |
+| ~~–~~ | ~~`AuditLog`~~ | ❌ Bỏ → ghi log ra file (mục 4.13) |
+| ~~–~~ | ~~`SystemConfig`~~ | ❌ Bỏ → file hằng số (mục 4.12) |
+| ~~–~~ | ~~`RoomTransfer`~~ | ❌ Bỏ → chuyển phòng ngoài phạm vi v1 (`PRD.md` §3) |
 
 **Đơn giản hóa ở tầng dữ liệu:**
 
@@ -876,6 +912,7 @@ Chi tiết đầy đủ ở `DATA-SCHEMA.md`. Bảng dưới chỉ tóm tắt nh
 ```js
 residencySchema.index({ bedId: 1 }, { unique: true, partialFilterExpression: { status: 'active' } });
 requestSchema.index({ contractId: 1, type: 1 }, { unique: true, partialFilterExpression: { status: 'pending' } });
+applicationSchema.index({ studentId: 1 }, { unique: true, partialFilterExpression: { status: 'pending' } });
 ```
 
 ## 6. Cấu trúc thư mục sau đơn giản hóa
@@ -943,7 +980,9 @@ src/
 │   ├── statuses.js          # giữ nguyên — rất quan trọng
 │   └── roles.js
 ├── mocks/
-│   └── mockData.js          # ⭐ MỚI: thay MSW
+│   ├── mockDb.js            # ⭐ dữ liệu mẫu nhất quán
+│   ├── mockHelpers.js       # ok / paginate / fail — đúng envelope API.md
+│   └── mockApi.js           # mỗi hàm = một endpoint
 └── utils/
     ├── formatter.js
     └── permission.js
@@ -1011,24 +1050,14 @@ test('chia có dư — tổng phải bằng đúng số ban đầu', () => {
 });
 ```
 
-### 8.2. Rút gọn từ 128 xuống 65 test case thủ công
+### 8.2. Danh sách test case đã rút gọn nằm ở `11`
 
-**Giữ lại toàn bộ test ưu tiên "Rất cao" và "Cao"** (đây là những thứ làm hỏng dữ liệu hoặc lộ dữ liệu), **bỏ bớt các test ưu tiên "Trung bình"/"Thấp"** của CRUD thông thường.
+Bản gốc có 128 test case. Việc rút gọn đã được áp thẳng vào `11-KE-HOACH-KIEM-THU.md` — hiện còn **111 test case**, giữ toàn bộ test "Rất cao"/"Cao" và bỏ bớt test "Trung bình" của CRUD thông thường. Không duy trì một danh sách rút gọn thứ hai ở đây để tránh hai bản lệch nhau.
 
-| Module | Trước | Sau | Giữ lại |
-|--------|-------|-----|---------|
-| Xác thực & phân quyền | 17 | 9 | TC-01, 03, 05, 07, 08, 09, 15, 16, 17 |
-| Sinh viên | 15 | 6 | TC-20, 21, 25, 27, 31, 32 |
-| Cơ sở vật chất | 14 | 6 | TC-42, 43, 45, 46, 48, 50 |
-| **Hợp đồng** | 21 | **15** | Giữ gần hết — đây là trọng tâm đề tài |
-| **Tài chính** | 17 | **12** | Giữ toàn bộ test tính tiền |
-| **Thanh toán online** | 10 | **7** | Giữ TC-100→105 (bảo mật), bỏ ZaloPay |
-| **Cổng sinh viên** | 19 | **12** | Giữ toàn bộ TC-121→124 (chống IDOR) |
-| Dashboard & báo cáo | 6 | 3 | TC-150, 151, 154 |
-| Phi chức năng | 9 | 5 | TC-162, 163, 165, 166, 168 |
-| **Tổng** | **128** | **65** | |
-
-> ⚠️ **Tuyệt đối không cắt:** TC-72 (race condition), TC-69b (thất thu điện nước), TC-63b (nam nữ chung phòng), TC-103/104/105 (bảo mật thanh toán), TC-121→124 (IDOR). Đây là 8 test bảo vệ những lỗi nghiêm trọng nhất.
+Thiếu thời gian thì chạy theo thứ tự:
+1. **16 test "không được cắt"** ở `11` mục 6 (tranh chấp chỗ cuối, đổi phòng khác giới, thất thu điện nước, bảo mật thanh toán, quyết toán cọc, IDOR, giá giả, webhook lặp, tự hủy đơn quá hạn).
+2. Toàn bộ test ưu tiên **Rất cao**.
+3. Toàn bộ test ưu tiên **Cao**.
 
 ---
 
@@ -1041,7 +1070,7 @@ Chỉ dùng khi đến cuối tuần 8 vẫn chậm tiến độ. Cắt từ tr�
 | 1 | Sơ đồ tòa nhà trực quan (FR-26) → dùng bảng phòng thường | 2 MD | Nhẹ, chỉ kém đẹp |
 | 2 | Xuất CSV các báo cáo (FR-17) | 2 MD | Ghi vào mục Hạn chế |
 | 3 | Biểu đồ dashboard (FR-70) → giữ các thẻ chỉ số | 2 MD | Nhẹ |
-| 4 | Báo cáo công nợ + doanh thu (FR-81, 82) → giữ báo cáo giường trống | 3 MD | Ghi vào Hạn chế |
+| 4 | Nhu yếu phẩm phía quản trị → chỉ giữ tab đơn hàng, danh mục nạp bằng seed (FR-100) | 1,5 MD | Ghi vào Hạn chế |
 | 5 | In PDF (FR-33, FR-71) | 1 MD | Không đáng kể |
 | 6 | Vai trò Viewer → còn 3 vai trò | 2 MD | Nhẹ, RBAC vẫn chứng minh được |
 | 7 | Thanh toán online (FR-64) → chỉ ghi nhận thủ công | 6 MD | **Nặng** — mất một điểm nhấn kỹ thuật lớn |
@@ -1136,26 +1165,28 @@ Vẫn giữ 2 quy tắc quan trọng nhất: **không push thẳng vào `main`**
 Mỗi module backend chỉ còn **2 file**:
 
 ```js
-// backend/src/routes/student.routes.js   ← route + xử lý request gộp làm một
-import express from 'express';
-import * as studentService from '../services/student.service.js';
-import { authenticate, authorize } from '../middlewares/auth.middleware.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+// backend/src/modules/students/student.routes.js   ← route + xử lý request gộp làm một
+const express = require('express');
+const studentService = require('./student.service');
+const { authenticate, authorize } = require('../../core/middlewares/auth.middleware');
+const { asyncHandler } = require('../../core/utils/asyncHandler');
 
 const router = express.Router();
 
 router.get('/', authenticate, authorize('admin', 'staff', 'viewer'), asyncHandler(async (req, res) => {
-  const result = await studentService.getList(req.query);
-  res.json({ success: true, data: result.data, meta: result.meta });
+  const data = await studentService.getList(req.query);          // { items, total, page, limit }
+  res.json({ code: 'OK', message: 'Success', data });
 }));
 
 router.post('/', authenticate, authorize('admin', 'staff'), asyncHandler(async (req, res) => {
   const student = await studentService.create(req.body);
-  res.status(201).json({ success: true, message: 'Thêm sinh viên thành công', data: student });
+  res.status(201).json({ code: 'OK', message: 'Thêm sinh viên thành công', data: student });
 }));
 
-export default router;
+module.exports = router;
 ```
+
+> Envelope luôn là `{ code, message, data }` (`API.md` §1.1). Bản đầy đủ của file này ở mục 15.3.
 
 **Quy tắc vẫn phải giữ:** file route **chỉ** đọc `req` và trả `res`. Mọi câu `if` nghiệp vụ và mọi lời gọi `mongoose` nằm trong `services/`. Gộp file **không** có nghĩa là gộp trách nhiệm.
 
@@ -1227,7 +1258,7 @@ Khoảng 20 dòng, tự responsive, bấm được — đủ để demo và ch�
 | 1 | JavaScript hiện đại: `async/await`, destructuring, spread, arrow function, optional chaining | 3h | javascript.info | Đọc hiểu được đoạn code ở mục 15 |
 | 2 | React cơ bản: component, props, `useState`, `useEffect`, render danh sách, xử lý sự kiện | 4h | react.dev — mục "Learn React" | Tự viết được một trang hiện danh sách từ mảng |
 | 3 | HTTP và REST: GET/POST/PATCH/DELETE, mã trạng thái, JSON body, header | 1h | Đọc `API.md` mục 1 + tự thử vài API công khai bằng Postman | Giải thích được 200/201/401/403/404/409/422 |
-| 4 | SQL cơ bản: SELECT, WHERE, JOIN, khóa chính/khóa ngoại | 2h | w3schools.com/sql | Đọc hiểu 6 truy vấn mẫu ở `DATA-SCHEMA.md` mục 5 |
+| 4 | MongoDB cơ bản: document, collection, `ObjectId`, lọc bằng `find`, tham chiếu bằng `ref` + `populate` | 2h | mongodb.com/docs/manual/tutorial/getting-started · mongoosejs.com/docs/index.html | Đọc hiểu các bảng field ở `DATA-SCHEMA.md` mục 3 |
 
 **Người làm Backend học thêm:** Express routing + middleware (2h), Mongoose Quickstart (2h).
 **Người làm Frontend học thêm:** React Router (1h), Ant Design — riêng `Table` và `Form` (2h).
@@ -1237,7 +1268,7 @@ Khoảng 20 dòng, tự responsive, bấm được — đủ để demo và ch�
 | Sprint | Cần học trước | Thời lượng |
 |--------|---------------|------------|
 | S1 | JWT là gì, `localStorage`, axios interceptor | 2h |
-| S2 | **Transaction trong CSDL** — vì sao cần, `phiên ghi nhiều bước` | 2h |
+| S2 | **Race condition** và cập nhật có điều kiện nguyên tử (`findOneAndUpdate`) — đọc `03` mục 4.1 | 2h |
 | S3 | HMAC/chữ ký số ở mức khái niệm (không cần hiểu toán) | 1h |
 | S4 | `useEffect` với mảng phụ thuộc, điều kiện render | 1h |
 | S5 | Biến môi trường, quy trình deploy | 2h |
@@ -1298,6 +1329,8 @@ module.exports = mongoose.model('Student', studentSchema);
 const Student  = require('./student.model');
 const Contract = require('../contracts/contract.model');
 const Invoice  = require('../fees/invoice.model');
+const Application = require('../residencies/application.model');
+// ApiError(httpStatus, CODE, message, data = null) — data trả nguyên vào trường "data" của envelope
 const { ApiError } = require('../../core/errors/ApiError');
 const { validate } = require('../../core/utils/validate');
 
@@ -1368,7 +1401,7 @@ exports.create = async (body) => {
   const existed = await Student.findOne({ studentCode: body.studentCode });
   if (existed) {
     throw new ApiError(409, 'DUPLICATE_ENTRY', 'Mã số sinh viên đã tồn tại',
-      [{ field: 'studentCode', message: 'Mã số sinh viên đã tồn tại' }]);
+      { errors: [{ field: 'studentCode', message: 'Mã số sinh viên đã tồn tại' }] });
   }
 
   return Student.create(body);
@@ -1383,13 +1416,13 @@ exports.update = async (id, body) => {
 
 // ---------- VÔ HIỆU HÓA (BR-13, BR-14) ----------
 exports.deactivate = async (id) => {
-  const openContract = await Contract.findOne({
-    studentId: id,
-    status: { $in: ['pending', 'active'] },
-  });
-  if (openContract) {
+  const [openContract, pendingApplication] = await Promise.all([
+    Contract.findOne({ studentId: id, status: 'active' }),
+    Application.findOne({ studentId: id, status: 'pending' }),
+  ]);
+  if (openContract || pendingApplication) {
     throw new ApiError(422, 'STUDENT_HAS_ACTIVE_CONTRACT',
-      'Sinh viên đang có hợp đồng hiệu lực, không thể vô hiệu hóa');
+      'Sinh viên đang có hợp đồng hiệu lực hoặc đơn đăng ký chờ duyệt, không thể vô hiệu hóa');
   }
 
   const unpaid = await Invoice.findOne({
@@ -1817,7 +1850,8 @@ Gọi API để **ghi** dữ liệu (thêm/sửa/xóa) thì **không dùng** `us
 | Phiên bản | Ngày | Người thực hiện | Nội dung thay đổi |
 |-----------|------|------------------|-------------------|
 | v1.0 | 12/09/2026 | Cả nhóm | Ban hành phiên bản đơn giản hóa **Bậc A**: 21 thay đổi kỹ thuật, giữ nguyên 100% chức năng, giảm khối lượng 206 → 155 ngày công |
-| **v2.1** | **12/09/2026** | FE Lead | Thêm mục **15.8** (checklist 6 bước thêm một màn hình frontend, kèm 9 mục tự kiểm tra trước khi tạo pull request) và mục **15.9** (ba thứ đã dựng sẵn: `useApi`, `DataTable`, `ErrorBoundary`) |
+| **v2.2** | **13/09/2026** | Cả nhóm | **Đăng ký theo phòng + nhu yếu phẩm.** Mục 4.6 viết lại: một hàm `claimBedInRoom` duy nhất lấy giường trống số nhỏ nhất + `applicationService.approve` có bù trừ. Mục 4.9 cron thêm tự hủy đơn nhu yếu phẩm quá hạn (chạy trước bước đánh dấu quá hạn). Mục 4.12 bỏ tiền cọc mặc định và hạn hợp đồng `pending`. Mục 5 lên 16 collection. **Sửa 3 bẫy sẵn có:** mẫu mock ở 4.4 dùng envelope `{ success, data, meta }` sai với `API.md` và code thật; lỗi theo trường ở 4.5 và 15.2 truyền mảng trần thay vì `{ errors }` nên form không hiện được lỗi tại ô; mục 14 còn dạy SQL và "transaction" cho dự án MongoDB. |
+| v2.1 | 12/09/2026 | FE Lead | Thêm mục **15.8** (checklist 6 bước thêm một màn hình frontend, kèm 9 mục tự kiểm tra trước khi tạo pull request) và mục **15.9** (ba thứ đã dựng sẵn: `useApi`, `DataTable`, `ErrorBoundary`) |
 | v2.0 | 12/09/2026 | Cả nhóm | **Rà soát theo bộ tài liệu v2.0:** viết lại toàn bộ mã mẫu sang **Mongoose** (mục 4.6, 4.9, 4.10, 15); mục 15 nay có 3 file backend + 3 file frontend theo cấu trúc `features/`; mục 5 liệt kê 12 collection thay vì bảng SQL; lập luận báo cáo ở mục 10 viết lại theo MongoDB |
 | v1.2 | 12/09/2026 | FE Lead | Cài đặt thật và kiểm chứng: **antd 6.6.3** (không phải 5.x như thiết kế ban đầu), recharts 3.10.1, react-router-dom 7.18.3. Đã chạy `npm run build` thành công với React 19 + Vite 8. Bổ sung mục 3.1.1 nêu 2 khác biệt của antd 6 |
 | v1.1 | 12/09/2026 | Cả nhóm | Bổ sung **Bậc B** cho nhóm mới bắt đầu (mục 13): 10 thay đổi thêm — 1 repo, 1 nhánh Git, gộp controller vào route, form dùng modal, làm mẫu 1 module rồi nhân bản. Thêm **lộ trình tự học** (mục 14) và **mẫu code một module hoàn chỉnh** (mục 15). Khối lượng 155 → **120 ngày công**. Chức năng vẫn giữ nguyên 85 FR |

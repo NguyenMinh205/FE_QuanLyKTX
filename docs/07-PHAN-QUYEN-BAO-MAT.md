@@ -1,7 +1,7 @@
 # 07 – PHÂN QUYỀN & BẢO MẬT
 
 **Hệ thống:** DMS-KTX
-**Phiên bản:** v2.0 (MongoDB + Mongoose)
+**Phiên bản:** v2.1 (MongoDB + Mongoose · đăng ký theo phòng)
 
 ---
 
@@ -48,7 +48,6 @@ flowchart TB
 | Khóa/mở khóa tài khoản | ✅ | ❌ | ❌ | ❌ |
 | Gán vai trò | ✅ | ❌ | ❌ | ❌ |
 | Liên kết tài khoản ↔ hồ sơ sinh viên | ✅ | ✅ | ❌ | ❌ |
-| Xem/sửa cấu hình hệ thống | ✅ | ❌ | ❌ | ❌ |
 | Xem nhật ký hệ thống | ✅ (đọc file log của máy chủ) | ❌ | ❌ | ❌ |
 | Đổi mật khẩu của chính mình | ✅ | ✅ | ✅ | ✅ |
 | Đặt lại mật khẩu cho người khác (FR-09) | ✅ | ✅ (trừ tài khoản Admin) | ❌ | ❌ |
@@ -60,7 +59,7 @@ flowchart TB
 | Xem danh sách sinh viên | ✅ | ✅ | 👁 | ❌ |
 | Xem chi tiết hồ sơ | ✅ | ✅ | 👁 | 🔒 |
 | Thêm hồ sơ sinh viên | ✅ | ✅ | ❌ | ❌ |
-| Sửa hồ sơ sinh viên | ✅ | ✅ | ❌ | ❌ (FR-90) |
+| Sửa hồ sơ sinh viên | ✅ | ✅ | ❌ | ❌ (FR-86) |
 | Vô hiệu hóa hồ sơ | ✅ | ✅ | ❌ | ❌ |
 | Export danh sách (CSV) | ✅ | ✅ | 👁 | ❌ |
 | Xem thông tin nhạy cảm (CCCD, SĐT người thân) | ✅ | ✅ | ❌ | 🔒 |
@@ -69,30 +68,38 @@ flowchart TB
 
 | Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
-| Xem tòa nhà / phòng / giường | ✅ | ✅ | 👁 | 👁 (thông tin công khai) |
+| Xem tòa nhà | ✅ | ✅ | 👁 | 👁 |
 | Thêm/sửa tòa nhà | ✅ | ✅ | ❌ | ❌ |
 | Ngừng hoạt động tòa nhà | ✅ | ❌ | ❌ | ❌ |
-| Thêm/sửa phòng | ✅ | ✅ | ❌ | ❌ |
+| Xem loại phòng (giá, tiền cọc, đồ cấp sẵn, số chỗ còn) | ✅ | ✅ | 👁 | 👁 (chỉ đếm phòng khớp giới tính) |
+| **Thêm/sửa loại phòng — đặt giá và tiền cọc** | ✅ | ❌ | ❌ | ❌ |
+| Xem phòng, sơ đồ tầng | ✅ | ✅ | 👁 | ❌ |
+| Xem phòng còn chỗ (khi đăng ký) | ✅ | ✅ | ❌ | 👁 (chỉ phòng khớp giới tính) |
+| Thêm/sửa phòng (giường tự sinh) | ✅ | ✅ | ❌ | ❌ |
 | Ngừng hoạt động phòng | ✅ | ❌ | ❌ | ❌ |
-| Thêm/sửa giường | ✅ | ✅ | ❌ | ❌ |
-| Xóa giường | ✅ | ❌ | ❌ | ❌ |
 | Đổi trạng thái giường (bảo trì) | ✅ | ✅ | ❌ | ❌ |
-| Tra cứu giường trống | ✅ | ✅ | 👁 | 👁 |
-| Xem sơ đồ tòa nhà | ✅ | ✅ | 👁 | ❌ |
-| Xem danh sách người ở trong phòng | ✅ | ✅ | 👁 | 🔒 (chỉ phòng mình, chỉ tên + MSSV) |
+| ~~Thêm/xóa giường bằng tay~~ (bỏ ở v2.1 — giường tự sinh) | ❌ | ❌ | ❌ | ❌ |
+| Xem người ở trong phòng | ✅ | ✅ | 👁 | 🔒 (chỉ phòng mình, chỉ họ tên + MSSV) |
 
-### 2.4. Quản lý hợp đồng
+> **Vì sao Staff không được sửa loại phòng:** giá thuê và tiền cọc là quyết định tài chính, cùng mức với danh mục loại phí (Admin). Staff vẫn tạo được phòng mới gắn vào loại phòng có sẵn.
+
+### 2.4. Đơn đăng ký & hợp đồng
 
 | Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
+| Nộp đơn đăng ký chỗ ở | ❌ | ❌ | ❌ | 🔒 |
+| Lập đơn hộ sinh viên đến trực tiếp | ✅ | ✅ | ❌ | ❌ |
+| Tự hủy đơn khi còn chờ duyệt | ❌ | ❌ | ❌ | 🔒 |
+| Xem hàng đợi đơn đăng ký | ✅ | ✅ | 👁 | 🔒 (đơn của mình) |
+| **Duyệt đơn — hệ thống tự gán giường, tạo hợp đồng** | ✅ | ✅ | ❌ | ❌ |
+| Đổi sang phòng khác cùng loại khi duyệt | ✅ | ✅ | ❌ | ❌ |
+| Từ chối đơn | ✅ | ✅ | ❌ | ❌ |
+| ~~Chọn giường cụ thể~~ (không ai được — BR-38) | ❌ | ❌ | ❌ | ❌ |
 | Xem danh sách hợp đồng | ✅ | ✅ | 👁 | 🔒 |
-| Tạo đăng ký lưu trú (Residency) | ✅ | ✅ | ❌ | ❌ |
-| Kích hoạt hợp đồng `pending` → `active` | ✅ | ✅ | ❌ | ❌ |
-| Tạo hợp đồng trực tiếp | ✅ | ✅ | ❌ | ❌ |
-| Đóng đăng ký lưu trú (checkout) | ✅ | ✅ | ❌ | ❌ |
+| Sửa điều khoản hợp đồng | ✅ | ✅ | ❌ | ❌ |
 | Chấm dứt hợp đồng trước hạn | ✅ | ✅ | ❌ | ❌ |
 | ~~Chuyển phòng~~ (ngoài phạm vi v1) | ❌ | ❌ | ❌ | ❌ |
-| Xem hợp đồng sắp hết hạn | ✅ | ✅ | ❌ | 🔒 (của mình) |
+| Xem hợp đồng sắp hết hạn | ✅ | ✅ | 👁 | 🔒 (của mình) |
 | In hợp đồng (qua trình duyệt) | ✅ | ✅ | ❌ | 🔒 |
 
 ### 2.5. Tài chính
@@ -120,16 +127,27 @@ flowchart TB
 | Xem danh sách yêu cầu | ✅ | ✅ | 👁 | 🔒 |
 | Duyệt / từ chối yêu cầu | ✅ | ✅ | ❌ | ❌ |
 
-### 2.7. Dashboard & báo cáo
+### 2.7. Dashboard
 
 | Chức năng | admin | staff | viewer | student |
 |-----------|-------|-------|--------|---------|
 | Dashboard tổng quan | ✅ | ✅ | 👁 | ❌ |
-| Biểu đồ doanh thu | ✅ | 👁 | 👁 | ❌ |
-| Báo cáo giường trống | ✅ | ✅ | 👁 | ❌ |
-| Báo cáo công nợ | ✅ | ✅ | 👁 | ❌ |
-| Báo cáo doanh thu | ✅ | 👁 | 👁 | ❌ |
-| Xuất CSV các báo cáo | ✅ | ✅ | 👁 | ❌ |
+| Tỷ lệ lấp đầy theo tòa | ✅ | ✅ | 👁 | ❌ |
+| Số chỗ trống theo loại phòng | ✅ | ✅ | 👁 | ❌ |
+| Xuất CSV danh sách sinh viên | ✅ | ✅ | 👁 | ❌ |
+
+### 2.8. Nhu yếu phẩm *(v2.1)*
+
+| Chức năng | admin | staff | viewer | student |
+|-----------|-------|-------|--------|---------|
+| Xem danh mục sản phẩm | ✅ | ✅ | 👁 | 🔒 (chỉ món không được cấp sẵn cho phòng mình) |
+| Thêm/sửa sản phẩm, đặt giá, ngừng bán | ✅ | ✅ | ❌ | ❌ |
+| Đặt hàng | ❌ | ❌ | ❌ | 🔒 (cần hợp đồng `active`) |
+| Thanh toán đơn hàng | ❌ | ❌ | ❌ | 🔒 (qua hóa đơn `supplies`) |
+| Thu tiền đơn hàng tại quầy | ✅ | ✅ | ❌ | ❌ |
+| Xem danh sách đơn hàng | ✅ | ✅ | 👁 | 🔒 |
+| Xác nhận đã giao | ✅ | ✅ | ❌ | ❌ |
+| Hủy đơn chờ thanh toán | ✅ | ✅ | ❌ | 🔒 |
 
 ---
 
@@ -148,50 +166,65 @@ flowchart TB
 ### 3.2. Middleware backend
 
 ```js
-// middlewares/auth.middleware.js
-export const authenticate = asyncHandler(async (req, res, next) => {
+// core/middlewares/auth.middleware.js
+// Chữ ký thống nhất toàn dự án: new ApiError(httpStatus, CODE, message) — xem 14 mục 15.2
+const authenticate = asyncHandler(async (req, res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
-    throw new ApiError(401, 'Bạn chưa đăng nhập', 'UNAUTHORIZED');
+    throw new ApiError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
   }
-  const token = header.slice(7);
+
   let payload;
   try {
-    payload = jwt.verify(token, env.JWT_SECRET);
+    payload = jwt.verify(header.slice(7), env.JWT_SECRET);
   } catch (err) {
-    const code = err.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN';
-    throw new ApiError(401, 'Phiên đăng nhập đã hết hạn', code);
+    const code = err.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'UNAUTHORIZED';
+    throw new ApiError(401, code, 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
   }
-  // Kiểm tra lại tài khoản còn hoạt động (phòng trường hợp bị khóa sau khi cấp token)
-  const user = await mongoose.user.findFirst({ where: { id: payload.userId, isActive: true } });
-  if (!user) throw new ApiError(401, 'Tài khoản không còn hiệu lực', 'ACCOUNT_INACTIVE');
 
-  req.user = { id: user.id, role: user.role, studentId: user.studentId, mustChangePassword: user.mustChangePassword };
+  // Kiểm tra lại tài khoản còn hoạt động (phòng trường hợp bị khóa sau khi cấp token)
+  const user = await User.findOne({ _id: payload.userId, isActive: true }).lean();
+  if (!user) throw new ApiError(401, 'UNAUTHORIZED', 'Tài khoản không còn hiệu lực');
+
+  // studentId lấy từ hồ sơ Student gắn với tài khoản — KHÔNG lấy từ client
+  const student = user.role === 'student'
+    ? await Student.findOne({ userId: user._id }).select('_id').lean()
+    : null;
+
+  req.user = {
+    id: user._id,
+    role: user.role,
+    studentId: student?._id ?? null,
+    mustChangePassword: user.mustChangePassword,
+  };
   next();
 });
 
-// Cùng file auth.middleware.js (v1-lite gộp chung, không tách rbac.middleware.js)
-export const authorize = (...allowedRoles) => (req, res, next) => {
+// Cùng file (v1 gộp chung, không tách rbac.middleware.js)
+const authorize = (...allowedRoles) => (req, res, next) => {
   if (!allowedRoles.includes(req.user.role)) {
-    throw new ApiError(403, 'Bạn không có quyền thực hiện thao tác này', 'FORBIDDEN');
+    throw new ApiError(403, 'FORBIDDEN', 'Bạn không có quyền thực hiện thao tác này');
   }
   next();
 };
 
 // Middleware riêng cho cổng sinh viên
-export const requireLinkedStudent = (req, res, next) => {
+const requireLinkedStudent = (req, res, next) => {
   if (req.user.role !== 'student' || !req.user.studentId) {
-    throw new ApiError(403, 'Tài khoản chưa được liên kết với hồ sơ sinh viên', 'STUDENT_NOT_LINKED');
+    throw new ApiError(403, 'FORBIDDEN', 'Tài khoản chưa được liên kết với hồ sơ sinh viên');
   }
   next();
 };
+
+module.exports = { authenticate, authorize, requireLinkedStudent };
 ```
 
 **Cách dùng trong route:**
 ```js
 router.get('/students',        authenticate, authorize('admin','staff','viewer'), studentController.list);
 router.post('/students',       authenticate, authorize('admin','staff'),          studentController.create);
-router.delete('/buildings/:id',authenticate, authorize('admin'),                  buildingController.remove);
+router.put('/room-types/:id', authenticate, authorize('admin'),                  roomTypeController.update);
+router.patch('/applications/:id/approve', authenticate, authorize('admin','staff'), applicationController.approve);
 router.use('/portal',          authenticate, authorize('student'), requireLinkedStudent, portalRoutes);
 ```
 
@@ -207,18 +240,21 @@ const invoices = await invoiceService.findByStudent(req.query.studentId);
 
 **Cách làm ĐÚNG:**
 ```js
-// ✅ Luôn lấy studentId từ JWT (BR-85)
+// ✅ Luôn lấy studentId từ JWT (BR-86)
 const invoices = await invoiceService.findByStudent(req.user.studentId);
 
 // ✅ Với truy cập theo id cụ thể, phải kiểm tra quyền sở hữu
-export const getMyInvoiceDetail = asyncHandler(async (req, res) => {
+const getMyInvoiceDetail = asyncHandler(async (req, res) => {
   const invoice = await invoiceService.findById(req.params.id);
-  if (!invoice) throw new ApiError(404, 'Không tìm thấy hóa đơn', 'NOT_FOUND');
-  if (invoice.studentId !== req.user.studentId) {
-    // Trả 403, KHÔNG trả 404 khác biệt để tránh lộ sự tồn tại của bản ghi
-    throw new ApiError(403, 'Bạn không có quyền truy cập dữ liệu này', 'FORBIDDEN_RESOURCE');
+  if (!invoice) throw new ApiError(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
+
+  // ⚠️ ObjectId là object — so bằng !== thì LUÔN khác nhau và chặn nhầm cả chủ sở hữu.
+  //    Phải dùng .equals() (hoặc so hai chuỗi String(a) === String(b)).
+  if (!invoice.studentId.equals(req.user.studentId)) {
+    // Trả 403 chứ không trả 404, để không lộ bản ghi có tồn tại hay không
+    throw new ApiError(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này');
   }
-  res.json(ApiResponse.success(invoice));
+  res.json({ code: 'OK', message: 'Success', data: invoice });
 });
 ```
 
@@ -226,18 +262,24 @@ export const getMyInvoiceDetail = asyncHandler(async (req, res) => {
 
 | Endpoint | Kiểm tra |
 |----------|----------|
-| `GET /portal/my-invoices/:id` | `invoice.studentId === req.user.studentId` |
-| `POST /portal/my-invoices/:id/pay` | như trên |
-| `DELETE /api/portal/my-requests/:id` | `request.studentId === req.user.studentId` và `status = 'pending'` |
-| `DELETE /portal/my-requests/:id` | `request.studentId === req.user.studentId` và `status = 'pending'` |
-| `GET /portal/my-roommates` | Lấy `roomId` từ hợp đồng của chính sinh viên |
+| `GET /api/portal/my-invoices/:id` | `invoice.studentId.equals(req.user.studentId)` |
+| `POST /api/payments/online/checkout` | hóa đơn trong body thuộc về `req.user.studentId` |
+| `DELETE /api/portal/my-requests/:id` | `request.studentId` khớp **và** `status === 'pending'` |
+| `DELETE /api/portal/my-applications/:id` | `application.studentId` khớp **và** `status === 'pending'` *(v2.1)* |
+| `PATCH /api/portal/my-supply-orders/:id/cancel` | `order.studentId` khớp **và** `status === 'pending_payment'` *(v2.1)* |
+| `GET /api/portal/my-residence` | lấy phòng từ Residency `active` của chính sinh viên; bạn cùng phòng chỉ trả họ tên + MSSV |
+| `POST /api/portal/my-applications`, `POST /api/portal/my-supply-orders` | **không nhận** `studentId` trong body — lấy từ JWT *(v2.1)* |
+
+> ⚠️ **Hai trường hợp đặc biệt của v2.1:**
+> - `GET /api/rooms/available` và `GET /api/room-types?withAvailability=true` với vai trò `student`: lọc giới tính theo **hồ sơ của chính sinh viên**, bỏ qua mọi tham số `gender` client gửi lên. Nếu không, sinh viên nam gửi `?gender=female` là xem được và nộp đơn vào phòng nữ (backend vẫn chặn khi nộp nhờ BR-06, nhưng không được để lộ ngay từ bước xem).
+> - `POST /api/portal/my-supply-orders`: **không nhận giá** từ client (BR-92). Client gửi giá thấp hơn thì sinh viên mua được hàng rẻ hơn giá thật.
 
 ### 3.4. Bảo vệ route phía Frontend
 
 ```jsx
 // routes/RoleRoute.jsx
 export function RoleRoute({ allowed, children }) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
@@ -268,21 +310,23 @@ export function RoleRoute({ allowed, children }) {
 
 **Ẩn nút theo quyền:**
 ```jsx
-// utils/permission.js — dùng chung một nguồn quy tắc
+// utils/permission.js — một nguồn quy tắc duy nhất cho giao diện (bản đầy đủ nằm ở file code)
 const PERMISSIONS = {
-  'student:create':   ['admin', 'staff'],
-  'student:delete':   ['admin', 'staff'],
-  'building:delete':  ['admin'],
-  'contract:approve': ['admin', 'staff'],
-  'invoice:create':   ['admin', 'staff'],
-  'payment:record':   ['admin', 'staff'],
-  'user:manage':      ['admin'],
+  'student:create':     ['admin', 'staff'],
+  'roomType:manage':    ['admin'],
+  'room:create':        ['admin', 'staff'],
+  'application:review': ['admin', 'staff'],
+  'invoice:create':     ['admin', 'staff'],
+  'payment:record':     ['admin', 'staff'],
+  'supply:manage':      ['admin', 'staff'],
+  'supplyOrder:deliver':['admin', 'staff'],
+  'user:manage':        ['admin'],
 };
 
 export const can = (user, action) => PERMISSIONS[action]?.includes(user?.role) ?? false;
 
 // Trong component
-{can(user, 'contract:approve') && <Button onClick={handleApprove}>Duyệt</Button>}
+{can(user, 'application:review') && <Button onClick={handleApprove}>Duyệt và xếp phòng</Button>}
 ```
 
 ---
@@ -349,39 +393,30 @@ sequenceDiagram
 
 ### 4.3. Axios interceptor xử lý token
 
+Code thật nằm ở `src/lib/axiosClient.js`. v1 **không có refresh token** (FR-08): gặp `401` là xóa phiên và về trang đăng nhập.
+
 ```js
-// api/axiosClient.js
+// src/lib/axiosClient.js
 axiosClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
+  const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-let refreshPromise = null; // Gộp nhiều request cùng lúc vào 1 lần refresh
-
 axiosClient.interceptors.response.use(
-  (res) => res,
-  async (error) => {
-    const original = error.config;
-    const errorCode = error.response?.data?.errorCode;
-
-    if (error.response?.status === 401 && errorCode === 'TOKEN_EXPIRED' && !original._retry) {
-      original._retry = true;
-      refreshPromise ??= authApi.refresh().finally(() => { refreshPromise = null; });
-      try {
-        const { accessToken } = await refreshPromise;
-        useAuthStore.getState().setAccessToken(accessToken);
-        original.headers.Authorization = `Bearer ${accessToken}`;
-        return axiosClient(original);
-      } catch {
-        useAuthStore.getState().logout();
-        window.location.href = '/login';
-      }
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/login') window.location.href = '/login';
     }
     return Promise.reject(error);
-  }
+  },
 );
 ```
+
+> Mã lỗi đọc ở `error.response.data.code` (envelope `API.md` §1.1), **không phải** `errorCode`. Dùng sẵn `getErrorCode(err)` và `getErrorMessage(err)` trong cùng file.
 
 ---
 
@@ -462,7 +497,7 @@ app.use('/api',               rateLimit({ windowMs: 15*60*1000, max: 300 }));
 | # | Hạng mục | Cách kiểm tra | Đạt |
 |---|----------|---------------|-----|
 | 1 | Mọi endpoint (trừ nhóm công khai) đều có `authenticate` | Rà toàn bộ file route | ☐ |
-| 2 | Mọi endpoint đều có `authorize` đúng theo ma trận mục 2 | Đối chiếu bảng mục 15 của `API.md` | ☐ |
+| 2 | Mọi endpoint đều có `authorize` đúng theo ma trận mục 2 | Đối chiếu cột Roles trong các bảng endpoint mục 2–12 của `API.md` | ☐ |
 | 3 | Mọi endpoint `/portal/*` lấy `studentId` từ JWT, không từ client | `grep -rn "req.query.studentId\|req.body.studentId" src/` phải không có kết quả | ☐ |
 | 4 | Đã kiểm tra ownership ở các endpoint theo bảng mục 3.3 | Test thủ công: đăng nhập SV A, gọi API với ID của SV B → phải trả 403 | ☐ |
 | 5 | Không có mật khẩu/token nào lọt vào response hoặc log | Rà response mẫu + đọc file log | ☐ |
@@ -475,6 +510,8 @@ app.use('/api',               rateLimit({ windowMs: 15*60*1000, max: 300 }));
 | 12 | Production chạy trên HTTPS | Kiểm tra URL deploy | ☐ |
 | 13 | Thông báo lỗi không lộ chi tiết kỹ thuật (stack trace) ra client | Gây lỗi 500 chủ ý, kiểm tra response | ☐ |
 | 14 | Đã chạy `npm audit` và xử lý lỗ hổng mức high/critical | `npm audit --audit-level=high` | ☐ |
+| 15 | Không so sánh ObjectId bằng `===`/`!==` | `grep -rn "studentId !==\|studentId ===" src/` phải không có kết quả | ☐ |
+| 16 | Không API nào nhận `bedId`, `price`, `unitPrice`, `totalAmount` từ client *(v2.1)* | Rà các validator của `applications` và `supply-orders` | ☐ |
 
 ---
 
@@ -484,5 +521,6 @@ app.use('/api',               rateLimit({ windowMs: 15*60*1000, max: 300 }));
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | Cả nhóm | Chốt ma trận RBAC 4 vai trò, luồng JWT, checklist bảo mật |
 | v1.1 | 12/09/2026 | BE Lead | Thêm quyền đặt lại mật khẩu (FR-09) kèm rào chặn leo thang đặc quyền Staff → Admin |
-| **v2.0** | **12/09/2026** | BE Lead | **Rà soát theo bộ tài liệu v2.0:** vai trò và trạng thái đổi sang chữ thường; bỏ quyền chuyển phòng và nộp đơn của sinh viên (ngoài phạm vi v1); thêm quyền tạo Residency và kích hoạt hợp đồng; đăng nhập bằng email; `passwordHash` dùng `select: false` của Mongoose |
+| **v2.1** | **13/09/2026** | BE Lead | **Đăng ký theo phòng + nhu yếu phẩm:** viết lại ma trận 2.3 (loại phòng — chỉ Admin đặt giá; bỏ thêm/xóa giường), 2.4 (đơn đăng ký, tự gán giường); thêm 2.8 Nhu yếu phẩm; rút gọn 2.7 theo phạm vi. Bảng ownership thêm đơn đăng ký, đơn hàng và hai trường hợp lọc giới tính / không nhận giá từ client. **Sửa mẫu code hỏng:** middleware còn cú pháp Prisma (`mongoose.user.findFirst({ where })`), thứ tự tham số `ApiError` ngược với phần còn lại của bộ tài liệu, so sánh ObjectId bằng `!==` (luôn chặn nhầm chủ sở hữu), mã lỗi không có trong `API.md`. Checklist thêm mục 15–16. |
+| v2.0 | 12/09/2026 | BE Lead | **Rà soát theo bộ tài liệu v2.0:** vai trò và trạng thái đổi sang chữ thường; bỏ quyền chuyển phòng và nộp đơn của sinh viên (ngoài phạm vi v1); thêm quyền tạo Residency và kích hoạt hợp đồng; đăng nhập bằng email; `passwordHash` dùng `select: false` của Mongoose |
 | v1.2 | 12/09/2026 | BE Lead | **Áp dụng v1-lite:** 1 JWT hạn 7 ngày (bỏ refresh token); gộp `rbac.middleware.js` vào `auth.middleware.js`; ghi nhật ký ra file thay bảng `audit_log`; xuất CSV thay Excel; làm rõ vì sao nhận kết quả thanh toán qua Return URL vẫn an toàn. Xem `14` |

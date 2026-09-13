@@ -48,7 +48,7 @@ CHƯƠNG 2: PHÂN TÍCH VÀ ĐẶC TẢ YÊU CẦU           (~25 trang)
   2.2. Xác định tác nhân
   2.3. Yêu cầu chức năng
        2.3.1. Quản lý sinh viên
-       2.3.2. Quản lý tòa nhà, phòng, giường
+       2.3.2. Quản lý tòa nhà, loại phòng, phòng, giường
        2.3.3. Đăng ký lưu trú và hợp đồng
        2.3.4. Quản lý phí và thanh toán
        2.3.5. Dashboard và báo cáo
@@ -101,7 +101,7 @@ CHƯƠNG 4: CÀI ĐẶT VÀ TRIỂN KHAI                 (~25 trang)
        4.3.7. Cổng sinh viên
        4.3.8. Dashboard và báo cáo
   4.4. Xử lý các vấn đề kỹ thuật nổi bật
-       4.4.1. Chống xếp trùng giường bằng transaction và cập nhật có điều kiện
+       4.4.1. Chống xếp trùng giường bằng cập nhật có điều kiện nguyên tử
        4.4.2. Đảm bảo idempotent khi xử lý kết quả thanh toán
        4.4.3. Thuật toán chia đều chi phí điện nước
        4.4.4. Tác vụ nền tự động hóa nghiệp vụ
@@ -150,7 +150,7 @@ PHỤ LỤC
 | **2.6 Phân tích nghiệp vụ** | `03` toàn bộ | Xuất máy trạng thái và luồng quy trình thành ảnh |
 | **3.1 Kiến trúc** | `ARCHITECTURE.md` mục 1, 2, 3 | Mục 3.1.4 "Lựa chọn công nghệ và lý do": lấy lập luận từ `14` mục 10 |
 | **3.2 Cơ sở dữ liệu** | `DATA-SCHEMA.md` mục 1, 2, 3, 7 | Xuất ERD thành ảnh chất lượng cao |
-| **3.3 API** | `API.md` mục 1, 15 + chọn lọc ví dụ | Không đưa toàn bộ 53 endpoint vào thân bài — để ở Phụ lục B |
+| **3.3 API** | `API.md` mục 1, 13 + chọn lọc ví dụ | Không đưa toàn bộ 53 endpoint vào thân bài — để ở Phụ lục B |
 | **3.4 Phân quyền & bảo mật** | `07` mục 1, 2, 3, 4, 5 | – |
 | **3.5 Giao diện** | `08` mục 1, 2, 4, 6 | Thay wireframe ASCII bằng ảnh chụp màn hình thật |
 | **4.1 Môi trường phát triển** | `ARCHITECTURE.md` mục 2 + `13` mục 3 | Ảnh chụp VS Code, cấu hình |
@@ -165,7 +165,7 @@ PHỤ LỤC
 | **Kết luận** | Tổng hợp | **Viết mới** |
 | **Hướng phát triển** | `01` mục 3.2 (cột "Dự kiến v2") | – |
 | **Phụ lục A** | `02` mục 3 (bảng đầy đủ) | – |
-| **Phụ lục B** | `API.md` mục 15 | – |
+| **Phụ lục B** | `API.md` mục 2–12 (bảng endpoint) | – |
 | **Phụ lục C** | `11` mục 4 | – |
 | **Phụ lục D** | `13` mục 3, 7 | – |
 | **Phụ lục E** | `09` mục 1, 3, 5 | Bảng % đóng góp từng thành viên |
@@ -215,38 +215,39 @@ Giảng viên đánh giá cao những chỗ nhóm **giải quyết vấn đề k
 ### 4.4.1. Chống xếp trùng giường
 
 **Cấu trúc trình bày:**
-1. **Nêu vấn đề:** hai sinh viên cùng chọn một giường tại cùng thời điểm → race condition. Vẽ sơ đồ thời gian minh họa cách hai request xen kẽ nhau gây lỗi.
+1. **Nêu vấn đề:** hai nhân viên cùng duyệt hai đơn nhắm vào chỗ trống cuối cùng của một phòng tại cùng thời điểm → race condition. Vẽ sơ đồ thời gian minh họa cách hai request xen kẽ nhau gây lỗi.
 2. **Phân tích các giải pháp:**
    - Chỉ kiểm tra ở tầng ứng dụng → **không đủ**, vì có khoảng trống giữa lúc kiểm tra và lúc ghi.
-   - Khóa toàn bảng → an toàn nhưng chặn hết các thao tác khác, hiệu năng kém.
-   - Khóa hàng bi quan (`SELECT ... FOR UPDATE`) + partial unique index → đúng, nhưng cần SQL thô, cần migration thủ công và **chỉ chạy trên MongoDB**.
-   - **Giải pháp đã chọn:** `UPDATE bed SET status=... WHERE id=? AND status='available'` trong transaction, rồi kiểm tra số dòng bị ảnh hưởng. Một câu `UPDATE` là thao tác nguyên tử nên chỉ một trong hai người đổi được dòng.
-3. **Cài đặt:** trích đoạn code `ContractService.approve()` và câu lệnh tạo index.
-4. **Kiểm chứng:** mô tả test case TC-72 (hai Staff cùng xếp sinh viên vào một giường) và kết quả.
+   - Transaction MongoDB → đúng, nhưng **bắt buộc replica set**; `mongod` chạy thường trên máy từng thành viên sẽ báo lỗi.
+   - Thêm trạng thái "giữ chỗ" cho giường → phải viết thêm logic nhả chỗ khi đơn bị bỏ quên, sinh ra phòng "đầy ảo".
+   - **Giải pháp đã chọn:** một lệnh `findOneAndUpdate({ roomId, status: 'available' }, { $set: { status: 'occupied' } }, { sort: { bedNumber: 1 } })`. Tìm và ghi nằm trong **cùng một thao tác nguyên tử trên một document**, nên chỉ một trong hai lệnh lấy được giường; lệnh kia nhận `null` → `409 ROOM_FULL`. Lớp bảo vệ thứ hai: partial unique index trên `Residency.bedId` khi `status: 'active'`.
+   - **Quyết định nghiệp vụ đi kèm:** không ai chọn giường — hệ thống tự gán. Nhờ vậy cả hệ thống chỉ có **một** hàm chiếm giường cần làm đúng.
+3. **Cài đặt:** trích `bedService.claimBedInRoom()`, đoạn bù trừ trong `applicationService.approve()` (trả giường khi bước sau lỗi) và khai báo index.
+4. **Kiểm chứng:** mô tả test case TC-42 (hai Staff cùng duyệt đơn cho chỗ cuối cùng) và TC-53 (lỗi giữa chừng phải trả giường) cùng kết quả.
 
 ### 4.4.2. Đảm bảo idempotent khi xử lý kết quả thanh toán
 
 1. **Nêu vấn đề:** kết quả thanh toán có thể đến nhiều lần (người dùng tải lại trang kết quả, hoặc cổng thử lại). Nếu xử lý ngây thơ → ghi nhận thanh toán 2 lần → sinh viên được cộng tiền gấp đôi.
 2. **Phân tích:** vì sao chữ ký HMAC là thứ bảo vệ thật sự (không có secret thì không giả mạo được), và vì sao Return URL kém bền hơn IPN (người dùng đóng trình duyệt thì không ai báo về).
-3. **Giải pháp:** xác thực chữ ký HMAC trước mọi thứ, kiểm tra trạng thái giao dịch trong transaction để đảm bảo idempotent, đối chiếu số tiền, và bổ sung chức năng đối soát thủ công để bù cho đánh đổi trên.
-4. **Cài đặt:** trích code `PaymentService.handleIpn()`.
-5. **Kiểm chứng:** TC-103, TC-104, TC-105.
+3. **Giải pháp:** xác thực chữ ký HMAC trước mọi thứ, kiểm tra giao dịch đã `success` thì thoát sớm (idempotent), đối chiếu số tiền, và bổ sung chức năng đối soát thủ công để bù cho đánh đổi trên. Với đơn nhu yếu phẩm, chuyển trạng thái bằng cập nhật có điều kiện `{ invoiceId, status: 'pending_payment' }` nên kết quả gửi lặp không xử lý hai lần.
+4. **Cài đặt:** trích code `paymentService.confirmPayment()` (`14` mục 4.10).
+5. **Kiểm chứng:** TC-86 (chữ ký sai), TC-87 (gửi trùng), TC-88 (sai số tiền), TC-156 (gửi trùng với đơn nhu yếu phẩm).
 
 ### 4.4.3. Thuật toán chia đều chi phí điện nước
 
 1. **Nêu vấn đề:** tiền điện phòng chia cho N sinh viên thường không chia hết. Nếu làm tròn tùy tiện → tổng các phần không bằng tổng thực tế, gây lệch sổ sách.
 2. **Phân tích:** so sánh `Math.round()` (có thể làm tổng lớn hơn thực tế) với `Math.floor()` + dồn phần dư.
-3. **Giải pháp:** dùng `floor` cho từng người, phần dư dồn vào sinh viên có MSSV nhỏ nhất (BR-51) — đảm bảo bất biến: `Σ phần chia = tổng tiền phòng`.
+3. **Giải pháp:** dùng `floor` cho từng người, phần dư dồn vào sinh viên có MSSV nhỏ nhất (BR-54) — đảm bảo bất biến: `Σ phần chia = tổng tiền phòng`.
 4. **Cài đặt + chứng minh:** đưa ví dụ số cụ thể ở `03` mục 5.2 (7 sinh viên, 576.000đ).
-5. **Kiểm chứng:** TC-86, TC-87 và unit test.
+5. **Kiểm chứng:** TC-66 (chia hết), TC-67 (có dư) và unit test.
 
 ### 4.4.4. Tự động hóa nghiệp vụ bằng tác vụ nền
 
-1. **Nêu vấn đề:** hợp đồng hết hạn, hóa đơn quá hạn, giao dịch treo — nếu chờ người dùng thao tác thì dữ liệu sẽ luôn lệch so với thực tế.
-2. **Giải pháp:** 6 cron job (JOB-01 → JOB-06), mỗi job **idempotent** để chạy lại không gây sai.
+1. **Nêu vấn đề:** hợp đồng hết hạn, hóa đơn quá hạn, giao dịch treo, đơn nhu yếu phẩm bị bỏ quên — nếu chờ người dùng thao tác thì dữ liệu sẽ luôn lệch so với thực tế, và đơn bỏ quên còn bị trừ nhầm vào tiền cọc.
+2. **Giải pháp:** **một** job hằng ngày gồm 5 tác vụ chạy theo thứ tự có chủ đích (hủy đơn nhu yếu phẩm quá hạn **trước** khi đánh dấu hóa đơn quá hạn), mỗi tác vụ **idempotent** để chạy lại không gây sai (`03` mục 7).
 3. **Vấn đề phát sinh:** khi deploy nhiều instance, job có thể chạy trùng → dùng cờ `ENABLE_CRON`.
 4. **Cài đặt:** trích code một job tiêu biểu.
-5. **Kiểm chứng:** TC-77, TC-78, TC-96, TC-108.
+5. **Kiểm chứng:** TC-50 (hợp đồng hết hạn), TC-72 (hóa đơn quá hạn), TC-160 (tự hủy đơn nhu yếu phẩm), TC-110 (trả phòng không trừ hàng chưa nhận).
 
 ---
 
@@ -342,7 +343,7 @@ Giảng viên đánh giá cao những chỗ nhóm **giải quyết vấn đề k
 
 **Kịch bản demo (7 phút) — tập trước cho thuộc:**
 1. Đăng nhập Staff → Dashboard (30 giây)
-2. Staff xếp sinh viên vào giường → kích hoạt hợp đồng → 2 hóa đơn tự sinh (1,5 phút)
+2. Sinh viên nộp đơn đăng ký chỗ ở → Staff duyệt, hệ thống tự gán giường → 2 hóa đơn tự sinh (1,5 phút)
 3. Staff duyệt đơn → hóa đơn tự sinh (1 phút)
 4. Sinh viên thanh toán VNPay sandbox (2 phút)
 5. Staff nhập chỉ số điện nước → lập hóa đơn hàng loạt (1,5 phút)
@@ -359,11 +360,12 @@ Giảng viên đánh giá cao những chỗ nhóm **giải quyết vấn đề k
 | "Vì sao chọn React và Node.js?" | Nêu lý do kỹ thuật (cùng ngôn ngữ JS cho cả FE/BE giảm chi phí chuyển đổi tư duy, hệ sinh thái lớn, phù hợp ứng dụng nhiều tương tác) — xem `ARCHITECTURE.md` mục 2. |
 | "Sao không dùng thư viện X (TanStack Query, Redux...)?" | Trả lời theo mẫu ở `14` mục 10: đã cân nhắc, chọn phương án đơn giản hơn vì nhóm kiểm soát được mã nguồn và ít khái niệm phải học; đánh đổi là mất bộ nhớ đệm tự động, không ảnh hưởng ở quy mô này. **Không** nói "vì thấy khó". |
 | "Vì sao không dùng IPN cho thanh toán?" | Giải thích chữ ký HMAC mới là thứ bảo đảm an toàn; Return URL đủ an toàn, đánh đổi là kém bền khi người dùng đóng trình duyệt — đã bù bằng chức năng đối soát thủ công. Nêu đây là hạn chế đã biết. |
-| "Làm sao đảm bảo 2 sinh viên không cùng một giường?" | Trình bày mục 4.4.1: transaction + khóa hàng + partial unique index. Đây là câu hỏi rất hay gặp. |
+| "Làm sao đảm bảo 2 sinh viên không cùng một giường?" | Trình bày mục 4.4.1: **một** lệnh `findOneAndUpdate` có điều kiện (nguyên tử, không cần transaction) + partial unique index ở tầng CSDL. Đây là câu hỏi rất hay gặp. |
+| "Sao sinh viên không được chọn giường?" | Quyết định nghiệp vụ theo thực tế KTX (`PRD.md` §2.10): đăng ký theo loại phòng, giường do ban quản lý sắp xếp. Về kỹ thuật, nó thu mọi thao tác chiếm giường về đúng một hàm nên dễ đảm bảo đúng. |
 | "Nếu cổng thanh toán gửi thông báo 2 lần thì sao?" | Trình bày mục 4.4.2 về idempotent. |
 | "Sinh viên có thể xem hóa đơn của bạn khác không?" | Không. Giải thích cơ chế lấy `studentId` từ JWT + kiểm tra ownership + test case TC-121 đến TC-124. |
 | "Hệ thống chịu được bao nhiêu người dùng?" | Trả lời trung thực: đã kiểm thử ở mức 50 người đồng thời (NFR-04), chưa kiểm thử tải cao hơn. Nêu hướng mở rộng (thêm index, caching, chạy nhiều instance). |
-| "Vì sao không làm mobile app?" | Nêu rõ đây là quyết định về phạm vi (`01` mục 3.2), web đã responsive; mobile app là hướng phát triển v2. |
+| "Vì sao không làm mobile app?" | Nêu rõ đây là quyết định về phạm vi (`01` mục 3.2). v1 ưu tiên giao diện máy tính, cổng sinh viên đã có thiết kế cho điện thoại; mobile app là hướng phát triển v2. |
 | "Dữ liệu sinh viên lấy từ đâu?" | Staff nhập tay, hoặc nạp sẵn bằng script seed. Import Excel và tích hợp hệ thống đào tạo đều ngoài phạm vi v1 (`PRD.md` §3). |
 | "Chức năng nào nhóm thấy khó nhất?" | Trả lời thật, chọn một trong 4 chủ đề ở mục 4.4 và giải thích quá trình gỡ vấn đề. |
 | "Mỗi người làm gì?" | Dẫn Phụ lục E và ma trận RACI ở `09` mục 5. |

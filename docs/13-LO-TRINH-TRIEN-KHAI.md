@@ -62,9 +62,9 @@ gantt
 |--------|------|------|----------|---------------------|
 | **Sprint 0** | 1–2 | 14/09 – 27/09 | Chốt tài liệu, dựng môi trường | Tài liệu 01–14 xong; cả nhóm chạy được "hello world" FE+BE+DB |
 | **Sprint 1** | 3–4 | 28/09 – 11/10 | Nền tảng + Quản lý sinh viên | Đăng nhập thật được; CRUD sinh viên chạy end-to-end; **deploy thử thành công** |
-| **Sprint 2** | 5–6 | 12/10 – 25/10 | Cơ sở vật chất + Hợp đồng | Xếp được sinh viên vào giường; duyệt đơn sinh hóa đơn tự động |
+| **Sprint 2** | 5–6 | 12/10 – 25/10 | Cơ sở vật chất + Đơn đăng ký + Hợp đồng | Tạo phòng tự sinh giường; duyệt đơn tự gán giường và sinh 2 hóa đơn |
 | **Sprint 3** | 7–8 | 26/10 – 08/11 | Tài chính + Thanh toán | Lập hóa đơn hàng loạt; **thanh toán VNPay sandbox thành công** |
-| **Sprint 4** | 9–10 | 09/11 – 22/11 | Cổng sinh viên + Dashboard | Sinh viên tự đăng ký → thanh toán → trả phòng trọn vẹn |
+| **Sprint 4** | 9–10 | 09/11 – 22/11 | Cổng sinh viên + Nhu yếu phẩm + Dashboard | Sinh viên nộp đơn → được duyệt → thanh toán → mua nhu yếu phẩm → trả phòng trọn vẹn |
 | **Sprint 5** | 11–12 | 23/11 – 05/12 | Kiểm thử, deploy, báo cáo | 0 lỗi Critical/High; hệ thống công khai; báo cáo + slide xong |
 
 ---
@@ -331,23 +331,23 @@ src/
 ├── routes/index.js
 ├── utils/{ApiError.js, ApiResponse.js, asyncHandler.js, logger.js}
 ```
-**Nghiệm thu:** `GET /api/health` trả `{ "success": true, "data": { "status": "ok", "uptime": 12.3 } }`
+**Nghiệm thu:** `GET /api/health` trả `{ "code": "OK", "message": "Success", "data": { "status": "ok", "uptime": 12.3 } }`
 
-**Ngày 2 – Mongoose schema + migration**
+**Ngày 2 – Mongoose schema**
 ```bash
-# Viết mongoose/các file *.model.js theo docs/04, mục 3 — 13 bảng
-npm run seed --name init
-mongosh / MongoDB Compass   # kiểm tra bảng đã tạo đúng
+# Viết các file modules/*/*.model.js theo DATA-SCHEMA.md mục 3 — 16 collection
+npm run dev                 # Mongoose tự tạo collection + index khi server khởi động
+mongosh / MongoDB Compass   # kiểm tra collection và index đã tạo đúng
 ```
-> ✅ **Không cần migration.** Mongoose tự tạo collection và index từ file `*.model.js` ngay lần chạy đầu. BR-20/BR-21 được đảm bảo bằng `findOneAndUpdate` có điều kiện ở tầng service (`14-PHIEN-BAN-DON-GIAN-HOA.md` mục 4.6), cộng với partial unique index khai báo ngay trong schema.
+> ✅ **Không cần migration.** Mongoose tự tạo collection và index từ file `*.model.js` ngay lần chạy đầu. BR-20/BR-21 được đảm bảo bằng `findOneAndUpdate` có điều kiện ở tầng service (`14-PHIEN-BAN-DON-GIAN-HOA.md` mục 4.6 — hàm `claimBedInRoom`), cộng với partial unique index khai báo ngay trong schema.
 
 **Ngày 3 – Seed dữ liệu**
 ```bash
 npm install -D @faker-js/faker
-# Viết mongoose/seed.js theo docs/04, mục 4
+# Viết src/seed.js: loại phòng → tòa → phòng (giường tự sinh) → sinh viên → đơn đăng ký → duyệt một phần → sản phẩm
 npm run seed
 ```
-**Nghiệm thu:** CSDL có 3 tòa, 60 phòng, 400+ giường, 120 sinh viên, 4 tài khoản.
+**Nghiệm thu:** CSDL có đủ dữ liệu theo `11` mục 2.3 — ít nhất 4 loại phòng, 20 phòng (giường tự sinh), 40 sinh viên, đơn đăng ký và đơn nhu yếu phẩm ở đủ các trạng thái, 6 tài khoản test.
 
 **Ngày 4–5 – Xác thực**
 Cài `/api/auth/login`, `/api/auth/register`, `/api/auth/me`, `/api/auth/logout`, `/api/auth/change-password`, `/api/users/:id/reset-password` + middleware `authenticate`, `authorize`. **Không có** `/auth/refresh` — v1 dùng 1 JWT hạn 7 ngày.
@@ -479,7 +479,7 @@ Trên Windows PowerShell:
 $env:MONGODB_URI="mongodb+srv://..."; npm run seed
 ```
 
-Mở MongoDB Compass, kết nối vào cụm và kiểm tra database `dms_ktx` đã có đủ 12 collection.
+Mở MongoDB Compass, kết nối vào cụm và kiểm tra database `dms_ktx` đã có đủ 16 collection.
 
 #### Các lỗi thường gặp khi deploy lần đầu
 
@@ -511,35 +511,35 @@ Mở MongoDB Compass, kết nối vào cụm và kiểm tra database `dms_ktx` �
 
 ## 5. Sprint 2 → Sprint 4: Phát triển tính năng
 
-### 5.1. Sprint 2 (Tuần 5–6) – Cơ sở vật chất + Hợp đồng
+### 5.1. Sprint 2 (Tuần 5–6) – Cơ sở vật chất + Đơn đăng ký + Hợp đồng
 
 | Tuần | Ngày | Backend | Frontend |
 |------|------|---------|----------|
-| 5 | T2–T3 | API tòa nhà, phòng, giường (CRUD + sinh giường) | Màn hình tòa nhà, phòng |
-| 5 | T4 | API sơ đồ tòa + tra cứu giường trống | Màn hình chi tiết phòng & quản lý giường |
-| 5 | T5–T6 | **`ContractService` — `createApplication()` + `approve()`** (đọc `14` mục 4.6 trước) | Màn hình sơ đồ tòa nhà |
-| 6 | T2–T3 | API hợp đồng: tạo, từ chối, chấm dứt | Màn hình danh sách + chi tiết hợp đồng |
-| 6 | T4 | API kích hoạt hợp đồng, danh sách sắp hết hạn | Màn hình đăng ký lưu trú (Staff xếp giường) |
-| 6 | T5 | API yêu cầu gia hạn/trả phòng + duyệt | Màn hình tạo hợp đồng + `BedPicker` |
-| 6 | T6 | Cron jobs JOB-01 → JOB-05 | Màn hình danh sách & xử lý yêu cầu |
+| 5 | T2–T3 | API tòa nhà, **loại phòng**, phòng (giường tự sinh) | Màn hình loại phòng, tòa nhà |
+| 5 | T4 | API phòng còn chỗ (lọc giới tính theo JWT) + chi tiết phòng | Màn hình phòng: sơ đồ tầng + drawer |
+| 5 | T5–T6 | **`bedService.claimBedInRoom` + `applicationService`: nộp, duyệt, từ chối, hủy** (đọc `14` mục 4.6 trước) | Màn hình duyệt đơn đăng ký (dùng dữ liệu giả) |
+| 6 | T2–T3 | API hợp đồng: danh sách, chi tiết, chấm dứt, sắp hết hạn | Màn hình hợp đồng |
+| 6 | T4 | API `/portal/my-applications` | Cổng SV: đăng ký chỗ ở 3 bước |
+| 6 | T5 | API yêu cầu gia hạn/trả phòng + duyệt | Màn hình yêu cầu + quyết toán |
+| 6 | T6 | Cron job hằng ngày (5 tác vụ) | Trang chủ sinh viên 3 trạng thái |
 | 6 | T7 | **Kiểm thử chéo + sửa lỗi** | **Kiểm thử chéo + sửa lỗi** |
 
 **⚠️ Cảnh báo cho tuần 5, T5–T6:** đây là phần nghiệp vụ quan trọng nhất hệ thống. Đọc **`14` mục 4.6** (có mã nguồn mẫu đầy đủ) trước khi code, rồi đối chiếu `03` mục 4.1. Bắt buộc:
-- Bọc `phiên ghi nhiều bước()`
-- Chiếm giường bằng `Bed.findOneAndUpdate({ _id: bedId, status: 'available' }, { status: 'occupied' }, { new: true })` rồi **kiểm tra kết quả có `null` không**
-- Kiểm tra đủ BR-20, BR-21, BR-06 (giới tính so với `room.gender`)
-- Sinh **2 hóa đơn** kỳ đầu (`deposit` + `monthly`) **trong cùng** transaction — BR-25
-- Test ngay TC-72 bằng 2 trình duyệt
+- Chiếm giường bằng **một** lệnh `Bed.findOneAndUpdate({ roomId, status: 'available' }, { $set: { status: 'occupied' } }, { sort: { bedNumber: 1 }, new: true })` rồi **kiểm tra kết quả có `null` không** → `409 ROOM_FULL`
+- Không API nào nhận `bedId` từ client (BR-38)
+- Kiểm tra giới tính so với `room.gender` **cả khi nộp lẫn khi duyệt** (BR-06); đổi phòng chỉ trong cùng loại (BR-35)
+- Gán giường **trước**, rồi tạo Residency → Contract → **2 hóa đơn** (`deposit` + `monthly`, BR-25); lỗi ở bước sau thì **trả giường** (BR-36)
+- Test ngay TC-42 bằng 2 trình duyệt và TC-53 bằng cách tạm ném lỗi
 
 **Cột mốc nghiệm thu Sprint 2:**
 
 | # | Tiêu chí | ☐ |
 |---|----------|---|
-| 1 | Tạo được tòa → phòng → giường đầy đủ | ☐ |
-| 2 | Xếp sinh viên vào giường thành công, hóa đơn kỳ đầu tự sinh | ☐ |
-| 3 | TC-61, TC-62, TC-63 (xếp trùng giường, trùng SV, sai giới tính) đều chặn đúng | ☐ |
-| 4 | **TC-72 (race condition 2 người cùng chọn 1 giường) đạt** | ☐ |
-| 5 | Luồng duyệt/từ chối đơn hoạt động | ☐ |
+| 1 | Tạo được loại phòng → tòa → phòng; giường tự sinh đúng sức chứa (TC-30) | ☐ |
+| 2 | Sinh viên nộp đơn, Staff duyệt: tự gán giường số nhỏ nhất, hóa đơn kỳ đầu tự sinh (TC-40, TC-46) | ☐ |
+| 3 | TC-43, TC-44, TC-45, TC-52 (sai giới tính, đổi phòng khác giới, SV đã có hợp đồng, đổi phòng khác loại) đều chặn đúng | ☐ |
+| 4 | **TC-42 (tranh chấp chỗ cuối cùng) và TC-53 (trả giường khi lỗi) đạt** | ☐ |
+| 5 | Luồng từ chối / hủy đơn hoạt động (TC-55, TC-56) | ☐ |
 | 6 | Trả phòng giải phóng giường đúng | ☐ |
 | 7 | Cron job chạy đúng khi test thủ công | ☐ |
 
@@ -630,7 +630,7 @@ Ba test bảo mật quan trọng nhất kiểm tra bằng **Postman**, không c�
 POST http://localhost:5000/api/payments/vnpay/verify
 Body: { "vnp_TxnRef": "PAY...", "vnp_Amount": "24600000",
         "vnp_ResponseCode": "00", "vnp_SecureHash": "chuoi_bia_dat" }
-→ phải trả 400 INVALID_SIGNATURE   (TC-103)
+→ phải trả 400 GATEWAY_SIGNATURE_INVALID   (TC-86)
 ```
 
 **Bước 6 – Các trường hợp bắt buộc test**
@@ -639,9 +639,9 @@ Body: { "vnp_TxnRef": "PAY...", "vnp_Amount": "24600000",
 |------------|------------------|-----|-----------|
 | Thanh toán thành công | Hóa đơn → PAID | TC-101 | Trình duyệt + thẻ test |
 | Người dùng hủy | Payment FAILED, hóa đơn không đổi | TC-102 | Trình duyệt |
-| Chữ ký sai | `400 INVALID_SIGNATURE`, không cập nhật gì | TC-103 | **Postman** |
-| Gọi `verify` lần 2 | `alreadyConfirmed: true`, chỉ 1 bản ghi payment | TC-104 | **Postman** |
-| Số tiền không khớp | `422 AMOUNT_MISMATCH`, NEEDS_RECONCILIATION | TC-105 | **Postman** |
+| Chữ ký sai | `400 GATEWAY_SIGNATURE_INVALID`, không cập nhật gì | TC-86 | **Postman** |
+| Gọi `verify` lần 2 | `alreadyConfirmed: true`, chỉ 1 bản ghi payment | TC-87 | **Postman** |
+| Số tiền không khớp | `422 AMOUNT_MISMATCH`, giao dịch được đánh dấu cần đối soát | TC-88 | **Postman** |
 | SV đóng trình duyệt giữa chừng | Nhân viên bấm "Đối soát", giao dịch về đúng trạng thái | TC-107 | Trình duyệt |
 
 **Cột mốc nghiệm thu Sprint 3:**
@@ -653,38 +653,37 @@ Body: { "vnp_TxnRef": "PAY...", "vnp_Amount": "24600000",
 | 3 | **TC-86, TC-87 (chia đều điện nước, có dư) đạt** | ☐ |
 | 4 | Thanh toán một phần cập nhật đúng trạng thái | ☐ |
 | 5 | **Thanh toán VNPay sandbox thành công end-to-end (trên localhost, không cần ngrok)** | ☐ |
-| 6 | **TC-103, TC-104, TC-105 (bảo mật thanh toán) đều đạt qua Postman** | ☐ |
+| 6 | **TC-86, TC-87, TC-88 (bảo mật thanh toán) đều đạt qua Postman** | ☐ |
 
-### 5.3. Sprint 4 (Tuần 9–10) – Cổng sinh viên + Dashboard
+### 5.3. Sprint 4 (Tuần 9–10) – Cổng sinh viên + Nhu yếu phẩm + Dashboard
 
 | Tuần | Ngày | Backend | Frontend |
 |------|------|---------|----------|
-| 9 | T2 | API `/portal/*`: hồ sơ, cư trú, bạn cùng phòng | PortalLayout + trang chủ sinh viên |
-| 9 | T3 | API cổng SV (chỉ đọc, lọc theo JWT) | Màn hình chỗ ở của tôi + hợp đồng |
-| 9 | T4 | API hóa đơn + thanh toán cho SV (có ownership check) | Màn hình tra cứu giường trống |
-| 9 | T5–T6 | API gửi yêu cầu gia hạn/trả phòng cho SV | Màn hình gửi yêu cầu |
-| 10 | T2 | API dashboard tổng hợp (tối ưu truy vấn) | Màn hình hóa đơn + thanh toán |
-| 10 | T3 | API báo cáo + xuất Excel | Màn hình kết quả thanh toán (có polling) |
-| 10 | T4–T5 | Tối ưu hiệu năng, thêm index | Dashboard + biểu đồ |
-| 10 | T6 | **Rà soát bảo mật `/portal/*`** | Trung tâm báo cáo + responsive |
-| 10 | T7 | Kiểm thử chéo | Kiểm thử chéo |
+| 9 | T2 | API `/portal/*`: hồ sơ, chỗ ở (kèm đồ cấp sẵn, bạn cùng phòng) | Cổng SV: chỗ ở & hợp đồng, hồ sơ |
+| 9 | T3 | API danh mục nhu yếu phẩm | Cổng SV: hóa đơn (danh sách + chi tiết) + thanh toán |
+| 9 | T4–T5 | **`supplyOrderService`: đặt (giá tính ở server), hủy, giao, `markReady`, tự hủy quá hạn** | Cổng SV: kết quả thanh toán (có polling) · yêu cầu của tôi |
+| 9 | T6 | Nối `markReady` vào `payment.service` (online + tại quầy) | Cổng SV: mua sắm + đơn hàng của tôi |
+| 10 | T2 | API dashboard tổng hợp (tối ưu truy vấn) | Nhu yếu phẩm quản trị (2 tab) |
+| 10 | T3–T4 | Tối ưu hiệu năng, thêm index | Dashboard + biểu đồ lấp đầy |
+| 10 | T5 | **Rà soát bảo mật `/portal/*`** | Rà soát giao diện máy tính toàn bộ ở 1280px |
+| 10 | T6–T7 | Kiểm thử chéo | Kiểm thử chéo |
 
-**⚠️ Ngày T6 tuần 10 — bắt buộc rà soát bảo mật cổng sinh viên:**
+**⚠️ Ngày T5 tuần 10 — bắt buộc rà soát bảo mật cổng sinh viên:**
 ```bash
 # Trong repo backend, lệnh này phải KHÔNG có kết quả:
-grep -rn "req.query.studentId\|req.body.studentId\|req.params.studentId" src/routes/portal* src/controllers/portal*
+grep -rn "req.query.studentId\|req.body.studentId\|req.params.studentId\|req.body.bedId\|req.body.price\|req.body.totalAmount" src/modules
 ```
-Test thủ công TC-121 → TC-124: đăng nhập SV C, thử truy cập dữ liệu của SV A bằng Postman → phải trả 403 ở mọi trường hợp.
+Test thủ công TC-121 → TC-124 và TC-129: đăng nhập SV C, thử truy cập dữ liệu của SV A bằng Postman → phải trả 403 ở mọi trường hợp. Test TC-152: gửi giá giả khi đặt hàng → bị bỏ qua.
 
 **Cột mốc nghiệm thu Sprint 4:**
 
 | # | Tiêu chí | ☐ |
 |---|----------|---|
-| 1 | Staff xếp giường → SV đăng nhập xem chỗ ở → thanh toán online → gửi yêu cầu trả phòng → Staff duyệt + quyết toán cọc | ☐ |
-| 2 | **TC-121 → TC-124 (IDOR) đều trả 403** | ☐ |
-| 3 | Cổng sinh viên chạy tốt trên màn hình 375px | ☐ |
-| 4 | Dashboard hiển thị đúng số liệu, phản hồi < 2 giây | ☐ |
-| 5 | Xuất được báo cáo Excel | ☐ |
+| 1 | SV nộp đơn → Staff duyệt → SV xem chỗ ở → thanh toán online → mua nhu yếu phẩm → gửi yêu cầu trả phòng → Staff duyệt + quyết toán cọc (`11` UAT-01) | ☐ |
+| 2 | **TC-121 → TC-124, TC-129 (IDOR) đều trả 403** | ☐ |
+| 3 | **TC-152, TC-156, TC-160 (giá giả, webhook lặp, tự hủy đơn quá hạn) đạt** | ☐ |
+| 4 | Toàn bộ màn hình chạy tốt ở 1280px (bản điện thoại làm sau) | ☐ |
+| 5 | Dashboard hiển thị đúng số liệu, phản hồi < 2 giây | ☐ |
 
 ---
 
@@ -694,11 +693,11 @@ Test thủ công TC-121 → TC-124: đăng nhập SV C, thử truy cập dữ li
 
 | Ngày | Việc | Người |
 |------|------|-------|
-| T2 | Chạy toàn bộ test case module xác thực, sinh viên, cơ sở vật chất (TC-01 → TC-53) | BA + 1 dev |
-| T3 | Chạy test case hợp đồng, tài chính (TC-60 → TC-96) | BA + 1 dev |
-| T4 | Chạy test case thanh toán online, cổng SV (TC-100 → TC-137) | BA + BE Lead |
+| T2 | Chạy test case xác thực, sinh viên, cơ sở vật chất, đơn đăng ký & hợp đồng (TC-01 → TC-56) | BA + 1 dev |
+| T3 | Chạy test case chỉ số điện nước, hóa đơn, thanh toán (TC-60 → TC-89) | BA + 1 dev |
+| T4 | Chạy test case gia hạn/trả phòng, cổng SV (TC-100 → TC-129) | BA + BE Lead |
 | T4 | Chạy checklist bảo mật (`07` mục 6) + `/security-review` | BE Lead |
-| T5 | Chạy test phi chức năng (TC-160 → TC-168) | FE Lead |
+| T5 | Chạy test dashboard, phi chức năng, nhu yếu phẩm (TC-140 → TC-161) | FE Lead + FE Dev |
 | T5–T6 | **Sửa lỗi Critical/High** | Cả nhóm |
 | T7 | Chạy lại các test case đã thất bại (regression) | BA |
 
@@ -715,7 +714,7 @@ Test thủ công TC-121 → TC-124: đăng nhập SV C, thử truy cập dữ li
 | 1 | Nhánh `develop` đã merge vào `main` qua PR | ☐ |
 | 2 | Đã tạo tag phiên bản: `git tag -a v1.0.0 -m "Phiên bản bảo vệ đồ án"` | ☐ |
 | 3 | Toàn bộ biến môi trường production đã cấu hình, không còn giá trị dev | ☐ |
-| 4 | `JWT_ACCESS_SECRET` production **khác** với local | ☐ |
+| 4 | `JWT_SECRET` production **khác** với local | ☐ |
 | 5 | `NODE_ENV=production` | ☐ |
 | 6 | `CORS_ORIGIN` trỏ đúng domain frontend production | ☐ |
 | 7 | **Mật khẩu các tài khoản seed đã đổi** (không còn `Admin@123`) | ☐ |
@@ -938,16 +937,16 @@ Nếu đến cuối tuần 8 mà chưa đạt cột mốc Sprint 3, kích hoạt
 
 | Mức | Cắt gì | Tiết kiệm | Ảnh hưởng |
 |-----|--------|-----------|-----------|
-| 1 | Sơ đồ tòa nhà trực quan (FR-26) → dùng bảng phòng thường | 2 ngày | Nhẹ, chỉ kém đẹp |
-| 2 | ZaloPay (chỉ giữ VNPay) | 2 ngày | Vẫn chứng minh được năng lực tích hợp thanh toán |
-| 3 | Sơ đồ tòa nhà trực quan (thay bằng bảng thường) | 2 ngày | Giảm tính thẩm mỹ |
-| 4 | Xuất CSV các báo cáo (FR-17) | 1 ngày | Nêu rõ trong phần hạn chế của báo cáo |
-| 5 | Biểu đồ dashboard (giữ lại thẻ chỉ số) | 2 ngày | Dashboard đơn giản hơn |
-| 6 | Các báo cáo ưu tiên `S` (công nợ, doanh thu) | 2 ngày | Chỉ còn báo cáo giường trống |
+| 1 | Sơ đồ tầng trực quan (FR-26) → dùng bảng phòng thường | 1,5 ngày | Nhẹ, chỉ kém đẹp |
+| 2 | Bản điện thoại của cổng sinh viên (vốn đã xếp làm sau) | 3 ngày | Nêu rõ trong phần hạn chế |
+| 3 | Biểu đồ dashboard (giữ lại thẻ chỉ số) | 1 ngày | Dashboard đơn giản hơn |
+| 4 | Tab "Danh mục" nhu yếu phẩm phía quản trị → nạp sản phẩm bằng seed | 1,5 ngày | Không sửa giá được trên giao diện |
+| 5 | Xuất CSV danh sách sinh viên (FR-17) | 1 ngày | Nêu rõ trong phần hạn chế |
 
 **Tuyệt đối không cắt:**
 - Xác thực và phân quyền (làm hệ thống mất ý nghĩa)
-- Hợp đồng lưu trú (là trọng tâm của đề tài)
+- Đơn đăng ký + tự gán giường + hợp đồng (là trọng tâm của đề tài)
+- Tự hủy đơn nhu yếu phẩm quá hạn (nếu làm nhu yếu phẩm thì phải có — không có thì hàng chưa nhận bị trừ vào tiền cọc)
 - Hóa đơn cơ bản và thanh toán thủ công
 - Cổng sinh viên cơ bản
 - Kiểm thử và deploy (không có thì không bảo vệ được)
@@ -958,49 +957,55 @@ Nếu đến cuối tuần 8 mà chưa đạt cột mốc Sprint 3, kích hoạt
 
 > Đây là danh sách rút ra từ đợt rà soát chéo tài liệu ngày 12/09/2026. Mỗi mục là một lỗi **đã từng suýt lọt vào thiết kế**. Trước khi bắt đầu một module, đọc lại các mục tương ứng.
 
-### 10.1. Nhóm hợp đồng & xếp giường
+### 10.1. Nhóm đơn đăng ký & gán giường
 
 | # | Cạm bẫy | Hậu quả nếu mắc | Cách phòng |
 |---|---------|-----------------|-----------|
-| 1 | Kiểm tra giường trống **rồi mới** ghi bằng hai câu lệnh riêng | Hai sinh viên cùng vào một giường khi thao tác đồng thời | Đưa điều kiện vào `where` của `updateMany` rồi kiểm tra `count === 0` (`14` mục 4.6). Test bằng TC-72 |
-| 2 | Bỏ qua giá trị trả về của `updateMany` | Race condition lọt lưới, hai hợp đồng trên một giường | **Luôn** kiểm tra `updated.count` và ném `409 BED_NOT_AVAILABLE` khi bằng 0 |
-| 3 | **Kiểm tra giới tính ở mức tòa nhà** | Tòa `mixed` cho nam nữ ở chung phòng | Kiểm tra `room.gender`, không phải `building.gender_policy` (BR-06, BR-06). Test TC-63b |
-| 4 | Đếm giường sót trạng thái `maintenance` | Dashboard cộng không khớp; giường bảo trì bị tính là còn trống | `total = occupied + available + maintenance`. Lọc `status: 'available'` khi tra cứu, **không** dùng `status != 'occupied'` |
-| 5 | Đổi trạng thái giường rải rác nhiều nơi | Trạng thái giường lệch với hợp đồng thực tế | Chỉ đổi qua `BedService.changeStatus()`; JOB-05 đối soát hằng ngày |
-| 6 | Lấy giá bằng cách đọc `Room.pricePerBed` tại thời điểm lập hóa đơn | Tăng giá phòng làm thay đổi cả hóa đơn cũ của sinh viên | Chốt giá vào `Contract.monthlyPrice` ngay lúc ký (BR-27) |
+| 1 | Tìm giường trống **rồi mới** ghi bằng hai câu lệnh riêng | Hai sinh viên cùng vào một giường khi hai Staff duyệt đồng thời | Một lệnh `findOneAndUpdate({ roomId, status: 'available' }, …, { sort: { bedNumber: 1 } })` (`14` mục 4.6). Test TC-42 |
+| 2 | Bỏ qua giá trị trả về của `findOneAndUpdate` | Race condition lọt lưới, hai hợp đồng trên một giường | **Luôn** kiểm tra kết quả `null` và ném `409 ROOM_FULL` |
+| 3 | **Chỉ kiểm tra giới tính lúc sinh viên nộp đơn** | Staff đổi sang phòng khác giới khi duyệt ⇒ nam nữ ở chung phòng | Kiểm tra `room.gender` **lại** khi duyệt (BR-06, BR-35). Test TC-44 |
+| 4 | Tính chỗ trống bằng `capacity − số người ở` | Giường bảo trì bị tính là còn trống; sinh viên nộp đơn vào phòng thực chất đã đầy | Đếm số giường `status: 'available'` (BR-05). Test TC-37 |
+| 5 | Gán giường xong mà bước tạo hợp đồng lỗi, không trả giường | Giường `occupied` nhưng không có ai ở, phòng mất một chỗ vĩnh viễn | Bọc các bước sau trong `try/catch`, gọi `bedService.markBedAvailable` (BR-36). Test TC-53 |
+| 6 | Đọc giá từ `RoomType` lúc lập hóa đơn hằng tháng | Tăng giá loại phòng làm thay đổi tiền phòng của sinh viên đã ký | Chốt giá vào `Contract.monthlyPrice` ngay lúc duyệt (BR-27). Test TC-39 |
+| 6b | Nhận `bedId` từ client "cho tiện" | Sinh viên tự chọn giường, phá vỡ quy tắc tự gán | Validator loại bỏ `bedId` (BR-38). Test TC-54 |
+| 6c | Giữ chỗ khi sinh viên nộp đơn | Phải viết thêm logic nhả chỗ khi đơn bị bỏ quên; phòng "đầy ảo" | Nộp đơn **không** giữ chỗ (BR-34) |
 
 ### 10.2. Nhóm hóa đơn & thanh toán
 
 | # | Cạm bẫy | Hậu quả nếu mắc | Cách phòng |
 |---|---------|-----------------|-----------|
-| 7 | **Gộp tiền cọc và tiền phòng tháng đầu vào một hóa đơn** | Hóa đơn đó chiếm khóa `(student, MONTHLY, kỳ)`; đợt lập hóa đơn cuối kỳ bỏ qua sinh viên ⇒ **thất thu toàn bộ tiền điện nước kỳ đầu** | Tách 2 hóa đơn: `deposit` (`period = null`) và `monthly` (BR-25). Test TC-69, TC-69b |
-| 8 | Lập hóa đơn hàng loạt theo logic "đã có thì bỏ qua" | Sinh viên vào ở giữa kỳ không bao giờ bị thu điện nước | Logic đúng là "bổ sung dòng phí còn thiếu" (BR-48, FR-59) |
-| 9 | Cộng dồn `paid_amount += amount` mỗi lần thanh toán | Sai số tích lũy; IPN trùng làm cộng đôi | Luôn tính lại `SUM(payment WHERE status='success')` (BR-43) |
-| 10 | Dùng `Math.round()` khi chia đều điện nước | Tổng các phần **lớn hơn** tiền thực tế của phòng | Dùng `Math.floor()` + dồn dư cho MSSV nhỏ nhất (BR-51). Test TC-87 |
-| 11 | Dùng kiểu `float`/`double` cho tiền | Sai số dấu phẩy động, lệch vài đồng khi đối soát | `DECIMAL(12,2)` ở CSDL; tính bằng số nguyên đồng ở JS |
+| 7 | **Gộp tiền cọc và tiền phòng tháng đầu vào một hóa đơn** | Hóa đơn đó chiếm khóa `(student, MONTHLY, kỳ)`; đợt lập hóa đơn cuối kỳ bỏ qua sinh viên ⇒ **thất thu toàn bộ tiền điện nước kỳ đầu** | Tách 2 hóa đơn: `deposit` (`billingPeriod: null`) và `monthly` (BR-25). Test TC-46, TC-70 |
+| 8 | Lập hóa đơn hàng loạt theo logic "đã có thì bỏ qua" | Sinh viên vào ở giữa kỳ không bao giờ bị thu điện nước | Logic đúng là "bổ sung dòng phí còn thiếu" (BR-48, FR-47). Test TC-70 |
+| 9 | Cộng dồn `paidAmount += amount` mỗi lần thanh toán | Sai số tích lũy; kết quả thanh toán gửi trùng làm cộng đôi | Luôn tính lại tổng các `Payment` có `status: 'success'` (BR-43) |
+| 10 | Dùng `Math.round()` khi chia đều điện nước | Tổng các phần **lớn hơn** tiền thực tế của phòng | Dùng `Math.floor()` + dồn dư cho MSSV nhỏ nhất (BR-54). Test TC-67 |
+| 11 | Lưu tiền có phần lẻ thập phân | Sai số dấu phẩy động, lệch vài đồng khi đối soát | Lưu và tính bằng **số nguyên đồng** (`DATA-SCHEMA.md` mục 1) |
 | 12 | Ghi nhận thanh toán từ Return URL mà **không xác thực chữ ký** | Người dùng sửa URL là tự "thanh toán" được | Xác thực HMAC trước mọi thứ — đây là điều kiện bắt buộc để phương án Return URL an toàn (`14` mục 4.10) |
-| 13 | Không kiểm tra chữ ký trước khi xử lý | Bất kỳ ai cũng gọi được `verify` với dữ liệu giả để xóa nợ | Verify HMAC trước mọi thứ (BR-61). Test TC-103 bằng Postman |
-| 14 | Xử lý kết quả không idempotent | Người dùng tải lại trang kết quả ⇒ ghi nhận tiền 2 lần | Kiểm tra `payment.status === 'success'` trong transaction rồi thoát sớm (BR-56). Test TC-104 |
-| 15 | Tính ra số tiền hoàn cọc nhưng không ghi nhận việc chi trả | Không đối soát được ai đã nhận lại cọc | Ghi bản ghi `payment` trạng thái `REFUNDED` gắn hóa đơn `settlement` (BR-77, BR-76) |
-| 16 | Để frontend tính tiền rồi gửi số tiền lên | Người dùng sửa request để trả ít hơn | Mọi phép tính tiền do backend làm; FE chỉ hiển thị |
+| 13 | Không kiểm tra chữ ký trước khi xử lý | Bất kỳ ai cũng gọi được `verify` với dữ liệu giả để xóa nợ | Verify HMAC trước mọi thứ (BR-61). Test TC-86 bằng Postman |
+| 14 | Xử lý kết quả không idempotent | Người dùng tải lại trang kết quả ⇒ ghi nhận tiền 2 lần | Kiểm tra `payment.status === 'success'` rồi thoát sớm (BR-62). Test TC-87 |
+| 15 | Tính ra số tiền hoàn cọc nhưng không ghi nhận việc chi trả | Không đối soát được ai đã nhận lại cọc | Ghi một `Payment` `type: 'refund'`, `status: 'success'` gắn hóa đơn `settlement` (BR-76, BR-77). Test TC-108 |
+| 16 | Để frontend tính tiền rồi gửi số tiền lên | Người dùng sửa request để trả ít hơn | Mọi phép tính tiền do backend làm; FE chỉ hiển thị. Test TC-152 |
+| 16b | **Không tự hủy đơn nhu yếu phẩm chưa thanh toán** | Đơn sinh viên bỏ quên thành công nợ, **bị trừ vào tiền cọc** cho hàng chưa nhận | Job hằng ngày + khi duyệt trả phòng đều hủy đơn `pending_payment` (BR-97). Test TC-110, TC-160 |
+| 16c | Chỉ chuyển đơn sang "chờ nhận" khi thanh toán **online** | Sinh viên trả tiền mặt tại quầy mà đơn vẫn "chờ thanh toán" | Gọi `markReady` trong hàm tính lại hóa đơn, dùng chung cho cả hai đường (BR-95). Test TC-157 |
 
 ### 10.3. Nhóm bảo mật & phân quyền
 
 | # | Cạm bẫy | Hậu quả nếu mắc | Cách phòng |
 |---|---------|-----------------|-----------|
-| 17 | Lấy `studentId` từ query/body trong `/portal/*` | Sinh viên xem được hóa đơn của người khác (IDOR) | Luôn lấy từ `req.user.studentId` (BR-85). Test TC-121→124 |
+| 17 | Lấy `studentId` từ query/body trong `/portal/*` | Sinh viên xem được hóa đơn của người khác (IDOR) | Luôn lấy từ `req.user.studentId` (BR-86). Test TC-121→124, TC-129 |
 | 18 | Chỉ ẩn nút trên giao diện, không chặn ở API | Gọi thẳng API bằng Postman là qua mặt được | Mọi endpoint đều có `authorize()`. Test TC-07, TC-08 |
-| 19 | Cho Staff đặt lại mật khẩu tài khoản Admin | Staff chiếm quyền Admin | Chặn theo `role` trong service. Test TC-17 |
+| 19 | Cho Staff đặt lại mật khẩu tài khoản Admin | Staff chiếm quyền Admin | Chặn theo `role` trong service (BR-84). Test TC-12 |
 | 20 | Không có cơ chế khôi phục mật khẩu | Người dùng quên mật khẩu bị khóa vĩnh viễn (vì không có email tự động) | FR-09: nhân viên đặt lại hộ, sinh mật khẩu tạm bằng `crypto.randomBytes` |
 | 21 | Trả `404` khi truy cập tài nguyên của người khác | Lộ thông tin bản ghi đó có tồn tại hay không | Trả `403` thống nhất |
+| 21b | So sánh ObjectId bằng `!==` khi kiểm tra quyền sở hữu | **Luôn** khác nhau ⇒ chặn nhầm cả chủ sở hữu | Dùng `a.equals(b)` (`07` mục 3.3) |
+| 21c | Sinh viên gửi `?gender=` khi xem phòng còn chỗ | Sinh viên thấy phòng khác giới | Lọc theo giới tính trong hồ sơ, bỏ qua tham số client. Test TC-41 |
 
 ### 10.4. Nhóm phối hợp nhóm
 
 | # | Cạm bẫy | Hậu quả nếu mắc | Cách phòng |
 |---|---------|-----------------|-----------|
-| 22 | FE và BE hiểu khác nhau về `pricePerBed` | Hóa đơn lệch 8 lần | Đã chốt: **giá mỗi giường/tháng** (`03` mục 5.1). Ai đổi phải sửa tài liệu trước |
+| 22 | FE và BE hiểu khác nhau về `RoomType.pricePerMonth` | Hóa đơn lệch 6–8 lần | Đã chốt: **giá mỗi sinh viên/tháng**, không nhân/chia sức chứa (BR-10). Ai đổi phải sửa tài liệu trước |
 | 23 | Vẽ giao diện cho chức năng không có trong `02` | Làm thừa, hoặc demo bị hỏi "cái này bấm vào không chạy?" | Mọi thành phần giao diện phải truy vết về một `FR-xx` |
-| 24 | Sửa migration đã merge | Schema lệch giữa các máy, mất dữ liệu | Luôn tạo migration mới |
+| 24 | Đổi field trong `*.model.js` mà không báo | Dữ liệu seed cũ trên Atlas lệch schema mới, API trả thiếu field | Sửa `DATA-SCHEMA.md` trước, báo nhóm, xóa dữ liệu cũ rồi seed lại |
 | 25 | Đổi API mà không báo phía còn lại | Nửa ngày công đổ sông | Cập nhật `API.md` trước, báo nhóm chat, rồi mới code |
 | 26 | Để dồn deploy đến tuần cuối | Sự cố hạ tầng sát ngày bảo vệ | Deploy thử từ tuần 4 (mục 4.2) |
 
@@ -1012,5 +1017,6 @@ Nếu đến cuối tuần 8 mà chưa đạt cột mốc Sprint 3, kích hoạt
 |-----------|------|------------------|-------------------|
 | v1.0 | 11/09/2026 | PM | Khởi tạo lộ trình 12 tuần, runbook triển khai, kế hoạch dự phòng |
 | v1.1 | 12/09/2026 | PM | Bổ sung mục 10 — 26 cạm bẫy khi cài đặt, rút ra từ đợt rà soát chéo tài liệu |
-| **v2.0** | **12/09/2026** | PM | **Rà soát theo bộ tài liệu v2.0:** cài MongoDB thay PostgreSQL; bỏ bước migration (Mongoose tự tạo index); bỏ task chuyển phòng; cột mốc nghiệm thu đổi theo luồng "Staff xếp giường" |
+| **v2.1** | **13/09/2026** | PM | **Đăng ký theo phòng + nhu yếu phẩm.** Sprint 2 và Sprint 4 viết lại theo luồng đơn đăng ký → tự gán giường và thêm nhu yếu phẩm; cột mốc nghiệm thu dùng đúng mã test của `11` v2.1. Kế hoạch dự phòng 5 mức mới. Cạm bẫy 10.1 viết lại (6 → 8 mục), thêm 16b, 16c, 21b, 21c. **Sửa tham chiếu hỏng sẵn có:** nhiều mã test trỏ theo cách đánh số cũ (TC-72, TC-61→63, TC-87, TC-103→105, TC-69b…), `docs/04` đã xóa, khái niệm SQL (`DECIMAL`, migration, `paid_amount`), envelope `{ success }`. |
+| v2.0 | 12/09/2026 | PM | **Rà soát theo bộ tài liệu v2.0:** cài MongoDB thay PostgreSQL; bỏ bước migration (Mongoose tự tạo index); bỏ task chuyển phòng; cột mốc nghiệm thu đổi theo luồng "Staff xếp giường" |
 | v1.2 | 12/09/2026 | PM | **Áp dụng v1-lite:** cập nhật lệnh cài đặt, bỏ bước tạo index thủ công, **bỏ ngrok** (test VNPay ngay trên localhost), gộp cron job, khối lượng 206 → 155 ngày công. Xem `14` |

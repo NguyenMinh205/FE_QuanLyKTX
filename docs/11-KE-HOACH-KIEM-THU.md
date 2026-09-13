@@ -1,11 +1,11 @@
 # 11 – KẾ HOẠCH KIỂM THỬ
 
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
-**Phiên bản:** v2.0 (MongoDB + Mongoose)
+**Phiên bản:** v2.1 (đăng ký theo phòng · nhu yếu phẩm)
 **Người phụ trách:** BA chủ trì + toàn nhóm
 
 > Mọi test case phải truy vết về một `FR-xx` trong `02-DAC-TA-YEU-CAU.md` hoặc một `BR-xx` trong `03-PHAN-TICH-NGHIEP-VU.md`.
-> Mã lỗi và định dạng response xem `API.md` mục 12.
+> Mã lỗi xem `API.md` mục 13, định dạng response xem `API.md` mục 1.1.
 
 ---
 
@@ -20,7 +20,9 @@
 
 ### 1.2. Phạm vi
 
-**Trong phạm vi:** kiểm thử chức năng 9 module · phân quyền RBAC · tích hợp cổng thanh toán sandbox · giao diện trên Chrome/Edge/Firefox · responsive 3 kích thước · hiệu năng cơ bản (NFR-01, NFR-02).
+**Trong phạm vi:** kiểm thử chức năng 10 module · phân quyền RBAC · tích hợp cổng thanh toán sandbox · giao diện máy tính trên Chrome/Edge/Firefox · hiệu năng cơ bản (NFR-01, NFR-02).
+
+**Làm sau (không chặn bàn giao):** giao diện điện thoại — chỉ kiểm tra không vỡ ở 360px (TC-145).
 
 **Ngoài phạm vi:** test tải cao (> 100 người đồng thời) · penetration testing chuyên sâu · trình duyệt cũ (IE, Safari < 15) · khả năng phục hồi sau sự cố hạ tầng.
 
@@ -62,7 +64,7 @@ flowchart TB
 | Môi trường | Dùng cho |
 |------------|----------|
 | Local | Unit test, test API bằng Postman, test trong lúc phát triển |
-| Staging | System test (87 test case) |
+| Staging | System test (toàn bộ test case mục 4) |
 | Production | UAT cuối cùng + smoke test |
 
 | Vai trò | Tài khoản | Mật khẩu | Dùng để test |
@@ -71,10 +73,11 @@ flowchart TB
 | staff | `staff@dorm.local` | `Staff@123` | Nghiệp vụ hằng ngày |
 | viewer | `viewer@dorm.local` | `Viewer@123` | Kiểm tra chỉ đọc |
 | student A | `sv001@dorm.local` | `Student@123` | Đang lưu trú, có công nợ |
-| student B | `sv002@dorm.local` | `Student@123` | Chưa lưu trú |
+| student B | `sv002@dorm.local` | `Student@123` | Chưa lưu trú — dùng test **nộp đơn đăng ký** |
+| student D | `sv004@dorm.local` | `Student@123` | Đang ở phòng **Chất lượng cao** (được cấp sẵn đệm) — dùng test cửa hàng |
 | student C | `sv003@dorm.local` | `Student@123` | **Dùng để test IDOR** (truy cập dữ liệu của A) |
 
-> Dữ liệu seed tối thiểu: 2 tòa nhà, 20 phòng (10 nam + 10 nữ), 80 giường, 40 sinh viên, đủ hợp đồng ở cả 4 trạng thái.
+> Dữ liệu seed tối thiểu: 2 tòa nhà · **ít nhất 4 loại phòng** (có cả Tiêu chuẩn và Chất lượng cao) · 20 phòng (10 nam + 10 nữ) · giường tự sinh · 40 sinh viên · hợp đồng đủ 3 trạng thái · **đơn đăng ký đủ 4 trạng thái** · **ít nhất một phòng chỉ còn đúng 1 chỗ** (cho TC-42) · 6 sản phẩm nhu yếu phẩm · **đơn nhu yếu phẩm đủ 4 trạng thái**.
 
 ---
 
@@ -145,36 +148,44 @@ flowchart TB
 | TC-25 | **Vô hiệu hóa SV còn hợp đồng** | Chọn SV đang lưu trú | `422 STUDENT_HAS_ACTIVE_CONTRACT`, không thay đổi | FR-14, BR-13 | **Cao** | ⏸ |
 | TC-26 | **Vô hiệu hóa SV còn công nợ** | Chọn SV đã trả phòng nhưng còn nợ | `422 STUDENT_HAS_DEBT` | FR-14, BR-14 | **Cao** | ⏸ |
 
-### 4.3. Tòa nhà, phòng & giường (8)
+### 4.3. Tòa nhà, loại phòng, phòng & giường (10)
 
 | ID | Tiêu đề | Các bước | Kết quả mong đợi | Truy vết | Ưu tiên | KQ |
 |----|---------|----------|------------------|----------|---------|-----|
-| TC-30 | Tạo phòng có giới tính | Tạo phòng với `gender: "female"` | Tạo thành công | FR-21, FR-29 | Cao | ⏸ |
+| TC-30 | **Tạo phòng tự sinh giường** | Tạo phòng B203, loại "Tiêu chuẩn · 6 người", `gender: "female"` | Tạo thành công; có **đúng 6 giường** `B203-01…06`, tất cả `available`; `capacity = 6` | FR-21, FR-22, BR-04 | **Cao** | ⏸ |
 | TC-31 | **Tạo phòng thiếu giới tính** | Bỏ trống `gender` | `400 VALIDATION_ERROR` — trường bắt buộc | FR-29 | **Cao** | ⏸ |
 | TC-32 | Trùng số phòng trong cùng tòa | Nhập số phòng đã có | `409 DUPLICATE_ENTRY` | BR-02 | Cao | ⏸ |
 | TC-33 | Trùng số phòng ở tòa khác | Phòng `101` ở tòa B trong khi tòa A đã có `101` | **Thành công** — chỉ duy nhất trong phạm vi tòa | BR-02 | TB | ⏸ |
-| TC-34 | Sinh nhanh giường | Phòng sức chứa 4, bấm sinh giường | Tạo 4 giường trạng thái `available` | FR-23 | Cao | ⏸ |
-| TC-35 | **Thêm giường vượt sức chứa** | Phòng 4 giường đã đủ, thêm giường thứ 5 | `409 ROOM_CAPACITY_EXCEEDED` | FR-24, BR-04 | **Cao** | ⏸ |
+| TC-34 | Trùng loại phòng | Tạo thêm "Tiêu chuẩn · 6 người" khi đã có | `409 DUPLICATE_ENTRY` | BR-10 | Cao | ⏸ |
+| TC-35 | **Đổi sức chứa loại phòng đã được dùng** | Loại "Tiêu chuẩn · 6 người" đang có phòng; đổi sức chứa thành 8 | `422 ROOM_TYPE_IN_USE`, không đổi | FR-24, BR-09 | **Cao** | ⏸ |
 | TC-36 | **Chuyển giường đang có người sang bảo trì** | Chọn giường `occupied` | `422 BED_OCCUPIED`, không đổi trạng thái | FR-27, BR-08 | **Cao** | ⏸ |
-| TC-37 | Giường bảo trì không hiện trong tra cứu trống | Sau TC-36, mở `GET /api/beds/available` | Giường đó không xuất hiện | FR-28 | Cao | ⏸ |
+| TC-37 | **Giường bảo trì không tính là chỗ trống** | Phòng 6 giường: 4 có người, 1 bảo trì, 1 trống. Gọi `GET /api/rooms/available` | Phòng có `availableSlots = 1` (**không phải 2**) | FR-28, BR-05 | **Cao** | ⏸ |
+| TC-38 | Đổi loại phòng của phòng đang có người | Sửa `roomTypeId` của phòng có 1 người ở | `422 ROOM_HAS_OCCUPANTS` | FR-24, BR-09 | Cao | ⏸ |
+| TC-39 | Giá hợp đồng chốt tại lúc duyệt | Duyệt đơn (giá loại phòng 320 000 đ), rồi đổi giá loại phòng thành 350 000 đ | `Contract.monthlyPrice` vẫn 320 000 đ; đơn duyệt **sau** khi đổi giá nhận 350 000 đ | FR-24, BR-27 | Cao | ⏸ |
 
-### 4.4. Đăng ký lưu trú & hợp đồng (11) — trọng tâm
+### 4.4. Đơn đăng ký, lưu trú & hợp đồng (17) — trọng tâm
 
 | ID | Tiêu đề | Các bước | Kết quả mong đợi | Truy vết | Ưu tiên | KQ |
 |----|---------|----------|------------------|----------|---------|-----|
-| TC-40 | Xếp sinh viên vào giường thành công | Staff chọn SV + giường trống đúng giới tính | Tạo `Residency` `active`, `Bed` → `occupied`, `Contract` → `pending` | FR-30 | **Rất cao** | ⏸ |
-| TC-41 | **Xếp vào giường đã có người** | Chọn giường `occupied` | `409 BED_NOT_AVAILABLE` | FR-31, BR-20 | **Rất cao** | ⏸ |
-| TC-42 | **Tranh chấp: 2 Staff cùng xếp vào 1 giường** | Mở 2 trình duyệt, 2 Staff cùng bấm xếp vào giường X gần như đồng thời | 1 thành công, 1 nhận `409`. **Tuyệt đối không** tạo 2 Residency `active` trên cùng giường | BR-20 | **Rất cao** | ⏸ |
-| TC-43 | **Giới tính không khớp phòng** | Xếp SV nam vào phòng `gender: "female"` | `422 GENDER_MISMATCH` | FR-29, BR-06 | **Rất cao** | ⏸ |
-| TC-44 | **Nam nữ ở chung phòng (bẫy kiểm tra sai tầng)** | Phòng đang có 3 SV nữ, thử xếp 1 SV nam vào giường trống của phòng đó | `422 GENDER_MISMATCH`. ⚠️ Lỗi lọt nếu code chỉ kiểm tra ở mức tòa nhà thay vì `Room.gender` | BR-06 | **Rất cao** | ⏸ |
-| TC-45 | **SV đã có hợp đồng đang mở** | Xếp SV đang lưu trú vào giường khác | `422 STUDENT_HAS_ACTIVE_CONTRACT` | FR-32, BR-21 | **Rất cao** | ⏸ |
-| TC-46 | **Kích hoạt hợp đồng sinh 2 hóa đơn** | Staff kích hoạt hợp đồng `pending` | Trả **mảng 2 hóa đơn**: một `type: "deposit"` (`billingPeriod: null`) và một `type: "monthly"`; hạn = `startDate + 7 ngày` | FR-34, BR-25, BR-26 | **Rất cao** | ⏸ |
-| TC-47 | Giá hợp đồng chốt tại thời điểm ký | Sau khi kích hoạt, đổi `Room.pricePerBed` | `Contract.monthlyPrice` **không** thay đổi | BR-27 | Cao | ⏸ |
+| TC-40 | Sinh viên nộp đơn thành công | SV B chọn loại phòng → phòng còn chỗ → ngày → nộp | Tạo `Application` `pending`; **không giường nào đổi trạng thái** | FR-30, BR-34 | **Rất cao** | ⏸ |
+| TC-41 | **Sinh viên chỉ thấy phòng khớp giới tính** | SV nam gọi `GET /api/rooms/available?gender=female` | Chỉ trả phòng **nam** — tham số `gender` bị bỏ qua | FR-28, BR-06 | **Rất cao** | ⏸ |
+| TC-42 | **Tranh chấp chỗ cuối cùng** | Phòng còn đúng 1 giường trống; 2 đơn khác nhau cùng nhắm phòng đó; 2 Staff ở 2 trình duyệt bấm "Duyệt" gần như đồng thời | 1 đơn `approved`; đơn kia nhận `409 ROOM_FULL` và **vẫn `pending`**. **Tuyệt đối không** có 2 Residency `active` trên cùng một giường | BR-20 | **Rất cao** | ⏸ |
+| TC-43 | Giới tính không khớp khi nộp đơn | SV nam gửi `POST /api/portal/my-applications` với `roomId` của phòng nữ | `422 GENDER_MISMATCH` | FR-29, BR-06 | **Rất cao** | ⏸ |
+| TC-44 | **Bẫy: đổi sang phòng khác giới tính khi duyệt** | Đơn của SV nữ; Staff chọn một phòng **nam** cùng loại rồi bấm duyệt | `422 GENDER_MISMATCH`. ⚠️ Lọt lỗi nếu code chỉ kiểm tra giới tính lúc nộp đơn | BR-06, BR-35 | **Rất cao** | ⏸ |
+| TC-45 | **SV đang có hợp đồng nộp đơn mới** | SV A (đang lưu trú) nộp đơn | `422 STUDENT_HAS_ACTIVE_CONTRACT` | FR-32, BR-21 | **Rất cao** | ⏸ |
+| TC-46 | **Duyệt đơn: tự gán giường số nhỏ nhất + 2 hóa đơn** | Phòng có giường 01, 02 đã có người, 03–06 trống. Duyệt đơn | Gán **giường 03**; `Residency` `active`; `Contract` `active` với giá và tiền cọc lấy từ loại phòng; trả **mảng 2 hóa đơn**: `deposit` (`billingPeriod: null`) và `monthly` | FR-31, FR-34, BR-20, BR-25 | **Rất cao** | ⏸ |
+| TC-47 | Duyệt muộn không sinh hóa đơn quá hạn | Đơn có `startDate` 01/09, duyệt ngày 20/09 | Hạn hai hóa đơn là **27/09**, không phải 08/09 | BR-26 | Cao | ⏸ |
 | TC-48 | Chấm dứt hợp đồng trước hạn | Staff chấm dứt hợp đồng `active` | `Contract` → `terminated`, `Residency` → `closed`, `Bed` → `available` | FR-38 | Cao | ⏸ |
 | TC-49 | Cảnh báo hợp đồng sắp hết hạn | Tạo hợp đồng hết hạn sau 20 ngày, mở dashboard | Hợp đồng xuất hiện trong danh sách sắp hết hạn | FR-37, BR-29 | Cao | ⏸ |
 | TC-50 | Job tự cho hợp đồng hết hạn | Sửa `endDate` về hôm qua, chạy job | `Contract` → `expired`, `Residency` → `closed`, `Bed` → `available` | FR-36, BR-28 | Cao | ⏸ |
+| TC-51 | Nộp hai đơn cùng lúc | SV B đã có đơn `pending`, nộp đơn thứ hai | `409 DUPLICATE_PENDING_APPLICATION` | FR-30, BR-33 | Cao | ⏸ |
+| TC-52 | Đổi sang phòng khác loại khi duyệt | Đơn "Tiêu chuẩn · 6 người"; Staff chọn phòng "Chất lượng cao · 4 người" | `422 ROOM_TYPE_MISMATCH` | FR-33, BR-35 | Cao | ⏸ |
+| TC-53 | **Lỗi giữa chừng phải trả giường** | Tạm sửa `contractService.createFromApplication` để ném lỗi, rồi duyệt đơn | Duyệt thất bại; giường **vẫn `available`**; không có `Residency` mồ côi; đơn vẫn `pending`. Nhớ hoàn tác đoạn sửa | BR-36 | **Cao** | ⏸ |
+| TC-54 | API không nhận mã giường | Gửi thêm `bedId` của giường 06 trong body khi duyệt | `bedId` bị bỏ qua; hệ thống vẫn gán giường trống số nhỏ nhất | BR-38 | Cao | ⏸ |
+| TC-55 | Từ chối đơn với lý do quá ngắn | Nhập lý do "không" | Chặn — tối thiểu 10 ký tự | FR-33, BR-37 | TB | ⏸ |
+| TC-56 | Hủy đơn | SV hủy đơn `pending` của mình; sau đó thử hủy một đơn đã `approved` | Lần 1 → `cancelled`; lần 2 → `422 APPLICATION_NOT_PENDING` | FR-33, BR-37 | TB | ⏸ |
 
-### 4.5. Chỉ số điện nước & hóa đơn (12)
+### 4.5. Chỉ số điện nước & hóa đơn (13)
 
 | ID | Tiêu đề | Các bước | Kết quả mong đợi | Truy vết | Ưu tiên | KQ |
 |----|---------|----------|------------------|----------|---------|-----|
@@ -190,6 +201,7 @@ flowchart TB
 | TC-69 | Phòng không có sinh viên | Phòng trống hoàn toàn trong kỳ | Không lập hóa đơn điện nước cho phòng đó | BR-55 | TB | ⏸ |
 | TC-70 | **Không thất thu điện nước kỳ đầu** | SV được xếp giường ngày 05/10. Cuối tháng 10 chạy lập hóa đơn kỳ 2026-10 | SV **không bị bỏ qua**: hệ thống **bổ sung** dòng điện + nước vào hóa đơn `monthly` đã có, `updated` tăng 1. ⚠️ Nếu SV biến mất khỏi đợt lập ⇒ đang dính lỗi gộp hóa đơn cọc | BR-25, BR-48 | **Rất cao** | ⏸ |
 | TC-71 | **Hủy hóa đơn đã có thanh toán** | Chọn hóa đơn `partial`, bấm hủy | `422 INVOICE_HAS_PAYMENT` | FR-58, BR-46 | **Cao** | ⏸ |
+| TC-72 | Job đánh dấu hóa đơn quá hạn | Hóa đơn `unpaid` có `dueDate` hôm qua; hóa đơn `partial` có `dueDate` hôm qua; hóa đơn `paid` có `dueDate` hôm qua. Chạy job | Hai hóa đơn đầu → `overdue`; hóa đơn `paid` giữ nguyên. Chạy job lần 2 không đổi gì thêm | FR-57, BR-56 | Cao | ⏸ |
 
 ### 4.6. Thanh toán (10)
 
@@ -206,7 +218,7 @@ flowchart TB
 | TC-88 | **Webhook số tiền không khớp** | Gọi webhook với số tiền khác số đã tạo | Hóa đơn không đổi, giao dịch được đánh dấu cần đối soát | BR-63 | **Rất cao** | ⏸ |
 | TC-89 | SV đóng trình duyệt giữa chừng | Thanh toán xong nhưng không quay lại. Staff bấm "Đối soát" | Giao dịch từ `pending` chuyển đúng sang `success`, hóa đơn cập nhật | FR-56 | Cao | ⏸ |
 
-### 4.7. Gia hạn, trả phòng & quyết toán cọc (10)
+### 4.7. Gia hạn, trả phòng & quyết toán cọc (11)
 
 | ID | Tiêu đề | Các bước | Kết quả mong đợi | Truy vết | Ưu tiên | KQ |
 |----|---------|----------|------------------|----------|---------|-----|
@@ -220,8 +232,9 @@ flowchart TB
 | TC-107 | **Duyệt trả phòng có xác nhận** | Gửi lại với `forceConfirm: true` | `Contract` → `terminated`, `Residency` → `closed`, `Bed` → `available`, sinh hóa đơn `settlement` | FR-66, BR-74 | **Rất cao** | ⏸ |
 | TC-108 | **Quyết toán tiền cọc** | Cọc 500 000 đ, công nợ 246 000 đ | Hoàn 254 000 đ; **có bản ghi `Payment` loại `refund`** ghi rõ người thực hiện và thời điểm | FR-68, BR-76, BR-77 | **Rất cao** | ⏸ |
 | TC-109 | Công nợ lớn hơn cọc | Cọc 500 000 đ, công nợ 700 000 đ | Hoàn 0 đ; hóa đơn `settlement` ghi SV còn nợ 200 000 đ | BR-76 | Cao | ⏸ |
+| TC-110 | **Trả phòng khi còn đơn nhu yếu phẩm chưa thanh toán** | Cọc 500 000 đ; nợ tiền phòng 246 000 đ; thêm một đơn nhu yếu phẩm 160 000 đ `pending_payment`. Duyệt trả phòng | Đơn và hóa đơn `supplies` → `cancelled`; công nợ chốt **246 000 đ** (không phải 406 000 đ); hoàn **254 000 đ**; response có `cancelledSupplyOrders: 1` | FR-66, FR-106, BR-97 | **Rất cao** | ⏸ |
 
-### 4.8. Cổng sinh viên — trọng tâm bảo mật (9)
+### 4.8. Cổng sinh viên — trọng tâm bảo mật (10)
 
 | ID | Tiêu đề | Các bước | Kết quả mong đợi | Truy vết | Ưu tiên | KQ |
 |----|---------|----------|------------------|----------|---------|-----|
@@ -232,8 +245,9 @@ flowchart TB
 | TC-124 | **Truyền studentId giả trong query** | SV C gọi `GET /api/portal/my-invoices?studentId=<A>` | Chỉ trả hóa đơn của SV C — tham số bị **bỏ qua hoàn toàn** | BR-86 | **Rất cao** | ⏸ |
 | TC-125 | Không lộ dữ liệu nhạy cảm | SV xem thông tin phòng mình | Không trả SĐT người liên hệ khẩn cấp của SV khác | FR-93 | **Cao** | ⏸ |
 | TC-126 | Hồ sơ cá nhân chỉ đọc | SV mở trang hồ sơ | Không có nút Sửa; mọi ô ở chế độ chỉ đọc | FR-86 | Cao | ⏸ |
-| TC-127 | Tra cứu giường trống chỉ đọc | SV mở danh sách giường trống | Xem được thông tin phòng/giá; **không** có nút đăng ký (v1: Staff xếp giường) | FR-83 | Cao | ⏸ |
+| TC-127 | Xem loại phòng và vào luồng đăng ký | SV B (chưa lưu trú) mở trang chủ; SV A (đang lưu trú) gõ thẳng `/portal/apply` | SV B thấy lời mời đăng ký + loại phòng còn chỗ (chỉ đếm phòng khớp giới tính); SV A bị đưa về trang chủ | FR-83 | Cao | ⏸ |
 | TC-128 | Xem lịch sử thanh toán | SV mở lịch sử | Chỉ hiện giao dịch của chính mình | FR-84 | Cao | ⏸ |
+| TC-129 | **IDOR: hủy đơn đăng ký / đơn hàng của người khác** | SV C gọi `DELETE /api/portal/my-applications/<id của SV B>` và `PATCH /api/portal/my-supply-orders/<id của SV A>/cancel` | Cả hai `403 FORBIDDEN`, dữ liệu không đổi | FR-85, BR-86 | **Rất cao** | ⏸ |
 
 ### 4.9. Dashboard & phi chức năng (9)
 
@@ -244,34 +258,51 @@ flowchart TB
 | TC-142 | Viewer không thấy nút thao tác trên dashboard | Đăng nhập viewer | Chỉ hiển thị số liệu | FR-04 | ⏸ |
 | TC-143 | Hiệu năng API danh sách | Postman đo `GET /api/students?limit=50` | < 500 ms | NFR-01 | ⏸ |
 | TC-144 | Hiệu năng dashboard | Đo `GET /api/dashboard/summary` | < 2 giây | NFR-02 | ⏸ |
-| TC-145 | Responsive mobile | Mở cổng SV ở 375px | Không cuộn ngang, mọi nút bấm được | NFR-09 | ⏸ |
+| TC-145 | Giao diện máy tính (+ không vỡ ở 360px) | Mở mọi màn hình ở 1280×800; mở cổng SV ở 360px | 1280px: trang không cuộn ngang, bảng dài cuộn trong khung. 360px: không vỡ bố cục (bản mobile hoàn chỉnh làm sau) | NFR-09 | ⏸ |
 | TC-146 | Tương thích trình duyệt | Chạy luồng chính trên Chrome, Edge, Firefox | Hoạt động giống nhau | NFR-12 | ⏸ |
 | TC-147 | Giao diện tiếng Việt | Rà toàn bộ màn hình và thông báo | Không còn chuỗi tiếng Anh lọt ra giao diện | NFR-20 | ⏸ |
 | TC-148 | Lỗi 500 không lộ stack trace | Gây lỗi chủ ý | Response chỉ có `{ code, message }`, không có stack | NFR-18 | ⏸ |
 
-**Tổng: 88 test case.**
+### 4.10. Nhu yếu phẩm (12)
+
+| ID | Tiêu đề | Các bước | Kết quả mong đợi | Truy vết | Ưu tiên | KQ |
+|----|---------|----------|------------------|----------|---------|-----|
+| TC-150 | Cửa hàng ẩn đồ đã cấp sẵn | SV D (phòng Chất lượng cao, được cấp đệm) mở "Mua sắm" | Không có "Đệm mút" trong danh sách mua; "Đệm mút" nằm trong mục đã có trong phòng. SV A (phòng Tiêu chuẩn) vẫn thấy "Đệm mút" | FR-101, BR-90 | Cao | ⏸ |
+| TC-151 | Đặt món đã cấp sẵn qua API | SV D gọi `POST /api/portal/my-supply-orders` với `supplyItemId` của "Đệm mút" | `422 SUPPLY_ALREADY_INCLUDED` | FR-102, BR-90 | Cao | ⏸ |
+| TC-152 | **Gửi giá giả** | Body kèm `"price": 1000, "totalAmount": 1000` cho món giá 120 000 đ | Các trường giá bị bỏ qua; `totalAmount` = 120 000 đ | FR-102, BR-92 | **Rất cao** | ⏸ |
+| TC-153 | Đặt hàng sinh hóa đơn riêng | Đặt 2 món tổng 160 000 đ | Đơn `pending_payment` + **1** hóa đơn `type: "supplies"`, `billingPeriod: null`, hạn = hôm nay + 3 ngày | FR-102, BR-94 | Cao | ⏸ |
+| TC-154 | Vượt số lượng | Đặt một món số lượng 6 | Chặn — tối đa 5 | BR-93 | TB | ⏸ |
+| TC-155 | SV chưa có hợp đồng đặt hàng | SV B đặt hàng | `422 CONTRACT_NOT_ACTIVE` | BR-91 | Cao | ⏸ |
+| TC-156 | **Thanh toán xong chuyển "chờ nhận" đúng một lần** | Thanh toán hóa đơn `supplies` qua VNPay; gửi lại **cùng** webhook thành công lần 2 | Đơn `ready`; lần 2 không lỗi, không tạo thêm `Payment`, không đổi gì | FR-103, BR-95 | **Rất cao** | ⏸ |
+| TC-157 | Thu tiền tại quầy cũng chuyển "chờ nhận" | Staff ghi nhận thanh toán tiền mặt đủ cho hóa đơn `supplies` | Đơn tự chuyển `ready` | FR-103 | Cao | ⏸ |
+| TC-158 | Giao hàng | Giao một đơn `ready`; thử giao một đơn `pending_payment` | Lần 1 → `delivered`, lưu người giao; lần 2 → `422 INVALID_ORDER_STATUS` | FR-104, BR-96 | Cao | ⏸ |
+| TC-159 | Hủy đơn | Hủy đơn `pending_payment`; thử hủy đơn `ready` | Lần 1 → đơn và hóa đơn `cancelled`; lần 2 → `422 ORDER_NOT_CANCELLABLE` | FR-105, BR-96 | Cao | ⏸ |
+| TC-160 | **Job tự hủy đơn quá hạn** | Đơn `pending_payment` có hóa đơn hạn hôm qua, chưa thanh toán. Chạy job | Đơn và hóa đơn → `cancelled`; hóa đơn **không** chuyển `overdue`; công nợ SV **không** tính khoản này | FR-106, BR-97 | **Rất cao** | ⏸ |
+| TC-161 | Đổi giá sản phẩm không đổi đơn cũ | Đặt đơn, rồi đổi giá sản phẩm | Đơn cũ giữ `unitPrice` cũ | BR-92 | TB | ⏸ |
+
+**Tổng: 111 test case.**
 
 ---
 
 ## 5. Kịch bản UAT
 
-### UAT-01: Vòng đời trọn vẹn một sinh viên (30 phút)
+### UAT-01: Vòng đời trọn vẹn một sinh viên (35 phút)
 
 | # | Vai | Thao tác | Kiểm chứng |
 |---|-----|----------|------------|
 | 1 | Staff | Thêm hồ sơ SV mới, giới tính **nữ** | Hiện trong danh sách |
-| 2 | Staff | Tạo phòng `gender: female` + sinh 4 giường | 4 giường `available` |
-| 3 | Staff | Thử xếp một SV **nam** vào phòng đó | Bị chặn `GENDER_MISMATCH` ✅ |
-| 4 | Staff | Xếp SV nữ vừa tạo vào một giường | `Residency` `active`, giường `occupied`, hợp đồng `pending` |
-| 5 | Staff | Kích hoạt hợp đồng | Hợp đồng `active` + **2 hóa đơn** (cọc, tiền phòng) |
-| 6 | Student | Đăng ký tài khoản, đăng nhập, xem "Chỗ ở của tôi" | Hiện đúng phòng/giường/hợp đồng |
-| 7 | Student | Thanh toán hóa đơn tiền cọc qua VNPay | Hóa đơn → `paid` |
-| 8 | Staff | Nhập chỉ số điện nước cho phòng đó | Tính đúng tiêu thụ |
-| 9 | Staff | Lập hóa đơn kỳ | SV **được bổ sung** dòng điện/nước vào hóa đơn tháng đã có |
-| 10 | Student | Thanh toán một phần (50%) | Trạng thái → `partial` |
-| 11 | Student | Gửi yêu cầu trả phòng | `Request` `pending` |
-| 12 | Staff | Duyệt trả phòng (còn nợ → phải xác nhận) | Cảnh báo `STUDENT_HAS_DEBT` hiện đúng |
-| 13 | Staff | Xác nhận `forceConfirm` | Hợp đồng `terminated`, giường `available`, **hóa đơn `settlement` + `Payment` refund** |
+| 2 | Staff | Tạo phòng loại "Tiêu chuẩn · 6 người", `gender: female` | Phòng có **6 giường tự sinh** `available` |
+| 3 | Student | Đăng ký tài khoản, đăng nhập | Trang chủ hiện lời mời "Đăng ký chỗ ở" |
+| 4 | Student | Đăng ký chỗ ở: chọn loại → chọn phòng vừa tạo → nộp đơn | Đơn `pending`; trang chủ hiện "Đơn đang chờ duyệt"; **giường vẫn trống** |
+| 5 | Staff | Thử đổi đơn sang một phòng **nam** cùng loại rồi duyệt | Bị chặn `GENDER_MISMATCH` ✅ |
+| 6 | Staff | Duyệt với phòng ban đầu | Giường **01** được gán; hợp đồng `active` + **2 hóa đơn** (cọc, tiền phòng) |
+| 7 | Student | Xem "Chỗ ở & hợp đồng", thanh toán hóa đơn tiền cọc qua VNPay | Đúng phòng/giường; hóa đơn → `paid` |
+| 8 | Student | Mua "Vỏ gối" ở Mua sắm, thanh toán | Đơn → "Chờ nhận hàng" |
+| 9 | Staff | Xác nhận đã giao | Đơn → "Đã giao" |
+| 10 | Student | Đặt thêm "Chăn mỏng" nhưng **không** thanh toán | Đơn "Chờ thanh toán" |
+| 11 | Staff | Nhập chỉ số điện nước, lập hóa đơn kỳ | SV **được bổ sung** dòng điện/nước vào hóa đơn tháng đã có |
+| 12 | Student | Thanh toán một phần (50%) hóa đơn tháng, gửi yêu cầu trả phòng | Hóa đơn `partial`; `Request` `pending` |
+| 13 | Staff | Duyệt trả phòng (còn nợ → phải xác nhận `forceConfirm`) | Đơn "Chăn mỏng" **tự hủy**; hợp đồng `terminated`; giường `available`; **hóa đơn `settlement` + `Payment` refund** |
 | 14 | Admin | Mở dashboard | Giường trống tăng 1, SV đang ở giảm 1 |
 
 ### UAT-02: Nghiệp vụ hằng tháng của nhân viên (20 phút)
@@ -293,6 +324,8 @@ flowchart TB
 | 1 | Đăng nhập viewer, thử mọi chức năng | Chỉ xem được |
 | 2 | Dùng token viewer gọi API ghi bằng Postman | `403` |
 | 3 | Đăng nhập SV C, thử truy cập dữ liệu SV A qua URL và API | `403` ở mọi trường hợp |
+| 3b | Đăng nhập SV nam, gọi `GET /api/rooms/available?gender=female` | Chỉ nhận phòng nam |
+| 3c | Đăng nhập staff, thử sửa giá một loại phòng | Nút sửa không hiện; gọi API trực tiếp → `403` |
 | 4 | Đăng nhập staff, thử vào `/admin/users` | Chuyển về trang 403 |
 | 5 | Đăng xuất, gõ URL trang quản trị | Chuyển về `/login` |
 
@@ -304,14 +337,15 @@ flowchart TB
 |--------|---------|---------|-----|-----------|-----------|
 | Xác thực & phân quyền | 12 | | | | |
 | Quản lý sinh viên | 7 | | | | |
-| Tòa nhà, phòng, giường | 8 | | | | |
-| Lưu trú & hợp đồng | 11 | | | | |
-| Chỉ số điện nước & hóa đơn | 12 | | | | |
+| Tòa nhà, loại phòng, phòng, giường | 10 | | | | |
+| Đơn đăng ký, lưu trú & hợp đồng | 17 | | | | |
+| Chỉ số điện nước & hóa đơn | 13 | | | | |
 | Thanh toán | 10 | | | | |
-| Gia hạn, trả phòng, cọc | 10 | | | | |
-| Cổng sinh viên | 9 | | | | |
+| Gia hạn, trả phòng, cọc | 11 | | | | |
+| Cổng sinh viên | 10 | | | | |
 | Dashboard & phi chức năng | 9 | | | | |
-| **Tổng** | **88** | | | | |
+| Nhu yếu phẩm | 12 | | | | |
+| **Tổng** | **111** | | | | |
 
 **Bảng theo dõi lỗi**
 
@@ -319,7 +353,7 @@ flowchart TB
 |--------|-----------|-------|--------|------------------|-----------|------------|-----------|
 | BUG-01 | | | | | | Mở / Đang sửa / Đã sửa / Đã xác minh | |
 
-> **Không được cắt** dù thiếu thời gian: TC-42 (tranh chấp giường), TC-44 (nam nữ chung phòng), TC-70 (thất thu điện nước), TC-86/87/88 (bảo mật webhook), TC-108 (quyết toán cọc), TC-121→124 (IDOR). Đây là 11 test bảo vệ những lỗi nghiêm trọng nhất.
+> **Không được cắt** dù thiếu thời gian: TC-42 (tranh chấp chỗ cuối), TC-44 (đổi sang phòng khác giới tính), TC-70 (thất thu điện nước), TC-86/87/88 (bảo mật webhook), TC-108 và TC-110 (quyết toán cọc, không trừ hàng chưa nhận), TC-121→124 và TC-129 (IDOR), TC-152 (giá giả), TC-156 (webhook lặp với đơn hàng), TC-160 (tự hủy đơn quá hạn). Đây là **16 test** bảo vệ những lỗi nghiêm trọng nhất.
 
 ---
 
@@ -330,4 +364,5 @@ flowchart TB
 | v1.0 | 11/09/2026 | Khởi tạo, 122 test case (PostgreSQL) |
 | v1.1 | 12/09/2026 | Thêm 7 test case sau rà soát chéo |
 | v1.2 | 12/09/2026 | Rút xuống 65 test case trọng tâm |
-| **v2.0** | **12/09/2026** | **Viết lại theo stack MongoDB và phạm vi v2.** Bỏ test SV tự nộp đơn, chuyển phòng, giường giữ chỗ (đều ngoài phạm vi). Thêm test giới tính phòng (TC-43, TC-44), chỉ số điện nước (TC-60→64), quyết toán cọc (TC-108, TC-109), bảo mật webhook (TC-86→88). Enum chữ thường, mã lỗi theo `API.md`, tài khoản test dùng email. **Tổng: 88 test case.** |
+| **v2.1** | **13/09/2026** | **Đăng ký theo phòng + nhu yếu phẩm.** Viết lại 4.3 (giường tự sinh, loại phòng, chỗ trống không tính giường bảo trì) và 4.4 (đơn đăng ký, tự gán giường, tranh chấp chỗ cuối, đổi phòng khác giới tính khi duyệt, bù trừ khi lỗi, duyệt muộn). Thêm TC-110 (trả phòng hủy đơn hàng chưa trả), TC-129 (IDOR đơn đăng ký/đơn hàng), mục 4.10 Nhu yếu phẩm (12 test). TC-145 chuyển sang ưu tiên máy tính. Thêm TC-72 (job hóa đơn quá hạn — FR-57 trước đó không có test). Viết lại UAT-01. Danh sách "không được cắt" 11 → 16. **Tổng: 111 test case.** |
+| v2.0 | 12/09/2026 | **Viết lại theo stack MongoDB và phạm vi v2.** Bỏ test SV tự nộp đơn, chuyển phòng, giường giữ chỗ (đều ngoài phạm vi). Thêm test giới tính phòng (TC-43, TC-44), chỉ số điện nước (TC-60→64), quyết toán cọc (TC-108, TC-109), bảo mật webhook (TC-86→88). Enum chữ thường, mã lỗi theo `API.md`, tài khoản test dùng email. **Tổng: 88 test case.** |

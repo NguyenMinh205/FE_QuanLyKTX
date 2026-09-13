@@ -91,7 +91,8 @@ export default function LoginPage() {
                 <div>Quản trị: <code>admin@dorm.local</code> / <code>Admin@123</code></div>
                 <div>Nhân viên: <code>staff@dorm.local</code> / <code>Staff@123</code></div>
                 <div>Người xem: <code>viewer@dorm.local</code> / <code>Viewer@123</code></div>
-                <div>Sinh viên: <code>sv001@dorm.local</code> / <code>Student@123</code></div>
+                <div>SV đang ở: <code>sv001@dorm.local</code> · chưa có chỗ: <code>sv002@dorm.local</code></div>
+                <div>SV phòng chất lượng cao: <code>sv004@dorm.local</code> — mật khẩu SV: <code>Student@123</code></div>
               </div>
             }
           />

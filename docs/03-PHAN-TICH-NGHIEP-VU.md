@@ -1,7 +1,7 @@
 # 03 – PHÂN TÍCH NGHIỆP VỤ
 
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
-**Phiên bản:** v2.0 (MongoDB + Mongoose)
+**Phiên bản:** v2.1 (MongoDB + Mongoose · đăng ký theo phòng)
 **Mục đích:** Mô tả quy tắc nghiệp vụ, máy trạng thái và luồng quy trình.
 
 > Đây là tài liệu **backend phải đọc kỹ nhất** — mọi quy tắc `BR-xx` dưới đây phải được cài đặt ở tầng **Service**.
@@ -16,33 +16,43 @@
 ```mermaid
 flowchart LR
     B["Tòa nhà<br/>Building"] -->|"1..n"| R["Phòng<br/>Room"]
-    R -->|"1..n"| BD["Giường<br/>Bed"]
+    RT["Loại phòng<br/>RoomType"] -->|"1..n"| R
+    R -->|"1..n (tự sinh)"| BD["Giường<br/>Bed"]
     R -->|"1..n"| UR["Chỉ số điện nước<br/>UtilityReading"]
-    S["Sinh viên<br/>Student"] -->|"1..n"| RES["Lưu trú<br/>Residency"]
+    S["Sinh viên<br/>Student"] -->|"1..n"| AP["Đơn đăng ký<br/>Application"]
+    AP -->|"duyệt ⇒ 1:1"| C["Hợp đồng<br/>Contract"]
+    S -->|"1..n"| RES["Lưu trú<br/>Residency"]
     BD -->|"1..n theo thời gian"| RES
-    RES -->|"1:1"| C["Hợp đồng<br/>Contract"]
+    RES -->|"1:1"| C
     C -->|"1..n"| I["Hóa đơn<br/>Invoice"]
     I -->|"1..n"| P["Thanh toán<br/>Payment"]
     C -->|"1..n"| RQ["Yêu cầu<br/>Request"]
     UR -.->|"sinh dòng phí"| I
+    SI["Nhu yếu phẩm<br/>SupplyItem"] -.->|"cấp sẵn cho"| RT
+    S -->|"1..n"| SO["Đơn nhu yếu phẩm<br/>SupplyOrder"]
+    SO -->|"1:1"| I
 ```
 
-**Điểm khác biệt quan trọng so với bản v1:** giữa Sinh viên và Giường có thực thể trung gian **Residency** ("ai đang ở giường nào"), tách khỏi **Contract** ("giấy tờ pháp lý"). Một Residency ứng với đúng một Contract.
+**Ba điểm cần nắm:**
+- Giữa Sinh viên và Giường có thực thể trung gian **Residency** ("ai đang ở giường nào"), tách khỏi **Contract** ("giấy tờ pháp lý"). Một Residency ứng với đúng một Contract.
+- 🆕 **Sinh viên đăng ký theo phòng, không theo giường.** Loại phòng quyết định giá, tiền cọc và đồ cấp sẵn. Giường vẫn tồn tại trong dữ liệu để đếm chỗ, chia tiền điện nước và chống xếp trùng, nhưng **luôn do hệ thống chọn**.
+- 🆕 **Đơn đăng ký là giai đoạn chờ.** Hợp đồng chỉ ra đời khi đã có giường, nên hợp đồng không còn trạng thái `pending`.
 
 ### 1.2. Vòng đời một sinh viên
 
 ```mermaid
 flowchart LR
     A["Staff tạo<br/>hồ sơ SV"] --> B["SV đăng ký<br/>tài khoản"]
-    A --> C["Staff xếp SV<br/>vào giường"]
-    C --> D["Residency active<br/>Contract pending"]
-    D --> E["Staff kích hoạt<br/>hợp đồng"]
-    E --> F["Contract active<br/>+ 2 hóa đơn kỳ đầu"]
-    F --> G["Lưu trú:<br/>đóng phí hằng kỳ"]
+    B --> C["SV nộp đơn:<br/>chọn loại phòng → phòng"]
+    A -.->|"SV đến trực tiếp"| C
+    C --> D["Đơn pending<br/>(không giữ chỗ)"]
+    D --> E["Staff duyệt<br/>(được đổi phòng cùng loại)"]
+    E --> F["Hệ thống tự gán giường<br/>Residency + Contract active<br/>+ 2 hóa đơn kỳ đầu"]
+    F --> G["Lưu trú:<br/>đóng phí hằng kỳ<br/>mua nhu yếu phẩm"]
     G --> H{"Sắp hết hạn"}
     H -->|"Xin gia hạn"| I["Gia hạn:<br/>dời ngày kết thúc"]
     I --> G
-    H -->|"Xin trả phòng"| J["Trả phòng:<br/>chốt nợ + quyết toán cọc"]
+    H -->|"Xin trả phòng"| J["Trả phòng:<br/>hủy đơn hàng chưa trả<br/>chốt nợ + quyết toán cọc"]
     H -->|"Không làm gì"| K["Scheduler tự<br/>cho hết hạn"]
     J --> L["Residency closed<br/>Bed available"]
     K --> L
@@ -56,27 +66,28 @@ flowchart LR
 
 ```mermaid
 stateDiagram-v2
-    [*] --> available: Tạo giường mới
-    available --> occupied: Tạo Residency (chiếm giường)
+    [*] --> available: Tạo phòng (hệ thống tự sinh đủ giường)
+    available --> occupied: Duyệt đơn (hệ thống tự gán giường số nhỏ nhất)
     occupied --> available: Đóng Residency (trả phòng / hết hạn / chấm dứt)
     available --> maintenance: Chuyển bảo trì
     maintenance --> available: Hoàn tất bảo trì
-    available --> [*]: Xóa giường (chỉ khi chưa từng dùng)
 ```
 
-| Trạng thái | Ý nghĩa | Xếp người được? |
-|-----------|---------|-----------------|
-| `available` | Sẵn sàng cho thuê | ✅ |
+| Trạng thái | Ý nghĩa | Được gán cho sinh viên? |
+|-----------|---------|-------------------------|
+| `available` | Sẵn sàng | ✅ |
 | `occupied` | Đang có sinh viên ở | ❌ |
 | `maintenance` | Hỏng hóc / đang sửa | ❌ |
 
-> **Chỉ 3 trạng thái.** Bản v1 từng có `reserved` (giữ chỗ khi sinh viên nộp đơn online). Ở v2, sinh viên **không tự đăng ký chỗ ở** — Staff là người xếp giường (`PRD.md` §4.1) — nên không cần trạng thái giữ chỗ.
+> **Vẫn chỉ 3 trạng thái.** Ở v1.2 sinh viên đã tự nộp đơn, nhưng **nộp đơn không giữ chỗ** (BR-34), nên vẫn không cần trạng thái `reserved`. Giữ chỗ sẽ kéo theo việc phải tự nhả chỗ khi đơn bị bỏ quên — đúng loại logic phiên bản này tránh.
+>
+> Không còn thao tác xóa giường: giường sinh ra cùng phòng và chỉ mất đi khi phòng đổi loại lúc đang trống (BR-09).
 
 ### 2.2. Lưu trú — `Residency.status`
 
 ```mermaid
 stateDiagram-v2
-    [*] --> active: Staff đăng ký SV vào giường
+    [*] --> active: Duyệt đơn đăng ký (hệ thống gán giường)
     active --> closed: Trả phòng / hết hạn / chấm dứt
     closed --> [*]
 ```
@@ -85,8 +96,7 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending: Tạo hợp đồng cùng Residency
-    pending --> active: Staff kích hoạt
+    [*] --> active: Duyệt đơn đăng ký
     active --> active: Gia hạn (dời endDate)
     active --> expired: Quá endDate (Scheduler)
     active --> terminated: Duyệt trả phòng / chấm dứt sớm
@@ -96,12 +106,11 @@ stateDiagram-v2
 
 | Trạng thái | Ý nghĩa | Giường | Residency |
 |-----------|---------|--------|-----------|
-| `pending` | Đã tạo, chưa kích hoạt | `occupied` | `active` |
 | `active` | Đang hiệu lực | `occupied` | `active` |
 | `expired` | Quá hạn, không gia hạn | `available` | `closed` |
 | `terminated` | Trả phòng sớm / bị chấm dứt | `available` | `closed` |
 
-> ⚠️ Giường bị chiếm ngay khi **tạo Residency**, không đợi tới lúc kích hoạt hợp đồng. Nếu đợi, hai Staff có thể cùng tạo Residency trên một giường.
+> 🆕 **Bỏ trạng thái `pending`.** Ở v2.0, hợp đồng `pending` đã chiếm giường nhưng chưa có hiệu lực — một trạng thái lưng chừng dễ bị quên kích hoạt. Giờ giai đoạn chờ nằm ở **đơn đăng ký** (mục 2.7), và giường chỉ bị chiếm tại **đúng một thời điểm**: lúc duyệt đơn.
 
 ### 2.4. Hóa đơn — `Invoice.status`
 
@@ -155,12 +164,47 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
+### 2.7. 🆕 Đơn đăng ký — `Application.status`
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Sinh viên nộp / Staff lập hộ
+    pending --> approved: Staff duyệt (gán giường thành công)
+    pending --> pending: Duyệt thất bại vì ROOM_FULL — đổi phòng rồi duyệt lại
+    pending --> rejected: Staff từ chối (bắt buộc lý do)
+    pending --> cancelled: Sinh viên tự hủy
+    approved --> [*]
+    rejected --> [*]
+    cancelled --> [*]
+```
+
+> Duyệt thất bại vì phòng hết chỗ **không** làm đơn đổi trạng thái — đơn vẫn `pending` để Staff chọn phòng khác cùng loại.
+
+### 2.8. 🆕 Đơn nhu yếu phẩm — `SupplyOrder.status`
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending_payment: Sinh viên đặt hàng (sinh hóa đơn supplies)
+    pending_payment --> ready: Hóa đơn được thanh toán đủ
+    pending_payment --> cancelled: SV/Staff hủy · quá hạn thanh toán · duyệt trả phòng
+    ready --> delivered: Staff xác nhận đã giao
+    delivered --> [*]
+    cancelled --> [*]
+```
+
+| Trạng thái | Nhãn hiển thị | Hóa đơn đi kèm |
+|-----------|---------------|----------------|
+| `pending_payment` | Chờ thanh toán | `unpaid` / `overdue` |
+| `ready` | Chờ nhận hàng | `paid` |
+| `delivered` | Đã giao | `paid` |
+| `cancelled` | Đã hủy | `cancelled` |
+
 ---
 
 ## 3. Quy tắc nghiệp vụ (Business Rules)
 
 > **Nơi cài đặt:** `DB` = ràng buộc/index Mongoose · `SV` = tầng service · `FE` = kiểm tra giao diện (chỉ để trải nghiệm, **không** thay thế kiểm tra server).
-> **⭐** = quy tắc thuộc 3 nghiệp vụ bổ sung (`PRD.md` §2.9).
+> **⭐** = quy tắc thuộc 3 nghiệp vụ bổ sung (`PRD.md` §2.9) · **🆕** = quy tắc thêm ở v2.1 cho đăng ký theo phòng và nhu yếu phẩm (`PRD.md` §2.10).
 
 ### 3.1. Cơ sở vật chất
 
@@ -168,14 +212,14 @@ stateDiagram-v2
 |----|---------|-----|-----|
 | BR-01 | `Building.code` duy nhất trong hệ thống. | DB + SV | FR-20 |
 | BR-02 | `Room.roomNumber` duy nhất trong phạm vi một tòa nhà. | DB (unique compound) + SV | FR-21 |
-| BR-03 | `Bed.bedCode` duy nhất trong phạm vi một phòng. | DB (unique compound) + SV | FR-22 |
-| BR-04 | Số giường thực tế của một phòng không vượt quá `Room.capacity`. | SV | FR-24 |
-| BR-05 | Chỉ xếp được sinh viên vào giường `available`. | SV (xem BR-20) | FR-31 |
-| ⭐ BR-06 | Giới tính sinh viên phải khớp **`Room.gender`**. ⚠️ Kiểm tra ở mức **phòng**, không phải tòa nhà — kiểm tra ở mức tòa sẽ cho nam nữ ở chung phòng. | SV | FR-29 |
+| BR-03 | `Bed.bedNumber` duy nhất trong phạm vi một phòng, đánh số liên tục từ 1. | DB (unique compound) + SV | FR-22 |
+| 🆕 BR-04 | Khi tạo phòng, hệ thống **tự sinh đúng `capacity` giường** lấy từ loại phòng. Không có thao tác thêm hoặc xóa giường bằng tay. | SV | FR-22 |
+| BR-05 | Chỉ gán được giường `available`. **Số chỗ trống của phòng = số giường `available`**, không tính bằng `capacity − số người ở` (cách đó đếm cả giường bảo trì là chỗ trống). | SV (xem BR-20) | FR-28, FR-31 |
+| ⭐ BR-06 | Giới tính sinh viên phải khớp **`Room.gender`**. ⚠️ Kiểm tra ở mức **phòng**, không phải tòa nhà — kiểm tra ở mức tòa sẽ cho nam nữ ở chung phòng. Kiểm tra **cả lúc nộp đơn lẫn lúc duyệt**, vì Staff có thể đổi phòng. | SV | FR-29 |
 | BR-07 | Không xóa cứng tòa nhà/phòng/giường đang được tham chiếu; chỉ chuyển `isActive: false`. | SV | FR-25 |
-| BR-08 | Giường `occupied` không chuyển thẳng sang `maintenance` — phải chuyển người ở đi trước. | SV | FR-27 |
-| BR-09 | Không giảm `Room.capacity` xuống dưới số giường hiện có. | SV | FR-24 |
-| BR-10 | `Room.pricePerBed > 0`. ⚠️ Đây là giá **mỗi sinh viên/tháng**, không nhân/chia cho `capacity` ở bất kỳ đâu. | DB + SV + FE | FR-21 |
+| BR-08 | Giường `occupied` không chuyển thẳng sang `maintenance` — sinh viên phải trả phòng trước. | SV | FR-27 |
+| 🆕 BR-09 | Không đổi `tier`/`capacity` của loại phòng đã có phòng dùng (`ROOM_TYPE_IN_USE`). Không đổi `roomTypeId`/`gender` của phòng đang có người (`ROOM_HAS_OCCUPANTS`); đổi loại phòng lúc trống thì sinh lại giường theo sức chứa mới. | SV | FR-24 |
+| 🆕 BR-10 | Mỗi tổ hợp **hạng × sức chứa** là một loại phòng duy nhất. `pricePerMonth > 0`, `depositAmount ≥ 0`. ⚠️ Giá là **mỗi sinh viên/tháng**, không nhân/chia cho sức chứa ở bất kỳ đâu. **Phòng không có trường giá.** | DB + SV + FE | FR-23 |
 
 ### 3.2. Sinh viên
 
@@ -183,27 +227,33 @@ stateDiagram-v2
 |----|---------|-----|-----|
 | BR-11 | `Student.studentCode` duy nhất toàn hệ thống. | DB (unique) + SV | FR-11 |
 | BR-12 | `Student.gender` bắt buộc — cần cho BR-06. | DB + SV | FR-10 |
-| BR-13 | Không vô hiệu hóa sinh viên còn hợp đồng `pending`/`active`. | SV | FR-14 |
+| BR-13 | Không vô hiệu hóa sinh viên còn hợp đồng `active` hoặc đơn đăng ký `pending`. | SV | FR-14 |
 | BR-14 | Không vô hiệu hóa sinh viên còn công nợ (`tổng còn nợ > 0`). | SV | FR-14 |
 | BR-15 | Số điện thoại theo định dạng Việt Nam: 10 chữ số, bắt đầu bằng `0`. | SV + FE | FR-10 |
 
-### 3.3. Lưu trú & hợp đồng
+### 3.3. Đơn đăng ký, lưu trú & hợp đồng
 
 | Mã | Quy tắc | Nơi | FR |
 |----|---------|-----|-----|
-| **BR-20** | **Mỗi giường tại một thời điểm chỉ có tối đa 1 Residency `active`.** Quy tắc quan trọng nhất hệ thống. Cài bằng **cập nhật có điều kiện nguyên tử** (mục 4.1) + partial unique index trên `Residency.bedId`. | SV + DB | FR-31 |
-| **BR-21** | **Mỗi sinh viên tại một thời điểm chỉ có tối đa 1 hợp đồng `pending`/`active`.** | SV | FR-32 |
-| BR-22 | `Contract.endDate > startDate`, thời hạn tối thiểu 1 tháng. | SV + FE | FR-33 |
-| BR-23 | `Contract` liên kết 1:1 với `Residency`. | DB (unique) | FR-33 |
-| BR-24 | Mã hợp đồng sinh tự động `HD-YYYY-XXXXX`. | SV | FR-33 |
-| **BR-25** | Khi kích hoạt hợp đồng, sinh **hai hóa đơn riêng**: một `type: 'deposit'` (`billingPeriod: null`) và một `type: 'monthly'`. ⚠️ **Tuyệt đối không gộp** — xem mục 5.3. | SV | FR-34 |
-| BR-26 | Hạn thanh toán hai hóa đơn kỳ đầu = `startDate + 7 ngày`. | SV | FR-34 |
-| BR-27 | `Contract.monthlyPrice` **chốt tại thời điểm ký**; đổi `Room.pricePerBed` sau này không làm thay đổi hợp đồng cũ. | SV | FR-33 |
+| **BR-20** | **Mỗi giường tại một thời điểm chỉ có tối đa 1 Residency `active`.** Quy tắc quan trọng nhất hệ thống. Cài bằng **cập nhật có điều kiện nguyên tử lấy giường trống số nhỏ nhất** (mục 4.1) + partial unique index trên `Residency.bedId`. | SV + DB | FR-31 |
+| **BR-21** | **Mỗi sinh viên tại một thời điểm chỉ có tối đa 1 hợp đồng `active`**; đang có hợp đồng `active` thì không nộp được đơn mới. | SV | FR-32 |
+| BR-22 | `endDate > startDate`, thời hạn tối thiểu 1 tháng — áp dụng cho cả đơn đăng ký và hợp đồng. | SV + FE | FR-30 |
+| BR-23 | `Contract` liên kết 1:1 với `Residency` và 1:1 với `Application`. | DB (unique) | FR-34 |
+| BR-24 | Mã sinh tự động: hợp đồng `HD-YYYY-XXXXX`, đơn đăng ký `DK-YYYY-XXXXX`. | SV | FR-30, FR-34 |
+| **BR-25** | Khi duyệt đơn, sinh **hai hóa đơn riêng**: một `type: 'deposit'` (`billingPeriod: null`) và một `type: 'monthly'`. ⚠️ **Tuyệt đối không gộp** — xem mục 5.3. | SV | FR-34 |
+| BR-26 | Hạn thanh toán hai hóa đơn kỳ đầu = **`max(startDate, ngày duyệt)` + 7 ngày**. *(v2.1: trước đây là `startDate + 7`, khiến đơn duyệt muộn sinh ra hóa đơn quá hạn ngay lúc tạo.)* | SV | FR-34 |
+| BR-27 | `Contract.monthlyPrice` và `Contract.depositAmount` **chốt từ loại phòng tại thời điểm duyệt**; đổi giá loại phòng sau này không làm thay đổi hợp đồng cũ. | SV | FR-24, FR-34 |
 | BR-28 | Hợp đồng `active` có `endDate < hôm nay` → `expired`, Residency → `closed`, Bed → `available` (Scheduler). | SV (job) | FR-36 |
 | BR-29 | "Sắp hết hạn" = `0 <= (endDate − hôm nay) <= N`, mặc định `N = 30`, khai báo ở `core/config/settings.js`. | SV | FR-37 |
 | BR-30 | Chỉ hợp đồng `active` mới gia hạn hoặc chấm dứt được. | SV | FR-38 |
 | BR-31 | Chấm dứt sớm: tiền phòng kỳ dở tính theo **số ngày ở thực tế** = `monthlyPrice / số ngày trong tháng × số ngày ở`. | SV | FR-38 |
 | BR-32 | Tiền phòng **tháng đầu thu đủ một tháng**, không chia theo ngày, kể cả khi vào ở giữa tháng. Đơn giản hóa có chủ ý — **bất đối xứng** với BR-31, phải ghi rõ trong nội quy để tránh khiếu nại. | SV | FR-34 |
+| 🆕 BR-33 | Mỗi sinh viên có tối đa **1 đơn `pending`**. | DB (partial unique) + SV | FR-30 |
+| 🆕 BR-34 | **Nộp đơn không giữ chỗ.** Phòng phải còn ít nhất 1 giường `available` tại lúc nộp; nhiều đơn có thể cùng nhắm chỗ cuối cùng — đơn nào được duyệt trước thì được chỗ. | SV | FR-30 |
+| 🆕 BR-35 | Khi duyệt, Staff chỉ được đổi sang phòng **cùng loại phòng** và cùng giới tính (`ROOM_TYPE_MISMATCH`). Đổi sang loại khác = thay đổi giá mà sinh viên chưa đồng ý. | SV + FE | FR-33 |
+| 🆕 BR-36 | Duyệt đơn **theo đúng thứ tự**: gán giường (nguyên tử) → tạo Residency → tạo Contract → tạo 2 hóa đơn → cập nhật đơn. Lỗi xảy ra sau khi đã gán giường ⇒ **trả giường về `available`** rồi mới báo lỗi. | SV | FR-34 |
+| 🆕 BR-37 | Từ chối đơn bắt buộc lý do tối thiểu 10 ký tự; sinh viên chỉ hủy được đơn của chính mình khi còn `pending`. | SV + FE | FR-33 |
+| 🆕 BR-38 | **Không API nào nhận mã giường từ client.** Giường luôn do hệ thống chọn. | SV | FR-31 |
 
 ### 3.4. Phí, chỉ số điện nước & hóa đơn
 
@@ -245,7 +295,7 @@ stateDiagram-v2
 | BR-71 | Không tồn tại 2 yêu cầu cùng loại `pending` cho cùng một hợp đồng. | DB (partial unique) + SV | FR-62 |
 | BR-72 | Gia hạn: `requestedEndDate` phải lớn hơn `endDate` hiện tại. | SV + FE | FR-60 |
 | BR-73 | Duyệt gia hạn: dời `endDate`, sinh hóa đơn `monthly` cho các kỳ gia hạn, **không thu lại tiền cọc**. | SV | FR-65 |
-| BR-74 | Duyệt trả phòng: `Contract` → `terminated`, `Residency` → `closed`, `Bed` → `available`, chốt công nợ. | SV | FR-66 |
+| BR-74 | Duyệt trả phòng: **hủy đơn nhu yếu phẩm chưa thanh toán** (BR-97), rồi `Contract` → `terminated`, `Residency` → `closed`, `Bed` → `available`, chốt công nợ. | SV | FR-66 |
 | ⭐ BR-75 | Duyệt trả phòng khi sinh viên còn nợ → trả `422 STUDENT_HAS_DEBT` kèm số tiền; Staff gửi lại với `forceConfirm: true` mới tiếp tục. | SV + FE | FR-69 |
 | ⭐ BR-76 | Quyết toán cọc: `hoàn = depositAmount − công nợ còn lại`. Tạo hóa đơn `type: 'settlement'`. | SV | FR-68 |
 | ⭐ BR-77 | Nếu `hoàn > 0`, **phải ghi một `Payment` loại `refund`, `status: 'success'`** để lưu vết đã chi trả. Chỉ tính ra con số mà không ghi nhận thì không đối soát được ai đã nhận lại cọc. | SV | FR-68 |
@@ -264,36 +314,51 @@ stateDiagram-v2
 | BR-85 | Đặt lại mật khẩu: sinh mật khẩu tạm ≥ 10 ký tự bằng `crypto.randomBytes`, trả về **một lần**, bật `mustChangePassword`. | SV | FR-09 |
 | **BR-86** | **Mọi API `/api/portal/*` lấy danh tính từ JWT, không bao giờ từ tham số client gửi lên.** | SV | FR-85 |
 
-**Tổng: 76 quy tắc nghiệp vụ.**
+### 3.8. 🆕 Nhu yếu phẩm
+
+| Mã | Quy tắc | Nơi | FR |
+|----|---------|-----|-----|
+| BR-90 | Sản phẩm được cấp sẵn cho loại phòng nào thì **không hiển thị và không đặt được** với sinh viên đang ở loại phòng đó (`SUPPLY_ALREADY_INCLUDED`). | SV + FE | FR-101, FR-102 |
+| BR-91 | Chỉ sinh viên có hợp đồng `active` mới xem cửa hàng và đặt hàng. | SV | FR-101 |
+| **BR-92** | **Tổng tiền đơn tính ở server theo giá hiện hành.** Không nhận giá từ client. Tên và đơn giá sản phẩm được **sao chép vào đơn** lúc đặt — đổi giá sau này không làm sai đơn cũ. | SV | FR-102 |
+| BR-93 | Mỗi sản phẩm 1–5 cái mỗi đơn; sản phẩm ngừng bán không đặt được (`SUPPLY_ITEM_INACTIVE`). | SV + FE | FR-102 |
+| BR-94 | Mỗi đơn sinh đúng **1 hóa đơn** `type: 'supplies'`, `billingPeriod: null`, hạn = ngày đặt + 3 ngày. | SV | FR-102 |
+| BR-95 | Hóa đơn `supplies` chuyển `paid` ⇒ đơn `ready`, bằng cập nhật có điều kiện `{ invoiceId, status: 'pending_payment' }` để webhook gửi lặp không xử lý hai lần. | SV | FR-103 |
+| BR-96 | Chỉ giao được đơn `ready`. Chỉ hủy được đơn `pending_payment` **và** hóa đơn chưa có thanh toán nào; hủy đơn thì hủy luôn hóa đơn. | SV | FR-104, FR-105 |
+| ⭐ BR-97 | Đơn `pending_payment` quá hạn thanh toán ⇒ **tự hủy** kèm hóa đơn (Scheduler). Khi duyệt trả phòng, hủy các đơn này **trước** khi tính công nợ. ⚠️ Nếu thiếu quy tắc này, đơn sinh viên bỏ quên thành công nợ và **bị trừ vào tiền cọc cho món hàng chưa từng nhận**. | SV (job) | FR-106 |
+
+**Tổng: 81 quy tắc nghiệp vụ.**
 
 ---
 
 ## 4. Ba kỹ thuật cốt lõi
 
-### 4.1. ⭐ Chống xếp trùng giường — cập nhật có điều kiện nguyên tử
+### 4.1. ⭐ Chống xếp trùng giường — tự gán giường bằng cập nhật có điều kiện nguyên tử
 
-**Vấn đề:** hai Staff cùng xếp sinh viên vào một giường trong cùng tích tắc. Nếu code là "đọc trạng thái → thấy `available` → ghi `occupied`", cả hai đều đọc thấy `available` và cả hai đều ghi thành công ⇒ hai người một giường.
+**Vấn đề:** hai Staff cùng duyệt hai đơn nhắm vào **chỗ cuối cùng** của phòng B203 trong cùng tích tắc. Nếu code là "tìm giường trống → thấy giường 06 → ghi `occupied`", cả hai đều tìm thấy giường 06 và cả hai đều ghi thành công ⇒ hai người một giường.
 
 **Cách sai:**
 ```js
-const bed = await Bed.findById(bedId);
-if (bed.status !== 'available') throw new ApiError(409, ...);  // ❌ khe hở ở đây
+const bed = await Bed.findOne({ roomId, status: 'available' }).sort({ bedNumber: 1 });
+if (!bed) throw new ApiError(409, 'ROOM_FULL', ...);   // ❌ khe hở nằm giữa dòng trên và dòng dưới
 bed.status = 'occupied';
 await bed.save();
 ```
 
-**Cách đúng** — đưa điều kiện vào **chính câu truy vấn**. Một thao tác `findOneAndUpdate` trên một document là nguyên tử trong MongoDB, không cần transaction:
+**Cách đúng** — gộp "tìm" và "ghi" vào **một câu lệnh**. `findOneAndUpdate` trên một document là nguyên tử trong MongoDB, không cần transaction:
 ```js
 const bed = await Bed.findOneAndUpdate(
-  { _id: bedId, status: 'available' },   // điều kiện nằm trong query
-  { status: 'occupied' },
-  { new: true }
+  { roomId, status: 'available' },        // điều kiện nằm trong query
+  { $set: { status: 'occupied' } },
+  { sort: { bedNumber: 1 }, new: true }   // lấy giường số nhỏ nhất
 );
 if (!bed) {
-  // Không trả về document ⇒ giường vừa bị người khác chiếm
-  throw new ApiError(409, 'BED_NOT_AVAILABLE', 'Giường này vừa được xếp cho sinh viên khác');
+  // Không trả về document ⇒ phòng vừa hết chỗ
+  throw new ApiError(409, 'ROOM_FULL', 'Phòng B203 vừa hết chỗ. Vui lòng chọn phòng khác cùng loại');
 }
 ```
+
+MongoDB chỉ trao giường 06 cho **một** trong hai lệnh; lệnh còn lại không khớp điều kiện `status: 'available'` nữa và nhận `null`.
 
 **Lớp bảo vệ thứ hai** ở tầng CSDL (`DATA-SCHEMA.md` §3.6):
 ```js
@@ -303,7 +368,9 @@ residencySchema.index(
 );
 ```
 
-> Nếu tạo Residency thất bại sau khi đã chiếm giường, **phải trả giường lại** `available` trong khối `catch`.
+> Nếu tạo Residency, Contract hay hóa đơn thất bại sau khi đã gán giường, **phải trả giường lại** `available` trong khối `catch` (BR-36).
+>
+> 💡 **Vì sao đổi sang tự gán lại làm kỹ thuật này dễ hơn:** trước đây giao diện phải xử lý "giường bạn chọn vừa bị lấy", còn giờ chỉ còn một tình huống duy nhất là "phòng hết chỗ". Cả hệ thống có đúng một hàm chiếm giường — `bedService.claimBedInRoom` — nên chỉ cần kiểm thử một chỗ.
 
 ### 4.2. ⭐ Idempotent khi xử lý webhook thanh toán
 
@@ -381,14 +448,16 @@ export function splitEvenly(roomTotal, n) {
 | Tổng công nợ sinh viên | `Σ còn nợ` của các hóa đơn `unpaid`/`partial`/`overdue` |
 | Tiền điện cả phòng | `(electricityEnd − electricityStart) × electricityUnitPrice` |
 | Tiền điện mỗi sinh viên | `splitEvenly(tiền điện phòng, n)` — mục 4.3 |
-| Tiền phòng một tháng | `Contract.monthlyPrice` (giá **mỗi người**) |
+| Tiền phòng một tháng | `Contract.monthlyPrice` (giá **mỗi người**, chốt từ `RoomType.pricePerMonth` lúc duyệt) |
+| Số chỗ trống của phòng | số `Bed` có `status: 'available'` |
+| Tổng đơn nhu yếu phẩm | `Σ quantity × SupplyItem.price` — tính ở server theo giá hiện hành |
 | Tiền phòng theo ngày (trả sớm) | `monthlyPrice / số ngày trong tháng × số ngày ở`, làm tròn đến đồng |
 | Tỷ lệ lấp đầy | `occupied / (tổng giường − maintenance) × 100%` |
 | Tiền hoàn cọc | `depositAmount − tổng công nợ còn lại` (âm ⇒ sinh viên còn nợ) |
 
 ### 5.2. Ví dụ: hóa đơn tháng 10/2026
 
-**Bối cảnh:** phòng B2-301, sức chứa 8, hiện 6 sinh viên đang ở, `pricePerBed` = 400 000 đ/người/tháng.
+**Bối cảnh:** phòng B2-301 thuộc loại "Tiêu chuẩn · 8 người", hiện 6 sinh viên đang ở, hợp đồng chốt `monthlyPrice` = 400 000 đ/người/tháng.
 Điện: 1 250 → 1 610 (360 kWh × 2 500 đ). Nước: 85 → 133 (48 m³ × 12 000 đ).
 
 | Khoản | Tính | Kết quả |
@@ -402,7 +471,7 @@ export function splitEvenly(roomTotal, n) {
 
 ### 5.3. ⚠️ Cạm bẫy: gộp hóa đơn tiền cọc
 
-**Tình huống:** hợp đồng kích hoạt ngày 05/10. Nếu sinh **một** hóa đơn `type: 'monthly'`, `billingPeriod: '2026-10'` chứa cả tiền cọc và tiền phòng, thì cuối tháng 10 khi chạy lập hóa đơn hàng loạt:
+**Tình huống:** đơn đăng ký được duyệt ngày 05/10. Nếu sinh **một** hóa đơn `type: 'monthly'`, `billingPeriod: '2026-10'` chứa cả tiền cọc và tiền phòng, thì cuối tháng 10 khi chạy lập hóa đơn hàng loạt:
 
 1. Hệ thống thấy sinh viên **đã có** hóa đơn `monthly` kỳ 2026-10 (BR-47).
 2. Bỏ qua sinh viên đó.
@@ -425,42 +494,42 @@ Sinh viên trả phòng 15/12, cọc 500 000 đ, còn nợ 246 000 đ.
 
 Nếu công nợ là 700 000 đ ⇒ hoàn = −200 000 ⇒ hoàn 0 đ, hóa đơn `settlement` ghi sinh viên còn nợ 200 000 đ.
 
+> 🆕 Nếu sinh viên còn một đơn nhu yếu phẩm 160 000 đ **chưa thanh toán**, đơn đó bị hủy trước (BR-97) — công nợ chốt vẫn là 439 548 đ, không phải 599 548 đ. Nếu đơn **đã thanh toán nhưng chưa nhận**, không có gì bị trừ; giao diện chỉ nhắc Staff giao hàng trước khi duyệt.
+
 ---
 
 ## 6. Luồng quy trình chi tiết
 
-### 6.1. Xếp sinh viên vào giường
+### 6.1. 🆕 Nộp đơn và duyệt đơn đăng ký
 
 ```mermaid
 sequenceDiagram
+    actor SV as Sinh viên
     actor NV as Staff
     participant API as Backend
     participant DB as MongoDB
 
-    NV->>API: POST /api/residencies {studentId, bedId, startDate}
-    API->>DB: Student.findById + Bed.findById(populate room)
-    API->>API: Kiểm tra Room.gender == Student.gender (BR-06)
-    alt Sai giới tính
-        API-->>NV: 422 GENDER_MISMATCH
-    end
-    API->>DB: Residency.findOne({studentId, status:'active'})
-    alt Đã có hợp đồng mở
-        API-->>NV: 422 STUDENT_HAS_ACTIVE_CONTRACT
-    end
-    API->>DB: Bed.findOneAndUpdate({_id, status:'available'}, {status:'occupied'})
-    alt Trả về null
-        API-->>NV: 409 BED_NOT_AVAILABLE
-    else Chiếm được giường
-        API->>DB: Residency.create({status:'active'})
-        API->>DB: Contract.create({status:'pending'})
-        API-->>NV: 201 + residency + contract
-    end
+    SV->>API: GET /api/room-types?withAvailability=true
+    SV->>API: GET /api/rooms/available?roomTypeId=...
+    Note over API: Chỉ trả phòng khớp giới tính lấy từ JWT
+    SV->>API: POST /api/portal/my-applications {roomId, startDate, endDate}
+    API->>DB: Kiểm tra giới tính (BR-06), hợp đồng active (BR-21), đơn pending (BR-33)
+    API->>DB: Room còn ≥ 1 Bed available? (BR-34 — chỉ kiểm tra, không giữ chỗ)
+    API->>DB: Application.create({status:'pending'})
+    API-->>SV: 201 + mã đơn + dự kiến chi phí
 
-    NV->>API: PATCH /api/contracts/:id/activate
-    API->>DB: Contract.status = 'active'
-    API->>DB: Invoice.create(type:'deposit')
-    API->>DB: Invoice.create(type:'monthly')
-    API-->>NV: 200 + mảng 2 hóa đơn
+    NV->>API: PATCH /api/applications/:id/approve {roomId?}
+    API->>API: Nếu đổi phòng: cùng loại (BR-35) + cùng giới tính (BR-06)
+    API->>DB: Bed.findOneAndUpdate({roomId, status:'available'}, {status:'occupied'}, {sort:{bedNumber:1}})
+    alt Trả về null
+        API-->>NV: 409 ROOM_FULL (đơn vẫn pending)
+    else Gán được giường
+        API->>DB: Residency.create({status:'active'})
+        API->>DB: Contract.create({status:'active', monthlyPrice, depositAmount})
+        API->>DB: Invoice.create(type:'deposit') + Invoice.create(type:'monthly')
+        API->>DB: Application → approved
+        API-->>NV: 200 + mã giường + hợp đồng + mảng 2 hóa đơn
+    end
 ```
 
 ### 6.2. Lập hóa đơn định kỳ
@@ -492,7 +561,8 @@ flowchart TD
     B --> C["Staff xem chi tiết + công nợ"]
     C --> D{"Duyệt?"}
     D -->|"Từ chối"| E["Nhập reviewNote → rejected (BR-78)"]
-    D -->|"Duyệt"| F{"Còn nợ?"}
+    D -->|"Duyệt"| D2["Hủy đơn nhu yếu phẩm<br/>chưa thanh toán (BR-97)"]
+    D2 --> F{"Còn nợ?"}
     F -->|"Có"| G["422 STUDENT_HAS_DEBT (BR-75)"]
     G --> H{"Staff xác nhận<br/>forceConfirm?"}
     H -->|"Không"| C
@@ -509,18 +579,42 @@ flowchart TD
     P --> Q["Hiển thị bảng quyết toán"]
 ```
 
+### 6.4. 🆕 Mua nhu yếu phẩm
+
+```mermaid
+sequenceDiagram
+    actor SV as Sinh viên
+    actor NV as Staff
+    participant API as Backend
+    participant GW as VNPay
+
+    SV->>API: GET /api/portal/supply-items
+    API-->>SV: Đồ đã cấp sẵn + sản phẩm được mua (đã loại đồ cấp sẵn — BR-90)
+    SV->>API: POST /api/portal/my-supply-orders {items:[{supplyItemId, quantity}]}
+    API->>API: Tính tổng theo giá hiện hành (BR-92), kiểm tra BR-90, BR-93
+    API->>API: SupplyOrder pending_payment + Invoice supplies hạn 3 ngày (BR-94)
+    API-->>SV: 201 + mã đơn + hóa đơn
+    SV->>API: POST /api/payments/online/checkout {invoiceId}
+    GW->>API: Webhook thành công
+    API->>API: Invoice paid → SupplyOrder ready (BR-95, chạy đúng 1 lần)
+    SV->>NV: Đến văn phòng nhận hàng
+    NV->>API: PATCH /api/supply-orders/:id/deliver
+    API-->>NV: Đơn delivered
+```
+
 ---
 
 ## 7. Tác vụ nền (Scheduler)
 
-**Một job duy nhất** chạy 00:05 hằng ngày, làm 4 việc tuần tự:
+**Một job duy nhất** chạy 00:05 hằng ngày, làm 5 việc tuần tự:
 
 | # | Việc | Quy tắc | Hành động |
 |---|------|---------|-----------|
 | 1 | Hợp đồng hết hạn | BR-28 | `active` + `endDate < hôm nay` → `expired`; Residency → `closed`; Bed → `available` |
-| 2 | Hóa đơn quá hạn | BR-56 | `dueDate < hôm nay` và còn nợ → `overdue` |
-| 3 | Giao dịch treo | BR-64 | `Payment` `pending` quá 15 phút → `expired` |
-| 4 | Đối soát trạng thái giường | – | So `Bed.status` với Residency thực tế, ghi log nếu lệch và tự sửa |
+| 2 | 🆕 Đơn nhu yếu phẩm quá hạn | BR-97 | `pending_payment` + hóa đơn quá `dueDate` + chưa có thanh toán → đơn `cancelled`, hóa đơn `cancelled`. **Chạy trước việc 3** để các hóa đơn này không bị đánh dấu quá hạn rồi mới hủy |
+| 3 | Hóa đơn quá hạn | BR-56 | `dueDate < hôm nay` và còn nợ → `overdue` |
+| 4 | Giao dịch treo | BR-64 | `Payment` `pending` quá 15 phút → `expired` |
+| 5 | Đối soát trạng thái giường | – | So `Bed.status` với Residency thực tế, ghi log nếu lệch và tự sửa |
 
 ```js
 // core/jobs/daily-job.js — chỉ chạy khi ENABLE_CRON=true
@@ -538,7 +632,11 @@ if (process.argv[2] === 'run-now') runDailyTasks().then(() => process.exit(0));
 
 | Thuật ngữ | Định nghĩa |
 |-----------|------------|
-| **Building / Room / Bed** | Ba cấp không gian ở. Bed là đơn vị nhỏ nhất, được gán cho sinh viên. |
+| **Building / Room / Bed** | Ba cấp không gian ở. Bed là đơn vị nhỏ nhất, **do hệ thống tự gán** cho sinh viên khi duyệt đơn. |
+| **RoomType (Loại phòng)** | Hạng × sức chứa, VD "Tiêu chuẩn · 6 người". Quyết định giá mỗi người/tháng, tiền cọc và đồ cấp sẵn. |
+| **Application (Đơn đăng ký)** | Yêu cầu được ở một phòng. Giai đoạn chờ trước khi có hợp đồng; không giữ chỗ. |
+| **Chỗ trống** | Số giường `available` của phòng — không tính giường bảo trì. |
+| **SupplyOrder (Đơn nhu yếu phẩm)** | Đơn mua đồ dùng, thanh toán qua một hóa đơn `supplies` riêng, nhận tại văn phòng. |
 | **Residency** | "Sinh viên X đang ở giường Y" — sự kiện ở thực tế, tách khỏi giấy tờ. |
 | **Contract** | Giấy tờ pháp lý gắn với đúng một Residency: thời hạn, giá, tiền cọc, điều khoản. |
 | **billingPeriod** | Kỳ tính phí, dạng chuỗi `"2026-10"`. |
@@ -557,4 +655,5 @@ if (process.argv[2] === 'run-now') runDailyTasks().then(() => process.exit(0));
 |-----------|------|----------|
 | v1.0 | 11/09/2026 | Khởi tạo, 65 quy tắc nghiệp vụ (PostgreSQL) |
 | v1.1 | 12/09/2026 | Rà soát chéo, bổ sung 6 quy tắc |
-| **v2.0** | **12/09/2026** | **Viết lại theo stack MongoDB + Mongoose.** Thêm thực thể `Residency`; bỏ trạng thái giường `reserved` (còn 3); bỏ quy tắc chuyển phòng (ngoài phạm vi v1); enum đổi sang chữ thường; đánh số lại BR và truy vết sang FR mới; thay `FOR UPDATE` bằng `findOneAndUpdate` nguyên tử; thay transaction bằng thao tác nguyên tử. **Tổng: 76 quy tắc.** |
+| **v2.1** | **13/09/2026** | **Đăng ký theo phòng + nhu yếu phẩm** (`PRD.md` §2.10). Thêm thực thể `RoomType`, `Application`, `SupplyItem`, `SupplyOrder`; máy trạng thái 2.7 (đơn đăng ký), 2.8 (đơn nhu yếu phẩm); hợp đồng bỏ `pending`, giường không còn thao tác xóa. Viết lại BR-03/04/05/09/10 (giường tự sinh, loại phòng), thêm BR-33→BR-38 (đơn đăng ký) và mục 3.8 BR-90→BR-97 (nhu yếu phẩm). **Sửa BR-26**: hạn hóa đơn kỳ đầu tính từ `max(startDate, ngày duyệt)`. Viết lại mục 4.1 (tự gán giường, `ROOM_FULL`), luồng 6.1; thêm luồng 6.4; Scheduler 5 việc. **Tổng: 81 quy tắc.** |
+| v2.0 | 12/09/2026 | **Viết lại theo stack MongoDB + Mongoose.** Thêm thực thể `Residency`; bỏ trạng thái giường `reserved` (còn 3); bỏ quy tắc chuyển phòng (ngoài phạm vi v1); enum đổi sang chữ thường; đánh số lại BR và truy vết sang FR mới; thay `FOR UPDATE` bằng `findOneAndUpdate` nguyên tử; thay transaction bằng thao tác nguyên tử. **Tổng: 76 quy tắc.** |
