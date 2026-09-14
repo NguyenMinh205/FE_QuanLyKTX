@@ -12,7 +12,7 @@ export default function PlaceholderPage({ title, module, apiGroup }) {
       <Alert
         type="warning"
         showIcon
-        message="Màn hình chưa được cài đặt"
+        title="Màn hình chưa được cài đặt"
         description={
           <span>
             Module <b>{module}</b> — nhóm API <code>{apiGroup}</code>.

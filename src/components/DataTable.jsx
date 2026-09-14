@@ -38,7 +38,7 @@ export default function DataTable({
   scrollX = 1000,
   showSearch = true,
 }) {
-  if (error) return <Alert type="error" message={error} showIcon />;
+  if (error) return <Alert type="error" title={error} showIcon />;
 
   // Đổi bộ lọc thì luôn quay về trang 1, nếu không người dùng sẽ thấy trang trống
   const changeFilter = (patch) => onFiltersChange({ ...filters, ...patch, page: 1 });

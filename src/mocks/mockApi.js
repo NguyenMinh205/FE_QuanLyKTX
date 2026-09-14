@@ -3,6 +3,7 @@
  * Mỗi hàm tương ứng một endpoint trong API.md v1.2 và ném ĐÚNG mã lỗi nghiệp vụ.
  */
 import { delay, ok, paginate, fail, search } from './mockHelpers';
+import { authStorage } from '../lib/authStorage';
 import {
   DEMO_STUDENT_INDEX, roomTypes, buildings, rooms, beds, students, applications, residencies, contracts,
   feeTypes, utilityReadings, invoices, payments, requests, supplyItems, supplyOrders,
@@ -29,8 +30,7 @@ const roomView = (r) => {
 
 /** Sinh viên đang đăng nhập (chỉ dùng cho mock — backend thật lấy từ JWT) */
 const me = () => {
-  let user = null;
-  try { user = JSON.parse(globalThis.localStorage?.getItem('user') || 'null'); } catch { user = null; }
+  const user = authStorage.getUser();
   return students.find((s) => s.id === user?.studentId) || students[DEMO_STUDENT_INDEX.sv001];
 };
 
@@ -52,8 +52,8 @@ const cancelSupplyOrder = (order, reason) => {
 };
 
 // ---------------------------------------------------------------- auth
-const account = (email, password, role, fullName, studentIndex = null) => ({
-  email, password, role,
+const account = (email, password, role, fullName, studentIndex = null, mustChangePassword = false) => ({
+  email, password, role, mustChangePassword,
   id: `u-${email.split('@')[0]}`,
   fullName: studentIndex === null ? fullName : students[studentIndex].fullName,
   studentId: studentIndex === null ? null : students[studentIndex].id,
@@ -67,28 +67,38 @@ const ACCOUNTS = [
   account('sv002@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv002),
   account('sv003@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv003),
   account('sv004@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv004),
+  // Mật khẩu tạm do ban quản lý cấp — đăng nhập xong bị buộc đổi mật khẩu (BR-85)
+  account('doimk@dorm.local', 'Tam@12345', 'staff', 'Phạm Văn Mới Vào', null, true),
 ];
 
 export const mockAuth = {
   login: async ({ email, password }) => {
     await delay(400);
     const found = ACCOUNTS.find((a) => a.email === email && a.password === password);
-    if (!found) fail(401, 'UNAUTHORIZED', 'Email hoặc mật khẩu không đúng');
+    if (!found) fail(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác');
     return ok({
       token: `mock-token-${found.id}`,
       expiresIn: 604800,
       user: {
         id: found.id, email: found.email, fullName: found.fullName,
-        role: found.role, studentId: found.studentId, mustChangePassword: false,
+        role: found.role, studentId: found.studentId, mustChangePassword: found.mustChangePassword,
       },
     }, 'Đăng nhập thành công');
   },
-  changePassword: async ({ currentPassword }) => {
+  /** Khớp BE: body { oldPassword, newPassword }, sai mật khẩu hiện tại → 400 INVALID_CURRENT_PASSWORD */
+  changePassword: async ({ oldPassword, newPassword } = {}) => {
     await delay();
-    if (!ACCOUNTS.some((a) => a.password === currentPassword)) {
-      fail(400, 'VALIDATION_ERROR', 'Mật khẩu hiện tại không đúng',
-        { errors: [{ field: 'currentPassword', message: 'Mật khẩu hiện tại không đúng' }] });
+    if (!oldPassword || !newPassword) {
+      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', {
+        errors: [
+          ...(!oldPassword ? [{ field: 'oldPassword', message: 'Mật khẩu hiện tại là bắt buộc' }] : []),
+          ...(!newPassword ? [{ field: 'newPassword', message: 'Mật khẩu mới là bắt buộc' }] : []),
+        ],
+      });
     }
+    const acc = ACCOUNTS.find((x) => x.email === authStorage.getUser()?.email);
+    if (!acc || acc.password !== oldPassword) fail(400, 'INVALID_CURRENT_PASSWORD', 'Mật khẩu hiện tại không chính xác');
+    Object.assign(acc, { password: newPassword, mustChangePassword: false });
     return ok(null, 'Đổi mật khẩu thành công');
   },
 };

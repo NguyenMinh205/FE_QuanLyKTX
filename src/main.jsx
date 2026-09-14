@@ -13,6 +13,14 @@ import './index.css';
 
 dayjs.locale('vi');
 
+/** Dấu * bắt buộc đặt SAU nhãn, đúng bản thiết kế — áp dụng cho mọi Form */
+const requiredMarkAfter = (label, { required }) => (
+  <>
+    {label}
+    {required && <span style={{ color: '#FF4D4F', marginInlineStart: 4 }}>*</span>}
+  </>
+);
+
 // Bảng màu lấy từ docs/08 mục 4.1
 const theme = {
   token: {
@@ -28,7 +36,7 @@ const theme = {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <ConfigProvider locale={viVN} theme={theme}>
+      <ConfigProvider locale={viVN} theme={theme} form={{ requiredMark: requiredMarkAfter }}>
         {/* <AntApp> bắt buộc để message/modal nhận được theme + locale (docs/14 mục 3.1.1) */}
         <AntApp>
           <AuthProvider>

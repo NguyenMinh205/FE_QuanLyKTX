@@ -46,7 +46,7 @@ export const BED_STATUS = {
 };
 
 export const ROOM_TIER = {
-  standard: { label: 'Tiêu chuẩn',     short: 'TC',  color: 'geekblue' },
+  standard: { label: 'Tiêu chuẩn',     short: 'TC',  color: 'default' },
   premium:  { label: 'Chất lượng cao', short: 'CLC', color: 'gold' },
 };
 

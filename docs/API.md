@@ -86,6 +86,25 @@ For any endpoint a `student` may call, the backend derives the student identity 
 ```
 > v1 issues **one** JWT valid for 7 days. There is no refresh token — when it expires the user logs in again.
 
+**Login errors**
+```json
+{ "code": "INVALID_CREDENTIALS", "message": "Email hoặc mật khẩu không chính xác", "data": null }                 // 401 — same message for unknown email and wrong password
+{ "code": "ACCOUNT_LOCKED", "message": "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ ban quản lý", "data": null } // 403
+{ "code": "VALIDATION_ERROR", "message": "Dữ liệu không hợp lệ", "data": { "errors": [ { "field": "email", "message": "Email không đúng định dạng" } ] } } // 400
+```
+
+**PATCH `/api/auth/change-password`**
+```json
+// request
+{ "oldPassword": "Ktx7Rm2qPz", "newPassword": "Moi12345" }
+// response
+{ "code": "OK", "message": "Đổi mật khẩu thành công", "data": null }
+```
+```json
+{ "code": "INVALID_CURRENT_PASSWORD", "message": "Mật khẩu hiện tại không chính xác", "data": null } // 400
+```
+> Success sets `mustChangePassword: false`. While it is `true` the frontend blocks every other screen (BR-85); the backend does not, so this is UX only.
+
 **POST `/api/users/:id/reset-password`**
 ```json
 { "code": "OK", "message": "Đã đặt lại mật khẩu",
@@ -549,6 +568,9 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `VALIDATION_ERROR` | 400 | Request body failed schema validation |
 | `UNAUTHORIZED` | 401 | Missing/invalid JWT |
 | `TOKEN_EXPIRED` | 401 | JWT expired — log in again |
+| `INVALID_CREDENTIALS` | 401 | Wrong email or password at login |
+| `ACCOUNT_LOCKED` | 403 | Login with a deactivated account (`isActive: false`) |
+| `INVALID_CURRENT_PASSWORD` | 400 | Change password with a wrong current password |
 | `FORBIDDEN` | 403 | Valid user, insufficient role, or accessing another student's data |
 | `NOT_FOUND` | 404 | Resource does not exist |
 | `ROOM_FULL` | 409 | No available bed left in the room *(v1.2 — replaces `BED_NOT_AVAILABLE`)* |

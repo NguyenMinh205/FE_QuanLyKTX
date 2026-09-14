@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Space, Tag, Select, App } from 'antd';
+import { Button, Space, Tag, Select, App, Card } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
@@ -81,6 +81,7 @@ export default function StudentsPage() {
   return (
     <>
       <PageHeader
+        breadcrumb={['Sinh viên']}
         title="Quản lý sinh viên"
         description="Danh sách hồ sơ sinh viên đang hoạt động"
         extra={can(user, 'student:create')
@@ -88,26 +89,28 @@ export default function StudentsPage() {
           : null}
       />
 
-      <DataTable
-        columns={columns}
-        data={data}
-        meta={meta}
-        loading={loading}
-        error={error}
-        filters={filters}
-        onFiltersChange={setFilters}
-        searchPlaceholder="Tìm theo họ tên, mã số sinh viên, số điện thoại..."
-        unit="sinh viên"
-        extraFilters={
-          <Select
-            allowClear
-            placeholder="Giới tính"
-            style={{ width: 140 }}
-            options={GENDER_OPTIONS}
-            onChange={(v) => setFilters({ ...filters, gender: v, page: 1 })}
-          />
-        }
-      />
+      <Card>
+        <DataTable
+          columns={columns}
+          data={data}
+          meta={meta}
+          loading={loading}
+          error={error}
+          filters={filters}
+          onFiltersChange={setFilters}
+          searchPlaceholder="Tìm theo họ tên, mã số sinh viên, số điện thoại..."
+          unit="sinh viên"
+          extraFilters={
+            <Select
+              allowClear
+              placeholder="Giới tính"
+              style={{ width: 140 }}
+              options={GENDER_OPTIONS}
+              onChange={(v) => setFilters({ ...filters, gender: v, page: 1 })}
+            />
+          }
+        />
+      </Card>
 
       <StudentFormModal
         open={modalOpen}

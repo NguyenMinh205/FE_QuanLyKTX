@@ -7,7 +7,7 @@ export default function PortalHomePage() {
   const { user } = useAuth();
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card>
         <Title level={4} style={{ marginTop: 0 }}>Xin chào, {user?.fullName} 👋</Title>
         <Text type="secondary">Cổng thông tin sinh viên nội trú</Text>
@@ -16,7 +16,7 @@ export default function PortalHomePage() {
       <Alert
         type="info"
         showIcon
-        message="Đây là khung cổng sinh viên"
+        title="Đây là khung cổng sinh viên"
         description="Các thẻ 'Chỗ ở của tôi', 'Cần thanh toán' và 'Thao tác nhanh' sẽ bổ sung ở Sprint 4 — xem 08-THIET-KE-GIAO-DIEN.md."
       />
     </Space>
