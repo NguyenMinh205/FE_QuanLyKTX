@@ -2,10 +2,24 @@ import { useState, useCallback, useMemo } from 'react';
 import { AuthContext } from './AuthContext';
 import { authApi } from '../lib/authApi';
 import { authStorage } from '../lib/authStorage';
+import { ROLES } from '../constants/roles';
+
+const VALID_ROLES = Object.values(ROLES);
+
+/**
+ * Đọc phiên đã lưu. Phiên hỏng hoặc từ phiên bản cũ (VD vai trò viết hoa 'ADMIN') bị xóa luôn,
+ * tránh kẹt ở trang 403 mà không có cách đăng xuất.
+ */
+const readStoredSession = () => {
+  const user = authStorage.getToken() ? authStorage.getUser() : null;
+  if (user && VALID_ROLES.includes(user.role)) return user;
+  authStorage.clear();
+  return null;
+};
 
 /** Bọc quanh toàn bộ ứng dụng ở main.jsx */
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => (authStorage.getToken() ? authStorage.getUser() : null));
+  const [user, setUser] = useState(readStoredSession);
 
   /**
    * @param {boolean} remember true = giữ phiên sau khi đóng trình duyệt (localStorage)

@@ -12,7 +12,7 @@ import BrandLogo from '../../../components/BrandLogo';
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
-/** Tài khoản thử — CHỈ hiện khi chạy dev. Bản thật lấy theo src/scripts/seed.js của repo BE */
+/** Tài khoản thử — CHỈ hiện khi chạy dev. Bản thật khớp dữ liệu seed trên DB Atlas chung của nhóm (BE: src/scripts/seed.js) */
 const DEMO_ACCOUNTS = USE_MOCK
   ? [
     ['Quản trị', 'admin@dorm.local', 'Admin@123'],

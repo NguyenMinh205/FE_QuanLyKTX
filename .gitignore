@@ -33,3 +33,6 @@ dist-ssr
 coverage/
 *.sqlite
 uploads/
+
+# Ảnh xuất từ Figma — tài liệu làm việc cục bộ, không đẩy lên remote
+design/
