@@ -21,6 +21,7 @@ import { Table, Input, Alert, Space } from 'antd';
  *   searchPlaceholder="Tìm theo tên, mã số..."
  *   extraFilters={<Select ... />}
  *   unit="sinh viên"
+ *   onRow={(r) => ({ onClick: () => open(r.id) })}   // tùy chọn: bấm cả hàng
  * />
  */
 export default function DataTable({
@@ -37,6 +38,8 @@ export default function DataTable({
   rowKey = 'id',
   scrollX = 1000,
   showSearch = true,
+  onRow,
+  rowClassName,
 }) {
   if (error) return <Alert type="error" title={error} showIcon />;
 
@@ -62,6 +65,8 @@ export default function DataTable({
 
       <Table
         rowKey={rowKey}
+        onRow={onRow}
+        rowClassName={rowClassName}
         columns={columns}
         dataSource={data || []}
         loading={loading}

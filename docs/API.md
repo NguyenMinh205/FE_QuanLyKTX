@@ -313,11 +313,38 @@ Students submit and cancel through the portal (§10).
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/contracts` | admin, staff, viewer | List — `?status=active\|expired\|terminated&buildingId=&roomTypeId=&search=&expiringInDays=30` |
+| GET | `/api/contracts` | admin, staff, viewer | List — `?status=active\|expired\|terminated&buildingId=&roomTypeId=&search=&expiringInDays=30&page=&limit=`. `search` matches contract code, student code/name, bed code. With `expiringInDays` the soonest end date comes first; otherwise the latest start date. Response adds `summary: { all, active, expiring, expired, terminated }` (counts ignore filters) |
 | GET | `/api/contracts/:id` | admin, staff, viewer, student (own) | Get one, with invoices and history |
 | PUT | `/api/contracts/:id` | admin, staff | Update `terms` only — dates change through renewal requests (§9) |
-| PATCH | `/api/contracts/:id/terminate` | admin, staff | `active → terminated`; cascades residency close + bed release + deposit settlement |
+| PATCH | `/api/contracts/:id/terminate` | admin, staff | `active → terminated` — `{ reason, terminationDate }`; cascades supply-order cancel + residency close + bed release + deposit settlement |
 | GET | `/api/contracts/expiring` | admin, staff, viewer | Contracts expiring within N days — `?days=30` |
+
+**List item** — every contract row carries, besides the stored fields: `buildingId`, `buildingCode`, `tier`, `isExpiring` (BR-29) and `totalDebt` (the student's current unpaid total).
+
+**GET `/api/contracts/:id`** — adds to the list item:
+```json
+{ "student": { "id": "665f1a...", "studentCode": "SV2026001", "fullName": "Nguyễn Văn An", "gender": "male", "className": "CNTT2026A", "phone": "0912000000" },
+  "depositStatus": "paid",
+  "invoices": [ { "id": "...", "invoiceCode": "INV-202609-00001", "type": "deposit", "billingPeriod": null, "totalAmount": 500000, "remainingAmount": 0, "status": "paid", "issueDate": "2026-08-30" } ],
+  "pendingRequests": [ { "id": "...", "type": "renewal", "createdAt": "2026-11-01T08:00:00+07:00", "requestedEndDate": "2027-12-31" } ],
+  "unpaidSupplyOrders": 1,
+  "history": [ { "at": "2026-08-30T10:00:00+07:00", "type": "application_approved", "title": "Duyệt đơn, tạo hợp đồng", "description": "Xếp giường A101-01 · ..." } ] }
+```
+> `history` is newest first. `type` ∈ `application_submitted`, `application_approved`, `request_renewal`, `request_checkout`, `terminated`, `expired`. Terminated contracts also expose `terminatedAt` and `terminationReason`.
+
+**PATCH `/api/contracts/:id/terminate`**
+```json
+// request — reason min 10 characters; terminationDate within [startDate, endDate], defaults to today
+{ "reason": "Sinh viên vi phạm nội quy nhiều lần, đã lập biên bản", "terminationDate": "2026-09-15" }
+// response
+{ "code": "OK", "message": "Đã chấm dứt hợp đồng",
+  "data": {
+    "contract": { "id": "665f4d...", "contractCode": "HD-2026-00001", "status": "terminated", "terminatedAt": "2026-09-15" },
+    "settlement": { "outstandingDebt": 566000, "depositAmount": 500000, "refundAmount": 0, "studentStillOwes": 66000, "cancelledSupplyOrders": 1 }
+  } }
+```
+Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `reason` / `terminationDate`.
+> Same settlement shape as checkout approval (§9). The rent of the unfinished period is prorated by days actually stayed (BR-31) **before** `outstandingDebt` is computed; unpaid supply orders are cancelled first (BR-97). Pending renewal/checkout requests of the contract should be closed by the backend — the UI already hides them once the contract is no longer `active`.
 
 > **v1.2:** `POST /api/contracts` and `PATCH /api/contracts/:id/activate` were removed. Contracts are created already `active` by application approval (§5.1), with `monthlyPrice` and `depositAmount` frozen from the room type. There is no `pending` contract status any more.
 
@@ -640,6 +667,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.2 | 15/09/2026 | Contracts (SCR-32, additive): list `summary` counts, sort/search rules and extra row fields; detail adds `student`, `depositStatus`, `invoices`, `pendingRequests`, `unpaidSupplyOrders`, `history`; terminate body `{ reason, terminationDate }` and `settlement` response. |
 | 1.2.1 | 15/09/2026 | FE integration notes (additive, no breaking change): `GET /rooms/:id` example, bed status body `{ status, note? }`; `GET /applications` `summary` counts + sort/search rules; application detail adds `requestedRoom.buildingCode/floor`, `roomType.tier/capacity`, `reviewedAt`, `reviewNote`, `assigned`, `contractCode`; `GET /rooms/available` accepts `gender` for staff. |
 | **1.2** | **13/09/2026** | **Register by room, not bed.** Added room types (§4), applications with automatic bed assignment (§5.1), the supplies module (§11) and the matching portal endpoints (§10). Removed manual bed endpoints, `GET /beds/available`, `POST /residencies`, `POST /contracts` and contract activation. `BED_NOT_AVAILABLE` → `ROOM_FULL`; 10 new error codes (29 total). Dashboard and later sections renumbered §12–§15. |
 | 1.1 | 12/09/2026 | Added utility-reading endpoints and `GENDER_MISMATCH` (A1, A2); checkout approval now returns a `settlement` block (A3). Added password reset, invoice cancel, payment reconcile, and the full `/api/portal/*` group. Documented field-level validation error shape, the two-invoice contract activation, webhook behaviour table, and 11 new error codes. |

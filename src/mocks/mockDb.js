@@ -210,13 +210,18 @@ students.slice(0, PLACED).forEach((st, i) => {
   approveApplication(app, room);
 });
 
-// vài hợp đồng sắp hết hạn
-contracts.filter((_, i) => i % 7 === 6).forEach((c) => { c.endDate = '2026-12-10'; });
-// sv004: hợp đồng còn 20 ngày tính từ lúc chạy — để trang chủ sinh viên hiện thẻ "sắp hết hạn" (BR-29)
+/** "YYYY-MM-DD" của hôm nay + N ngày (theo giờ máy) — để dữ liệu "sắp hết hạn" luôn đúng dù chạy ngày nào */
+export const todayPlus = (days) => {
+  const d = new Date(); d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}`;
+};
+
+// Hợp đồng sắp hết hạn (BR-29): 10 hợp đồng còn 3 → 30 ngày tính từ lúc chạy
+contracts.filter((_, i) => i % 7 === 6).forEach((c, k) => { c.endDate = todayPlus(3 + ((k * 3) % 28)); });
+// sv004: hợp đồng còn 20 ngày — để trang chủ sinh viên hiện thẻ "sắp hết hạn"
 {
   const c = contracts.find((x) => x.studentId === students[DEMO_STUDENT_INDEX.sv004].id);
-  const d = new Date(); d.setDate(d.getDate() + 20);
-  if (c) c.endDate = `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}`;
+  if (c) c.endDate = todayPlus(20);
 }
 
 // 2 giường trống chuyển bảo trì (không đụng giường có người)
@@ -444,6 +449,57 @@ export const requests = contracts.slice(0, 6).map((c, i) => {
     reviewNote: status === 'rejected' ? 'Hồ sơ chưa đủ điều kiện gia hạn' : null,
     createdAt: `2026-11-0${i + 1}T08:00:00+07:00`,
   };
+});
+
+// ---------------------------------------------------------------- hợp đồng năm trước (đã hết hạn / đã chấm dứt)
+// Sinh viên 80, 82, 84 (nam) từng ở tòa A năm học 2025-2026 — hiện không còn chỗ ở. Giường của họ đã được trả lại.
+let pastSeq = 0;
+const seedPastContract = (st, room, { startDate, endDate, status, terminatedAt = null, terminationReason = null }) => {
+  const rt = roomTypes.find((t) => t.id === room.roomTypeId);
+  const bed = bedsOf(room.id)[pastSeq % room.capacity];
+  pastSeq += 1;
+  const app = newApplication(st, room, {
+    applicationCode: `DK-${startDate.slice(0, 4)}-${pad(pastSeq, 5)}`,
+    startDate, endDate, status: 'approved', assignedRoomId: room.id, assignedBedId: bed.id,
+    createdAt: `${startDate.slice(0, 4)}-08-10T09:00:00+07:00`, reviewedAt: `${startDate.slice(0, 4)}-08-15T10:00:00+07:00`,
+  });
+  const closedAt = terminatedAt || endDate;
+  const residency = {
+    id: `res-old${pad(pastSeq)}`, studentId: st.id, bedId: bed.id, applicationId: app.id,
+    startDate, endDate: closedAt, status: 'closed',
+  };
+  residencies.push(residency);
+  const contract = {
+    id: `c-old${pad(pastSeq)}`,
+    contractCode: `HD-2025-${pad(pastSeq, 5)}`,
+    applicationId: app.id, residencyId: residency.id,
+    studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
+    bedId: bed.id, bedCode: bed.bedCode,
+    roomId: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName,
+    roomTypeId: rt.id, roomTypeName: rt.name,
+    startDate, endDate,
+    monthlyPrice: rt.pricePerMonth - 20000, // giá năm trước — chứng minh giá đã chốt không đổi theo loại phòng (BR-27)
+    depositAmount: rt.depositAmount, depositRefunded: rt.depositAmount,
+    status, terminatedAt, terminationReason,
+    terms: 'Sinh viên tuân thủ nội quy ký túc xá.',
+  };
+  contracts.push(contract);
+  Object.assign(app, { contractId: contract.id });
+  invoices.push({
+    ...nextInvoiceCode('202508'),
+    studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
+    contractId: contract.id, bedCode: bed.bedCode,
+    type: 'deposit', billingPeriod: null,
+    lineItems: [{ feeTypeId: 'f4', description: 'Tiền đặt cọc', quantity: 1, unitPrice: rt.depositAmount, amount: rt.depositAmount }],
+    totalAmount: rt.depositAmount, paidAmount: rt.depositAmount,
+    issueDate: `${startDate.slice(0, 4)}-08-15`, dueDate: `${startDate.slice(0, 4)}-08-22`, status: 'paid',
+  });
+};
+seedPastContract(students[80], rooms[0], { startDate: '2025-09-01', endDate: '2026-06-30', status: 'expired' });
+seedPastContract(students[82], rooms[2], { startDate: '2025-09-01', endDate: '2026-06-30', status: 'expired' });
+seedPastContract(students[84], rooms[3], {
+  startDate: '2025-09-01', endDate: '2026-06-30', status: 'terminated',
+  terminatedAt: '2026-01-15', terminationReason: 'Sinh viên chuyển trường, đã bàn giao phòng và thu hồi chìa khóa',
 });
 
 // ---------------------------------------------------------------- thống kê dashboard

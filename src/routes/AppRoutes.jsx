@@ -16,6 +16,7 @@ import ApplyPage from '../features/portal/pages/ApplyPage';
 import RoomTypesPage from '../features/rooms/pages/RoomTypesPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
+import ContractsPage from '../features/contracts/pages/ContractsPage';
 import PlaceholderPage from '../components/PlaceholderPage';
 
 const { ADMIN, STUDENT } = ROLES;
@@ -49,7 +50,7 @@ export default function AppRoutes() {
         <Route path="/admin/room-types" element={<RoomTypesPage />} />
         <Route path="/admin/rooms" element={<RoomsPage />} />
         <Route path="/admin/applications" element={<ApplicationsPage />} />
-        <Route path="/admin/contracts" element={todo('Quản lý hợp đồng', 'contracts', '/api/contracts')} />
+        <Route path="/admin/contracts" element={<ContractsPage />} />
         <Route path="/admin/requests" element={todo('Yêu cầu gia hạn / trả phòng', 'requests', '/api/requests')} />
         <Route path="/admin/utility-readings" element={todo('Nhập chỉ số điện nước', 'fees', '/api/utility-readings')} />
         <Route path="/admin/invoices" element={todo('Quản lý hóa đơn', 'fees', '/api/invoices')} />

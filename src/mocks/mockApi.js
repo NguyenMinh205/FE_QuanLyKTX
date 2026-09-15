@@ -8,7 +8,7 @@ import {
   DEMO_STUDENT_INDEX, roomTypes, buildings, rooms, beds, students, applications, residencies, contracts,
   feeTypes, utilityReadings, invoices, payments, requests, supplyItems, supplyOrders,
   roomTypeOf, bedsOf, availableSlots, generateBeds, approveApplication, createSupplyOrder,
-  occupancyStats, debtOf, demoRaceRoomIds, simulateRivalApproval,
+  occupancyStats, debtOf, demoRaceRoomIds, simulateRivalApproval, todayPlus,
 } from './mockDb';
 
 // ---------------------------------------------------------------- tiện ích
@@ -467,43 +467,132 @@ export const mockResidencies = {
 };
 
 // ---------------------------------------------------------------- contracts
+/** Hợp đồng còn hiệu lực và hết hạn trong N ngày tới (BR-29) */
+const isExpiring = (c, days = 30) => c.status === 'active' && c.endDate >= todayPlus(0) && c.endDate <= todayPlus(days);
+
+const REQUEST_STATUS_TEXT = { pending: 'đang chờ xử lý', approved: 'đã duyệt', rejected: 'bị từ chối', cancelled: 'đã hủy' };
+
+const contractView = (c) => {
+  const room = rooms.find((r) => r.id === c.roomId);
+  return {
+    ...c,
+    buildingId: room?.buildingId,
+    buildingCode: room?.buildingCode,
+    tier: roomTypes.find((t) => t.id === c.roomTypeId)?.tier,
+    isExpiring: isExpiring(c),
+    totalDebt: debtOf(c.studentId),
+  };
+};
+
 export const mockContracts = {
   getList: async (q = {}) => {
     await delay();
-    let rows = contracts;
+    let rows = contracts.map(contractView);
     if (q.status) rows = rows.filter((c) => c.status === q.status);
+    if (q.expiringInDays) rows = rows.filter((c) => isExpiring(c, Number(q.expiringInDays)));
+    if (q.buildingId) rows = rows.filter((c) => c.buildingId === q.buildingId);
     if (q.roomTypeId) rows = rows.filter((c) => c.roomTypeId === q.roomTypeId);
-    if (q.expiringInDays) {
-      const limit = new Date('2026-11-10');
-      limit.setDate(limit.getDate() + Number(q.expiringInDays));
-      rows = rows.filter((c) => c.status === 'active' && new Date(c.endDate) <= limit);
-    }
     rows = search(rows, q.search, ['contractCode', 'studentCode', 'studentName', 'bedCode']);
-    return paginate(rows.map((c) => ({ ...c, totalDebt: debtOf(c.studentId) })), q);
+    // Sắp hết hạn: gần hết hạn nhất lên đầu · còn lại: bắt đầu gần nhất lên đầu
+    rows = q.expiringInDays
+      ? rows.sort((a, b) => a.endDate.localeCompare(b.endDate))
+      : rows.sort((a, b) => b.startDate.localeCompare(a.startDate) || a.contractCode.localeCompare(b.contractCode));
+    const res = paginate(rows, q);
+    // Số hợp đồng theo tab — không phụ thuộc bộ lọc
+    res.data.data.summary = {
+      all: contracts.length,
+      active: contracts.filter((c) => c.status === 'active').length,
+      expiring: contracts.filter((c) => isExpiring(c)).length,
+      expired: contracts.filter((c) => c.status === 'expired').length,
+      terminated: contracts.filter((c) => c.status === 'terminated').length,
+    };
+    return res;
   },
   getById: async (id) => {
     await delay();
     const c = contracts.find((x) => x.id === id);
     if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy hợp đồng');
-    return ok({ ...c, totalDebt: debtOf(c.studentId), invoices: invoices.filter((i) => i.contractId === id).map(withRemaining) });
+    const st = students.find((s) => s.id === c.studentId);
+    const app = applications.find((a) => a.id === c.applicationId);
+    const contractInvoices = invoices.filter((i) => i.contractId === id).map(withRemaining)
+      .sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''));
+    const depositInvoice = contractInvoices.find((i) => i.type === 'deposit');
+    const contractRequests = requests.filter((r) => r.contractId === id);
+
+    // Lịch sử hợp đồng — mới nhất lên đầu
+    const history = [
+      app && { at: app.createdAt, type: 'application_submitted', title: 'Nộp đơn đăng ký', description: `Đơn ${app.applicationCode}` },
+      app?.reviewedAt && {
+        at: app.reviewedAt, type: 'application_approved', title: 'Duyệt đơn, tạo hợp đồng',
+        description: `Xếp giường ${c.bedCode} · tạo hóa đơn tiền cọc và tiền phòng tháng đầu`,
+      },
+      ...contractRequests.map((r) => ({
+        at: r.createdAt,
+        type: `request_${r.type}`,
+        title: `${r.type === 'renewal' ? 'Yêu cầu gia hạn' : 'Yêu cầu trả phòng'} ${REQUEST_STATUS_TEXT[r.status] ?? r.status}`,
+        description: r.type === 'renewal' ? `Đề nghị gia hạn tới ${r.requestedEndDate.split('-').reverse().join('/')}` : r.reason,
+      })),
+      c.status === 'terminated' && { at: c.terminatedAt, type: 'terminated', title: 'Chấm dứt hợp đồng', description: c.terminationReason },
+      c.status === 'expired' && { at: c.endDate, type: 'expired', title: 'Hết hạn hợp đồng', description: 'Hệ thống tự chuyển trạng thái và trả giường' },
+    ].filter(Boolean).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+
+    return ok({
+      ...contractView(c),
+      student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender, className: st.className, phone: st.phone },
+      depositStatus: depositInvoice?.status ?? null,
+      invoices: contractInvoices,
+      pendingRequests: contractRequests.filter((r) => r.status === 'pending')
+        .map((r) => ({ id: r.id, type: r.type, createdAt: r.createdAt, requestedEndDate: r.requestedEndDate })),
+      unpaidSupplyOrders: supplyOrders.filter((o) => o.studentId === c.studentId && o.status === 'pending_payment').length,
+      history,
+    });
   },
-  update: async (id, { terms }) => {
+  update: async (id, { terms } = {}) => {
     await delay();
     const c = contracts.find((x) => x.id === id);
     if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy hợp đồng');
-    c.terms = terms;
+    if (!terms || !terms.trim()) {
+      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'terms', message: 'Điều khoản không được để trống' }] });
+    }
+    c.terms = terms.trim();
     return ok(c, 'Cập nhật điều khoản thành công');
   },
-  terminate: async (id, { reason } = {}) => {
+  /** { reason, terminationDate } — hủy đơn nhu yếu phẩm chưa trả (BR-97), trả giường, đóng lưu trú, quyết toán cọc */
+  terminate: async (id, { reason, terminationDate } = {}) => {
     await delay();
     const c = contracts.find((x) => x.id === id);
-    if (!c || c.status !== 'active') fail(422, 'CONTRACT_NOT_ACTIVE', 'Hợp đồng không ở trạng thái hiệu lực');
-    Object.assign(c, { status: 'terminated', terminationReason: reason || null });
+    if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy hợp đồng');
+    if (c.status !== 'active') fail(422, 'CONTRACT_NOT_ACTIVE', 'Hợp đồng không ở trạng thái hiệu lực');
+    const date = terminationDate || todayPlus(0);
+    const errors = [];
+    if (!reason || reason.trim().length < 10) errors.push({ field: 'reason', message: 'Lý do chấm dứt tối thiểu 10 ký tự' });
+    if (date < c.startDate || date > c.endDate) errors.push({ field: 'terminationDate', message: 'Ngày chấm dứt phải nằm trong thời hạn hợp đồng' });
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+
+    const pendingOrders = supplyOrders.filter((o) => o.studentId === c.studentId && o.status === 'pending_payment');
+    pendingOrders.forEach((o) => cancelSupplyOrder(o, 'Tự hủy khi chấm dứt hợp đồng'));
+    // Mock KHÔNG tính tiền phòng kỳ dở theo ngày ở thực tế (BR-31) — con số cuối cùng do backend chốt
+    const outstandingDebt = debtOf(c.studentId);
+    const refund = c.depositAmount - outstandingDebt;
+
+    Object.assign(c, {
+      status: 'terminated', terminatedAt: date, terminationReason: reason.trim(), depositRefunded: Math.max(0, refund),
+    });
     const bed = beds.find((b) => b.id === c.bedId);
     if (bed) bed.status = 'available';
-    const res = residencies.find((r) => r.id === c.residencyId);
-    if (res) res.status = 'closed';
-    return ok(c, 'Đã chấm dứt hợp đồng');
+    const residency = residencies.find((r) => r.id === c.residencyId);
+    if (residency) Object.assign(residency, { status: 'closed', endDate: date });
+
+    return ok({
+      contract: { id: c.id, contractCode: c.contractCode, status: c.status, terminatedAt: date },
+      settlement: {
+        outstandingDebt,
+        depositAmount: c.depositAmount,
+        refundAmount: Math.max(0, refund),
+        studentStillOwes: Math.max(0, -refund),
+        cancelledSupplyOrders: pendingOrders.length,
+      },
+    }, 'Đã chấm dứt hợp đồng');
   },
 };
 
@@ -774,7 +863,7 @@ export const mockDashboard = {
       residents: {
         activeStudents: active.length,
         activeContracts: active.length,
-        expiringIn30Days: active.filter((c) => c.endDate < '2026-12-15').length,
+        expiringIn30Days: active.filter((c) => isExpiring(c)).length,
       },
       finance: {
         totalDebt: students.reduce((s, st) => s + debtOf(st.id), 0),

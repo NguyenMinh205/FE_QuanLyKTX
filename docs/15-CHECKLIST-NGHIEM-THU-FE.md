@@ -19,6 +19,7 @@
 | 4 | Duyệt đơn đăng ký | SCR-31 | `feature/application-review` | Dữ liệu giả | ⬜ Chưa test |
 | 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | ⬜ Chưa test |
 | 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | ⬜ Chưa test |
+| 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -383,6 +384,79 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 ### 7.6. Màn hình hẹp
 
 - [ ] `sv001`, cửa sổ ~900px → cột phải (đơn chờ nhận, nhu yếu phẩm, hỗ trợ) xuống dưới; hai thẻ Chỗ ở / Hợp đồng vẫn cạnh nhau hoặc xếp chồng gọn; bảng hóa đơn cuộn ngang trong thẻ, trang không có thanh cuộn ngang.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 8. Quản lý hợp đồng (SCR-32)
+
+**Nhánh:** `feature/contract-management` · **Đường dẫn:** Lưu trú & hợp đồng → Hợp đồng · **Chạy:** dữ liệu giả, tài khoản `staff@dorm.local`, **F5 trước khi bắt đầu**.
+
+**Khác thiết kế đã chấp nhận:**
+- Không có tab "Chờ kích hoạt" — từ v1.2 hợp đồng tạo sẵn `active` khi duyệt đơn, không còn trạng thái chờ.
+- Drawer **không có nút "Gia hạn"** — không có API cho cán bộ tự gia hạn; gia hạn đi qua yêu cầu của sinh viên (SCR-66 → duyệt ở SCR-41). Thay bằng khung nhắc "còn N ngày" / khung yêu cầu đang chờ + nút "Mở Yêu cầu".
+- Không có "Bản scan đã ký số", menu con "Danh sách lưu trú" / "Gia hạn hợp đồng" — không có trong docs.
+- Thêm so với bản vẽ: bộ lọc loại phòng, cột giá thuê + công nợ, hóa đơn của hợp đồng, sửa điều khoản trong drawer.
+
+> Ngày "sắp hết hạn" của dữ liệu giả tính theo **ngày máy đang chạy**, nên số ngày còn lại sẽ khác nhau tùy hôm test — chỉ cần luôn nằm trong 0–30.
+
+### 8.1. Tab + danh sách
+
+- [ ] Mặc định mở tab **Đang hiệu lực**. 5 tab kèm số: Tất cả **75** · Đang hiệu lực **72** · Sắp hết hạn **11** (số trên nền vàng) · Hết hạn **2** · Đã chấm dứt **1**.
+- [ ] Bảng có cột: Mã hợp đồng (chữ xanh), Sinh viên (tên + MSSV), Chỗ ở ("A101 · Giường 01"), Loại phòng (tag, CLC màu vàng), Thời hạn ("01/09/2026 → 30/06/2027"), Giá thuê, Công nợ (đỏ nếu > 0), Trạng thái. Chân bảng "Tổng 72 hợp đồng", phân trang 20 dòng.
+- [ ] Tab **Sắp hết hạn**: mọi dòng có chữ cam "còn N ngày" (0–30), **hết hạn sớm nhất lên đầu**; có dòng HD-2026-00004 (sinh viên `sv004`, còn 20 ngày).
+- [ ] Tab **Hết hạn**: 2 hợp đồng **HD-2025-00001**, **HD-2025-00002** — năm học 2025-2026, trạng thái "Hết hạn".
+- [ ] Tab **Đã chấm dứt**: **HD-2025-00003**, dưới thời hạn có chữ đỏ "chấm dứt 15/01/2026".
+
+### 8.2. Tìm kiếm + lọc
+
+- [ ] Tab Tất cả → gõ `SV2026001` → Enter → chỉ còn **HD-2026-00001**. Xóa ô tìm → Enter → đủ lại.
+- [ ] Gõ mã giường `B205-01` hoặc một phần họ tên → lọc đúng.
+- [ ] Chọn **Tòa B** → chỉ còn chỗ ở "B…". Chọn thêm loại phòng "Chất lượng cao · 4 người" → chỉ còn loại đó. Bỏ chọn → đủ lại, về trang 1.
+
+### 8.3. Drawer hợp đồng cũ
+
+- [ ] Tab Đã chấm dứt → bấm dòng HD-2025-00003 → drawer "Hợp đồng HD-2025-00003" tag "Đã chấm dứt".
+- [ ] Khung đỏ "Chấm dứt ngày 15/01/2026 — Lý do: Sinh viên chuyển trường, đã bàn giao phòng và thu hồi chìa khóa"; dòng "Đã hoàn cọc 500.000 đ".
+- [ ] Giá thuê thấp hơn giá loại phòng hiện tại 20.000 đ, kèm dòng "giá chốt lúc duyệt đơn — không đổi khi loại phòng tăng giá" (BR-27).
+- [ ] Lịch sử (mới nhất trên cùng): Chấm dứt hợp đồng · Duyệt đơn, tạo hợp đồng · Nộp đơn đăng ký (DK-2025-…).
+- [ ] Chân drawer **không có** nút "Chấm dứt hợp đồng"; mục Điều khoản **không có** link "Sửa".
+- [ ] Tab Hết hạn → mở HD-2025-00001 → lịch sử có "Hết hạn hợp đồng — Hệ thống tự chuyển trạng thái và trả giường".
+
+### 8.4. Drawer hợp đồng đang hiệu lực — HD-2026-00001 (sinh viên `sv001`)
+
+- [ ] Tìm `SV2026001` → bấm dòng → hàng được tô xanh, drawer mở: tag "Đang hiệu lực".
+- [ ] Khung xanh "Yêu cầu gia hạn gửi ngày 01/11/2026 — Đang chờ xử lý…" + nút **Mở Yêu cầu** → sang `/admin/requests`.
+- [ ] Thông tin sinh viên: Nguyễn Văn An · SV2026001 · lớp CNTT2026A · số điện thoại dạng "0912 000 000".
+- [ ] Lưu trú: "Tòa A · Phòng A101 · Giường 01", Tiêu chuẩn · 6 người, "01/09/2026 → 30/06/2027 · 10 tháng · còn N ngày", 320.000 đ/tháng, tiền cọc 500.000 đ "✓ đã thu", **Công nợ hiện tại 726.000 đ** màu đỏ.
+- [ ] **Hóa đơn của hợp đồng (5)**: mã, loại/kỳ, số tiền, còn nợ (đỏ khi > 0), trạng thái.
+- [ ] Lịch sử có "Yêu cầu gia hạn đang chờ xử lý", "Duyệt đơn, tạo hợp đồng", "Nộp đơn đăng ký".
+- [ ] Mở một hợp đồng ở tab **Sắp hết hạn** không có yêu cầu gia hạn → tiêu đề có tag vàng "Sắp hết hạn" + khung vàng "Hợp đồng còn N ngày — Sinh viên chưa gửi yêu cầu gia hạn…".
+
+### 8.5. Sửa điều khoản
+
+- [ ] Drawer HD-2026-00001 → mục Điều khoản → **Sửa** → ô nhập hiện nội dung cũ + dòng "Chỉ sửa được điều khoản. Ngày ở thay đổi qua yêu cầu gia hạn / trả phòng."
+- [ ] Xóa hết → **Lưu điều khoản** → chữ đỏ "Điều khoản không được để trống".
+- [ ] Gõ "Không nấu ăn trong phòng. Về trước 23h." → **Lưu điều khoản** → thông báo "Cập nhật điều khoản thành công", mục Điều khoản hiện nội dung mới. **Hủy** khi đang sửa → về nội dung cũ.
+
+### 8.6. Chấm dứt hợp đồng
+
+- [ ] Drawer HD-2026-00001 → **Chấm dứt hợp đồng** → hộp thoại có khung vàng **"Không thể hoàn tác"** liệt kê: giường A101 · Giường 01 trả về trống, lưu trú bị đóng · đơn nhu yếu phẩm chưa thanh toán tự hủy **(1 đơn)** · tiền phòng kỳ đang ở tính theo ngày ở thực tế.
+- [ ] Khung **QUYẾT TOÁN TẠM TÍNH**: Tiền cọc 500.000 đ · Công nợ − 726.000 đ · **Dự kiến sinh viên nộp thêm 226.000 đ** (đỏ).
+- [ ] Ngày chấm dứt mặc định hôm nay; lịch mờ các ngày trước 01/09/2026 và sau 30/06/2027.
+- [ ] Lý do "vi pham" → **Chấm dứt hợp đồng** → lỗi "Lý do tối thiểu 10 ký tự", chưa gửi.
+- [ ] Lý do đủ dài → xác nhận → hộp kết quả xanh "Đã chấm dứt hợp đồng HD-2026-00001": Tiền cọc 500.000 đ · Trừ công nợ − 566.000 đ · **Sinh viên còn phải nộp thêm 66.000 đ** · "Đã tự hủy 1 đơn nhu yếu phẩm chưa thanh toán". (Công nợ giảm 160.000 đ vì đơn nhu yếu phẩm chưa trả bị hủy, không trừ vào cọc — BR-97.)
+- [ ] Network → `PATCH /contracts/<id>/terminate` → Payload `{ reason, terminationDate: "YYYY-MM-DD" }`; Response có `settlement`.
+- [ ] Bấm **Đóng** → drawer đổi sang "Đã chấm dứt", khung đỏ ngày chấm dứt + lý do; không còn nút Chấm dứt, link Sửa, khung yêu cầu gia hạn.
+- [ ] Danh sách tự tải lại: tab Đang hiệu lực còn **71**, Đã chấm dứt **2**; HD-2026-00001 không còn ở tab Đang hiệu lực.
+- [ ] _(Kiểm chéo)_ Sang Cơ sở vật chất → Phòng → A101: giường 01 đã **trống** (chỉ đúng nếu không F5 giữa chừng).
+
+### 8.7. Quyền + màn hình hẹp
+
+- [ ] `viewer@dorm.local` → xem được danh sách và drawer; **không có** "Chấm dứt hợp đồng", "Sửa" điều khoản.
+- [ ] `admin@dorm.local` → có đủ nút như staff.
+- [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ (cột Mã hợp đồng ghim trái), trang không có thanh cuộn ngang; drawer vẫn đọc được.
 
 **Lỗi phát hiện:** _(chưa có)_
 
