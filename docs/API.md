@@ -413,11 +413,12 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 | GET | `/api/utility-readings` | admin, staff, viewer | List — `?billingPeriod=2026-10&buildingId=&roomId=` |
 | POST | `/api/utility-readings` | admin, staff | Enter meter readings for one room/period |
 | PUT | `/api/utility-readings/:id` | admin, staff | Edit the four readings — keeps the frozen unit prices; rejected once `isInvoiced: true` |
+| GET | `/api/invoices/generation-preview` | admin, staff | Preview a bulk generation — `?billingPeriod=&buildingIds=id1,id2`; **never writes** *(v1.2.11)* |
 | POST | `/api/invoices/generate` | admin, staff | Bulk-generate invoices for a billing period |
-| GET | `/api/invoices` | admin, staff, viewer | List — `?studentId=&status=&billingPeriod=&type=deposit\|monthly\|settlement\|supplies\|other` |
+| GET | `/api/invoices` | admin, staff, viewer | List — `?search=&studentId=&status=&billingPeriod=&buildingId=&type=deposit\|monthly\|settlement\|supplies\|other`, with `summary` |
 | GET | `/api/invoices/:id` | admin, staff, viewer, student (own) | Get one, with line items and payments |
 | POST | `/api/invoices` | admin, staff | Create a one-off invoice manually |
-| PATCH | `/api/invoices/:id/cancel` | admin, staff | Cancel — only if no successful payment exists |
+| PATCH | `/api/invoices/:id/cancel` | admin, staff | Cancel — only if no successful payment exists; not for `supplies`/`settlement` |
 | GET | `/api/invoices/overdue` | admin, staff, viewer | Overdue invoices (dashboard list) |
 
 **GET `/api/fee-types?includeInactive=true`** *(v1.2.9)*
@@ -489,6 +490,64 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
   } }
 ```
 > `updated` counts students who already had a `monthly` invoice for the period (contract activated mid-period) and had electricity/water line items **added** to it. They are not skipped — skipping them loses the utility charge.
+
+**GET `/api/invoices/generation-preview?billingPeriod=2026-10&buildingIds=665f0a...`** *(v1.2.11 — SCR-53)*
+```json
+{ "code": "OK", "message": "Success",
+  "data": {
+    "created": 52, "updated": 3, "totalAmount": 29307000,
+    "eligibleStudents": 55, "readyRooms": 14,
+    "skipped": [
+      { "roomId": "665f2b...", "roomNumber": "206", "buildingCode": "B", "code": "NO_READING", "reason": "Chưa nhập chỉ số điện nước" },
+      { "roomId": "665f2c...", "roomNumber": "101", "buildingCode": "A", "code": "ALREADY_INVOICED", "reason": "Kỳ này đã lập hóa đơn" },
+      { "roomId": "665f2d...", "roomNumber": "310", "buildingCode": "B", "code": "NO_RESIDENT", "reason": "Không có sinh viên đang ở" }
+    ]
+  } }
+```
+> - Runs exactly the same calculation as `POST /invoices/generate` but writes nothing. The generate response has the same shape.
+> - It is a **separate GET on purpose**: a `dryRun` flag on the POST would silently create real invoices on a backend that ignores the flag.
+> - `buildingIds` omitted = all active buildings. `billingPeriod` after the current month → `400 VALIDATION_ERROR`.
+> - `skipped[].code`: `NO_READING` · `ALREADY_INVOICED` (the room's reading is already `isInvoiced`) · `NO_RESIDENT`. The modal lists `NO_READING` rooms with a link to the reading screen.
+> - Generated line items: rent `Tiền phòng tháng 10/2026`, then `Tiền điện tháng 10/2026 (90 kWh, chia đều 4 người)` and the water equivalent, each with `quantity: 1` and `unitPrice = amount = share`. Generating marks each processed room's reading `isInvoiced: true`.
+
+**GET `/api/invoices`** *(v1.2.11 — SCR-52)*
+```json
+{ "code": "OK", "message": "Success",
+  "data": {
+    "items": [
+      { "id": "665f5c...", "invoiceCode": "INV-202610-00042", "type": "monthly", "billingPeriod": "2026-10",
+        "studentId": "665e3a...", "studentName": "Trần Thị Bích", "studentCode": "SV2024001",
+        "contractId": "6660c1...", "bedCode": "B203-02", "roomNumber": "203", "buildingId": "665f0a...", "buildingCode": "B", "buildingName": "Tòa B",
+        "lineItems": [ { "feeTypeId": "665e2a...", "description": "Tiền phòng tháng 10/2026", "quantity": 1, "unitPrice": 320000, "amount": 320000 } ],
+        "totalAmount": 443750, "paidAmount": 200000, "remainingAmount": 243750,
+        "issueDate": "2026-11-01", "dueDate": "2026-11-10", "status": "partial" }
+    ],
+    "total": 128, "page": 1, "limit": 10,
+    "summary": { "totalAmount": 48620000, "paidAmount": 36150000, "remainingAmount": 12470000, "overdueCount": 7, "overdueAmount": 3120000 }
+  } }
+```
+> - Flat student/room fields, no populated objects. `search` matches invoice code, student code, student name and bed code.
+> - Sort: newest `issueDate` first.
+> - `summary` covers the whole filtered set (not just the page) and **excludes cancelled invoices**.
+
+**POST `/api/invoices`** *(v1.2.11 — one-off invoice, FR-46)*
+```json
+{ "contractId": "6660c1...", "studentId": "665e3a...", "dueDate": "2026-09-22", "note": "Biên bản ngày 12/09",
+  "lineItems": [ { "feeTypeId": "665e2f...", "description": "Làm mất chìa khóa", "quantity": 1, "unitPrice": 50000 } ] }
+```
+> - `type` is always `other` and `billingPeriod` is `null`, so two one-off invoices in the same month never hit the anti-duplicate index.
+> - The contract must be `active` → otherwise `422 CONTRACT_NOT_ACTIVE`.
+> - Fee types `rent`, `deposit`, `supplies` are rejected: their amounts come from the contract or an order.
+> - `amount` and `totalAmount` are computed by the server (BR-41, BR-42). Field errors use paths such as `lineItems.0.unitPrice`.
+
+**PATCH `/api/invoices/:id/cancel`** *(v1.2.11)*
+> - `422 INVOICE_HAS_PAYMENT` when `paidAmount > 0` (BR-46).
+> - `422 INVOICE_NOT_CANCELLABLE` for an already-cancelled invoice, a `supplies` invoice (cancel the order instead) or a `settlement` invoice.
+> - Cancelling a `monthly` invoice: once no non-cancelled monthly invoice with utility lines remains for that room and period, the room's reading goes back to `isInvoiced: false`, so it can be corrected and invoiced again.
+>
+> **Backend status (15/09/2026):**
+> - No `generation-preview`: `GET /invoices/generation-preview` is caught by `/invoices/:id` and returns `400`, so the modal shows an error and blocks generating. Nothing is written.
+> - The list returns `studentId` populated, `items[{ name }]` instead of `lineItems`, no `remainingAmount`/`summary`/room fields, and no `search`/`buildingId` filters. The frontend normalises student, line items and remaining amount.
 
 ---
 
@@ -795,6 +854,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `BED_OCCUPIED` | 422 | Cannot set an occupied bed to maintenance |
 | `INVOICE_ALREADY_PAID` | 422 | Invoice already fully paid |
 | `INVOICE_HAS_PAYMENT` | 422 | Cannot cancel an invoice that has payments |
+| `INVOICE_NOT_CANCELLABLE` | 422 | Invoice already cancelled, or is a `supplies`/`settlement` invoice that is cancelled elsewhere *(v1.2.11)* |
 | `PAYMENT_EXCEEDS_REMAINING` | 422 | Payment larger than the outstanding balance |
 | `INVALID_METER_READING` | 422 | End reading below start reading *(A2)* |
 | `READING_ALREADY_INVOICED` | 422 | Meter reading locked after invoicing *(A2)* |
@@ -824,6 +884,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.11 | 15/09/2026 | Invoices (SCR-52/53): list filters `search`/`buildingId`, flat room/student fields and `summary`; new `GET /invoices/generation-preview` (same shape as generate, adds `eligibleStudents`, `readyRooms`, `skipped[].code`); one-off `POST /invoices` body and rules; cancel rules with new `INVOICE_NOT_CANCELLABLE` and reading unlock. |
 | 1.2.10 | 15/09/2026 | Utility readings (SCR-51): list item shape with `roomId`, `roomNumber`, frozen prices, amounts, `recordedByName`/`recordedAt`; `roomId` filter; `PUT` keeps frozen prices; future period and duplicate rules; how the entry screen prefills start readings. |
 | 1.2.9 | 15/09/2026 | Fee types (SCR-82): `includeInactive` list flag, `isSystem`, create/update bodies and validation, `FEE_TYPE_REQUIRED`; recorded backend differences. |
 | 1.2.8 | 15/09/2026 | Portal (SCR-61): documented the `GET /portal/my-residence` response (`hasResidence`, `contract`, `roomType`, `includedInRoom`, `roommates`, `debtSummary`). Backend gap analysis for FE integration in `docs/16-YEU-CAU-API-BACKEND.md`. |

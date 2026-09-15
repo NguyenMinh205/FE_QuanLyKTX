@@ -3,7 +3,7 @@ import { Card, Typography, Skeleton } from 'antd';
 const { Text } = Typography;
 
 /**
- * Thẻ chỉ số dashboard: nhãn + biểu tượng · con số lớn · dòng phụ dưới vạch kẻ.
+ * Thẻ chỉ số (Dashboard, Hóa đơn…): nhãn + biểu tượng · con số lớn · dòng phụ dưới vạch kẻ.
  * @param value   null/undefined → hiện "—" (backend chưa trả trường này)
  */
 export default function StatCard({

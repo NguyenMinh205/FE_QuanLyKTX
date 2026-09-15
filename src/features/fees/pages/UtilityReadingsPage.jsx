@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Card, Select, Table, Tag, Typography, Progress, Alert, Tooltip, App, Space,
 } from 'antd';
@@ -61,15 +62,20 @@ export default function UtilityReadingsPage() {
   const { modal, message } = App.useApp();
   const canEdit = can(user, 'utilityReading:record');
 
-  const [period, setPeriod] = useState(currentPeriod());
-  const [buildingId, setBuildingId] = useState(null);
+  // Mở từ modal Lập hóa đơn hàng loạt kèm ?period=2026-10&buildingId=… ("Nhập ngay")
+  const [searchParams] = useSearchParams();
+  const [period, setPeriod] = useState(() => {
+    const p = searchParams.get('period');
+    return periodOptions(12).some((o) => o.value === p) ? p : currentPeriod();
+  });
+  const [buildingId, setBuildingId] = useState(searchParams.get('buildingId'));
   const [drafts, setDrafts] = useState({});           // roomId → { field: value }
   const [serverErrors, setServerErrors] = useState({}); // roomId → thông báo lỗi lần lưu trước
   const [saving, setSaving] = useState(false);
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
   const { data: feeTypes } = useApi(() => feeApi.getFeeTypes(), []);
-  const activeBuildingId = buildingId ?? buildings?.[0]?.id ?? null;
+  const activeBuildingId = (buildingId && buildings?.some((b) => b.id === buildingId) ? buildingId : null) ?? buildings?.[0]?.id ?? null;
   const building = buildings?.find((b) => b.id === activeBuildingId);
 
   const { data: sheet, loading, error, refetch } = useApi(() => loadSheet(activeBuildingId, period), [activeBuildingId, period]);

@@ -369,6 +369,25 @@ contracts.forEach((c, i) => {
   });
 });
 
+// Hóa đơn tháng đầu sinh lúc duyệt đơn (BR-25) — mới có tiền phòng, đã trả. Lập hàng loạt kỳ này sẽ
+// BỔ SUNG điện nước vào 3 hóa đơn này thay vì bỏ qua sinh viên (BR-48)
+const firstMonthPeriod = periodPlus(0);
+contracts
+  .filter((c, i) => i >= 20 && c.status === 'active' && rooms.find((r) => r.id === c.roomId)?.buildingId === 'b1')
+  .slice(0, 3)
+  .forEach((c) => {
+    const [y, m] = firstMonthPeriod.split('-');
+    invoices.push({
+      ...nextInvoiceCode(`${y}${m}`),
+      studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
+      contractId: c.id, bedCode: c.bedCode,
+      type: 'monthly', billingPeriod: firstMonthPeriod,
+      lineItems: [{ feeTypeId: 'f1', description: `Tiền phòng tháng ${Number(m)}/${y}`, quantity: 1, unitPrice: c.monthlyPrice, amount: c.monthlyPrice }],
+      totalAmount: c.monthlyPrice, paidAmount: c.monthlyPrice,
+      issueDate: `${firstMonthPeriod}-01`, dueDate: `${firstMonthPeriod}-08`, status: 'paid',
+    });
+  });
+
 // ---------------------------------------------------------------- nhu yếu phẩm
 export const supplyItems = [
   { id: 'si1', name: 'Đệm mút 90x190cm', category: 'bedding', unit: 'cái', price: 350000, includedInRoomTypes: ['rt4', 'rt5', 'rt6'], isActive: true },

@@ -3,7 +3,7 @@
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
 **Người đọc:** nhóm Backend (3 người)
 **Người lập:** FE Lead · **Ngày:** 15/09/2026
-**Đối chiếu:** `docs/API.md` **v1.2.10** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
+**Đối chiếu:** `docs/API.md` **v1.2.11** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
 
 > **Tóm tắt một dòng:** backend đang làm theo API **v1.1** (xếp giường bằng tay). Frontend đã làm xong 16/31 màn theo **v1.2** (đăng ký theo phòng, giường tự gán, nhu yếu phẩm). Để nối được, backend cần: **thêm 5 nhóm API còn thiếu**, **sửa định dạng/luật ở 7 nhóm đang lệch**, **bỏ 8 API thừa của v1.1**, và **sửa 6 lỗi chung**.
 
@@ -25,7 +25,7 @@
 | **P2** | Dọn dẹp, bảo mật, lỗi tiềm ẩn — không chặn giao diện |
 
 - **Nguồn sự thật** là `docs/API.md` (định dạng request/response, mã lỗi mục 13) và `docs/DATA-SCHEMA.md` (tên trường). Tài liệu này **không lặp lại** định dạng đã có ở `API.md`, chỉ chỉ ra chỗ lệch và việc cần làm.
-- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.10**.
+- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.11**.
 - Frontend có lớp dữ liệu giả (`src/mocks/`) trả **đúng** định dạng trong `API.md` — khi phân vân, chạy FE ở chế độ dữ liệu giả (`VITE_USE_MOCK=true`), mở F12 → Network để xem request/response mẫu.
 
 ---
@@ -206,10 +206,13 @@ Mọi endpoint lấy danh tính **từ JWT** (BR-86). Định dạng: **`API.md`
 | `GET /fee-types` chỉ trả loại đang dùng; không có `isSystem`; cho ngừng dùng cả loại hệ thống | Theo `API.md` mục 7 (bản 1.2.9): `?includeInactive=true`, trả `isSystem`; ngừng dùng loại hệ thống → `422 FEE_TYPE_REQUIRED`; `PUT` nhận `{ name, unit, defaultAmount, isRecurring, isActive }`, không đổi `code` | `fee.service.js:20-49` |
 | `GET /utility-readings` không phân trang, không Joi, `roomId` bị populate thành object, lọc `buildingId` trong bộ nhớ; `PUT` không Joi; trùng kỳ trả `READING_ALREADY_EXISTS` | Theo `API.md` mục 7 (bản 1.2.10): Joi cho cả hai; trả `{ items, total, page, limit }`; item phẳng `roomId`, `roomNumber`, `buildingId`, tiêu thụ + thành tiền, `recordedByName`, `recordedAt`; chặn kỳ tương lai; trùng → `409 DUPLICATE_ENTRY`. FE (SCR-51) đang nhận được cả dạng hiện tại khi đọc | `fee.service.js:51-72, 134-166` |
 | Invoice dùng `items[{name,...}]`, không có `remainingAmount`, `type` thiếu `supplies` | `lineItems[{ feeTypeId, description, quantity, unitPrice, amount }]`, trả thêm `remainingAmount`, thêm `supplies` | `invoice.model.js` |
-| `POST /invoices/generate` trả `{ totalInvoicesCreated, invoices }`, **bỏ qua** sinh viên đã có hóa đơn tháng | Trả `{ created, updated, totalAmount, skipped[{roomId, roomNumber, reason}] }`; **bổ sung dòng điện nước** vào hóa đơn tháng đã có (BR-48) thay vì bỏ qua | `fee.service.js:189-326` |
+| `POST /invoices/generate` trả `{ totalInvoicesCreated, invoices }`, **bỏ qua** sinh viên đã có hóa đơn tháng | Trả `{ created, updated, totalAmount, eligibleStudents, readyRooms, skipped[{roomId, roomNumber, buildingCode, code, reason}] }`; **bổ sung dòng điện nước** vào hóa đơn tháng đã có (BR-48) thay vì bỏ qua; đánh dấu chỉ số `isInvoiced` | `fee.service.js:189-326` |
+| ❌ Chưa có xem trước lập hàng loạt | **Thêm `GET /invoices/generation-preview`** (`API.md` bản 1.2.11) — cùng cách tính, không ghi. Khai báo route **trước** `/invoices/:id`. Màn SCR-53 khóa nút Lập khi chưa xem trước được | `fee.routes.js:44-53` |
+| `GET /invoices` không có `search`, `buildingId`, `summary`; `studentId` bị populate; không có `remainingAmount`, phòng/tòa | Theo `API.md` bản 1.2.11: trường phẳng `studentName`, `studentCode`, `roomNumber`, `buildingCode`; `summary` của cả tập đã lọc, bỏ hóa đơn hủy | `fee.service.js:328-361` |
+| Hủy hóa đơn: cho hủy cả hóa đơn nhu yếu phẩm, quyết toán; không mở khóa chỉ số khi hủy hết hóa đơn tháng của phòng | `422 INVOICE_NOT_CANCELLABLE` cho `supplies`/`settlement`/đã hủy; mở lại `isInvoiced` của chỉ số khi phòng không còn hóa đơn tháng nào có tiền điện nước | `fee.service.js:398-417` |
 | `GET /invoices/:id` không có `payments` | Thêm danh sách thanh toán của hóa đơn | `fee.service.js:363-380` |
 | `GET /invoices/overdue` bỏ sót hóa đơn đã ở trạng thái `overdue` | Lọc `status in [unpaid, partial, overdue]` và `dueDate < now` | `fee.service.js:419-427` |
-| `POST /invoices` không kiểm tra `amount = quantity × unitPrice` | Tự tính `amount`, không nhận từ client | `fee.service.js:382-396` |
+| `POST /invoices` không kiểm tra `amount = quantity × unitPrice` | Tự tính `amount`, không nhận từ client; `type` luôn `other`, `billingPeriod` null; hợp đồng phải `active`; từ chối loại phí `rent`, `deposit`, `supplies` (`API.md` bản 1.2.11) | `fee.service.js:382-396` |
 
 ### 3.13. Thanh toán — P1 ⚠️
 
@@ -287,6 +290,7 @@ Chưa có. Làm theo **`API.md` mục 11** + **`DATA-SCHEMA` 3.15–3.16** + **`
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.3 | 15/09/2026 | FE Lead | Hóa đơn (3.12): xem trước lập hàng loạt, danh sách + `summary`, hóa đơn lẻ, luật hủy |
 | 1.2 | 15/09/2026 | FE Lead | Chỉ số điện nước (3.12): định dạng danh sách cho màn SCR-51 |
 | 1.1 | 15/09/2026 | FE Lead | Phí (3.12): cập nhật dữ liệu loại phí đang có trên DB chung, thêm yêu cầu cho màn SCR-82 (`includeInactive`, `isSystem`, `FEE_TYPE_REQUIRED`) |
 | 1.0 | 15/09/2026 | FE Lead | Bản đầu — đối chiếu `API.md` v1.2.8 với `BE_QLKTX` commit `ab7db8c` |

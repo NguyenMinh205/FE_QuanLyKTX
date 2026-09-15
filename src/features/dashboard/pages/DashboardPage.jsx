@@ -16,7 +16,7 @@ import { contractApi } from '../../contracts/api/contract.api';
 import { roomApi } from '../../rooms/api/room.api';
 import PageHeader from '../../../components/PageHeader';
 import { formatCurrency, formatDate, formatPercent } from '../../../utils/formatter';
-import StatCard from '../components/StatCard';
+import StatCard from '../../../components/StatCard';
 import OccupancyChart from '../components/OccupancyChart';
 
 const { Text } = Typography;

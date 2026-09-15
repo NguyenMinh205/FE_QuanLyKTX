@@ -27,6 +27,7 @@
 | 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 14 | Nhập chỉ số điện nước | SCR-51 | `feature/utility-readings` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -883,6 +884,81 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 - [ ] Ô Tòa nhà hiện đủ tên "Tòa nhà A (Khu Nam)". Bảng có phòng **A101** (0 người, **Bỏ qua**); thanh dưới "Chưa có phòng nào có người ở — không cần nhập".
 - [ ] F12 → Console chỉ có 2 lỗi 404 `/room-types` của Dashboard (đã biết).
 - [ ] _(Chỉ làm trên DB riêng)_ Nhập và lưu chỉ số: backend chưa kiểm tra kỳ tương lai và trả `READING_ALREADY_EXISTS` khi trùng (xem `API.md` bản 1.2.10).
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 16. Hóa đơn + Lập hóa đơn hàng loạt (SCR-52, SCR-53)
+
+**Nhánh:** `feature/invoice-management` · **Đường dẫn:** Tài chính → Hóa đơn (`/admin/invoices`) · **Chạy:** dữ liệu giả, tài khoản `staff@dorm.local`, **F5 trước khi bắt đầu**, từ 16.2 tới 16.6 làm liền mạch không F5.
+
+**Dữ liệu giả:** như mục 15. Kỳ tháng này: Tòa A đã nhập đủ chỉ số; Tòa B thiếu B206, B207, B208, B309. Có 3 sinh viên Tòa A đã có hóa đơn tháng này (tháng đầu ở, mới có tiền phòng, đã trả).
+
+**Khác bản vẽ:**
+- Mã hóa đơn theo docs `INV-YYYYMM-XXXXX` (bản vẽ `HD-2026-10-0042`).
+- Thẻ Phải thu không có "+4,2% so với tháng trước": API chưa có số kỳ trước.
+- Cột Phòng gộp vào cột Sinh viên để không mất cột Trạng thái ở màn 1600px (bản vẽ bị tràn).
+- Lọc chạy ngay khi chọn (không cần nút "Lọc"); nút tròn là **Xóa bộ lọc**.
+- Chưa có nút "Thu tiền": thuộc SCR-55, làm ở nhánh sau. Bấm mã hóa đơn mở trang chi tiết (SCR-54, cũng làm ở nhánh sau).
+- Modal lập hàng loạt có thêm ô **Hạn thanh toán** (UC-04 bước 1).
+- Không ghi "gửi thông báo": hệ thống không gửi thông báo (ngoài phạm vi).
+
+### 16.1. Danh sách + thẻ tổng
+
+- [ ] 4 thẻ: **Phải thu** · **Đã thu** (xanh, "Tỷ lệ hoàn thành: x%") · **Còn nợ** (đỏ, "Chiếm x% số phải thu") · **Quá hạn** (đỏ, "N hóa đơn", link "… chưa thu — xem ngay"). Kiểm: Đã thu + Còn nợ = Phải thu.
+- [ ] Bảng 10 dòng/trang, cuối bảng "Tổng N hóa đơn". Cột: Mã hóa đơn (link) · Sinh viên · Phòng (tên, MSSV, tag phòng) · Loại (tag màu) · Kỳ (`MM/YYYY` hoặc —) · Tổng tiền · Đã trả · Còn lại (**đỏ đậm** khi > 0, xanh khi 0) · Hạn TT (đỏ khi quá hạn) · Trạng thái · Thao tác.
+- [ ] Hóa đơn **Đã hủy**: dòng mờ, Đã trả / Còn lại "—", không có nút Hủy.
+
+### 16.2. Lọc
+
+- [ ] Bấm "xem ngay" ở thẻ Quá hạn → ô Trạng thái = **Quá hạn**, mọi dòng Quá hạn, thẻ tính lại theo bộ lọc.
+- [ ] Nút **Xóa bộ lọc** (vòng tròn) → về tất cả, ô tìm kiếm trống.
+- [ ] Loại **Tiền cọc** → mọi dòng Tiền cọc, Kỳ "—"; thêm Tòa **Tòa B** → mọi phòng B….
+- [ ] Tìm `SV2026001` (Enter) → chỉ hóa đơn của sinh viên đó.
+- [ ] Từ Dashboard bấm "Xem hóa đơn" ở ô quá hạn → mở `/admin/invoices?status=overdue`, đã lọc sẵn. Bấm menu **Hóa đơn** → bộ lọc về mặc định.
+
+### 16.3. Hủy hóa đơn (FR-58, BR-46)
+
+- [ ] Hóa đơn **Nhu yếu phẩm**: nút Hủy mờ, rê chuột "Hóa đơn nhu yếu phẩm hủy theo đơn hàng…".
+- [ ] Hóa đơn **Thanh toán một phần** / **Đã thanh toán**: nút Hủy mờ, "Đã có thanh toán — không hủy được (BR-46)".
+- [ ] Lọc Loại Hàng tháng + Trạng thái Chưa thanh toán → Hủy dòng đầu → hộp "Hủy hóa đơn INV-…?" nêu tên, loại, số tiền, "không khôi phục được" → **Hủy hóa đơn** → "Đã hủy hóa đơn INV-…", dòng biến mất khỏi bộ lọc Chưa thanh toán.
+
+### 16.4. Lập hóa đơn hàng loạt (SCR-53)
+
+- [ ] **Lập hóa đơn hàng loạt** → Tháng/Năm = tháng hiện tại, Hạn thanh toán = **ngày 10 tháng sau**, Tòa = "Tất cả các tòa (Tòa A, Tòa B)".
+- [ ] Hộp vàng "Chưa nhập chỉ số điện nước cho **4 phòng: B206, B207, B208, B309**" + link **Nhập ngay →**.
+- [ ] Khung xem trước (tag "Dữ liệu tạm tính"): Sinh viên đủ điều kiện **55** · Hóa đơn sẽ tạo **52 HĐ + bổ sung 3** · Tổng tiền dự kiến. Dòng ghi chú: 3 sinh viên đã có hóa đơn tháng này → chỉ bổ sung điện nước (BR-48); bỏ qua 4 phòng thiếu chỉ số; 2 phòng trống A310, B310.
+- [ ] Nút **Lập 52 hóa đơn · bổ sung 3** mờ cho tới khi tích "Tôi đã kiểm tra chỉ số điện nước…".
+- [ ] Đổi Tòa → **Tòa A** → 35 SV, **32 HĐ + bổ sung 3**, hết hộp vàng, ô tích bị bỏ tích.
+- [ ] Chọn **tháng sau** → hộp đỏ "… chưa tới — không lập hóa đơn trước được", nút mờ. Chọn lại tháng này.
+- [ ] Tích xác nhận → **Lập 32 hóa đơn · bổ sung 3** → khi đang gọi, nút quay và không bấm đúp được → thông báo "Đã lập 32 hóa đơn, bổ sung 3 hóa đơn cho kỳ …" + "Tổng … · bỏ qua 1 phòng".
+- [ ] Lọc Kỳ tháng này + Tòa A → "Tổng 35 hóa đơn", loại Hàng tháng. Mở một hóa đơn mới (khi có SCR-54) thấy 3 dòng: tiền phòng, "Tiền điện … (x kWh, chia đều N người)", tiền nước.
+- [ ] Thêm Trạng thái **Thanh toán một phần** → đúng **3** hóa đơn (tháng đầu đã trả tiền phòng, nay thêm điện nước).
+- [ ] Mở lại modal, chọn Tòa A → "9 phòng đã lập hóa đơn kỳ này", "Không có hóa đơn nào để lập", ô tích và nút đều mờ.
+- [ ] Chọn Tòa B → **Nhập ngay** → màn Chỉ số điện nước mở đúng **Tòa B**, đúng kỳ ("Đã nhập 5/9 phòng"). Đổi sang Tòa A → hộp "đã lập hóa đơn", ô nhập khóa (BR-53).
+
+### 16.5. Tạo hóa đơn lẻ (FR-46)
+
+- [ ] **Tạo hóa đơn lẻ** → Hạn thanh toán mặc định hôm nay + 7. Ô Loại phí **không có** Tiền phòng, Tiền đặt cọc, Nhu yếu phẩm.
+- [ ] Bấm **Tạo hóa đơn** khi trống → lỗi "Chọn sinh viên", "Chọn loại phí", "Nhập nội dung", "Nhập đơn giá".
+- [ ] Ô Sinh viên gõ `SV2026001` → chọn. Dòng 1 chọn **Làm mất chìa khóa** → Nội dung tự điền, Đơn giá **50.000**.
+- [ ] **Thêm khoản phí** → dòng 2: Phí khác, "Thay bóng đèn", SL 2, đơn giá 30000 → Thành tiền **60.000 đ**, Tổng cộng **110.000 đ**, nút **Tạo hóa đơn 110.000 đ**. Nút xóa dòng mờ khi chỉ còn 1 dòng.
+- [ ] Tạo → "Đã tạo hóa đơn INV-…" → tìm mã đó: loại **Khác**, Kỳ —, 110.000 đ, **Chưa thanh toán**.
+
+### 16.6. Quyền + màn hẹp
+
+- [ ] `viewer@dorm.local`: xem được bảng + thẻ; **không có** Tạo hóa đơn lẻ, Lập hóa đơn hàng loạt, cột Thao tác.
+- [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ (Mã hóa đơn ghim trái, Thao tác ghim phải), trang không cuộn ngang; 4 thẻ xuống 2 hàng.
+
+### 16.7. Với backend thật (chỉ xem — **không** bấm Hủy, Tạo, Lập trên DB chung)
+
+Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
+
+- [ ] Bảng hiện hóa đơn thử của backend (mã `HD-TEST-…`) với **tên + MSSV** sinh viên và cột **Còn lại** = Tổng − Đã trả (FE tự tính vì backend chưa trả).
+- [ ] 4 thẻ hiện "—", thẻ Quá hạn ghi "Backend chưa trả số tổng hợp".
+- [ ] Mở **Lập hóa đơn hàng loạt** → hộp đỏ "Không xem trước được kết quả lập hóa đơn — chưa lập được từ màn này", nút Lập mờ. F12 → Network chỉ có `GET /invoices/generation-preview` (400) — **không** có POST nào.
+- [ ] F12 → Console: 2 lỗi 404 `/room-types` (Dashboard) + 1 lỗi 400 `generation-preview` — đều đã biết.
 
 **Lỗi phát hiện:** _(chưa có)_
 
