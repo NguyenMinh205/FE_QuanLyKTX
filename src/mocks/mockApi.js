@@ -8,7 +8,7 @@ import {
   DEMO_STUDENT_INDEX, roomTypes, buildings, rooms, beds, students, applications, residencies, contracts,
   feeTypes, utilityReadings, invoices, payments, requests, supplyItems, supplyOrders,
   roomTypeOf, bedsOf, availableSlots, generateBeds, approveApplication, createSupplyOrder,
-  occupancyStats, debtOf,
+  occupancyStats, debtOf, demoRaceRoomIds, simulateRivalApproval,
 } from './mockDb';
 
 // ---------------------------------------------------------------- tiện ích
@@ -857,6 +857,8 @@ export const mockPortal = {
   },
   createApplication: async (body) => {
     await delay();
+    const target = rooms.find((r) => r.id === body.roomId);
+    if (target && demoRaceRoomIds.has(target.id) && availableSlots(target.id) === 1) simulateRivalApproval(target);
     const a = submitApplication(me(), body); // studentId lấy từ phiên, không từ body
     const v = applicationView(a);
     return ok({ id: a.id, applicationCode: a.applicationCode, status: a.status, estimatedInvoices: v.estimatedInvoices },

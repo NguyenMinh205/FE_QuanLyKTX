@@ -17,6 +17,7 @@
 | 2 | Loại phòng | SCR-22 | `feature/login-and-room-types` | Dữ liệu giả | ⬜ Chưa test |
 | 3 | Quản lý phòng — sơ đồ tầng | SCR-23 | `feature/room-management` | Dữ liệu giả | ⬜ Chưa test |
 | 4 | Duyệt đơn đăng ký | SCR-31 | `feature/application-review` | Dữ liệu giả | ⬜ Chưa test |
+| 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -41,7 +42,8 @@ Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi ph
 | `admin@dorm.local` | `Admin@123` | Quản trị | Thấy mọi nút |
 | `staff@dorm.local` | `Staff@123` | Nhân viên | Thao tác nghiệp vụ |
 | `viewer@dorm.local` | `Viewer@123` | Người xem | Kiểm tra chỉ xem, không có nút |
-| `sv001@dorm.local` | `Student@123` | Sinh viên | Kiểm tra bị chặn khỏi khu quản trị |
+| `sv001@dorm.local` | `Student@123` | Sinh viên (đang ở) | Kiểm tra bị chặn khỏi khu quản trị, không đăng ký thêm được |
+| `sv002@dorm.local` | `Student@123` | Sinh viên nữ chưa có chỗ | Đăng ký chỗ ở (SCR-62) |
 | `doimk@dorm.local` | `Tam@12345` | Nhân viên | Mật khẩu tạm — bị buộc đổi mật khẩu |
 
 ### 1.2. Chạy với backend thật (chỉ màn 1)
@@ -249,6 +251,79 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 ### 5.8. Đã biết, chưa làm
 
 - Số đỏ ở menu trái "Duyệt đơn đăng ký" chỉ cập nhật khi tải lại trang (F5), chưa tự giảm ngay sau khi duyệt.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 6. Cổng sinh viên — Đăng ký chỗ ở 3 bước (SCR-62)
+
+**Nhánh:** `feature/student-room-application` · **Đường dẫn:** `/portal/apply` (nút "Đăng ký chỗ ở" ở trang chủ sinh viên) · **Chạy:** dữ liệu giả, tài khoản `sv002@dorm.local` (Vũ Ngọc Ánh, nữ, chưa có chỗ, chưa có đơn), **F5 trước khi bắt đầu**.
+
+**Khác thiết kế đã chấp nhận:**
+- Không có ảnh phòng, "Hạn nộp hồ sơ", "Tiện ích đi kèm miễn phí", chuông thông báo, phí dịch vụ/VAT — không có dữ liệu trong API.
+- **Bỏ "Đang giữ chỗ tạm thời 14:48"** và **"Mã chỗ ở KTX1-B-203-04"** — trái BR-34 (nộp đơn không giữ chỗ) và BR-38 (giường chỉ gán khi duyệt). Thay bằng dòng "Nộp đơn chưa giữ chỗ".
+- Bảng phòng ở bước 2 chỉ có phòng **còn chỗ** (API `GET /rooms/available` không trả phòng đầy), nên không có dòng mờ "Đã đầy" như bản vẽ.
+- Bước 1 dùng danh sách hàng dọc theo bản vẽ Figma thay cho lưới 3 cột trong docs/08.
+
+> ⚠️ Dữ liệu giả reset khi tải lại trang. Từ bước 6.1 tới 6.6 **chỉ bấm trong ứng dụng**, không F5, không gõ lại địa chỉ.
+
+### 6.1. Header cổng sinh viên + lối vào
+
+- [ ] Đăng nhập `sv002@dorm.local` → header có logo, "KÝ TÚC XÁ · Cổng thông tin sinh viên"; góc phải tên "Vũ Ngọc Ánh", dòng dưới "Chưa có chỗ ở".
+- [ ] Menu **Chỗ ở & hợp đồng**, **Mua sắm** và biểu tượng giỏ hàng **mờ, bấm không đi đâu**, rê chuột thấy "Mở sau khi bạn có chỗ ở tại ký túc xá". Trang chủ, Hóa đơn, Yêu cầu vẫn bấm được.
+- [ ] Trang chủ có thẻ "Bạn chưa có chỗ ở tại ký túc xá" + nút **Đăng ký chỗ ở** → bấm → vào `/portal/apply`.
+- [ ] Đăng nhập `sv001@dorm.local` (đang ở) → header ghi "Phòng A…", menu không mờ; gõ `/portal/apply` → quay về trang chủ, thông báo "Bạn đang có chỗ ở tại ký túc xá, không cần đăng ký thêm".
+
+### 6.2. Bước 1 — Loại phòng
+
+- [ ] Thanh 3 bước: **Loại phòng** (đang làm) · Chọn phòng · Xác nhận. Khung xanh "Hiển thị phòng dành cho sinh viên nữ", có dấu × đóng được.
+- [ ] Thẻ phải "Tóm tắt lựa chọn" ghi "Chọn một loại phòng để xem chi phí", nút **Tiếp tục chọn phòng** mờ.
+- [ ] Segmented **Tiêu chuẩn** → chỉ loại Tiêu chuẩn (8, 6, 4 người); mỗi hàng: ô số người, tên, tiện nghi, "Còn N chỗ · M phòng", giá "/ người / tháng".
+- [ ] Segmented **Chất lượng cao** → chọn **Chất lượng cao · 4 người** → hàng viền xanh "Đang chọn"; thẻ phải: Giá thuê 950.000 đ, Tiền cọc 1.000.000 đ, "Dự kiến hằng tháng 950.000 đ", nút tiếp tục sáng.
+- [ ] Loại có tag "Cấp sẵn: Đệm mút 90x190cm" (nếu loại đó được cấp sẵn nhu yếu phẩm).
+- [ ] _(Không test được với dữ liệu mặc định)_ Loại hết chỗ hiển thị mờ, chữ đỏ "Hết chỗ", không chọn được.
+
+### 6.3. Bước 2 — Chọn phòng
+
+- [ ] Bấm **Tiếp tục chọn phòng** → bước 1 có dấu ✓ "Đã chọn: Chất lượng cao · 4 người". Thẻ đầu trang có "Đã chọn" + link **Đổi loại phòng**.
+- [ ] Ô Tòa nhà chỉ có **Tòa B** (tòa nữ). Bảng có **Phòng B205** (Tầng 2, Còn 1 chỗ màu cam) và **Phòng B310** (Tầng 3, Còn 4 chỗ). Cột "Sơ đồ giường" là chấm xám (có người) / xanh (trống) kèm "x/4 trống" — bấm chấm không có gì xảy ra.
+- [ ] Dòng xanh cuối bảng: "bạn chỉ chọn phòng. Giường cụ thể do ban quản lý ký túc xá tự sắp xếp khi duyệt đơn."
+- [ ] Chưa chọn phòng → nút **Tiếp tục sang bước 3** mờ.
+- [ ] Bấm hàng **B205** → tag "Đang chọn", thẻ phải: Tòa B, "Phòng B205 (Tầng 2)", "● Còn 1 chỗ", nút sáng. Dưới nút có dòng "Nộp đơn **chưa giữ chỗ**…".
+- [ ] Bấm **Quay lại chọn loại phòng** → về bước 1, vẫn đang chọn CLC · 4 → tiếp tục lại → vẫn đang chọn B205.
+
+### 6.4. Bước 3 — Xác nhận
+
+- [ ] Bấm **Tiếp tục sang bước 3** → "Tòa B · Phòng B205", tag loại phòng. Từ ngày = hôm nay, Đến ngày = 30/06 năm học, dòng xanh "Thời hạn: N tháng".
+- [ ] Thẻ **Phòng đã có sẵn**: các tiện nghi của loại phòng (+ đồ cấp sẵn màu xanh). Khung cam "Lưu ý về đồ dùng cá nhân".
+- [ ] Thẻ phải **Chi phí ban đầu**: Tiền cọc 1.000.000 đ · Tiền phòng tháng đầu 950.000 đ ("Thu đủ 1 tháng, kể cả khi vào ở giữa tháng") · **Tổng cộng 1.950.000 đ**.
+- [ ] Chưa tích ô "Tôi đã đọc và đồng ý với nội quy…" → nút **Nộp đơn đăng ký** mờ.
+- [ ] Ô Từ ngày: các ngày trước hôm nay bị mờ, không chọn được.
+- [ ] Đổi Đến ngày thành 10 ngày sau Từ ngày → tích đồng ý → **Nộp đơn đăng ký** → lỗi đỏ "Thời gian ở tối thiểu 1 tháng", chưa gửi đơn.
+- [ ] Sửa Đến ngày về 30/06 năm sau, ghi chú "Em muốn ở gần bạn cùng lớp".
+
+### 6.5. Phòng vừa hết chỗ lúc nộp (ROOM_FULL)
+
+> Dữ liệu giả cài sẵn: nộp đơn vào **B205** khi phòng còn đúng 1 chỗ thì hệ thống giả lập một sinh viên khác vừa được duyệt vào giường cuối.
+
+- [ ] Bấm **Nộp đơn đăng ký** → tự quay về **bước 2**, khung đỏ "Phòng B205 vừa hết chỗ. Vui lòng chọn phòng khác" + "Danh sách phòng đã được tải lại. Loại phòng và thời gian ở bạn đã chọn vẫn được giữ nguyên."
+- [ ] Bảng **không còn B205**, chỉ còn B310; không phòng nào đang được chọn, nút bước 3 mờ.
+- [ ] Network → request `my-applications` (POST) → HTTP **409**, Response `code: "ROOM_FULL"`.
+- [ ] Chọn **B310** → khung đỏ tự đóng → bước 3: ngày, ghi chú và ô đồng ý **vẫn giữ nguyên** như đã nhập.
+
+### 6.6. Nộp thành công + đã có đơn chờ duyệt
+
+- [ ] **Nộp đơn đăng ký** → màn kết quả xanh "Nộp đơn đăng ký thành công", mã **DK-2026-…**, trạng thái "Chờ duyệt", phòng "Tòa B · Phòng B310", thời gian ở, tiền cọc + tháng đầu + tổng, khung "Nộp đơn chưa giữ chỗ".
+- [ ] Network → POST `my-applications` → **Payload** chỉ có `roomId`, `startDate`, `endDate`, `note` — **không có** `studentId`, `bedId`.
+- [ ] Bấm **Về trang chủ** → bấm **Đăng ký chỗ ở** → màn vàng "Bạn đã có một đơn đăng ký đang chờ duyệt" kèm mã đơn, phòng, loại, ngày nộp; không hiện 3 bước.
+
+### 6.7. Màn hình hẹp + chưa kiểm được
+
+- [ ] Cửa sổ ~900px → cột tóm tắt xuống dưới nội dung, không có thanh cuộn ngang.
+- [ ] Cửa sổ < 768px → menu ngang chuyển thành thanh tab dưới đáy; "Chỗ ở", "Mua sắm" mờ với `sv002`.
+- _(Chưa có tài khoản thử)_ Sinh viên có đơn gần nhất bị từ chối → bước 1 hiện khung đỏ "Đơn DK-… trước đây đã bị từ chối — Lý do: …".
+- _(Chờ backend v1.2)_ `409 DUPLICATE_PENDING_APPLICATION` / `STUDENT_HAS_ACTIVE_CONTRACT` lúc nộp → thông báo vàng và về trang chủ.
 
 **Lỗi phát hiện:** _(chưa có)_
 

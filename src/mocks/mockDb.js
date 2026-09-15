@@ -248,6 +248,18 @@ if (raceRoom) {
   newApplication(students[77], raceRoom, { createdAt: '2026-10-29T10:05:00+07:00', demoRaceWith: racer.id });
 }
 
+/**
+ * Tranh chỗ ở cổng sinh viên (SCR-62): khi sinh viên nộp đơn vào phòng thuộc tập này mà phòng chỉ còn 1 chỗ,
+ * mock giả lập một sinh viên khác vừa được duyệt vào đúng giường cuối → trả 409 ROOM_FULL. Chỉ có trong dữ liệu giả.
+ */
+export const demoRaceRoomIds = new Set(raceRoom ? [raceRoom.id] : []);
+export const simulateRivalApproval = (room) => {
+  const reserved = new Set(Object.values(DEMO_STUDENT_INDEX).map((i) => students[i].id));
+  const rival = students.find((s) => s.gender === room.gender && !reserved.has(s.id)
+    && !applications.some((a) => a.studentId === s.id));
+  if (rival) approveApplication(newApplication(rival, room, { createdAt: new Date().toISOString() }), room);
+};
+
 newApplication(students[73], roomFor(students[73], 'rt1'), { status: 'rejected', reviewNote: 'Hồ sơ còn thiếu giấy xác nhận sinh viên', reviewedAt: '2026-09-02T09:30:00+07:00' });
 newApplication(students[74], roomFor(students[74], 'rt2'), { status: 'cancelled' });
 

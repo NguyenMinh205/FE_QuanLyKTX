@@ -12,6 +12,7 @@ import ChangePasswordPage from '../features/auth/pages/ChangePasswordPage';
 import DashboardPage from '../features/dashboard/pages/DashboardPage';
 import StudentsPage from '../features/students/pages/StudentsPage';
 import PortalHomePage from '../features/portal/pages/PortalHomePage';
+import ApplyPage from '../features/portal/pages/ApplyPage';
 import RoomTypesPage from '../features/rooms/pages/RoomTypesPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
@@ -67,7 +68,7 @@ export default function AppRoutes() {
       <Route element={<RoleRoute allowed={[STUDENT]}><PortalLayout /></RoleRoute>}>
         <Route path="/portal/home" element={<PortalHomePage />} />
         <Route path="/portal/change-password" element={<ChangePasswordPage />} />
-        <Route path="/portal/apply" element={todo('Đăng ký chỗ ở', 'portal', '/api/portal/my-applications')} />
+        <Route path="/portal/apply" element={<ApplyPage />} />
         <Route path="/portal/my-residence" element={todo('Chỗ ở & hợp đồng', 'portal', '/api/portal/my-residence')} />
         <Route path="/portal/my-invoices" element={todo('Hóa đơn của tôi', 'portal', '/api/portal/my-invoices')} />
         <Route path="/portal/payment-result" element={todo('Kết quả thanh toán', 'payments', '/api/payments')} />
