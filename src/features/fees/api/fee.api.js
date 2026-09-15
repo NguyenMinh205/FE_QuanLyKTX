@@ -33,6 +33,7 @@ export const feeApi = {
   // Chỉ số điện nước
   getUtilityReadings: (params)  => (USE_MOCK ? mockFees.getUtilityReadings(params) : axiosClient.get('/utility-readings', { params })),
   saveUtilityReading: (data)    => (USE_MOCK ? mockFees.saveUtilityReading(data)   : axiosClient.post('/utility-readings', data)),
+  updateUtilityReading: (id, data) => (USE_MOCK ? mockFees.updateUtilityReading(id, data) : axiosClient.put(`/utility-readings/${id}`, data)),
 
   // Hóa đơn
   getInvoices:        (params)  => (USE_MOCK ? mockFees.getInvoices(params)        : axiosClient.get('/invoices', { params })),

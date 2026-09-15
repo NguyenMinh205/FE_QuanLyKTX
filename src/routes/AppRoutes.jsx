@@ -19,6 +19,7 @@ import RoomTypesPage from '../features/rooms/pages/RoomTypesPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import BuildingsPage from '../features/rooms/pages/BuildingsPage';
 import FeeTypesPage from '../features/fees/pages/FeeTypesPage';
+import UtilityReadingsPage from '../features/fees/pages/UtilityReadingsPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 import RequestsPage from '../features/requests/pages/RequestsPage';
@@ -57,7 +58,7 @@ export default function AppRoutes() {
         <Route path="/admin/applications" element={<ApplicationsPage />} />
         <Route path="/admin/contracts" element={<ContractsPage />} />
         <Route path="/admin/requests" element={<RequestsPage />} />
-        <Route path="/admin/utility-readings" element={todo('Nhập chỉ số điện nước', 'fees', '/api/utility-readings')} />
+        <Route path="/admin/utility-readings" element={<UtilityReadingsPage />} />
         <Route path="/admin/invoices" element={todo('Quản lý hóa đơn', 'fees', '/api/invoices')} />
         <Route path="/admin/invoices/:id" element={todo('Chi tiết hóa đơn', 'fees', '/api/invoices/:id')} />
         <Route path="/admin/payments" element={todo('Lịch sử thanh toán', 'payments', '/api/payments')} />

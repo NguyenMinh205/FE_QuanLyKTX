@@ -25,6 +25,7 @@ const PERMISSIONS = {
   'contract:terminate': OPS,
   'request:approve': OPS,
 
+  'utilityReading:record': OPS,
   'invoice:create': OPS,
   'invoice:cancel': OPS,
   'payment:record': OPS,

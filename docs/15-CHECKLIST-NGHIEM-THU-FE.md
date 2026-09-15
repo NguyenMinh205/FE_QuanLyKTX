@@ -26,6 +26,7 @@
 | 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | ⬜ Chưa test |
 | 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 14 | Nhập chỉ số điện nước | SCR-51 | `feature/utility-readings` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -811,6 +812,77 @@ Chuẩn bị như mục 11.6 (backend + FE cổng 5173, `VITE_USE_MOCK=false`), 
 - [ ] Không có `supplies`, `other` — backend chưa seed (đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.12).
 - [ ] F12 → Console có 2 lỗi 404 `/room-types` — do Dashboard gọi lúc đăng nhập, backend chưa có loại phòng, **không phải** lỗi màn này.
 - [ ] _(Chỉ làm trên DB riêng)_ Thêm/sửa loại phí: backend đang dùng tên trường `unitPrice` nên thêm/sửa **chưa chạy đúng** cho tới khi backend đổi theo docs.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 15. Nhập chỉ số điện nước (SCR-51)
+
+**Nhánh:** `feature/utility-readings` · **Đường dẫn:** Tài chính → Chỉ số điện nước (`/admin/utility-readings`) · **Chạy:** dữ liệu giả, tài khoản `staff@dorm.local`, **F5 trước khi bắt đầu**, từ 15.2 tới 15.6 làm liền mạch không F5.
+
+**Dữ liệu giả (tính theo ngày chạy):** kỳ **tháng trước** đủ 20 phòng và **đã lập hóa đơn** · kỳ **tháng này**: Tòa A đã nhập đủ 9 phòng có người, Tòa B mới nhập 5/9 (B101→B205), còn B206, B207, B208, B309 chưa nhập · A310, B310 là phòng trống · kỳ **2 tháng trước** chưa có dữ liệu. Đơn giá lấy từ Danh mục loại phí (2.500 đ/kWh, 12.000 đ/m³).
+
+**Khác bản vẽ:**
+- Không có nút **Xuất Excel**, **Lịch sử ghi** và dòng **Hạn chốt ghi**: docs không có FR/API cho các phần này.
+- Không phân trang: hiện hết phòng của tòa (≤ 20) để không mất bản nháp khi chuyển trang.
+- Cột tiền đặt tên **Tiền mỗi người** (bản vẽ bị tooltip che mất tên cột).
+- Có thêm trạng thái **Nhập dở** (mới gõ một chỉ số) và **Đã lập HĐ** (kỳ đã khóa, BR-53).
+
+### 15.1. Mở màn — Tòa A
+
+- [ ] Ô **Kỳ** mặc định tháng hiện tại, danh sách 12 kỳ lùi về trước (không có tháng sau). Ô **Tòa nhà** mặc định Tòa A. Hộp bên phải "Đơn giá: Điện 2.500 đ/kWh · Nước 12.000 đ/m³".
+- [ ] Thẻ tiến độ "Đã nhập **9/9** phòng (100%)". Bảng 10 dòng: A101 → A310, tiêu đề nhóm **ĐIỆN (kWh)** nền xanh, **NƯỚC (m³)** nền xanh lá.
+- [ ] A310: người ở **0**, ô nhập khóa, "Phòng trống — không chia", tag **Bỏ qua**.
+- [ ] Thanh dưới cùng: "Đã nhập đủ 9 phòng có người ở", nút **Lưu** mờ.
+
+### 15.2. Tòa B — phòng chưa nhập, công thức chia
+
+- [ ] Chọn **Tòa B** → "Đã nhập **5/9** phòng (56%)". Thanh dưới: "4 phòng chưa nhập".
+- [ ] B208 **Chưa nhập**: ô Chỉ số cũ (điện, nước) **nền xám, đã điền sẵn** bằng chỉ số cuối tháng trước; ô Chỉ số mới trống "Nhập số".
+- [ ] Rê chuột ô vuông máy tính cạnh số tiền B205 (3 người) → hộp đen "Công thức chia tiền phòng B205": dòng Điện `82 kWh × 2.500 = …`, dòng Nước, "Tổng … ÷ 3 người = …", dòng "Dư … → SV mã nhỏ nhất trả …", "Đơn giá đã chốt lúc nhập (BR-52)".
+- [ ] Rê chuột số người ở → "3 người đang ở / 4 giường".
+
+### 15.3. Nhập, lỗi, cảnh báo
+
+- [ ] B206: gõ điện mới **2600** → Tab → tag **Nhập dở** (không báo đỏ); thanh dưới "1 phòng nhập dở…", nút Lưu vẫn mờ.
+- [ ] B206: nước mới **250** → tag **Chưa lưu**, dòng nền xanh nhạt, Tiêu thụ **170** và **64** màu xanh, tiền **170.428 đ** (1.193.000 đ ÷ 7). Nút **Lưu 1 phòng**.
+- [ ] B207: điện mới **100** → ô viền đỏ "Nhỏ hơn chỉ số cũ", tag **Lỗi**, dòng nền hồng; thanh dưới chữ đỏ "1 phòng có lỗi, …".
+- [ ] Bấm vào ô điện mới B207 → **Enter** → con trỏ nhảy xuống ô điện mới B208.
+- [ ] B208: sửa ô Chỉ số cũ điện cộng thêm 5 → viền vàng "Kỳ trước <số cũ>" (BR-51, chỉ cảnh báo). Sửa lại đúng số cũ → hết cảnh báo, tag về **Chưa nhập**.
+
+### 15.4. Đổi tòa khi chưa lưu + lưu
+
+- [ ] Chọn **Tòa A** → hộp "Bỏ các thay đổi chưa lưu?" "2 phòng đã sửa…" → **Ở lại** → vẫn Tòa B, giữ nguyên số đã gõ.
+- [ ] F5 khi còn thay đổi → trình duyệt hỏi "Rời trang?" → Hủy.
+- [ ] **Lưu 1 phòng** → "Đã lưu chỉ số 1 phòng"; B206 **Đã lưu**; tiến độ **6/9**; B207 vẫn **Lỗi** (không bị lưu).
+- [ ] Network: `POST /utility-readings` Payload `{ roomId, billingPeriod, electricityStart, electricityEnd, waterStart, waterEnd }` — **không** có đơn giá.
+- [ ] **Hủy thay đổi** → B207 về **Chưa nhập**, ô trống.
+
+### 15.5. Sửa phòng đã lưu
+
+- [ ] B101: tăng điện mới thêm 10 → **Chưa lưu** → **Lưu 1 phòng** → "Đã lưu chỉ số 1 phòng", số mới giữ nguyên, tag **Đã lưu**.
+- [ ] Network: `PUT /utility-readings/<id>` chỉ có 4 chỉ số.
+
+### 15.6. Kỳ đã lập hóa đơn / kỳ trống
+
+- [ ] Chọn **tháng trước** → hộp xanh "Tháng … của Tòa B đã lập hóa đơn" + "(BR-53)"; mọi ô khóa; tag tím **Đã lập HĐ**; **không** có thanh Lưu.
+- [ ] Chọn **2 tháng trước** → ô Chỉ số cũ **trống** (không có kỳ trước để điền), mọi phòng **Chưa nhập**, "Đã nhập 0/9 phòng".
+
+### 15.7. Quyền + màn hẹp
+
+- [ ] `viewer@dorm.local` → hộp "Bạn chỉ có quyền xem chỉ số điện nước", ô nhập khóa, không có thanh Lưu.
+- [ ] `admin@dorm.local` nhập được như Staff.
+- [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ, trang không cuộn ngang; thanh Lưu luôn dính đáy khi cuộn.
+
+### 15.8. Với backend thật (chỉ xem — không lưu trên DB chung)
+
+Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
+
+- [ ] Đơn giá lấy từ backend: "Điện 3.000 đ/kWh · Nước 15.000 đ/m³".
+- [ ] Ô Tòa nhà hiện đủ tên "Tòa nhà A (Khu Nam)". Bảng có phòng **A101** (0 người, **Bỏ qua**); thanh dưới "Chưa có phòng nào có người ở — không cần nhập".
+- [ ] F12 → Console chỉ có 2 lỗi 404 `/room-types` của Dashboard (đã biết).
+- [ ] _(Chỉ làm trên DB riêng)_ Nhập và lưu chỉ số: backend chưa kiểm tra kỳ tương lai và trả `READING_ALREADY_EXISTS` khi trùng (xem `API.md` bản 1.2.10).
 
 **Lỗi phát hiện:** _(chưa có)_
 

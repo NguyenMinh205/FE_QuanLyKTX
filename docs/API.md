@@ -410,9 +410,9 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 | GET | `/api/fee-types` | admin, staff, viewer | List fee types — active only by default; `?includeInactive=true` adds inactive ones (SCR-82) |
 | POST | `/api/fee-types` | admin | Create fee type — `{ code, name, unit, defaultAmount, isRecurring }` |
 | PUT | `/api/fee-types/:id` | admin | Update `{ name, unit, defaultAmount, isRecurring, isActive }` — `code` cannot change; no delete endpoint |
-| GET | `/api/utility-readings` | admin, staff, viewer | List — `?billingPeriod=2026-10&buildingId=` |
+| GET | `/api/utility-readings` | admin, staff, viewer | List — `?billingPeriod=2026-10&buildingId=&roomId=` |
 | POST | `/api/utility-readings` | admin, staff | Enter meter readings for one room/period |
-| PUT | `/api/utility-readings/:id` | admin, staff | Edit — rejected once `isInvoiced: true` |
+| PUT | `/api/utility-readings/:id` | admin, staff | Edit the four readings — keeps the frozen unit prices; rejected once `isInvoiced: true` |
 | POST | `/api/invoices/generate` | admin, staff | Bulk-generate invoices for a billing period |
 | GET | `/api/invoices` | admin, staff, viewer | List — `?studentId=&status=&billingPeriod=&type=deposit\|monthly\|settlement\|supplies\|other` |
 | GET | `/api/invoices/:id` | admin, staff, viewer, student (own) | Get one, with line items and payments |
@@ -452,6 +452,25 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 { "code": "INVALID_METER_READING", "message": "Chỉ số cuối kỳ phải lớn hơn hoặc bằng chỉ số đầu kỳ", "data": null } // 422
 { "code": "READING_ALREADY_INVOICED", "message": "Kỳ này đã lập hóa đơn, không thể sửa chỉ số", "data": null }      // 422
 ```
+
+**GET `/api/utility-readings?billingPeriod=2026-10&buildingId=665f0a...`** *(v1.2.10 — SCR-51)*
+```json
+{ "code": "OK", "message": "Success",
+  "data": { "items": [
+    { "id": "665f8a...", "roomId": "665f2a...", "roomNumber": "203", "buildingId": "665f0a...", "buildingName": "Tòa B",
+      "billingPeriod": "2026-10",
+      "electricityStart": 1250, "electricityEnd": 1340, "waterStart": 85, "waterEnd": 97,
+      "electricityUnitPrice": 3500, "waterUnitPrice": 15000,
+      "electricityConsumption": 90, "electricityAmount": 315000, "waterConsumption": 12, "waterAmount": 180000,
+      "isInvoiced": false, "recordedByName": "Lê Thị Nhân Viên", "recordedAt": "2026-10-27T16:30:00+07:00" }
+  ], "total": 17, "page": 1, "limit": 100 } }
+```
+> - `roomId` is a plain id (not populated). One item per room that already has a reading for the period — rooms without a reading are simply absent.
+> - The entry screen loads three lists for one building: `GET /rooms?buildingId=` (occupancy), this period's readings and the **previous** period's readings. A room's start readings default to the previous period's end readings (BR-51); the user may change them and only gets a warning.
+> - Readings are non-negative integers. `billingPeriod` after the current month → `400 VALIDATION_ERROR` on `billingPeriod`. A second `POST` for the same room + period → `409 DUPLICATE_ENTRY` (use `PUT`).
+> - The per-person amount on screen is an estimate: `floor(roomTotal / occupants)` with the remainder added to the smallest student code, using the room's **current** occupants. The real split happens at invoice generation with the students residing during the period.
+>
+> **Backend status (15/09/2026):** list returns a plain array with `roomId` populated as a room object, no pagination; `PUT` has no Joi validation; duplicate returns `READING_ALREADY_EXISTS`. The frontend accepts both list shapes and a populated `roomId`.
 
 **POST `/api/invoices/generate`**
 ```json
@@ -805,6 +824,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.10 | 15/09/2026 | Utility readings (SCR-51): list item shape with `roomId`, `roomNumber`, frozen prices, amounts, `recordedByName`/`recordedAt`; `roomId` filter; `PUT` keeps frozen prices; future period and duplicate rules; how the entry screen prefills start readings. |
 | 1.2.9 | 15/09/2026 | Fee types (SCR-82): `includeInactive` list flag, `isSystem`, create/update bodies and validation, `FEE_TYPE_REQUIRED`; recorded backend differences. |
 | 1.2.8 | 15/09/2026 | Portal (SCR-61): documented the `GET /portal/my-residence` response (`hasResidence`, `contract`, `roomType`, `includedInRoom`, `roommates`, `debtSummary`). Backend gap analysis for FE integration in `docs/16-YEU-CAU-API-BACKEND.md`. |
 | 1.2.7 | 15/09/2026 | Buildings (SCR-21): `includeInactive` list flag, `stats` shape with `maintenanceBeds`, create/update bodies, `BUILDING_HAS_OCCUPANTS`; recorded backend differences. |

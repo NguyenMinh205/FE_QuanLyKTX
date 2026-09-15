@@ -294,21 +294,40 @@ export const feeTypes = [
 ];
 
 // ---------------------------------------------------------------- chỉ số điện nước
-const occupiedRoomIds = [...new Set(residencies.map((r) => beds.find((b) => b.id === r.bedId).roomId))];
+/** Kỳ "YYYY-MM" lệch `months` tháng so với tháng hiện tại */
+export const periodPlus = (months) => {
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + months);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}`;
+};
 
-export const utilityReadings = occupiedRoomIds.map((roomId, i) => {
-  const room = rooms.find((r) => r.id === roomId);
-  const eStart = 1200 + i * 30;
-  const wStart = 80 + i * 5;
-  return {
-    id: `u${pad(i + 1)}`,
-    roomId, roomNumber: room.roomNumber, buildingName: room.buildingName,
-    billingPeriod: '2026-10',
-    electricityStart: eStart, electricityEnd: eStart + 300 + (i % 5) * 20,
-    waterStart: wStart, waterEnd: wStart + 40 + (i % 4) * 3,
+/**
+ * Chỉ số điện nước (FR-59): kỳ trước đủ 20 phòng, đã lập hóa đơn · kỳ này Tòa A nhập xong,
+ * Tòa B mới nhập 5 phòng đầu (phòng trống không cần nhập). Chỉ số đầu kỳ này = cuối kỳ trước (BR-51).
+ */
+export const utilityReadings = [];
+let readingSeq = 0;
+const pushReading = (room, billingPeriod, e, w, extra) => {
+  readingSeq += 1;
+  const reading = {
+    id: `u${pad(readingSeq)}`, roomId: room.id, billingPeriod,
+    electricityStart: e[0], electricityEnd: e[1], waterStart: w[0], waterEnd: w[1],
     electricityUnitPrice: 2500, waterUnitPrice: 12000,
-    isInvoiced: i < occupiedRoomIds.length - 2,
+    isInvoiced: false, recordedByName: 'Lê Thị Nhân Viên', recordedAt: null, ...extra,
   };
+  utilityReadings.push(reading);
+  return reading;
+};
+rooms.forEach((room, idx) => {
+  const occ = beds.filter((b) => b.roomId === room.id && b.status === 'occupied').length;
+  const eStart = 1000 + idx * 85;
+  const wStart = 60 + idx * 7;
+  const ePrev = eStart + (occ ? occ * 20 + (idx % 4) * 5 : 0);
+  const wPrev = wStart + (occ ? occ * 3 + (idx % 3) : 0);
+  pushReading(room, periodPlus(-1), [eStart, ePrev], [wStart, wPrev], { isInvoiced: true, recordedAt: `${periodPlus(0)}-01T09:00:00+07:00` });
+  const enteredThisPeriod = room.buildingId === 'b1' || Number(room.id.slice(1)) <= 105;
+  if (occ && enteredThisPeriod) {
+    pushReading(room, periodPlus(0), [ePrev, ePrev + occ * 22 + (idx % 5) * 4], [wPrev, wPrev + occ * 3 + (idx % 2)], { recordedAt: `${todayPlus(-1)}T16:30:00+07:00` });
+  }
 });
 
 // ---------------------------------------------------------------- hóa đơn cọc + tháng
