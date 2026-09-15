@@ -1041,28 +1041,46 @@ export const mockPortal = {
   },
   getMyPayments: async () => { await delay(); return ok(payments.filter((p) => p.studentId === me().id)); },
 
-  getMyRequests: async () => { await delay(); return ok(requests.filter((r) => r.studentId === me().id)); },
-  createRequest: async (body) => {
+  /** Yêu cầu của chính sinh viên — mới nhất lên đầu */
+  getMyRequests: async () => {
+    await delay();
+    return ok(requests.filter((r) => r.studentId === me().id)
+      .map(({ studentId, ...rest }) => rest) // eslint-disable-line no-unused-vars -- không trả id nội bộ
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
+  },
+  /** { type: 'renewal' | 'checkout', requestedEndDate, reason } */
+  createRequest: async (body = {}) => {
     await delay();
     const st = me();
     const c = activeContractOf(st.id);
     if (!c) fail(422, 'CONTRACT_NOT_ACTIVE', 'Bạn chưa có hợp đồng đang hiệu lực');
+    if (!['renewal', 'checkout'].includes(body.type)) fail(400, 'VALIDATION_ERROR', 'Loại yêu cầu không hợp lệ');
     if (requests.some((r) => r.studentId === st.id && r.type === body.type && r.status === 'pending')) {
-      fail(409, 'DUPLICATE_PENDING_REQUEST', 'Bạn đã có một yêu cầu cùng loại đang chờ xử lý');
+      fail(409, 'DUPLICATE_PENDING_REQUEST', 'Bạn đã có một yêu cầu cùng loại đang chờ xử lý'); // BR-71
     }
-    const r = newRequest(c, body.type, {
-      reason: body.reason || '', requestedEndDate: body.requestedEndDate || null, createdAt: new Date().toISOString(),
-    });
-    return ok(r, 'Gửi yêu cầu thành công');
-  },
+    const errors = [];
+    const date = body.requestedEndDate;
+    if (!date) errors.push({ field: 'requestedEndDate', message: body.type === 'renewal' ? 'Chọn ngày kết thúc mới' : 'Chọn ngày dự kiến trả phòng' });
+    else if (body.type === 'renewal' && date <= c.endDate) {
+      errors.push({ field: 'requestedEndDate', message: 'Ngày kết thúc mới phải sau ngày kết thúc hiện tại của hợp đồng' }); // BR-72
+    } else if (body.type === 'checkout' && (date < todayPlus(0) || date > c.endDate)) {
+      errors.push({ field: 'requestedEndDate', message: 'Ngày trả phòng phải từ hôm nay đến hết hạn hợp đồng' });
+    }
+    if (body.type === 'checkout' && !(body.reason || '').trim()) errors.push({ field: 'reason', message: 'Nhập lý do trả phòng' });
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
 
+    const r = newRequest(c, body.type, {
+      reason: (body.reason || '').trim(), requestedEndDate: date, createdAt: new Date().toISOString(),
+    });
+    return ok(r, body.type === 'renewal' ? 'Đã gửi yêu cầu gia hạn' : 'Đã gửi yêu cầu trả phòng');
+  },
   cancelRequest: async (id) => {
     await delay();
     const r = requests.find((x) => x.id === id);
-    if (!r || r.studentId !== me().id) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này');
-    if (r.status !== 'pending') fail(422, 'VALIDATION_ERROR', 'Chỉ hủy được yêu cầu đang chờ xử lý');
+    if (!r || r.studentId !== me().id) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này'); // BR-79
+    if (r.status !== 'pending') fail(422, 'REQUEST_NOT_PENDING', 'Yêu cầu đã được xử lý, không thể hủy');
     r.status = 'cancelled';
-    return ok(r, 'Đã hủy yêu cầu');
+    return ok({ id: r.id, status: r.status }, 'Đã hủy yêu cầu');
   },
 
   // ---- đơn đăng ký

@@ -516,9 +516,9 @@ All endpoints resolve the student from the **JWT**. Passing another student's id
 | GET | `/api/portal/my-invoices` | student | Own invoices — `?status=&type=` |
 | GET | `/api/portal/my-invoices/:id` | student | Own invoice detail with line items |
 | GET | `/api/portal/my-payments` | student | Own payment history |
-| GET | `/api/portal/my-requests` | student | Own renewal/checkout requests |
+| GET | `/api/portal/my-requests` | student | Own renewal/checkout requests — plain array, newest first, same fields as the staff list item (`requestCode`, `renewal`, `settlement`, `reviewNote`, `reviewedAt`) |
 | POST | `/api/portal/my-requests` | student | Submit a renewal or checkout request |
-| DELETE | `/api/portal/my-requests/:id` | student | Cancel own request while still `pending` |
+| DELETE | `/api/portal/my-requests/:id` | student | Cancel own request while still `pending` — otherwise `422 REQUEST_NOT_PENDING` (BR-79) |
 | GET | `/api/portal/my-applications` | student | Own applications *(v1.2)* |
 | POST | `/api/portal/my-applications` | student | Submit an application — `{ roomId, startDate, endDate, note }` *(v1.2)* |
 | DELETE | `/api/portal/my-applications/:id` | student | Cancel own application while `pending` *(v1.2)* |
@@ -531,6 +531,7 @@ All endpoints resolve the student from the **JWT**. Passing another student's id
 ```json
 { "type": "renewal", "requestedEndDate": "2027-12-31", "reason": "Học tiếp kỳ sau" }
 ```
+> Rules: `renewal` → `requestedEndDate` must be after the contract's current `endDate` (BR-72), `reason` optional. `checkout` → `requestedEndDate` between today and the contract `endDate`, `reason` required. Violations return `VALIDATION_ERROR` with field errors on `requestedEndDate` / `reason`.
 ```json
 { "code": "DUPLICATE_PENDING_REQUEST", "message": "Bạn đã có một yêu cầu cùng loại đang chờ xử lý", "data": null } // 409
 { "code": "CONTRACT_NOT_ACTIVE", "message": "Bạn chưa có hợp đồng đang hiệu lực", "data": null }                  // 422
@@ -690,6 +691,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.4 | 15/09/2026 | Portal requests (SCR-66): list shape/sort, create validation rules (BR-72, checkout date range, required checkout reason), cancel returns `REQUEST_NOT_PENDING`. |
 | 1.2.3 | 15/09/2026 | Requests (SCR-41, additive): list `summary`/`byType`, search and sort rules, `requestCode`; detail adds `student`, `contract`, `unpaidInvoices`, `settlementPreview` (with BR-31 prorated rent), `checklist`, `renewalPreview`; checkout approve accepts `refundMethod`, settlement returns `proratedRent`/`refundMethod`; new error `REQUEST_NOT_PENDING`. Approving a checkout also cancels the contract's other pending requests. |
 | 1.2.2 | 15/09/2026 | Contracts (SCR-32, additive): list `summary` counts, sort/search rules and extra row fields; detail adds `student`, `depositStatus`, `invoices`, `pendingRequests`, `unpaidSupplyOrders`, `history`; terminate body `{ reason, terminationDate }` and `settlement` response. |
 | 1.2.1 | 15/09/2026 | FE integration notes (additive, no breaking change): `GET /rooms/:id` example, bed status body `{ status, note? }`; `GET /applications` `summary` counts + sort/search rules; application detail adds `requestedRoom.buildingCode/floor`, `roomType.tier/capacity`, `reviewedAt`, `reviewNote`, `assigned`, `contractCode`; `GET /rooms/available` accepts `gender` for staff. |

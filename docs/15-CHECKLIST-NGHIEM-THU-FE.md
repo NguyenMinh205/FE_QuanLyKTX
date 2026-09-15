@@ -21,6 +21,7 @@
 | 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | ⬜ Chưa test |
 | 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | ⬜ Chưa test |
 | 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | ⬜ Chưa test |
+| 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -531,6 +532,54 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 
 - [ ] `viewer@dorm.local` → thấy 5 thẻ và thông tin yêu cầu + khung xanh "Chi tiết công nợ, quyết toán và thao tác duyệt chỉ dành cho quản trị viên và nhân viên"; không có nút Từ chối / Duyệt.
 - [ ] Cửa sổ ~900px → danh sách trên, chi tiết dưới, không cuộn ngang.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 10. Cổng sinh viên — Yêu cầu của tôi (SCR-66)
+
+**Nhánh:** `feature/student-requests` · **Đường dẫn:** menu **Yêu cầu** ở cổng sinh viên (`/portal/my-requests`) · **Chạy:** dữ liệu giả, F5 trước mỗi mục.
+
+**Khác thiết kế đã chấp nhận:** bỏ loại **"Báo hỏng thiết bị & sửa chữa"** và **tải tệp minh chứng** — không có trong docs/API (PRD không có module sửa chữa, không upload). Bỏ khung "tỷ lệ duyệt" — thay bằng số yêu cầu theo trạng thái. Ngày gửi gộp vào cột "Mã & loại" cho bảng gọn.
+
+### 10.1. Danh sách — `sv001@dorm.local`
+
+- [ ] Bấm menu **Yêu cầu** → tiêu đề "Yêu cầu của tôi" + tag "2 yêu cầu". Tab: Tất cả (2) · Chờ duyệt (1) · Đã duyệt (0) · Bị từ chối (0) · Đã hủy (1).
+- [ ] Bảng, mới nhất lên đầu:
+  - YC-2026-00001 · tag Gia hạn · "Gửi dd/mm/yyyy hh:mm" · **Gia hạn đến 31/12/2027** + lý do · "Chờ xử lý" · "Ban quản lý thường xử lý trong 1–2 ngày làm việc" · link đỏ **Hủy**.
+  - YC-2026-00006 · Trả phòng · "Đã hủy" · "Bạn đã hủy" · không có link Hủy.
+- [ ] Bấm từng tab → chỉ còn yêu cầu đúng trạng thái; tab rỗng ghi "Không có yêu cầu ở trạng thái này".
+- [ ] Cột phải **Tổng quan**: "Hợp đồng HD-2026-00001", "Tòa A · Phòng A101", "Hết hạn 30/06/2027 · còn N ngày"; 3 dòng đếm Đang chờ duyệt 1 / Đã duyệt 0 / Bị từ chối 0; nút "Gia hạn chỗ ở", "Trả phòng". Dưới là thẻ "Hỗ trợ & khiếu nại".
+
+### 10.2. Chặn gửi trùng + gửi trả phòng
+
+- [ ] **Tạo yêu cầu** → hộp "Tạo yêu cầu mới", mặc định chọn **Gia hạn chỗ ở** → khung đỏ "Bạn đang có một yêu cầu gia hạn chờ xử lý…", nút **Gửi yêu cầu gia hạn** mờ.
+- [ ] Chọn **Trả phòng** → khung đỏ biến mất, nút đổi thành **Gửi yêu cầu trả phòng** và sáng; khung xanh "Tiền cọc 500.000 đ sẽ được trừ vào công nợ còn lại (726.000 đ) và quyết toán khi ban quản lý duyệt" + ghi chú tiền phòng theo ngày ở, đơn nhu yếu phẩm chưa thanh toán tự hủy.
+- [ ] Bấm gửi khi để trống → lỗi "Chọn ngày dự kiến trả phòng" và "Nhập lý do trả phòng".
+- [ ] Lịch chọn ngày: mờ các ngày trước hôm nay và sau 30/06/2027.
+- [ ] Chọn ngày ~2 tuần tới, lý do "Em chuyển ra ở cùng gia đình" → gửi → thông báo "Đã gửi yêu cầu trả phòng", hộp đóng, chuyển sang tab **Chờ duyệt (2)** có dòng mới.
+- [ ] Network → `POST /portal/my-requests` → Payload `{ type: "checkout", requestedEndDate: "YYYY-MM-DD", reason }` — **không có** `studentId`.
+
+### 10.3. Hủy yêu cầu
+
+- [ ] Dòng trả phòng vừa gửi → **Hủy** → hộp "Hủy yêu cầu trả phòng?" → **Giữ lại** → không đổi gì.
+- [ ] **Hủy** lần nữa → **Hủy yêu cầu** → thông báo "Đã hủy yêu cầu"; Chờ duyệt (1), Đã hủy (2).
+- [ ] Network → `DELETE /portal/my-requests/<id>` thành công.
+- [ ] _(Kiểm chéo trong cùng phiên, không F5)_ Đăng xuất → đăng nhập `staff@dorm.local` → menu Yêu cầu: yêu cầu trả phòng của Nguyễn Văn An **không** có trong hàng chờ.
+
+### 10.4. Gia hạn từ trang chủ — `sv004@dorm.local`
+
+- [ ] Trang chủ có khung vàng "Hợp đồng còn 20 ngày" → bấm **Gia hạn** → sang `/portal/my-requests` và **hộp tạo yêu cầu mở sẵn** ở loại Gia hạn.
+- [ ] Dòng dưới ô ngày: "Hợp đồng hiện kết thúc ngày <hạn hiện tại>". Lịch mờ mọi ngày ≤ hạn hiện tại (BR-72).
+- [ ] Chọn ngày **đúng 6 tháng sau** hạn hiện tại → hiện chữ xanh **"Thêm 6 tháng."**; khung xanh "Gia hạn không thu thêm tiền cọc".
+- [ ] Gửi (lý do để trống được) → "Đã gửi yêu cầu gia hạn"; thanh địa chỉ không còn `?create=renewal`.
+- [ ] Bấm **Gia hạn chỗ ở** ở cột phải → khung đỏ yêu cầu gia hạn đang chờ, nút gửi mờ. **Hủy bỏ** để đóng.
+
+### 10.5. Chưa có hợp đồng + màn hình hẹp
+
+- [ ] `sv002@dorm.local` → menu Yêu cầu → khung xanh "Bạn chưa có hợp đồng lưu trú đang hiệu lực" + nút "Về trang chủ"; nút **Tạo yêu cầu** mờ (rê chuột: "Cần có hợp đồng đang hiệu lực để gửi yêu cầu"); bảng "Bạn chưa gửi yêu cầu nào"; Tổng quan ghi "Chưa có hợp đồng đang hiệu lực."
+- [ ] `sv001`, cửa sổ ~900px → cột Tổng quan xuống dưới bảng, bảng cuộn ngang trong thẻ, trang không cuộn ngang.
 
 **Lỗi phát hiện:** _(chưa có)_
 

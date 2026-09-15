@@ -477,6 +477,12 @@ newRequest(contracts[6], 'checkout', {
   reason: 'Hết hợp đồng, em không ở tiếp', requestedEndDate: todayPlus(2), createdAt: `${todayPlus(0)}T07:45:00+07:00`,
 });
 
+// sv001 từng gửi rồi tự hủy một yêu cầu trả phòng — để màn "Yêu cầu của tôi" có lịch sử
+newRequest(contracts[0], 'checkout', {
+  reason: 'Em định chuyển ra ngoài nhưng đổi ý', requestedEndDate: todayPlus(40), status: 'cancelled',
+  createdAt: `${todayPlus(-12)}T20:15:00+07:00`,
+});
+
 // Đã xử lý
 {
   const c = contracts[5];
