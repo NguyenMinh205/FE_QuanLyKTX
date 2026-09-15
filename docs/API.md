@@ -580,6 +580,26 @@ All endpoints resolve the student from the **JWT**. Passing another student's id
 | POST | `/api/portal/my-supply-orders` | student | Place an order — creates a `supplies` invoice *(v1.2)* |
 | PATCH | `/api/portal/my-supply-orders/:id/cancel` | student | Cancel own order while `pending_payment` *(v1.2)* |
 
+**GET `/api/portal/my-residence`** *(v1.2.8)*
+```json
+// student without an active contract
+{ "code": "OK", "message": "Success", "data": { "hasResidence": false } }
+// student with an active contract
+{ "code": "OK", "message": "Success",
+  "data": {
+    "hasResidence": true,
+    "contract": { "id": "6660c1...", "contractCode": "HD-2026-00012", "status": "active",
+                  "startDate": "2026-09-01", "endDate": "2027-06-30", "monthlyPrice": 320000, "depositAmount": 500000,
+                  "bedCode": "B203-02", "roomId": "665f2a...", "roomNumber": "B203", "buildingName": "Tòa B",
+                  "roomTypeId": "665e1b...", "roomTypeName": "Tiêu chuẩn · 6 người" },
+    "roomType": { "id": "665e1b...", "name": "Tiêu chuẩn · 6 người", "tier": "standard", "pricePerMonth": 320000 },
+    "includedInRoom": ["Giường tầng", "Tủ cá nhân", "Quạt trần", "Chăn", "Gối"],
+    "roommates": [ { "studentCode": "SV2024015", "fullName": "Trần Thị B" } ],
+    "debtSummary": { "totalDebt": 320000, "unpaidInvoiceCount": 1 }
+  } }
+```
+> Never `404` — the portal home and header switch on `hasResidence`. `includedInRoom` = room type amenities + supply items issued with the room type. `roommates` exposes only name and student code (other students' data, BR-86).
+
 **POST `/api/portal/my-requests`**
 ```json
 { "type": "renewal", "requestedEndDate": "2027-12-31", "reason": "Học tiếp kỳ sau" }
@@ -767,6 +787,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.8 | 15/09/2026 | Portal (SCR-61): documented the `GET /portal/my-residence` response (`hasResidence`, `contract`, `roomType`, `includedInRoom`, `roommates`, `debtSummary`). Backend gap analysis for FE integration in `docs/16-YEU-CAU-API-BACKEND.md`. |
 | 1.2.7 | 15/09/2026 | Buildings (SCR-21): `includeInactive` list flag, `stats` shape with `maintenanceBeds`, create/update bodies, `BUILDING_HAS_OCCUPANTS`; recorded backend differences. |
 | 1.2.6 | 15/09/2026 | Accounts (SCR-81): new §2.1 `GET/POST /users`, `PUT /users/:id`, `PATCH /users/:id/status` with list `summary`; create returns a one-time temporary password; errors `CANNOT_MODIFY_SELF`, `LAST_ACTIVE_ADMIN`; student list `hasAccount`. Backend currently only has `POST /users/:id/reset-password` (T3.16 pending). |
 | 1.2.5 | 15/09/2026 | Dashboard (SCR-10): documented the `GET /dashboard/summary` response shape and the occupancy rate rule; recorded current backend differences. |
