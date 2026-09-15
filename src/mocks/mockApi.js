@@ -8,7 +8,7 @@ import {
   DEMO_STUDENT_INDEX, roomTypes, buildings, rooms, beds, students, applications, residencies, contracts,
   feeTypes, utilityReadings, invoices, payments, requests, supplyItems, supplyOrders,
   roomTypeOf, bedsOf, availableSlots, generateBeds, approveApplication, createSupplyOrder,
-  occupancyStats, debtOf, demoRaceRoomIds, simulateRivalApproval, todayPlus,
+  occupancyStats, debtOf, demoRaceRoomIds, simulateRivalApproval, todayPlus, newRequest,
 } from './mockDb';
 
 // ---------------------------------------------------------------- tiện ích
@@ -710,82 +710,210 @@ export const mockPayments = {
 };
 
 // ---------------------------------------------------------------- requests
+const OPEN_INVOICE = ['unpaid', 'partial', 'overdue'];
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** Công nợ đã LOẠI hóa đơn của đơn nhu yếu phẩm chưa thanh toán — các đơn đó bị hủy khi duyệt trả phòng (BR-97) */
+const settleableDebtOf = (studentId) => {
+  const pendingOrderInvoiceIds = new Set(supplyOrders
+    .filter((o) => o.studentId === studentId && o.status === 'pending_payment').map((o) => o.invoiceId));
+  const open = invoices.filter((i) => i.studentId === studentId && OPEN_INVOICE.includes(i.status) && !pendingOrderInvoiceIds.has(i.id));
+  return { invoices: open, total: open.reduce((s, i) => s + i.totalAmount - i.paidAmount, 0) };
+};
+
+/**
+ * Tiền phòng kỳ dở theo ngày ở thực tế (BR-31) = giá tháng / số ngày trong tháng × số ngày ở.
+ * Tháng trả phòng đã có hóa đơn tiền phòng thì không tính thêm (mock đơn giản hóa — backend chốt con số cuối).
+ */
+const proratedRentOf = (contract, checkoutDate) => {
+  const [y, m, d] = checkoutDate.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const period = `${y}-${pad2(m)}`;
+  const billed = invoices.some((i) => i.contractId === contract.id && i.type === 'monthly' && i.billingPeriod === period && i.status !== 'cancelled');
+  return {
+    period, daysInMonth, days: billed ? 0 : d, alreadyBilled: billed,
+    amount: billed ? 0 : Math.round((contract.monthlyPrice / daysInMonth) * d),
+  };
+};
+
+/** Số tháng gia hạn, làm tròn lên; cuối tháng → cuối tháng tính tròn tháng (30/06 → 31/12 = 6) */
+const monthsExtra = (from, to) => {
+  const a = new Date(from); const b = new Date(to);
+  const lastDay = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() === d.getDate();
+  const partial = b.getDate() > a.getDate() && !(lastDay(a) && lastDay(b));
+  return Math.max(0, (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) + (partial ? 1 : 0));
+};
+
+const requestView = (r) => {
+  const c = contracts.find((x) => x.id === r.contractId);
+  const room = c && rooms.find((x) => x.id === c.roomId);
+  return {
+    ...r,
+    roomNumber: c?.roomNumber, buildingName: c?.buildingName, buildingCode: room?.buildingCode,
+    contractEndDate: r.renewal?.previousEndDate ?? c?.endDate,
+    outstandingDebt: settleableDebtOf(r.studentId).total,
+  };
+};
+
 export const mockRequests = {
   getList: async (q = {}) => {
     await delay();
-    let rows = requests;
-    if (q.status) rows = rows.filter((r) => r.status === q.status);
-    if (q.type) rows = rows.filter((r) => r.type === q.type);
-    return paginate(rows.map((r) => ({ ...r, outstandingDebt: debtOf(r.studentId) })), q);
+    const byStatus = q.status ? requests.filter((r) => r.status === q.status) : requests;
+    let rows = q.type ? byStatus.filter((r) => r.type === q.type) : byStatus;
+    rows = search(rows.map(requestView), q.search, ['studentName', 'studentCode', 'contractCode', 'bedCode', 'requestCode']);
+    // Mới nhất lên đầu (theo bản vẽ); đã xử lý thì xử lý gần nhất lên đầu
+    rows.sort((a, b) => String(b.reviewedAt || b.createdAt).localeCompare(String(a.reviewedAt || a.createdAt)));
+    const res = paginate(rows, q);
+    res.data.data.summary = {
+      pending: requests.filter((r) => r.status === 'pending').length,
+      approved: requests.filter((r) => r.status === 'approved').length,
+      rejected: requests.filter((r) => r.status === 'rejected').length,
+      // Theo loại, trong trạng thái đang lọc
+      byType: { all: byStatus.length, renewal: byStatus.filter((r) => r.type === 'renewal').length, checkout: byStatus.filter((r) => r.type === 'checkout').length },
+    };
+    return res;
   },
   getById: async (id) => {
     await delay();
     const r = requests.find((x) => x.id === id);
     if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy yêu cầu');
     const c = contracts.find((x) => x.id === r.contractId);
+    const st = students.find((s) => s.id === r.studentId);
+    const debt = settleableDebtOf(r.studentId);
     const unpaidOrders = supplyOrders.filter((o) => o.studentId === r.studentId && o.status === 'pending_payment');
-    const unpaidOrderIds = new Set(unpaidOrders.map((o) => o.invoiceId));
-    // Công nợ hiển thị đã LOẠI đơn nhu yếu phẩm chưa thanh toán — chúng sẽ bị hủy khi duyệt (BR-97)
-    const debt = invoices
-      .filter((i) => i.studentId === r.studentId && ['unpaid', 'partial', 'overdue'].includes(i.status) && !unpaidOrderIds.has(i.id))
-      .reduce((s, i) => s + i.totalAmount - i.paidAmount, 0);
-    return ok({
-      ...r, contract: c, outstandingDebt: debt, depositAmount: c.depositAmount,
+    const readyOrders = supplyOrders.filter((o) => o.studentId === r.studentId && o.status === 'ready');
+
+    const detail = {
+      ...requestView(r),
+      student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender, className: st.className, phone: st.phone },
+      contract: {
+        id: c.id, contractCode: c.contractCode, status: c.status, startDate: c.startDate, endDate: c.endDate,
+        monthlyPrice: c.monthlyPrice, depositAmount: c.depositAmount, bedCode: c.bedCode, roomTypeName: c.roomTypeName, buildingName: c.buildingName,
+      },
+      depositAmount: c.depositAmount,
+      outstandingDebt: debt.total,
+      unpaidInvoices: debt.invoices.map((i) => ({
+        id: i.id, invoiceCode: i.invoiceCode, type: i.type, billingPeriod: i.billingPeriod, dueDate: i.dueDate, remainingAmount: i.totalAmount - i.paidAmount,
+      })),
       unpaidSupplyOrders: unpaidOrders.length,
-      readySupplyOrders: supplyOrders.filter((o) => o.studentId === r.studentId && o.status === 'ready').length,
-    });
+      readySupplyOrders: readyOrders.length,
+    };
+
+    if (r.type === 'renewal' && r.status === 'pending') {
+      detail.renewalPreview = { currentEndDate: c.endDate, requestedEndDate: r.requestedEndDate, extraMonths: monthsExtra(c.endDate, r.requestedEndDate) };
+    }
+    if (r.type === 'checkout' && r.status === 'pending') {
+      const rent = proratedRentOf(c, r.requestedEndDate);
+      const net = c.depositAmount - debt.total - rent.amount;
+      const room = rooms.find((x) => x.id === c.roomId);
+      const periods = [...new Set(utilityReadings.map((u) => u.billingPeriod))].sort();
+      const latestPeriod = periods[periods.length - 1];
+      detail.settlementPreview = {
+        checkoutDate: r.requestedEndDate,
+        depositAmount: c.depositAmount, outstandingDebt: debt.total,
+        proratedRent: rent.amount, proratedDays: rent.days, daysInMonth: rent.daysInMonth, proratedPeriod: rent.period,
+        refundAmount: Math.max(0, net), studentStillOwes: Math.max(0, -net), cancelledSupplyOrders: unpaidOrders.length,
+      };
+      detail.checklist = {
+        utilityPeriod: latestPeriod,
+        utilityReadingRecorded: utilityReadings.some((u) => u.roomId === room?.id && u.billingPeriod === latestPeriod),
+        readySupplyOrders: readyOrders.length,
+      };
+    }
+    return ok(detail);
   },
-  approve: async (id, { forceConfirm } = {}) => {
+  /** renewal: {} · checkout: { actualCheckoutDate?, refundMethod?: 'cash' | 'bank_transfer', forceConfirm? } */
+  approve: async (id, { forceConfirm, actualCheckoutDate, refundMethod = 'cash' } = {}) => {
     await delay();
     const r = requests.find((x) => x.id === id);
-    if (!r || r.status !== 'pending') fail(422, 'VALIDATION_ERROR', 'Yêu cầu đã được xử lý');
+    if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy yêu cầu');
+    if (r.status !== 'pending') fail(422, 'REQUEST_NOT_PENDING', 'Yêu cầu đã được xử lý');
     const c = contracts.find((x) => x.id === r.contractId);
+    if (!c || c.status !== 'active') fail(422, 'CONTRACT_NOT_ACTIVE', 'Hợp đồng không ở trạng thái hiệu lực');
+    const reviewedAt = new Date().toISOString();
 
     if (r.type === 'renewal') {
+      if (!r.requestedEndDate || r.requestedEndDate <= c.endDate) {
+        fail(422, 'VALIDATION_ERROR', 'Ngày gia hạn phải sau ngày kết thúc hiện tại của hợp đồng'); // BR-72
+      }
+      const renewal = { previousEndDate: c.endDate, newEndDate: r.requestedEndDate, extraMonths: monthsExtra(c.endDate, r.requestedEndDate) };
       c.endDate = r.requestedEndDate;
-      r.status = 'approved';
-      return ok({ request: r, settlement: null }, 'Duyệt gia hạn thành công');
+      Object.assign(r, { status: 'approved', reviewedAt, renewal });
+      return ok({ request: { id: r.id, status: r.status }, renewal, settlement: null }, 'Duyệt gia hạn thành công');
     }
 
-    // checkout: kiểm tra nợ (không tính đơn nhu yếu phẩm chưa trả)
+    // ---- trả phòng
+    const checkoutDate = actualCheckoutDate || r.requestedEndDate || todayPlus(0);
+    if (checkoutDate < c.startDate || checkoutDate > c.endDate) {
+      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'actualCheckoutDate', message: 'Ngày trả phòng phải nằm trong thời hạn hợp đồng' }] });
+    }
+    const before = settleableDebtOf(r.studentId);
+    if (before.total > 0 && !forceConfirm) {
+      fail(422, 'STUDENT_HAS_DEBT', `Sinh viên còn nợ ${before.total.toLocaleString('vi-VN')} đ. Xác nhận vẫn duyệt?`, { outstandingDebt: before.total });
+    }
+
     const pendingOrders = supplyOrders.filter((o) => o.studentId === r.studentId && o.status === 'pending_payment');
-    const pendingInvoiceIds = new Set(pendingOrders.map((o) => o.invoiceId));
-    const debtExcludingOrders = invoices
-      .filter((i) => i.studentId === r.studentId && ['unpaid', 'partial', 'overdue'].includes(i.status) && !pendingInvoiceIds.has(i.id))
-      .reduce((s, i) => s + i.totalAmount - i.paidAmount, 0);
-    if (debtExcludingOrders > 0 && !forceConfirm) {
-      fail(422, 'STUDENT_HAS_DEBT', `Sinh viên còn nợ ${debtExcludingOrders.toLocaleString('vi-VN')} đ. Xác nhận vẫn duyệt?`,
-        { outstandingDebt: debtExcludingOrders });
+    pendingOrders.forEach((o) => cancelSupplyOrder(o, 'Tự hủy khi duyệt trả phòng')); // BR-97 — trước khi chốt nợ
+    const debt = settleableDebtOf(r.studentId);
+    const rent = proratedRentOf(c, checkoutDate);
+    const net = c.depositAmount - debt.total - rent.amount;
+    const refundAmount = Math.max(0, net);
+    const studentStillOwes = Math.max(0, -net);
+
+    // Hóa đơn quyết toán (BR-76): cấn trừ cọc với nợ cũ + tiền phòng kỳ dở. Nợ cũ coi như đã được cọc thanh toán.
+    const [y, m] = rent.period.split('-');
+    const settlementInvoice = {
+      id: `i-settle-${r.id}`, invoiceCode: `INV-${rent.period.replace('-', '')}-QT${r.id.toUpperCase()}`,
+      studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
+      contractId: c.id, bedCode: c.bedCode, type: 'settlement', billingPeriod: null,
+      lineItems: [
+        ...(rent.amount ? [{ feeTypeId: 'f1', description: `Tiền phòng tháng ${Number(m)}/${y} (${rent.days}/${rent.daysInMonth} ngày)`, quantity: 1, unitPrice: rent.amount, amount: rent.amount }] : []),
+        ...(debt.total ? [{ feeTypeId: 'f5', description: `Công nợ chưa thanh toán (${debt.invoices.length} hóa đơn)`, quantity: 1, unitPrice: debt.total, amount: debt.total }] : []),
+        { feeTypeId: 'f4', description: 'Khấu trừ tiền cọc', quantity: 1, unitPrice: -c.depositAmount, amount: -c.depositAmount },
+      ],
+      totalAmount: studentStillOwes, paidAmount: 0,
+      issueDate: todayPlus(0), dueDate: todayPlus(7), status: studentStillOwes > 0 ? 'unpaid' : 'paid',
+    };
+    debt.invoices.forEach((i) => Object.assign(i, { paidAmount: i.totalAmount, status: 'paid' }));
+    invoices.push(settlementInvoice);
+    if (refundAmount > 0) { // BR-77 — lưu vết đã hoàn cọc
+      payments.push({
+        id: `p-refund-${r.id}`, transactionRef: `REFUND-${r.requestCode}`,
+        invoiceId: settlementInvoice.id, invoiceCode: settlementInvoice.invoiceCode, invoiceType: 'settlement',
+        studentId: c.studentId, studentName: c.studentName,
+        amount: refundAmount, type: 'refund', method: refundMethod, gatewayTransactionId: null,
+        status: 'success', paidAt: reviewedAt, note: `Hoàn cọc khi trả phòng ${c.contractCode}`,
+      });
     }
 
-    pendingOrders.forEach((o) => cancelSupplyOrder(o, 'Tự hủy khi duyệt trả phòng')); // BR-97 — trước khi chốt nợ
-    const outstandingDebt = debtOf(r.studentId);
-    const refund = c.depositAmount - outstandingDebt;
-
-    Object.assign(c, { status: 'terminated', depositRefunded: Math.max(0, refund) });
+    Object.assign(c, {
+      status: 'terminated', terminatedAt: checkoutDate, terminationReason: `Trả phòng theo yêu cầu ${r.requestCode}`, depositRefunded: refundAmount,
+    });
     const bed = beds.find((b) => b.id === c.bedId);
     if (bed) bed.status = 'available';
-    const res = residencies.find((x) => x.id === c.residencyId);
-    if (res) Object.assign(res, { status: 'closed', endDate: new Date().toISOString() });
-    r.status = 'approved';
+    const residency = residencies.find((x) => x.id === c.residencyId);
+    if (residency) Object.assign(residency, { status: 'closed', endDate: checkoutDate });
+    // Yêu cầu khác của hợp đồng không còn ý nghĩa
+    requests.filter((x) => x.contractId === c.id && x.id !== r.id && x.status === 'pending').forEach((x) => { x.status = 'cancelled'; });
 
-    return ok({
-      request: r,
-      settlement: {
-        outstandingDebt, depositAmount: c.depositAmount,
-        refundAmount: Math.max(0, refund), studentStillOwes: Math.max(0, -refund),
-        cancelledSupplyOrders: pendingOrders.length,
-      },
-    }, 'Duyệt trả phòng thành công');
+    const settlement = {
+      checkoutDate, outstandingDebt: debt.total, proratedRent: rent.amount, depositAmount: c.depositAmount,
+      refundAmount, studentStillOwes, refundMethod: refundAmount > 0 ? refundMethod : null,
+      settlementInvoiceId: settlementInvoice.id, cancelledSupplyOrders: pendingOrders.length,
+    };
+    Object.assign(r, { status: 'approved', reviewedAt, settlement });
+    return ok({ request: { id: r.id, status: r.status }, settlement }, 'Duyệt trả phòng thành công');
   },
   reject: async (id, { reviewNote } = {}) => {
     await delay();
-    if (!reviewNote?.trim()) {
-      fail(400, 'VALIDATION_ERROR', 'Vui lòng nhập lý do từ chối', { errors: [{ field: 'reviewNote', message: 'Vui lòng nhập lý do từ chối' }] });
-    }
     const r = requests.find((x) => x.id === id);
-    Object.assign(r, { status: 'rejected', reviewNote });
-    return ok(r, 'Đã từ chối yêu cầu');
+    if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy yêu cầu');
+    if (r.status !== 'pending') fail(422, 'REQUEST_NOT_PENDING', 'Yêu cầu đã được xử lý');
+    if (!reviewNote || !reviewNote.trim()) { // BR-78
+      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'reviewNote', message: 'Nhập lý do từ chối' }] });
+    }
+    Object.assign(r, { status: 'rejected', reviewNote: reviewNote.trim(), reviewedAt: new Date().toISOString() });
+    return ok({ id: r.id, status: r.status }, 'Đã từ chối yêu cầu');
   },
 };
 
@@ -922,14 +1050,12 @@ export const mockPortal = {
     if (requests.some((r) => r.studentId === st.id && r.type === body.type && r.status === 'pending')) {
       fail(409, 'DUPLICATE_PENDING_REQUEST', 'Bạn đã có một yêu cầu cùng loại đang chờ xử lý');
     }
-    const r = {
-      id: `rq-${Date.now()}`, studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
-      contractId: c.id, contractCode: c.contractCode, bedCode: c.bedCode, status: 'pending', reviewNote: null,
-      createdAt: new Date().toISOString(), ...body,
-    };
-    requests.push(r);
+    const r = newRequest(c, body.type, {
+      reason: body.reason || '', requestedEndDate: body.requestedEndDate || null, createdAt: new Date().toISOString(),
+    });
     return ok(r, 'Gửi yêu cầu thành công');
   },
+
   cancelRequest: async (id) => {
     await delay();
     const r = requests.find((x) => x.id === id);

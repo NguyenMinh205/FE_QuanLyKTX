@@ -435,20 +435,62 @@ invoices.filter((inv) => inv.paidAmount > 0).forEach((inv, i) => {
 });
 
 // ---------------------------------------------------------------- yêu cầu gia hạn / trả phòng
-export const requests = contracts.slice(0, 6).map((c, i) => {
-  const type = i % 2 === 0 ? 'renewal' : 'checkout';
-  const status = i < 3 ? 'pending' : i === 3 ? 'approved' : i === 4 ? 'rejected' : 'pending';
-  return {
-    id: `rq${pad(i + 1)}`,
+// Ngày gửi/ngày trả tính theo ngày máy chạy để "còn N ngày", "gửi hôm qua" luôn hợp lý.
+export const requests = [];
+let reqSeq = 0;
+export const newRequest = (c, type, extra = {}) => {
+  reqSeq += 1;
+  const r = {
+    id: `rq${pad(reqSeq)}`,
+    requestCode: `YC-2026-${pad(reqSeq, 5)}`,
     studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
     contractId: c.id, contractCode: c.contractCode, bedCode: c.bedCode,
-    type,
-    reason: type === 'renewal' ? 'Em tiếp tục học kỳ sau' : 'Em chuyển ra ngoài ở cùng gia đình',
-    requestedEndDate: type === 'renewal' ? '2027-12-31' : '2026-12-15',
-    status,
-    reviewNote: status === 'rejected' ? 'Hồ sơ chưa đủ điều kiện gia hạn' : null,
-    createdAt: `2026-11-0${i + 1}T08:00:00+07:00`,
+    type, reason: '', requestedEndDate: null,
+    status: 'pending', reviewNote: null, reviewedAt: null,
+    renewal: null, settlement: null,
+    createdAt: `${todayPlus(-1)}T08:30:00+07:00`,
+    ...extra,
   };
+  requests.push(r);
+  return r;
+};
+
+// Chờ xử lý — mỗi yêu cầu là một tình huống nghiệp vụ
+// sv001: gia hạn, còn nợ
+newRequest(contracts[0], 'renewal', {
+  reason: 'Em tiếp tục học năm sau, muốn giữ chỗ hiện tại', requestedEndDate: '2027-12-31', createdAt: `${todayPlus(-3)}T09:10:00+07:00`,
+});
+// trả phòng, nợ nhỏ hơn cọc → hoàn tiền
+newRequest(contracts[1], 'checkout', {
+  reason: 'Em chuyển ra ở cùng gia đình', requestedEndDate: todayPlus(10), createdAt: `${todayPlus(-2)}T14:32:00+07:00`,
+});
+// gia hạn, không nợ
+newRequest(contracts[2], 'renewal', {
+  reason: 'Gia hạn thêm một học kỳ', requestedEndDate: '2027-12-31', createdAt: `${todayPlus(-2)}T10:05:00+07:00`,
+});
+// trả phòng, nợ vượt cọc + có đơn nhu yếu phẩm đã trả tiền nhưng chưa nhận
+newRequest(contracts[4], 'checkout', {
+  reason: 'Em đi thực tập ở tỉnh khác', requestedEndDate: todayPlus(7), createdAt: `${todayPlus(-1)}T16:20:00+07:00`,
+});
+// trả phòng khi hợp đồng sắp hết hạn, có đơn nhu yếu phẩm CHƯA thanh toán (sẽ tự hủy, không trừ cọc — BR-97)
+newRequest(contracts[6], 'checkout', {
+  reason: 'Hết hợp đồng, em không ở tiếp', requestedEndDate: todayPlus(2), createdAt: `${todayPlus(0)}T07:45:00+07:00`,
+});
+
+// Đã xử lý
+{
+  const c = contracts[5];
+  newRequest(c, 'renewal', {
+    reason: 'Em học thêm năm cuối', requestedEndDate: '2027-12-31', status: 'approved',
+    createdAt: `${todayPlus(-22)}T09:00:00+07:00`, reviewedAt: `${todayPlus(-20)}T10:00:00+07:00`,
+    renewal: { previousEndDate: c.endDate, newEndDate: '2027-12-31', extraMonths: 6 },
+  });
+  c.endDate = '2027-12-31';
+}
+newRequest(contracts[8], 'renewal', {
+  reason: 'Em muốn ở thêm 2 năm', requestedEndDate: '2028-06-30', status: 'rejected',
+  reviewNote: 'Chỉ gia hạn tối đa đến hết năm học tiếp theo, vui lòng gửi lại',
+  createdAt: `${todayPlus(-15)}T11:00:00+07:00`, reviewedAt: `${todayPlus(-14)}T15:30:00+07:00`,
 });
 
 // ---------------------------------------------------------------- hợp đồng năm trước (đã hết hạn / đã chấm dứt)
@@ -500,6 +542,15 @@ seedPastContract(students[82], rooms[2], { startDate: '2025-09-01', endDate: '20
 seedPastContract(students[84], rooms[3], {
   startDate: '2025-09-01', endDate: '2026-06-30', status: 'terminated',
   terminatedAt: '2026-01-15', terminationReason: 'Sinh viên chuyển trường, đã bàn giao phòng và thu hồi chìa khóa',
+});
+// Yêu cầu trả phòng đã duyệt của hợp đồng trên — có sẵn bảng quyết toán để xem ở tab "Đã duyệt"
+newRequest(contracts.find((c) => c.contractCode === 'HD-2025-00003'), 'checkout', {
+  requestCode: 'YC-2026-00000', reason: 'Em chuyển trường', requestedEndDate: '2026-01-15', status: 'approved',
+  createdAt: '2026-01-08T09:00:00+07:00', reviewedAt: '2026-01-15T16:00:00+07:00',
+  settlement: {
+    checkoutDate: '2026-01-15', outstandingDebt: 0, proratedRent: 0, depositAmount: 500000,
+    refundAmount: 500000, studentStillOwes: 0, refundMethod: 'cash', settlementInvoiceId: null, cancelledSupplyOrders: 0,
+  },
 });
 
 // ---------------------------------------------------------------- thống kê dashboard

@@ -5,7 +5,7 @@
 **Cập nhật:** mỗi màn hình làm xong được thêm một mục vào tài liệu này, cùng nhánh với code của màn đó.
 
 > Mỗi dòng `- [ ]` là một bước: **làm gì** → **kết quả đúng phải thấy**. Làm đúng thứ tự từ trên xuống, vì các bước sau dùng dữ liệu bước trước để lại.
-> Đạt thì đánh dấu `- [x]`. Sai thì giữ `- [ ]`, ghi lỗi vào mục **Lỗi phát hiện** cuối màn đó theo mẫu ở mục 9.
+> Đạt thì đánh dấu `- [x]`. Sai thì giữ `- [ ]`, ghi lỗi vào mục **Lỗi phát hiện** cuối màn đó theo **Mẫu ghi lỗi** ở cuối tài liệu.
 
 ---
 
@@ -20,6 +20,7 @@
 | 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | ⬜ Chưa test |
 | 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | ⬜ Chưa test |
 | 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | ⬜ Chưa test |
+| 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -427,7 +428,7 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 ### 8.4. Drawer hợp đồng đang hiệu lực — HD-2026-00001 (sinh viên `sv001`)
 
 - [ ] Tìm `SV2026001` → bấm dòng → hàng được tô xanh, drawer mở: tag "Đang hiệu lực".
-- [ ] Khung xanh "Yêu cầu gia hạn gửi ngày 01/11/2026 — Đang chờ xử lý…" + nút **Mở Yêu cầu** → sang `/admin/requests`.
+- [ ] Khung xanh "Yêu cầu gia hạn gửi ngày <3 ngày trước> — Đang chờ xử lý…" + nút **Mở Yêu cầu** → sang `/admin/requests`.
 - [ ] Thông tin sinh viên: Nguyễn Văn An · SV2026001 · lớp CNTT2026A · số điện thoại dạng "0912 000 000".
 - [ ] Lưu trú: "Tòa A · Phòng A101 · Giường 01", Tiêu chuẩn · 6 người, "01/09/2026 → 30/06/2027 · 10 tháng · còn N ngày", 320.000 đ/tháng, tiền cọc 500.000 đ "✓ đã thu", **Công nợ hiện tại 726.000 đ** màu đỏ.
 - [ ] **Hóa đơn của hợp đồng (5)**: mã, loại/kỳ, số tiền, còn nợ (đỏ khi > 0), trạng thái.
@@ -462,7 +463,80 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 
 ---
 
-## 9. Mẫu ghi lỗi
+## 9. Yêu cầu gia hạn / trả phòng + quyết toán cọc (SCR-41)
+
+**Nhánh:** `feature/request-review` · **Đường dẫn:** menu **Yêu cầu** · **Chạy:** dữ liệu giả, tài khoản `staff@dorm.local`, **F5 trước khi bắt đầu**, làm liền mạch từ 9.1 tới 9.6 (không F5 giữa chừng).
+
+**Khác thiết kế đã chấp nhận:**
+- Không có "Lịch sử xử lý", "Xuất báo cáo", "Liên hệ", "Hồ sơ SV", giờ hẹn bàn giao, chi tiết tài sản trong phòng — không có trong API.
+- Chưa đổi được **ngày trả phòng thực tế** lúc duyệt: dùng ngày sinh viên đề xuất (API đã có `actualCheckoutDate`, bổ sung sau).
+- Viewer chỉ xem danh sách + thông tin yêu cầu, không xem được bảng quyết toán (API: `GET /requests/:id` chỉ cho admin, staff).
+- Thêm so với bản vẽ: dòng **tiền phòng kỳ dở theo ngày ở** (BR-31) trong bảng quyết toán, cảnh báo công nợ cho yêu cầu gia hạn.
+
+> Ngày gửi, ngày dự kiến trả và tiền phòng kỳ dở tính theo **ngày máy đang chạy** — số tiền dưới đây đúng khi test trong **tháng 9/2026**. Test tháng khác thì số ngày ở/tiền phòng kỳ dở đổi theo, chỉ cần kiểm công thức: *Hoàn/nộp thêm = cọc − công nợ − tiền phòng kỳ dở*.
+
+### 9.1. Hàng chờ
+
+- [ ] Tab **Chờ xử lý** số đỏ **5** · Đã duyệt **2** · Đã từ chối **1**. Nút lọc: Tất cả (5) · Gia hạn (2) · Trả phòng (3).
+- [ ] 5 thẻ, **gửi mới nhất lên đầu**; thẻ đầu (**Đặng Văn An**, Trả phòng) tự mở, viền trái xanh.
+- [ ] Thẻ trả phòng có "Dự kiến trả: dd/mm/yyyy"; thẻ gia hạn có "Gia hạn tới 31/12/2027 (+6 tháng)"; thẻ còn nợ có tag đỏ "Còn nợ" + "Công nợ: … đ" (VD Hoàng Quốc Bảo 578.000 đ).
+- [ ] Bấm "Gia hạn" / "Trả phòng" → chỉ còn loại đó; gõ `SV2026002` vào ô tìm → chỉ còn Trần Ngọc Ánh. Xóa bộ lọc.
+
+### 9.2. Trả phòng được hoàn cọc — Đặng Văn An
+
+- [ ] Thẻ sinh viên: tên, giới tính, lớp, MSSV SV2026007, SĐT, phòng A101.
+- [ ] **Thông tin yêu cầu trả phòng**: mã YC-2026-00005, hợp đồng HD-2026-000xx (chữ xanh), "A101 · Giường 04", ngày dự kiến bàn giao "(còn N ngày)", thời hạn hợp đồng gốc, lý do trong ngoặc kép.
+- [ ] **Quyết toán tiền cọc** (tag xanh "Hoàn cọc"): Tiền cọc 500.000 đ · Trừ công nợ − 0 đ · Trừ tiền phòng tháng 9/2026 (17/30 ngày ở) − 181.333 đ · khung xanh **Hoàn trả cho sinh viên 318.667 đ**.
+- [ ] Dòng xám: "Đơn nhu yếu phẩm chưa thanh toán sẽ tự hủy, không trừ vào tiền cọc **(1 đơn)**". Có chọn **Hình thức hoàn tiền**: Tiền mặt / Chuyển khoản.
+- [ ] **Kiểm tra trước khi duyệt** "2/3 điều kiện": ✓ Đã có chỉ số điện nước tháng 10/2026 · ✓ Không có đơn nhu yếu phẩm chờ nhận · ☐ Đã kiểm tra tài sản phòng và thu hồi chìa khóa (chữ đỏ bắt buộc).
+- [ ] Thanh dưới: chữ cam "Xác nhận đã kiểm tra tài sản để bật nút duyệt", nút **Duyệt và hoàn 318.667 đ** mờ.
+- [ ] Tích ô kiểm tra → "3/3 điều kiện", nút sáng. Chọn **Chuyển khoản** → bấm duyệt → hộp xác nhận nêu giường trả về trống + "Hoàn 318.667 đ bằng chuyển khoản" → **Duyệt**.
+- [ ] Hộp kết quả "Đã duyệt trả phòng của Đặng Văn An": bảng quyết toán chốt, "Hình thức hoàn: Chuyển khoản — đã ghi nhận phiếu hoàn tiền", "Đã tự hủy 1 đơn nhu yếu phẩm chưa thanh toán".
+- [ ] Đóng → hàng chờ còn **4**, Trả phòng (2).
+- [ ] Network → `PATCH /requests/<id>/approve` → Payload `{ "refundMethod": "bank_transfer" }` (không có forceConfirm vì không nợ).
+
+### 9.3. Trả phòng nợ vượt cọc — Hoàng Quốc Bảo (BR-75)
+
+- [ ] Bấm thẻ Hoàng Quốc Bảo → tag đỏ **"Công nợ vượt tiền cọc"**: cọc 500.000 · công nợ − 578.000 · tiền phòng 9/2026 (22/30 ngày) − 234.667 · khung đỏ **Sinh viên còn phải nộp thêm 312.667 đ** + khung vàng "Tiền cọc bị trừ hết. Hệ thống sẽ tạo hóa đơn quyết toán 312.667 đ…".
+- [ ] **Không** có "Hình thức hoàn tiền".
+- [ ] Bấm "Xem 1 hóa đơn còn nợ" → hiện mã INV-202610-…, Hàng tháng 10/2026, hạn, 578.000 đ.
+- [ ] Checklist dòng vàng "Còn 1 đơn nhu yếu phẩm đã thanh toán chưa giao" + nút **Xem đơn** (không chặn duyệt).
+- [ ] Nút **Duyệt và lập hóa đơn 312.667 đ**. Tích kiểm tra tài sản → bấm → hộp đỏ **"Sinh viên còn nợ 578.000 đ. Vẫn duyệt?"**.
+- [ ] Network: request đầu trả **422**, `code: "STUDENT_HAS_DEBT"`, `data.outstandingDebt: 578000`.
+- [ ] Bấm **Xem lại** → hộp đóng, yêu cầu vẫn còn trong hàng chờ.
+- [ ] Bấm duyệt lần nữa → **Vẫn duyệt trả phòng** → request thứ hai có `forceConfirm: true` → kết quả "Sinh viên còn phải nộp thêm 312.667 đ".
+
+### 9.4. Gia hạn — Nguyễn Văn An (sv001)
+
+- [ ] **Thông tin yêu cầu gia hạn**: "30/06/2027 → 31/12/2027", "+6 tháng · 320.000 đ/tháng".
+- [ ] Thẻ **Sau khi duyệt gia hạn**: hợp đồng kéo dài tới 31/12/2027 · tiền phòng các kỳ gia hạn lập hóa đơn theo tháng · **Không thu thêm tiền cọc** · khung vàng "Sinh viên đang nợ 566.000 đ (1 hóa đơn) — Công nợ không chặn việc gia hạn".
+- [ ] Không có quyết toán / checklist; nút **Duyệt gia hạn** sáng ngay → xác nhận → thông báo "Đã gia hạn hợp đồng HD-2026-00001 — Tới 31/12/2027 (+6 tháng)".
+- [ ] _(Kiểm chéo)_ Menu Hợp đồng → tìm SV2026001 → thời hạn kết thúc 31/12/2027.
+
+### 9.5. Từ chối — Lê Hoàng Long
+
+- [ ] **Từ chối** → **Từ chối yêu cầu** khi để trống → lỗi "Nhập lý do từ chối".
+- [ ] Nhập "Sinh viên chưa hoàn tất học phí kỳ trước" → hàng chờ còn 1 (Trần Ngọc Ánh).
+
+### 9.6. Đã xử lý + liên kết
+
+- [ ] Tab **Đã duyệt** → 5 yêu cầu (vừa duyệt ở trên + 2 có sẵn), xử lý gần nhất lên đầu. Mở Hoàng Quốc Bảo → **Kết quả xử lý** có bảng quyết toán đã chốt, không có nút duyệt/từ chối.
+- [ ] Mở **Hoàng Văn An** (HD-2025-00003) → hoàn 500.000 đ, "Trả phòng ngày 15/01/2026 · hoàn bằng tiền mặt".
+- [ ] Mở **Vũ Minh Châu** (gia hạn có sẵn) → "Đã gia hạn hợp đồng từ 30/06/2027 tới 31/12/2027 (+6 tháng)".
+- [ ] Tab **Đã từ chối** → Lê Hoàng Long với lý do vừa nhập; Nguyễn Hoàng Long với lý do "Chỉ gia hạn tối đa đến hết năm học tiếp theo…".
+- [ ] Tab Chờ xử lý → mở Trần Ngọc Ánh → bấm mã hợp đồng → sang màn Hợp đồng, tab Tất cả, ô tìm đã điền sẵn mã, bảng chỉ 1 dòng.
+- [ ] Trần Ngọc Ánh: công nợ 295.250 đ < cọc nhưng cộng tiền phòng tháng 9 (25/30 ngày) 266.667 đ thì **nộp thêm 61.917 đ** — kiểm lại công thức.
+
+### 9.7. Quyền + màn hình hẹp
+
+- [ ] `viewer@dorm.local` → thấy 5 thẻ và thông tin yêu cầu + khung xanh "Chi tiết công nợ, quyết toán và thao tác duyệt chỉ dành cho quản trị viên và nhân viên"; không có nút Từ chối / Duyệt.
+- [ ] Cửa sổ ~900px → danh sách trên, chi tiết dưới, không cuộn ngang.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## Mẫu ghi lỗi
 
 Chép vào mục **Lỗi phát hiện** của màn tương ứng:
 

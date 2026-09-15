@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Card, Tabs, Select, Tag, Typography, Badge,
 } from 'antd';
@@ -32,8 +33,11 @@ export default function ContractsPage() {
   const canUpdate = can(user, 'contract:update');
   const canTerminate = can(user, 'contract:terminate');
 
-  const [tab, setTab] = useState('active');
-  const [filters, setFilters] = useState({ page: 1, limit: 20, search: '', buildingId: undefined, roomTypeId: undefined });
+  // Mở từ nơi khác kèm ?search=HD-... (VD màn Yêu cầu) thì tìm sẵn trong tab Tất cả
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const [tab, setTab] = useState(initialSearch ? 'all' : 'active');
+  const [filters, setFilters] = useState({ page: 1, limit: 20, search: initialSearch, buildingId: undefined, roomTypeId: undefined });
   const [openId, setOpenId] = useState(null);
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);

@@ -449,15 +449,35 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/requests` | admin, staff, viewer | Staff queue — `?status=pending&type=renewal` |
+| GET | `/api/requests` | admin, staff, viewer | Staff queue — `?status=pending&type=renewal&search=&page=&limit=`. Newest first (processed: most recently reviewed first). `search` matches student name/code, contract code, bed code, request code. Response adds `summary: { pending, approved, rejected, byType: { all, renewal, checkout } }` — `byType` counts within the requested `status` |
 | GET | `/api/requests/:id` | admin, staff | Detail, including the student's outstanding debt |
 | PATCH | `/api/requests/:id/approve` | admin, staff | Approve — cascades contract/residency/bed/deposit updates |
-| PATCH | `/api/requests/:id/reject` | admin, staff | Reject — `{ reviewNote }` required |
+| PATCH | `/api/requests/:id/reject` | admin, staff | Reject — `{ reviewNote }` required (non-empty, BR-78) |
+
+**List item** carries `requestCode` (`YC-YYYY-XXXXX`), `roomNumber`, `buildingName`, `buildingCode`, `contractEndDate` and `outstandingDebt` (unpaid supply orders excluded — see the note under approval). Viewers only get the list; the detail below is admin/staff.
+
+**GET `/api/requests/:id`** — adds:
+```json
+{ "student": { "studentCode": "SV2026005", "fullName": "Hoàng Quốc Bảo", "gender": "male", "className": "CNTT2026B", "phone": "0912000548" },
+  "contract": { "contractCode": "HD-2026-00005", "status": "active", "startDate": "2026-09-01", "endDate": "2027-06-30", "monthlyPrice": 320000, "depositAmount": 500000, "bedCode": "A101-03", "roomTypeName": "Tiêu chuẩn · 6 người" },
+  "unpaidInvoices": [ { "invoiceCode": "INV-202610-00010", "type": "monthly", "billingPeriod": "2026-10", "dueDate": "2026-11-10", "remainingAmount": 578000 } ],
+  "unpaidSupplyOrders": 0, "readySupplyOrders": 1,
+  // pending checkout only
+  "settlementPreview": { "checkoutDate": "2026-09-22", "depositAmount": 500000, "outstandingDebt": 578000,
+                         "proratedRent": 234667, "proratedDays": 22, "daysInMonth": 30, "proratedPeriod": "2026-09",
+                         "refundAmount": 0, "studentStillOwes": 312667, "cancelledSupplyOrders": 0 },
+  "checklist": { "utilityPeriod": "2026-10", "utilityReadingRecorded": true, "readySupplyOrders": 1 },
+  // pending renewal only
+  "renewalPreview": { "currentEndDate": "2027-06-30", "requestedEndDate": "2027-12-31", "extraMonths": 6 } }
+```
+> `settlementPreview` uses the requested checkout date; the approval response returns the final numbers. Processed requests expose `reviewedAt` plus `renewal: { previousEndDate, newEndDate, extraMonths }` or the stored `settlement`.
+
+**PATCH `/api/requests/:id/approve`** (type = `renewal`) — empty body; response `{ request, renewal: { previousEndDate, newEndDate, extraMonths }, settlement: null }`. Rejects `requestedEndDate <= endDate` (BR-72).
 
 **PATCH `/api/requests/:id/approve`** (type = `checkout`)
 ```json
-// request
-{ "actualCheckoutDate": "2026-12-15", "forceConfirm": true }
+// request — refundMethod 'cash' | 'bank_transfer' (recorded on the refund Payment, BR-77)
+{ "actualCheckoutDate": "2026-12-15", "refundMethod": "cash", "forceConfirm": true }
 // response
 { "code": "OK", "message": "Duyệt trả phòng thành công",
   "data": {
@@ -467,6 +487,8 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
       "depositAmount": 500000,
       "refundAmount": 254000,
       "studentStillOwes": 0,
+      "proratedRent": 0,
+      "refundMethod": "cash",
       "settlementInvoiceId": "665f9c...",
       "cancelledSupplyOrders": 1
     }
@@ -632,6 +654,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `STUDENT_HAS_DEBT` | 422 | Student still owes money |
 | `CONTRACT_NOT_ACTIVE` | 422 | Operation requires an `active` contract |
 | `APPLICATION_NOT_PENDING` | 422 | Application was already approved, rejected or cancelled *(v1.2)* |
+| `REQUEST_NOT_PENDING` | 422 | Renewal/checkout request was already processed or cancelled |
 | `ROOM_TYPE_MISMATCH` | 422 | Staff tried to switch an application to a room of another type *(v1.2)* |
 | `ROOM_TYPE_IN_USE` | 422 | Cannot change tier/capacity of a room type that rooms already use *(v1.2)* |
 | `ROOM_HAS_OCCUPANTS` | 422 | Cannot change room type or gender of an occupied room *(v1.2)* |
@@ -667,6 +690,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.3 | 15/09/2026 | Requests (SCR-41, additive): list `summary`/`byType`, search and sort rules, `requestCode`; detail adds `student`, `contract`, `unpaidInvoices`, `settlementPreview` (with BR-31 prorated rent), `checklist`, `renewalPreview`; checkout approve accepts `refundMethod`, settlement returns `proratedRent`/`refundMethod`; new error `REQUEST_NOT_PENDING`. Approving a checkout also cancels the contract's other pending requests. |
 | 1.2.2 | 15/09/2026 | Contracts (SCR-32, additive): list `summary` counts, sort/search rules and extra row fields; detail adds `student`, `depositStatus`, `invoices`, `pendingRequests`, `unpaidSupplyOrders`, `history`; terminate body `{ reason, terminationDate }` and `settlement` response. |
 | 1.2.1 | 15/09/2026 | FE integration notes (additive, no breaking change): `GET /rooms/:id` example, bed status body `{ status, note? }`; `GET /applications` `summary` counts + sort/search rules; application detail adds `requestedRoom.buildingCode/floor`, `roomType.tier/capacity`, `reviewedAt`, `reviewNote`, `assigned`, `contractCode`; `GET /rooms/available` accepts `gender` for staff. |
 | **1.2** | **13/09/2026** | **Register by room, not bed.** Added room types (§4), applications with automatic bed assignment (§5.1), the supplies module (§11) and the matching portal endpoints (§10). Removed manual bed endpoints, `GET /beds/available`, `POST /residencies`, `POST /contracts` and contract activation. `BED_NOT_AVAILABLE` → `ROOM_FULL`; 10 new error codes (29 total). Dashboard and later sections renumbered §12–§15. |
