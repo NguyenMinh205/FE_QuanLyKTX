@@ -407,9 +407,9 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/fee-types` | admin, staff, viewer | List fee types |
-| POST | `/api/fee-types` | admin | Create fee type |
-| PUT | `/api/fee-types/:id` | admin | Update unit price |
+| GET | `/api/fee-types` | admin, staff, viewer | List fee types — active only by default; `?includeInactive=true` adds inactive ones (SCR-82) |
+| POST | `/api/fee-types` | admin | Create fee type — `{ code, name, unit, defaultAmount, isRecurring }` |
+| PUT | `/api/fee-types/:id` | admin | Update `{ name, unit, defaultAmount, isRecurring, isActive }` — `code` cannot change; no delete endpoint |
 | GET | `/api/utility-readings` | admin, staff, viewer | List — `?billingPeriod=2026-10&buildingId=` |
 | POST | `/api/utility-readings` | admin, staff | Enter meter readings for one room/period |
 | PUT | `/api/utility-readings/:id` | admin, staff | Edit — rejected once `isInvoiced: true` |
@@ -419,6 +419,23 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 | POST | `/api/invoices` | admin, staff | Create a one-off invoice manually |
 | PATCH | `/api/invoices/:id/cancel` | admin, staff | Cancel — only if no successful payment exists |
 | GET | `/api/invoices/overdue` | admin, staff, viewer | Overdue invoices (dashboard list) |
+
+**GET `/api/fee-types?includeInactive=true`** *(v1.2.9)*
+```json
+{ "code": "OK", "message": "Success",
+  "data": [
+    { "id": "665e2a...", "code": "electricity", "name": "Tiền điện", "unit": "kWh", "defaultAmount": 2500,
+      "isRecurring": true, "isActive": true, "isSystem": true, "updatedAt": "2026-08-01T08:00:00+07:00" },
+    { "id": "665e2f...", "code": "lost_key", "name": "Làm mất chìa khóa", "unit": "chiếc", "defaultAmount": 50000,
+      "isRecurring": false, "isActive": true, "isSystem": false, "updatedAt": "2026-08-20T09:30:00+07:00" }
+  ] }
+```
+> Plain array. `isSystem` is `true` for the six codes the billing flow depends on (`rent`, `electricity`, `water`, `deposit`, `supplies`, `other`).
+> - Create: `code` lowercase `^[a-z][a-z0-9_]{1,29}$`, unique → `409 DUPLICATE_ENTRY` with a field error on `code`. `defaultAmount` is a non-negative integer; for `electricity`/`water` it must be `> 0`.
+> - Update: a system fee type cannot be deactivated → `422 FEE_TYPE_REQUIRED`, and its `isRecurring` is fixed. Changing the electricity/water price only affects readings entered afterwards (BR-52).
+> - For a non-system fee type `defaultAmount` is only the suggested unit price when staff add a manual invoice line; `0` means "type the amount each time".
+>
+> **Backend status (15/09/2026):** returns the v1.1 shape — codes `ROOM_FEE`, `ELECTRICITY`, `WATER`, `DEPOSIT`, fields `unitPrice`/`isMetered`, no `isRecurring`/`isSystem`, active only (ignores `includeInactive`), duplicate code returns `FEE_TYPE_CODE_ALREADY_EXISTS`. The frontend normalises the list (lowercase codes, `ROOM_FEE` → `rent`, `unitPrice` → `defaultAmount`) so the screen reads correctly; writes are not verified against the backend.
 
 **POST `/api/utility-readings`** *(PRD §2.9 A2)*
 ```json
@@ -752,6 +769,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `CANNOT_MODIFY_SELF` | 422 | Admin tried to lock, demote or reset their own account |
 | `LAST_ACTIVE_ADMIN` | 422 | Would leave the system without an active admin (BR-83) |
 | `BUILDING_HAS_OCCUPANTS` | 422 | Cannot deactivate a building that still has occupied beds (FR-25) |
+| `FEE_TYPE_REQUIRED` | 422 | Cannot deactivate one of the six system fee types used by billing (FR-45) |
 | `ROOM_TYPE_MISMATCH` | 422 | Staff tried to switch an application to a room of another type *(v1.2)* |
 | `ROOM_TYPE_IN_USE` | 422 | Cannot change tier/capacity of a room type that rooms already use *(v1.2)* |
 | `ROOM_HAS_OCCUPANTS` | 422 | Cannot change room type or gender of an occupied room *(v1.2)* |
@@ -787,6 +805,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.9 | 15/09/2026 | Fee types (SCR-82): `includeInactive` list flag, `isSystem`, create/update bodies and validation, `FEE_TYPE_REQUIRED`; recorded backend differences. |
 | 1.2.8 | 15/09/2026 | Portal (SCR-61): documented the `GET /portal/my-residence` response (`hasResidence`, `contract`, `roomType`, `includedInRoom`, `roommates`, `debtSummary`). Backend gap analysis for FE integration in `docs/16-YEU-CAU-API-BACKEND.md`. |
 | 1.2.7 | 15/09/2026 | Buildings (SCR-21): `includeInactive` list flag, `stats` shape with `maintenanceBeds`, create/update bodies, `BUILDING_HAS_OCCUPANTS`; recorded backend differences. |
 | 1.2.6 | 15/09/2026 | Accounts (SCR-81): new §2.1 `GET/POST /users`, `PUT /users/:id`, `PATCH /users/:id/status` with list `summary`; create returns a one-time temporary password; errors `CANNOT_MODIFY_SELF`, `LAST_ACTIVE_ADMIN`; student list `hasAccount`. Backend currently only has `POST /users/:id/reset-password` (T3.16 pending). |

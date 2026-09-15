@@ -18,6 +18,7 @@ import UsersPage from '../features/users/pages/UsersPage';
 import RoomTypesPage from '../features/rooms/pages/RoomTypesPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import BuildingsPage from '../features/rooms/pages/BuildingsPage';
+import FeeTypesPage from '../features/fees/pages/FeeTypesPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 import RequestsPage from '../features/requests/pages/RequestsPage';
@@ -66,7 +67,7 @@ export default function AppRoutes() {
       {/* ---------- Chỉ admin ---------- */}
       <Route element={<RoleRoute allowed={[ADMIN]}><AdminLayout /></RoleRoute>}>
         <Route path="/admin/users" element={<UsersPage />} />
-        <Route path="/admin/fee-types" element={todo('Danh mục loại phí', 'fees', '/api/fee-types')} />
+        <Route path="/admin/fee-types" element={<FeeTypesPage />} />
       </Route>
 
       {/* ---------- Cổng sinh viên: chỉ student ---------- */}

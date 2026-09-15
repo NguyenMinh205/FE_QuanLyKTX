@@ -25,6 +25,7 @@
 | 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 | 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | ⬜ Chưa test |
 | 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -753,6 +754,63 @@ Chuẩn bị như mục 11.6 (backend + FE cổng 5173, `VITE_USE_MOCK=false`), 
 - [ ] Bảng hiện 2 tòa "Tòa nhà A (Khu Nam)", "Tòa nhà B (Khu Nữ)" với mô tả, 1 phòng, "0/4 đang ở", 0,00%.
 - [ ] Lọc **Ngừng hoạt động (0)** — backend chưa trả tòa ngừng hoạt động (đã ghi ở `API.md`), nên sau khi ngừng một tòa sẽ **không** kích hoạt lại được từ giao diện cho tới khi backend hỗ trợ `includeInactive`.
 - [ ] _(Chỉ làm trên DB riêng, không làm trên DB chung)_ Thêm tòa trùng mã → lỗi vẫn hiện dưới ô Mã (FE nhận cả mã lỗi `BUILDING_CODE_ALREADY_EXISTS` của backend).
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 14. Danh mục loại phí (SCR-82)
+
+**Nhánh:** `feature/fee-type-catalog` · **Đường dẫn:** Hệ thống → Danh mục loại phí (`/admin/fee-types`) · **Chạy:** dữ liệu giả, tài khoản `admin@dorm.local` (chỉ Admin — FR-45), **F5 trước khi bắt đầu**, từ 14.2 tới 14.5 làm liền mạch không F5.
+
+**Ghi chú:** màn không có bản vẽ (📋). Không có nút xóa — hóa đơn cũ tham chiếu loại phí, docs không có API xóa. 6 loại **hệ thống** (`rent`, `electricity`, `water`, `deposit`, `supplies`, `other`) không ngừng dùng được vì lập hóa đơn, quyết toán cần tới. Dữ liệu giả có thêm 2 loại tự thêm: `lost_key` (đang dùng), `internet` (đã ngừng).
+
+### 14.1. Danh sách
+
+- [ ] Hộp xanh trên cùng: "Chỉ tiền điện và tiền nước dùng đơn giá ở đây" + giải thích tiền phòng/cọc lấy từ hợp đồng, nhu yếu phẩm lấy từ đơn hàng.
+- [ ] Nút lọc: **Đang dùng (7)** (mặc định) · Ngừng dùng (1) · Tất cả (8).
+- [ ] Thứ tự: rent, electricity, water, deposit, supplies, other (có chữ nhỏ "Hệ thống" dưới mã), rồi lost_key.
+- [ ] Cột Đơn giá mặc định: Tiền điện **2.500 đ/kWh** "Dùng khi nhập chỉ số điện nước" · Tiền nước **12.000 đ/m3** · Tiền phòng, Tiền đặt cọc "Theo hợp đồng" · Nhu yếu phẩm "Theo đơn hàng" · Phí khác "Nhập số tiền khi lập hóa đơn" · Làm mất chìa khóa **50.000 đ/chiếc** "Gợi ý khi lập hóa đơn thủ công".
+- [ ] Cột Kỳ thu: tiền phòng, điện, nước tag xanh **Hằng tháng**; còn lại **Một lần**.
+- [ ] 6 loại hệ thống: nút **Ngừng dùng** mờ, rê chuột "Loại phí hệ thống dùng khi lập hóa đơn — không ngừng sử dụng được". Làm mất chìa khóa: nút đỏ bấm được.
+- [ ] Lọc **Ngừng dùng** → Internet phòng, tag xám, nút **Dùng lại**.
+
+### 14.2. Thêm loại phí
+
+- [ ] **Thêm loại phí** → xóa ô đơn giá → bấm **Thêm loại phí** → lỗi "Nhập mã loại phí", "Nhập tên loại phí", "Nhập đơn vị tính", "Nhập đơn giá".
+- [ ] Gõ mã `Water` → tự thành **water**; tên "Nước trùng", đơn vị `m3`, đơn giá 5000 → thêm → lỗi dưới ô Mã "Mã loại phí water đã tồn tại".
+- [ ] Mã `9x` → "Mã bắt đầu bằng chữ, gồm chữ thường, số, dấu _, 2–30 ký tự".
+- [ ] Ô Đơn vị: bấm vào thấy gợi ý tháng, kWh, m3, lần, chiếc…; gõ tự do được.
+- [ ] Mã `cleaning`, tên "Phí vệ sinh phòng", đơn vị `tháng`, đơn giá 20000 → ô hiện **20.000**, hậu tố **đ/tháng**; chọn **Hằng tháng** → thêm → thông báo "Đã thêm loại phí Phí vệ sinh phòng", dòng mới "20.000 đ/tháng", tag Hằng tháng.
+
+### 14.3. Sửa đơn giá điện (BR-52)
+
+- [ ] Dòng Tiền điện → **Sửa** → ô Mã mờ ("Mã không đổi được sau khi tạo…"), ô Kỳ thu mờ ("Loại phí hệ thống — kỳ thu cố định"), dưới ô đơn giá có ghi chú BR-52.
+- [ ] Đơn giá 0 → **Lưu thay đổi** → "Đơn giá điện, nước phải lớn hơn 0".
+- [ ] Đơn giá 2800 → **Lưu thay đổi** → hộp hỏi "Đổi đơn giá tiền điện?" nêu **2.500 đ → 2.800 đ** mỗi kWh và "Chỉ số đã nhập và hóa đơn đã lập giữ nguyên giá cũ".
+- [ ] Bấm **Xem lại** → quay về form, chưa lưu. Bấm lưu lần nữa → **Đổi đơn giá** → "Cập nhật loại phí thành công", bảng hiện 2.800 đ/kWh.
+
+### 14.4. Sửa tiền phòng + ngừng dùng / dùng lại
+
+- [ ] Dòng Tiền phòng → **Sửa** → ô đơn giá **mờ**, ghi chú "Tiền phòng lấy số tiền theo hợp đồng — không dùng đơn giá ở đây". Đổi tên "Tiền phòng ở" → lưu **không** hỏi xác nhận, bảng đổi tên.
+- [ ] Network → `PUT /fee-types/<id>` Payload có `name`, `unit`, `defaultAmount`, `isRecurring` — **không** có `code`.
+- [ ] Dòng Phí vệ sinh phòng → **Ngừng dùng** → hộp "Ngừng sử dụng Phí vệ sinh phòng?" (không chọn được khi lập hóa đơn mới, hóa đơn cũ giữ nguyên) → xác nhận → "Đã ngừng sử dụng loại phí", tag xám, nút **Dùng lại**.
+- [ ] **Dùng lại** → xác nhận → "Đã dùng lại loại phí"; nút lọc về **Ngừng dùng (1)**.
+
+### 14.5. Quyền + màn hẹp
+
+- [ ] `staff@dorm.local`, `viewer@dorm.local`: menu Hệ thống **không** có Danh mục loại phí; gõ `/admin/fee-types` → trang **403**.
+- [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ (Thao tác ghim phải), trang không cuộn ngang.
+
+### 14.6. Với backend thật (chỉ xem — không thêm/sửa trên DB chung)
+
+Chuẩn bị như mục 11.6 (backend + FE cổng 5173, `VITE_USE_MOCK=false`), đăng nhập `admin@dorm.local`.
+
+- [ ] Bảng hiện 5 loại: **rent** "Tiền thuê phòng hàng tháng" (Theo hợp đồng) · **electricity** 3.000 đ/kWh · **water** 15.000 đ/m3 · **deposit** (Theo hợp đồng) · **internet** 50.000 đ/tháng. Mã hiện **chữ thường** dù backend trả `ROOM_FEE`, `ELECTRICITY`… (FE chuyển đổi khi đọc, xem `API.md` bản 1.2.9).
+- [ ] Tiền phòng, điện, nước, internet hiện **Hằng tháng** (backend chưa có `isRecurring`, FE suy ra từ đồng hồ điện nước hoặc đơn vị "tháng").
+- [ ] Không có `supplies`, `other` — backend chưa seed (đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.12).
+- [ ] F12 → Console có 2 lỗi 404 `/room-types` — do Dashboard gọi lúc đăng nhập, backend chưa có loại phòng, **không phải** lỗi màn này.
+- [ ] _(Chỉ làm trên DB riêng)_ Thêm/sửa loại phí: backend đang dùng tên trường `unitPrice` nên thêm/sửa **chưa chạy đúng** cho tới khi backend đổi theo docs.
 
 **Lỗi phát hiện:** _(chưa có)_
 

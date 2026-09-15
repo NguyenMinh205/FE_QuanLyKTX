@@ -282,12 +282,15 @@ newApplication(students[74], roomFor(students[74], 'rt2'), { status: 'cancelled'
 
 // ---------------------------------------------------------------- danh mục phí
 export const feeTypes = [
-  { id: 'f1', code: 'rent', name: 'Tiền phòng', unit: 'tháng', defaultAmount: 0, isRecurring: true, isActive: true },
-  { id: 'f2', code: 'electricity', name: 'Tiền điện', unit: 'kWh', defaultAmount: 2500, isRecurring: true, isActive: true },
-  { id: 'f3', code: 'water', name: 'Tiền nước', unit: 'm3', defaultAmount: 12000, isRecurring: true, isActive: true },
-  { id: 'f4', code: 'deposit', name: 'Tiền đặt cọc', unit: 'lần', defaultAmount: 0, isRecurring: false, isActive: true },
-  { id: 'f6', code: 'supplies', name: 'Nhu yếu phẩm', unit: 'đơn', defaultAmount: 0, isRecurring: false, isActive: true },
-  { id: 'f5', code: 'other', name: 'Phí khác', unit: 'lần', defaultAmount: 0, isRecurring: false, isActive: true },
+  { id: 'f1', code: 'rent', name: 'Tiền phòng', unit: 'tháng', defaultAmount: 0, isRecurring: true, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
+  { id: 'f2', code: 'electricity', name: 'Tiền điện', unit: 'kWh', defaultAmount: 2500, isRecurring: true, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
+  { id: 'f3', code: 'water', name: 'Tiền nước', unit: 'm3', defaultAmount: 12000, isRecurring: true, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
+  { id: 'f4', code: 'deposit', name: 'Tiền đặt cọc', unit: 'lần', defaultAmount: 0, isRecurring: false, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
+  { id: 'f6', code: 'supplies', name: 'Nhu yếu phẩm', unit: 'đơn', defaultAmount: 0, isRecurring: false, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
+  { id: 'f5', code: 'other', name: 'Phí khác', unit: 'lần', defaultAmount: 0, isRecurring: false, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
+  // loại phí tự thêm — minh họa FR-45 (1 đang dùng, 1 đã ngừng)
+  { id: 'f7', code: 'lost_key', name: 'Làm mất chìa khóa', unit: 'chiếc', defaultAmount: 50000, isRecurring: false, isActive: true, updatedAt: '2026-08-20T09:30:00+07:00' },
+  { id: 'f8', code: 'internet', name: 'Internet phòng', unit: 'tháng', defaultAmount: 30000, isRecurring: true, isActive: false, updatedAt: '2026-06-15T14:00:00+07:00' },
 ];
 
 // ---------------------------------------------------------------- chỉ số điện nước

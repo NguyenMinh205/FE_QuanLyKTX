@@ -3,7 +3,7 @@
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
 **Người đọc:** nhóm Backend (3 người)
 **Người lập:** FE Lead · **Ngày:** 15/09/2026
-**Đối chiếu:** `docs/API.md` **v1.2.8** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
+**Đối chiếu:** `docs/API.md` **v1.2.9** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
 
 > **Tóm tắt một dòng:** backend đang làm theo API **v1.1** (xếp giường bằng tay). Frontend đã làm xong 16/31 màn theo **v1.2** (đăng ký theo phòng, giường tự gán, nhu yếu phẩm). Để nối được, backend cần: **thêm 5 nhóm API còn thiếu**, **sửa định dạng/luật ở 7 nhóm đang lệch**, **bỏ 8 API thừa của v1.1**, và **sửa 6 lỗi chung**.
 
@@ -25,7 +25,7 @@
 | **P2** | Dọn dẹp, bảo mật, lỗi tiềm ẩn — không chặn giao diện |
 
 - **Nguồn sự thật** là `docs/API.md` (định dạng request/response, mã lỗi mục 13) và `docs/DATA-SCHEMA.md` (tên trường). Tài liệu này **không lặp lại** định dạng đã có ở `API.md`, chỉ chỉ ra chỗ lệch và việc cần làm.
-- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.8**.
+- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.9**.
 - Frontend có lớp dữ liệu giả (`src/mocks/`) trả **đúng** định dạng trong `API.md` — khi phân vân, chạy FE ở chế độ dữ liệu giả (`VITE_USE_MOCK=true`), mở F12 → Network để xem request/response mẫu.
 
 ---
@@ -202,7 +202,8 @@ Mọi endpoint lấy danh tính **từ JWT** (BR-86). Định dạng: **`API.md`
 
 | Lệch | Cần làm | Trích dẫn |
 |---|---|---|
-| FeeType dùng `unitPrice`, `isMetered`, mã viết hoa `ELECTRICITY`/`WATER`; chưa seed | Theo `DATA-SCHEMA` 3.8: `defaultAmount`, `isRecurring`, mã `rent`, `electricity`, `water`, `deposit`, `supplies`, `other`. Seed 6 loại | `fee-type.model.js`, `fee.service.js:101-105` |
+| FeeType dùng `unitPrice`, `isMetered`, mã viết hoa (DB chung đang có `ROOM_FEE`, `ELECTRICITY`, `WATER`, `DEPOSIT`, `INTERNET`); thiếu `supplies`, `other` | Theo `DATA-SCHEMA` 3.8: `defaultAmount`, `isRecurring`, mã `rent`, `electricity`, `water`, `deposit`, `supplies`, `other`. Seed đủ 6 loại hệ thống. FE tạm chuyển đổi khi đọc danh sách, **chưa** chuyển đổi khi thêm/sửa | `fee-type.model.js`, `fee.service.js:101-105` |
+| `GET /fee-types` chỉ trả loại đang dùng; không có `isSystem`; cho ngừng dùng cả loại hệ thống | Theo `API.md` mục 7 (bản 1.2.9): `?includeInactive=true`, trả `isSystem`; ngừng dùng loại hệ thống → `422 FEE_TYPE_REQUIRED`; `PUT` nhận `{ name, unit, defaultAmount, isRecurring, isActive }`, không đổi `code` | `fee.service.js:20-49` |
 | `GET /utility-readings` không phân trang, không Joi; `PUT` không Joi | Joi cho cả hai; trả `{ items, total, page, limit }` (hoặc thống nhất mảng và ghi rõ trong `API.md`) | `fee.service.js:51-72, 134-166` |
 | Invoice dùng `items[{name,...}]`, không có `remainingAmount`, `type` thiếu `supplies` | `lineItems[{ feeTypeId, description, quantity, unitPrice, amount }]`, trả thêm `remainingAmount`, thêm `supplies` | `invoice.model.js` |
 | `POST /invoices/generate` trả `{ totalInvoicesCreated, invoices }`, **bỏ qua** sinh viên đã có hóa đơn tháng | Trả `{ created, updated, totalAmount, skipped[{roomId, roomNumber, reason}] }`; **bổ sung dòng điện nước** vào hóa đơn tháng đã có (BR-48) thay vì bỏ qua | `fee.service.js:189-326` |
@@ -286,4 +287,5 @@ Chưa có. Làm theo **`API.md` mục 11** + **`DATA-SCHEMA` 3.15–3.16** + **`
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.1 | 15/09/2026 | FE Lead | Phí (3.12): cập nhật dữ liệu loại phí đang có trên DB chung, thêm yêu cầu cho màn SCR-82 (`includeInactive`, `isSystem`, `FEE_TYPE_REQUIRED`) |
 | 1.0 | 15/09/2026 | FE Lead | Bản đầu — đối chiếu `API.md` v1.2.8 với `BE_QLKTX` commit `ab7db8c` |

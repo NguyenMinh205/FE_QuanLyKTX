@@ -790,8 +790,70 @@ export const mockContracts = {
 };
 
 // ---------------------------------------------------------------- fees
+/** Loại phí hệ thống — lập hóa đơn cần tới, không ngừng dùng được (DATA-SCHEMA 3.8) */
+const SYSTEM_FEE_CODES = ['rent', 'electricity', 'water', 'deposit', 'supplies', 'other'];
+/** Chỉ điện, nước dùng defaultAmount làm đơn giá — bắt buộc > 0 */
+const PRICED_FEE_CODES = ['electricity', 'water'];
+const feeTypeErrors = (body, code = String(body.code || '').trim().toLowerCase()) => {
+  const errors = [];
+  if (!String(body.name || '').trim()) errors.push({ field: 'name', message: 'Nhập tên loại phí' });
+  if (!String(body.unit || '').trim()) errors.push({ field: 'unit', message: 'Nhập đơn vị tính' });
+  const amount = Number(body.defaultAmount);
+  if (body.defaultAmount === '' || body.defaultAmount === null || body.defaultAmount === undefined
+    || Number.isNaN(amount) || amount < 0 || !Number.isInteger(amount)) {
+    errors.push({ field: 'defaultAmount', message: 'Đơn giá là số nguyên không âm' });
+  } else if (PRICED_FEE_CODES.includes(code) && amount <= 0) {
+    errors.push({ field: 'defaultAmount', message: 'Đơn giá điện, nước phải lớn hơn 0' });
+  }
+  return errors;
+};
+
 export const mockFees = {
-  getFeeTypes: async () => { await delay(); return ok(feeTypes); },
+  /** Mảng sắp theo thứ tự hệ thống rồi mã; mặc định chỉ loại đang dùng, `includeInactive` lấy cả loại đã ngừng */
+  getFeeTypes: async (q = {}) => {
+    await delay();
+    const order = (t) => { const i = SYSTEM_FEE_CODES.indexOf(t.code); return i === -1 ? 99 : i; };
+    const rows = feeTypes
+      .filter((t) => String(q.includeInactive) === 'true' || t.isActive)
+      .map((t) => ({ ...t, isSystem: SYSTEM_FEE_CODES.includes(t.code) }))
+      .sort((a, b) => order(a) - order(b) || a.code.localeCompare(b.code));
+    return ok(rows);
+  },
+  /** { code, name, unit, defaultAmount, isRecurring } — mã chữ thường, duy nhất */
+  createFeeType: async (body = {}) => {
+    await delay();
+    const code = String(body.code || '').trim().toLowerCase();
+    const errors = feeTypeErrors(body);
+    if (!code) errors.push({ field: 'code', message: 'Nhập mã loại phí' });
+    else if (!/^[a-z][a-z0-9_]{1,29}$/.test(code)) errors.push({ field: 'code', message: 'Mã bắt đầu bằng chữ, gồm chữ thường, số, dấu _, 2–30 ký tự' });
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+    if (feeTypes.some((t) => t.code === code)) fail(409, 'DUPLICATE_ENTRY', `Mã loại phí ${code} đã tồn tại`, { errors: [{ field: 'code', message: `Mã loại phí ${code} đã tồn tại` }] });
+    const t = {
+      id: `f-${Date.now()}`, code, name: String(body.name).trim(), unit: String(body.unit).trim(),
+      defaultAmount: Number(body.defaultAmount) || 0, isRecurring: !!body.isRecurring, isActive: true,
+      updatedAt: new Date().toISOString(),
+    };
+    feeTypes.push(t);
+    return ok({ ...t, isSystem: false }, `Đã thêm loại phí ${t.name}`);
+  },
+  /** { name, unit, defaultAmount, isRecurring, isActive } — không đổi mã; loại hệ thống không ngừng dùng được, giữ nguyên isRecurring */
+  updateFeeType: async (id, body = {}) => {
+    await delay();
+    const t = feeTypes.find((x) => x.id === id);
+    if (!t) fail(404, 'NOT_FOUND', 'Không tìm thấy loại phí');
+    const isSystem = SYSTEM_FEE_CODES.includes(t.code);
+    const errors = feeTypeErrors({ ...t, ...body }, t.code);
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+    if (isSystem && body.isActive === false) fail(422, 'FEE_TYPE_REQUIRED', `${t.name} là loại phí hệ thống dùng khi lập hóa đơn, không thể ngừng sử dụng`);
+    ['name', 'unit'].forEach((k) => { if (body[k] !== undefined) t[k] = String(body[k]).trim(); });
+    if (body.defaultAmount !== undefined) t.defaultAmount = Number(body.defaultAmount) || 0;
+    if (!isSystem && typeof body.isRecurring === 'boolean') t.isRecurring = body.isRecurring;
+    if (typeof body.isActive === 'boolean') t.isActive = body.isActive;
+    t.updatedAt = new Date().toISOString();
+    const message = body.isActive === false ? 'Đã ngừng sử dụng loại phí'
+      : body.isActive === true && Object.keys(body).length === 1 ? 'Đã dùng lại loại phí' : 'Cập nhật loại phí thành công';
+    return ok({ ...t, isSystem }, message);
+  },
   getUtilityReadings: async (q = {}) => {
     await delay();
     let rows = utilityReadings;
