@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Button, Card, Select, Segmented, Row, Col, Skeleton, Alert, Typography, Table, Drawer, Grid, Space,
 } from 'antd';
@@ -39,7 +40,9 @@ export default function RoomsPage() {
   const canEdit = can(user, 'room:update');
   const canManageBeds = can(user, 'bed:update');
 
-  const [filters, setFilters] = useState({ buildingId: undefined, roomTypeId: undefined, floor: undefined, availability: undefined });
+  // Màn Tòa nhà mở sẵn đúng tòa qua ?buildingId=
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState({ buildingId: searchParams.get('buildingId') || undefined, roomTypeId: undefined, floor: undefined, availability: undefined });
   const [view, setView] = useState('map');
   const [selectedId, setSelectedId] = useState(null);
   const [formRoom, setFormRoom] = useState(null); // null = đóng · {} = thêm · room = sửa
@@ -47,7 +50,8 @@ export default function RoomsPage() {
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
   const { data: roomTypes } = useApi(() => roomApi.getRoomTypes(), []);
-  const buildingId = filters.buildingId ?? buildings?.[0]?.id;
+  // Tòa trong URL không còn hoạt động thì quay về tòa đầu tiên
+  const buildingId = (buildings?.some((b) => b.id === filters.buildingId) ? filters.buildingId : null) ?? buildings?.[0]?.id;
 
   const { data: rooms, loading, error, refetch } = useApi(
     () => (buildingId

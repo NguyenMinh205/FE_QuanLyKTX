@@ -303,10 +303,60 @@ export const mockStudents = {
 
 // ---------------------------------------------------------------- rooms: tòa nhà, loại phòng, phòng, giường
 export const mockRooms = {
-  getBuildings: async () => {
+  /** Mặc định chỉ tòa đang hoạt động (giống backend); màn Tòa nhà gửi includeInactive=true */
+  getBuildings: async (q = {}) => {
     await delay();
-    const stats = occupancyStats();
-    return ok(buildings.map((b) => ({ ...b, stats: stats.byBuilding.find((x) => x.buildingName === b.name) })));
+    const list = String(q.includeInactive) === 'true' ? buildings : buildings.filter((b) => b.isActive);
+    return ok([...list].sort((a, b) => a.code.localeCompare(b.code)).map((b) => {
+      const roomIds = rooms.filter((r) => r.buildingId === b.id && r.status !== 'inactive').map((r) => r.id);
+      const bs = beds.filter((x) => roomIds.includes(x.roomId));
+      return {
+        ...b,
+        stats: {
+          totalRooms: roomIds.length,
+          totalBeds: bs.length,
+          occupiedBeds: bs.filter((x) => x.status === 'occupied').length,
+          availableBeds: bs.filter((x) => x.status === 'available').length,
+          maintenanceBeds: bs.filter((x) => x.status === 'maintenance').length,
+        },
+      };
+    }));
+  },
+  /** { code, name, address?, description? } — mã duy nhất, viết hoa (BR-01) */
+  createBuilding: async (body = {}) => {
+    await delay();
+    const code = String(body.code || '').trim().toUpperCase();
+    const name = String(body.name || '').trim();
+    const errors = [];
+    if (!code) errors.push({ field: 'code', message: 'Nhập mã tòa nhà' });
+    else if (!/^[A-Z0-9-]{1,10}$/.test(code)) errors.push({ field: 'code', message: 'Mã gồm chữ, số, dấu -, tối đa 10 ký tự' });
+    if (!name) errors.push({ field: 'name', message: 'Nhập tên tòa nhà' });
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+    if (buildings.some((b) => b.code === code)) fail(409, 'DUPLICATE_ENTRY', `Mã tòa nhà ${code} đã tồn tại`, { errors: [{ field: 'code', message: `Mã tòa nhà ${code} đã tồn tại` }] });
+    const b = {
+      id: `b-${Date.now()}`, code, name,
+      address: String(body.address || '').trim(), description: String(body.description || '').trim(), isActive: true,
+    };
+    buildings.push(b);
+    return ok(b, `Đã thêm tòa nhà ${name}`);
+  },
+  /** { name, address, description, isActive } — không đổi mã; không ngừng hoạt động khi còn người ở */
+  updateBuilding: async (id, body = {}) => {
+    await delay();
+    const b = buildings.find((x) => x.id === id);
+    if (!b) fail(404, 'NOT_FOUND', 'Không tìm thấy tòa nhà');
+    if (body.name !== undefined && !String(body.name).trim()) {
+      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'name', message: 'Nhập tên tòa nhà' }] });
+    }
+    if (body.isActive === false && b.isActive) {
+      const roomIds = rooms.filter((r) => r.buildingId === id).map((r) => r.id);
+      const occupied = beds.filter((x) => roomIds.includes(x.roomId) && x.status === 'occupied').length;
+      if (occupied > 0) fail(422, 'BUILDING_HAS_OCCUPANTS', `Tòa ${b.name} còn ${occupied} sinh viên đang ở, không thể ngừng hoạt động`);
+    }
+    ['name', 'address', 'description'].forEach((k) => { if (body[k] !== undefined) b[k] = String(body[k]).trim(); });
+    if (typeof body.isActive === 'boolean') b.isActive = body.isActive;
+    const message = body.isActive === false ? 'Đã ngừng hoạt động tòa nhà' : body.isActive === true && Object.keys(body).length === 1 ? 'Đã kích hoạt lại tòa nhà' : 'Cập nhật tòa nhà thành công';
+    return ok(b, message);
   },
 
   getRoomTypes: async (q = {}) => {

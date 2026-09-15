@@ -67,7 +67,8 @@ export const generateBeds = (room) => {
   }
 };
 
-buildings.forEach((b, bi) => {
+// 20 phòng chia cho 2 tòa đầu. Tòa C thêm SAU vòng tạo phòng: đang cải tạo, chưa có phòng, ngừng hoạt động (SCR-21)
+buildings.slice(0, 2).forEach((b, bi) => {
   for (let i = 1; i <= 10; i++) {
     const floor = Math.ceil(i / 4);
     const rt = roomTypes.find((t) => t.id === ROOM_TYPE_PATTERN[i - 1]);
@@ -86,6 +87,10 @@ buildings.forEach((b, bi) => {
     rooms.push(room);
     generateBeds(room);
   }
+});
+
+buildings.push({
+  id: 'b3', code: 'C', name: 'Tòa C', address: 'Khu KTX số 2', description: 'Đang cải tạo, dự kiến mở lại năm học 2027-2028', isActive: false,
 });
 
 // ---------------------------------------------------------------- tiện ích tra cứu
@@ -573,7 +578,8 @@ export const occupancyStats = () => {
   };
   return {
     overall: summarize(beds),
-    byBuilding: buildings.map((b) => {
+    // Chỉ tòa đang hoạt động — giống backend (dashboard, sơ đồ lấp đầy)
+    byBuilding: buildings.filter((b) => b.isActive).map((b) => {
       const ids = rooms.filter((r) => r.buildingId === b.id).map((r) => r.id);
       return { buildingName: b.name, ...summarize(beds.filter((x) => ids.includes(x.roomId))) };
     }),

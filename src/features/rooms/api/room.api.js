@@ -4,9 +4,10 @@ import { USE_MOCK } from '../../../lib/env';
 
 export const roomApi = {
   // Tòa nhà
-  getBuildings:    (params)   => (USE_MOCK ? mockRooms.getBuildings()             : axiosClient.get('/buildings', { params })),
-  createBuilding:  (data)     => (USE_MOCK ? Promise.resolve({ data: {} })        : axiosClient.post('/buildings', data)),
-  updateBuilding:  (id, data) => (USE_MOCK ? Promise.resolve({ data: {} })        : axiosClient.put(`/buildings/${id}`, data)),
+  /** params.includeInactive=true → cả tòa ngừng hoạt động (chỉ màn Tòa nhà dùng) */
+  getBuildings:    (params)   => (USE_MOCK ? mockRooms.getBuildings(params)       : axiosClient.get('/buildings', { params })),
+  createBuilding:  (data)     => (USE_MOCK ? mockRooms.createBuilding(data)       : axiosClient.post('/buildings', data)),
+  updateBuilding:  (id, data) => (USE_MOCK ? mockRooms.updateBuilding(id, data)   : axiosClient.put(`/buildings/${id}`, data)),
 
   // Loại phòng
   getRoomTypes:    (params)   => (USE_MOCK ? mockRooms.getRoomTypes(params)       : axiosClient.get('/room-types', { params })),

@@ -188,9 +188,9 @@ Account errors:
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/buildings` | admin, staff, viewer, student | List buildings with occupancy stats |
-| POST | `/api/buildings` | admin, staff | Create building |
-| PUT | `/api/buildings/:id` | admin, staff | Update |
+| GET | `/api/buildings` | admin, staff, viewer, student | List buildings with occupancy stats — active only by default; `?includeInactive=true` (admin, staff, viewer) adds inactive ones for the Buildings screen |
+| POST | `/api/buildings` | admin, staff | Create building — `{ code, name, address?, description? }`; `code` uppercased, unique (BR-01) |
+| PUT | `/api/buildings/:id` | admin, staff | Update `{ name, address, description, isActive }` — `code` cannot change; no delete endpoint (BR-07) |
 | GET | `/api/room-types` | admin, staff, viewer, student | List — `?tier=&isActive=true&withAvailability=true` *(v1.2)* |
 | POST | `/api/room-types` | admin | Create room type *(v1.2)* |
 | PUT | `/api/room-types/:id` | admin | Update price, deposit, amenities; `tier`/`capacity` locked once used *(v1.2)* |
@@ -202,6 +202,18 @@ Account errors:
 | PATCH | `/api/beds/:id/status` | admin, staff | Set `maintenance` ⇄ `available` — `{ status, note? }`; `note` is kept only while in maintenance |
 
 > **Removed in v1.2:** `POST /api/rooms/:roomId/beds`, `POST /api/rooms/:roomId/beds/generate`, `GET /api/rooms/:roomId/beds` (use `GET /api/rooms/:id`) and `GET /api/beds/available`. Beds are created by the system and never picked by a person.
+
+**GET `/api/buildings?includeInactive=true`** *(v1.2.7)*
+```json
+{ "code": "OK", "message": "Success",
+  "data": [
+    { "id": "665e0a...", "code": "A", "name": "Tòa A", "address": "Khu KTX số 1", "description": "", "isActive": true,
+      "stats": { "totalRooms": 10, "totalBeds": 49, "occupiedBeds": 35, "availableBeds": 13, "maintenanceBeds": 1 } }
+  ] }
+```
+> Plain array sorted by `code`. `stats` counts only rooms that are not `inactive`. Setting `isActive: false` on a building that still has occupied beds → `422 BUILDING_HAS_OCCUPANTS`. Duplicate code → `409 DUPLICATE_ENTRY` with a field error on `code`.
+>
+> **Backend status (15/09/2026):** list ignores `includeInactive` (always active only, so an inactive building can never be reactivated from the UI), `stats` has no `maintenanceBeds`, duplicate code returns `409 BUILDING_CODE_ALREADY_EXISTS` (frontend accepts both codes), and deactivating a building with residents is not blocked.
 
 **GET `/api/room-types?withAvailability=true`**
 ```json
@@ -719,6 +731,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `REQUEST_NOT_PENDING` | 422 | Renewal/checkout request was already processed or cancelled |
 | `CANNOT_MODIFY_SELF` | 422 | Admin tried to lock, demote or reset their own account |
 | `LAST_ACTIVE_ADMIN` | 422 | Would leave the system without an active admin (BR-83) |
+| `BUILDING_HAS_OCCUPANTS` | 422 | Cannot deactivate a building that still has occupied beds (FR-25) |
 | `ROOM_TYPE_MISMATCH` | 422 | Staff tried to switch an application to a room of another type *(v1.2)* |
 | `ROOM_TYPE_IN_USE` | 422 | Cannot change tier/capacity of a room type that rooms already use *(v1.2)* |
 | `ROOM_HAS_OCCUPANTS` | 422 | Cannot change room type or gender of an occupied room *(v1.2)* |
@@ -754,6 +767,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.7 | 15/09/2026 | Buildings (SCR-21): `includeInactive` list flag, `stats` shape with `maintenanceBeds`, create/update bodies, `BUILDING_HAS_OCCUPANTS`; recorded backend differences. |
 | 1.2.6 | 15/09/2026 | Accounts (SCR-81): new §2.1 `GET/POST /users`, `PUT /users/:id`, `PATCH /users/:id/status` with list `summary`; create returns a one-time temporary password; errors `CANNOT_MODIFY_SELF`, `LAST_ACTIVE_ADMIN`; student list `hasAccount`. Backend currently only has `POST /users/:id/reset-password` (T3.16 pending). |
 | 1.2.5 | 15/09/2026 | Dashboard (SCR-10): documented the `GET /dashboard/summary` response shape and the occupancy rate rule; recorded current backend differences. |
 | 1.2.4 | 15/09/2026 | Portal requests (SCR-66): list shape/sort, create validation rules (BR-72, checkout date range, required checkout reason), cancel returns `REQUEST_NOT_PENDING`. |

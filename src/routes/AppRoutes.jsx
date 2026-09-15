@@ -17,6 +17,7 @@ import MyRequestsPage from '../features/portal/pages/MyRequestsPage';
 import UsersPage from '../features/users/pages/UsersPage';
 import RoomTypesPage from '../features/rooms/pages/RoomTypesPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
+import BuildingsPage from '../features/rooms/pages/BuildingsPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 import RequestsPage from '../features/requests/pages/RequestsPage';
@@ -49,7 +50,7 @@ export default function AppRoutes() {
         <Route path="/admin/students" element={<StudentsPage />} />
         <Route path="/admin/change-password" element={<ChangePasswordPage />} />
 
-        <Route path="/admin/buildings" element={todo('Tòa nhà', 'rooms', '/api/buildings')} />
+        <Route path="/admin/buildings" element={<BuildingsPage />} />
         <Route path="/admin/room-types" element={<RoomTypesPage />} />
         <Route path="/admin/rooms" element={<RoomsPage />} />
         <Route path="/admin/applications" element={<ApplicationsPage />} />

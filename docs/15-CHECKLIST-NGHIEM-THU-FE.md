@@ -24,6 +24,7 @@
 | 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | ⬜ Chưa test |
 | 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 | 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | ⬜ Chưa test |
+| 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -700,6 +701,58 @@ Chuẩn bị theo mục 1.2 (backend `npm run dev`, `.env` FE `VITE_USE_MOCK=fal
 ### 12.8. Màn hình hẹp
 
 - [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ (cột Thao tác ghim phải), trang không cuộn ngang; hộp thoại vẫn đọc được.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 13. Tòa nhà (SCR-21)
+
+**Nhánh:** `feature/building-management` · **Đường dẫn:** Cơ sở vật chất → Tòa nhà (`/admin/buildings`) · **Chạy:** dữ liệu giả, tài khoản `staff@dorm.local` (FR-20 cho Staff), **F5 trước khi bắt đầu**, từ 13.2 tới 13.5 làm liền mạch không F5.
+
+**Ghi chú:** màn không có bản vẽ (📋). Không có nút xóa — docs không có API xóa tòa và BR-07 cấm xóa tòa đã có dữ liệu. Dữ liệu giả có thêm **Tòa C** (ngừng hoạt động, đang cải tạo, chưa có phòng).
+
+### 13.1. Danh sách
+
+- [ ] Nút lọc: **Đang hoạt động (2)** (mặc định) · Ngừng hoạt động (1) · Tất cả (3). Dòng ghi chú bên phải "Tòa đã có dữ liệu không xóa được, chỉ ngừng hoạt động (FR-25)".
+- [ ] Bảng: ô mã A/B, tên + địa chỉ · Số phòng **10** · Giường "35/49 đang ở — 13 trống · 1 bảo trì" (Tòa A), "37/49 đang ở — 11 trống · 1 bảo trì" (Tòa B) · thanh **72,92%** / **77,08%** · tag Đang hoạt động.
+- [ ] Kiểm công thức: 35 / (49 − 1) = 72,92% (không phải 35/49). Rê chuột lên thanh thấy "Đã ở / (tổng giường − bảo trì)".
+- [ ] Tòa A, B có người ở → nút **Ngừng hoạt động** mờ, rê chuột "Còn 35 sinh viên đang ở — không ngừng hoạt động được".
+- [ ] Lọc **Ngừng hoạt động** → Tòa C: ô mã xám, "Đang cải tạo…", "Chưa có giường", tag xám, nút **Kích hoạt lại**, **không** có "Xem sơ đồ".
+
+### 13.2. Thêm tòa nhà
+
+- [ ] **Thêm tòa nhà** → bấm **Thêm tòa nhà** khi trống → lỗi "Nhập mã tòa nhà", "Nhập tên tòa nhà".
+- [ ] Gõ mã `a` → tự thành **A**; tên "Tòa trùng" → thêm → lỗi dưới ô Mã "Mã tòa nhà A đã tồn tại" (BR-01).
+- [ ] Mã `a@` → "Mã gồm chữ, số, dấu -, tối đa 10 ký tự".
+- [ ] Mã `D`, tên "Tòa D", địa chỉ "Khu KTX số 2" → thông báo "Đã thêm tòa nhà Tòa D"; dòng mới 0 phòng, "0/0 đang ở", "Chưa có giường".
+
+### 13.3. Sửa
+
+- [ ] Dòng Tòa D → **Sửa** → ô Mã **mờ**, ghi chú "Mã tòa không đổi được sau khi tạo — đã in trên mã giường".
+- [ ] Mô tả "Dành cho sinh viên năm nhất" → **Lưu thay đổi** → "Cập nhật tòa nhà thành công", mô tả hiện dưới tên.
+- [ ] Network → `PUT /buildings/<id>` Payload chỉ có `name`, `address`, `description` — **không** có `code`.
+
+### 13.4. Ngừng hoạt động / kích hoạt lại
+
+- [ ] Dòng Tòa D → **Ngừng hoạt động** → hộp nêu hậu quả (ẩn khỏi sơ đồ phòng, đăng ký, dashboard; dữ liệu cũ giữ nguyên) → xác nhận → "Đã ngừng hoạt động tòa nhà", tag xám, nút **Kích hoạt lại**.
+- [ ] Sang **Phòng** → ô chọn tòa chỉ có Tòa A, Tòa B (không có C, D). Sang **Dashboard** → biểu đồ vẫn chỉ 2 tòa.
+- [ ] Quay lại Tòa nhà → lọc **Ngừng hoạt động (2)** → Tòa D → **Kích hoạt lại** → xác nhận → "Đã kích hoạt lại tòa nhà".
+
+### 13.5. Xem sơ đồ + quyền
+
+- [ ] Dòng Tòa B → **Xem sơ đồ** → `/admin/rooms?buildingId=b2`, sơ đồ mở sẵn **Tòa B** (các ô phòng B…).
+- [ ] Gõ `/admin/rooms?buildingId=b3` (Tòa C ngừng hoạt động) → sơ đồ tự quay về Tòa A, không lỗi.
+- [ ] `viewer@dorm.local` → thấy bảng và "Xem sơ đồ"; **không có** Thêm tòa nhà, Sửa, Ngừng hoạt động, Kích hoạt lại.
+- [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ (Thao tác ghim phải), trang không cuộn ngang.
+
+### 13.6. Với backend thật (chỉ xem — không thêm/sửa trên DB chung)
+
+Chuẩn bị như mục 11.6 (backend + FE cổng 5173, `VITE_USE_MOCK=false`), đăng nhập `admin@dorm.local`.
+
+- [ ] Bảng hiện 2 tòa "Tòa nhà A (Khu Nam)", "Tòa nhà B (Khu Nữ)" với mô tả, 1 phòng, "0/4 đang ở", 0,00%.
+- [ ] Lọc **Ngừng hoạt động (0)** — backend chưa trả tòa ngừng hoạt động (đã ghi ở `API.md`), nên sau khi ngừng một tòa sẽ **không** kích hoạt lại được từ giao diện cho tới khi backend hỗ trợ `includeInactive`.
+- [ ] _(Chỉ làm trên DB riêng, không làm trên DB chung)_ Thêm tòa trùng mã → lỗi vẫn hiện dưới ô Mã (FE nhận cả mã lỗi `BUILDING_CODE_ALREADY_EXISTS` của backend).
 
 **Lỗi phát hiện:** _(chưa có)_
 
