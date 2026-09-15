@@ -158,7 +158,7 @@ For any endpoint a `student` may call, the backend derives the student identity 
 | GET | `/api/rooms/:id` | admin, staff, viewer | Room detail with every bed and its current occupant (floor-map drawer) |
 | POST | `/api/rooms` | admin, staff | Create room (**`roomTypeId` and `gender` required**) — beds are generated automatically |
 | PUT | `/api/rooms/:id` | admin, staff | Update number, floor, status; `roomTypeId`/`gender` only while the room is empty |
-| PATCH | `/api/beds/:id/status` | admin, staff | Set `maintenance` ⇄ `available` |
+| PATCH | `/api/beds/:id/status` | admin, staff | Set `maintenance` ⇄ `available` — `{ status, note? }`; `note` is kept only while in maintenance |
 
 > **Removed in v1.2:** `POST /api/rooms/:roomId/beds`, `POST /api/rooms/:roomId/beds/generate`, `GET /api/rooms/:roomId/beds` (use `GET /api/rooms/:id`) and `GET /api/beds/available`. Beds are created by the system and never picked by a person.
 
@@ -189,6 +189,24 @@ For any endpoint a `student` may call, the backend derives the student identity 
   ], "total": 3, "page": 1, "limit": 20 } }
 ```
 > For a `student` the gender filter is taken from their own profile via the JWT — any `gender` query parameter is ignored.
+
+**GET `/api/rooms/:id`** — floor-map detail panel
+```json
+{ "code": "OK", "message": "Success",
+  "data": {
+    "id": "665f2a...", "roomNumber": "203", "floor": 2, "buildingName": "Tòa B", "gender": "female", "status": "active",
+    "roomTypeId": "665e1b...", "roomTypeName": "Tiêu chuẩn · 6 người", "tier": "standard", "pricePerMonth": 320000,
+    "capacity": 6, "occupied": 4, "availableSlots": 1, "maintenanceBeds": 1,
+    "amenities": ["Giường tầng", "Tủ cá nhân", "Quạt trần", "Bàn học chung"], "includedSupplies": [],
+    "beds": [
+      { "id": "6660b1...", "bedNumber": 1, "bedCode": "B203-01", "status": "occupied", "note": null,
+        "occupant": { "studentCode": "SV2024003", "studentName": "Nguyễn Thị Mai", "className": "K64 QTKD" } },
+      { "id": "6660b5...", "bedNumber": 5, "bedCode": "B203-05", "status": "available", "note": null, "occupant": null },
+      { "id": "6660b6...", "bedNumber": 6, "bedCode": "B203-06", "status": "maintenance", "note": "Khung giường hỏng", "occupant": null }
+    ]
+  } }
+```
+> Occupant exposes name, student code and class only — never phone or emergency contact (`07` §5.6).
 
 **POST `/api/rooms`**
 ```json

@@ -2,7 +2,7 @@
  * Bộ dữ liệu giả dùng chung cho toàn bộ mock API — mô hình ĐĂNG KÝ THEO PHÒNG (DATA-SCHEMA.md v1.2).
  *
  *   6 loại phòng → 2 tòa → 20 phòng → giường TỰ SINH theo sức chứa
- *   → 40 sinh viên → đơn đăng ký → hợp đồng → hóa đơn → thanh toán
+ *   → 90 sinh viên (70 đang ở) → đơn đăng ký → hợp đồng → hóa đơn → thanh toán
  *   → 8 sản phẩm nhu yếu phẩm → đơn hàng
  *
  * Tài khoản thử (xem mockApi.js): sv001 đang ở phòng Tiêu chuẩn, có nợ · sv002 chưa có chỗ ·
@@ -20,7 +20,7 @@ const TEN_NU = ['Thị Bích', 'Ngọc Ánh', 'Thu Hà', 'Phương Linh', 'Khán
 const KHOA = ['Công nghệ thông tin', 'Kinh tế', 'Cơ khí', 'Điện - Điện tử'];
 
 /** Chỉ số sinh viên dùng cho tài khoản thử */
-export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 35, sv003: 2, sv004: 3 };
+export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3 };
 
 // ---------------------------------------------------------------- loại phòng
 const BASIC = ['Giường tầng', 'Tủ cá nhân', 'Quạt trần', 'Bàn học chung'];
@@ -101,8 +101,8 @@ export const claimBedInRoom = (roomId) => {
   return bed;
 };
 
-// ---------------------------------------------------------------- sinh viên (40)
-export const students = Array.from({ length: 40 }, (_, i) => {
+// ---------------------------------------------------------------- sinh viên (90)
+export const students = Array.from({ length: 90 }, (_, i) => {
   const isMale = i % 2 === 0;
   return {
     id: `s${pad(i + 1)}`,
@@ -189,14 +189,21 @@ export const approveApplication = (app, room, { startDate = app.startDate } = {}
   return { bed, residency, contract };
 };
 
-// 30 sinh viên đầu được xếp phòng; sv004 cố ý vào phòng Chất lượng cao
-const PLACED = 30;
+// Số chỗ để trống của từng phòng theo thứ tự trong tòa — để sơ đồ tầng có đủ mức: đầy, còn 1, còn nhiều, trống hẳn
+const FREE_SLOTS_PATTERN = [0, 1, 2, 0, 3, 1, 2, 0, 1, 4];
+const targetOf = Object.fromEntries(rooms.map((r) => {
+  const idx = Number(r.id.slice(-2)) - 1;
+  return [r.id, Math.max(0, r.capacity - FREE_SLOTS_PATTERN[idx % FREE_SLOTS_PATTERN.length])];
+}));
+const occupiedCount = (roomId) => bedsOf(roomId).filter((b) => b.status === 'occupied').length;
+
+// 70 sinh viên đầu được xếp phòng (35 nam tòa A, 35 nữ tòa B — đúng tổng chỗ mục tiêu); sv004 cố ý vào phòng Chất lượng cao
+const PLACED = 70;
 students.slice(0, PLACED).forEach((st, i) => {
   const wantPremium = i === DEMO_STUDENT_INDEX.sv004;
-  const room = rooms.find((r) =>
-    r.gender === st.gender
-    && availableSlots(r.id) > 0
-    && (wantPremium ? roomTypeOf(r.id).tier === 'premium' : roomTypeOf(r.id).tier === 'standard'))
+  const fits = (r) => r.gender === st.gender && occupiedCount(r.id) < targetOf[r.id];
+  const room = (wantPremium && rooms.find((r) => fits(r) && roomTypeOf(r.id).tier === 'premium'))
+    || rooms.find(fits)
     || rooms.find((r) => r.gender === st.gender && availableSlots(r.id) > 0);
   const app = newApplication(st, room);
   approveApplication(app, room);
@@ -211,17 +218,17 @@ contracts.filter((_, i) => i % 7 === 6).forEach((c) => { c.endDate = '2026-12-10
   if (bed) { bed.status = 'maintenance'; bed.note = 'Hỏng khung giường, chờ sửa'; }
 });
 
-// Đơn chờ duyệt, bị từ chối, đã hủy — sv002 (index 35) KHÔNG có đơn nào để test trang chủ "chưa có chỗ"
+// Đơn chờ duyệt, bị từ chối, đã hủy — sv002 (index 85) KHÔNG có đơn nào để test trang chủ "chưa có chỗ"
 const roomFor = (st, typeId) => rooms.find((r) => r.gender === st.gender && r.roomTypeId === typeId && availableSlots(r.id) > 0)
   || rooms.find((r) => r.gender === st.gender && availableSlots(r.id) > 0);
-[30, 31, 32].forEach((idx, k) => {
+[70, 71, 72].forEach((idx, k) => {
   newApplication(students[idx], roomFor(students[idx], ['rt2', 'rt3', 'rt5'][k]), {
     note: k === 0 ? 'Em muốn ở gần bạn cùng lớp' : '',
     createdAt: `2026-11-0${k + 1}T14:0${k}:00+07:00`,
   });
 });
-newApplication(students[33], roomFor(students[33], 'rt1'), { status: 'rejected', reviewNote: 'Hồ sơ còn thiếu giấy xác nhận sinh viên' });
-newApplication(students[34], roomFor(students[34], 'rt2'), { status: 'cancelled' });
+newApplication(students[73], roomFor(students[73], 'rt1'), { status: 'rejected', reviewNote: 'Hồ sơ còn thiếu giấy xác nhận sinh viên' });
+newApplication(students[74], roomFor(students[74], 'rt2'), { status: 'cancelled' });
 
 // ---------------------------------------------------------------- danh mục phí
 export const feeTypes = [

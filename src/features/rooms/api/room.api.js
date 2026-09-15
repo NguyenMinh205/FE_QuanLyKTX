@@ -19,5 +19,6 @@ export const roomApi = {
   getRoomById:     (id)       => (USE_MOCK ? mockRooms.getRoomById(id)            : axiosClient.get(`/rooms/${id}`)),
   createRoom:      (data)     => (USE_MOCK ? mockRooms.createRoom(data)           : axiosClient.post('/rooms', data)),
   updateRoom:      (id, data) => (USE_MOCK ? mockRooms.updateRoom(id, data)       : axiosClient.put(`/rooms/${id}`, data)),
-  setBedStatus:    (id, status) => (USE_MOCK ? mockRooms.setBedStatus(id, status) : axiosClient.patch(`/beds/${id}/status`, { status })),
+  /** data = { status: 'maintenance' | 'available', note? } */
+  setBedStatus:    (id, data) => (USE_MOCK ? mockRooms.setBedStatus(id, data)     : axiosClient.patch(`/beds/${id}/status`, data)),
 };

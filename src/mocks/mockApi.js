@@ -232,7 +232,8 @@ export const mockRooms = {
     const rt = roomTypeOf(id);
     const bedList = bedsOf(id).map((b) => {
       const c = contracts.find((x) => x.bedId === b.id && x.status === 'active');
-      return { ...b, occupant: c ? { studentCode: c.studentCode, studentName: c.studentName } : null };
+      const st = c && students.find((s) => s.id === c.studentId);
+      return { ...b, occupant: c ? { studentCode: c.studentCode, studentName: c.studentName, className: st?.className ?? null } : null };
     });
     return ok({ ...roomView(r), amenities: rt.amenities, includedSupplies: includedSupplyNames(rt.id), beds: bedList });
   },
@@ -263,19 +264,43 @@ export const mockRooms = {
     const r = rooms.find((x) => x.id === id);
     if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy phòng');
     const occupied = bedsOf(id).some((b) => b.status === 'occupied');
-    if (occupied && ((body.roomTypeId && body.roomTypeId !== r.roomTypeId) || (body.gender && body.gender !== r.gender))) {
+    const typeChanged = body.roomTypeId && body.roomTypeId !== r.roomTypeId;
+    const genderChanged = body.gender && body.gender !== r.gender;
+    if (occupied && (typeChanged || genderChanged)) {
       fail(422, 'ROOM_HAS_OCCUPANTS', 'Phòng đang có người ở, không thể đổi loại phòng hoặc giới tính');
     }
-    Object.assign(r, { roomNumber: body.roomNumber ?? r.roomNumber, floor: body.floor ?? r.floor, status: body.status ?? r.status });
+    if (occupied && body.status === 'inactive') {
+      fail(422, 'ROOM_HAS_OCCUPANTS', 'Phòng đang có người ở, không thể ngừng hoạt động');
+    }
+    if (body.roomNumber && body.roomNumber !== r.roomNumber
+        && rooms.some((x) => x.id !== id && x.buildingId === r.buildingId && x.roomNumber === body.roomNumber)) {
+      fail(409, 'DUPLICATE_ENTRY', 'Số phòng đã tồn tại trong tòa nhà',
+        { errors: [{ field: 'roomNumber', message: 'Số phòng đã tồn tại trong tòa nhà' }] });
+    }
+    if (typeChanged) {
+      // Phòng trống đổi loại: xóa giường cũ, sinh lại theo sức chứa mới (DATA-SCHEMA §3.4)
+      const rt = roomTypes.find((t) => t.id === body.roomTypeId);
+      for (let i = beds.length - 1; i >= 0; i -= 1) if (beds[i].roomId === id) beds.splice(i, 1);
+      Object.assign(r, { roomTypeId: rt.id, capacity: rt.capacity });
+      generateBeds(r);
+    }
+    Object.assign(r, {
+      roomNumber: body.roomNumber ?? r.roomNumber,
+      floor: body.floor !== undefined ? Number(body.floor) : r.floor,
+      gender: body.gender ?? r.gender,
+      status: body.status ?? r.status,
+    });
     return ok(roomView(r), 'Cập nhật phòng thành công');
   },
-  setBedStatus: async (id, status) => {
+  /** Body { status, note? } — chỉ bật/tắt bảo trì, không bao giờ gán người vào giường */
+  setBedStatus: async (id, { status, note } = {}) => {
     await delay();
     const b = beds.find((x) => x.id === id);
     if (!b) fail(404, 'NOT_FOUND', 'Không tìm thấy giường');
     if (b.status === 'occupied') fail(422, 'BED_OCCUPIED', 'Giường đang có người ở, không thể chuyển bảo trì');
-    b.status = status;
-    return ok(b, 'Đã cập nhật trạng thái giường');
+    if (!['available', 'maintenance'].includes(status)) fail(400, 'VALIDATION_ERROR', 'Trạng thái giường không hợp lệ');
+    Object.assign(b, { status, note: status === 'maintenance' ? (note || null) : null });
+    return ok(b, status === 'maintenance' ? 'Đã chuyển giường sang bảo trì' : 'Đã mở lại giường');
   },
 };
 

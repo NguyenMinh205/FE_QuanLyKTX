@@ -45,6 +45,11 @@ export const BED_STATUS = {
   maintenance: { label: 'Bảo trì',    color: 'default' },
 };
 
+export const ROOM_STATUS = {
+  active:   { label: 'Đang hoạt động',  color: 'success' },
+  inactive: { label: 'Ngừng hoạt động', color: 'default' },
+};
+
 export const ROOM_TIER = {
   standard: { label: 'Tiêu chuẩn',     short: 'TC',  color: 'default' },
   premium:  { label: 'Chất lượng cao', short: 'CLC', color: 'gold' },
