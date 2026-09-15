@@ -309,11 +309,23 @@ const applicationView = (a) => {
   const st = students.find((s) => s.id === a.studentId);
   const rt = roomTypes.find((t) => t.id === a.roomTypeId);
   const room = rooms.find((r) => r.id === a.requestedRoomId);
+  const assignedRoom = a.assignedRoomId && rooms.find((r) => r.id === a.assignedRoomId);
+  const contract = a.contractId && contracts.find((c) => c.id === a.contractId);
+  const { demoRaceWith, ...fields } = a; // eslint-disable-line no-unused-vars -- cờ nội bộ của mock, không trả ra
   return {
-    ...a,
+    ...fields,
     student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender, className: st.className, phone: st.phone, totalDebt: debtOf(st.id) },
-    roomType: { id: rt.id, name: rt.name, tier: rt.tier, pricePerMonth: rt.pricePerMonth, depositAmount: rt.depositAmount },
-    requestedRoom: { id: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName, availableSlots: availableSlots(room.id) },
+    roomType: { id: rt.id, name: rt.name, tier: rt.tier, capacity: rt.capacity, pricePerMonth: rt.pricePerMonth, depositAmount: rt.depositAmount },
+    requestedRoom: {
+      id: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName, buildingCode: room.buildingCode,
+      floor: room.floor, availableSlots: availableSlots(room.id),
+    },
+    // Chỉ có khi đơn đã duyệt
+    assigned: assignedRoom ? {
+      roomId: assignedRoom.id, roomNumber: assignedRoom.roomNumber, buildingName: assignedRoom.buildingName,
+      buildingCode: assignedRoom.buildingCode, bedCode: contract?.bedCode ?? null,
+    } : null,
+    contractCode: contract?.contractCode ?? null,
     estimatedInvoices: { deposit: rt.depositAmount, firstMonth: rt.pricePerMonth, total: rt.depositAmount + rt.pricePerMonth },
   };
 };
@@ -326,7 +338,7 @@ const validateNewApplication = (st, room) => {
     fail(409, 'DUPLICATE_PENDING_APPLICATION', 'Sinh viên đã có một đơn đăng ký đang chờ duyệt');
   }
   if (room.gender !== st.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
-  if (availableSlots(room.id) === 0) fail(409, 'ROOM_FULL', `Phòng ${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác`);
+  if (availableSlots(room.id) === 0) fail(409, 'ROOM_FULL', `Phòng ${room.buildingCode}${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác`);
 };
 
 const submitApplication = (st, { roomId, startDate, endDate, note }) => {
@@ -350,9 +362,18 @@ export const mockApplications = {
     let rows = applications;
     if (q.status) rows = rows.filter((a) => a.status === q.status);
     if (q.roomTypeId) rows = rows.filter((a) => a.roomTypeId === q.roomTypeId);
-    const items = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map(applicationView);
-    return paginate(search(items.map((x) => ({ ...x, studentCode: x.student.studentCode, studentName: x.student.fullName })),
-      q.search, ['applicationCode', 'studentCode', 'studentName']), q);
+    // Hàng chờ: đơn cũ nhất lên đầu. Đơn đã xử lý: xử lý gần nhất lên đầu
+    const sorted = q.status && q.status !== 'pending'
+      ? [...rows].sort((a, b) => (b.reviewedAt || b.createdAt).localeCompare(a.reviewedAt || a.createdAt))
+      : [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const items = sorted.map(applicationView).map((x) => ({
+      ...x, studentCode: x.student.studentCode, studentName: x.student.fullName, requestedRoomNumber: x.requestedRoom.roomNumber,
+    }));
+    const res = paginate(search(items, q.search, ['applicationCode', 'studentCode', 'studentName', 'requestedRoomNumber']), q);
+    // Số đơn theo trạng thái cho các tab — không phụ thuộc bộ lọc status
+    const count = (st) => applications.filter((a) => a.status === st).length;
+    res.data.data.summary = { pending: count('pending'), approved: count('approved'), rejected: count('rejected') };
+    return res;
   },
   getById: async (id) => {
     await delay();
@@ -384,9 +405,14 @@ export const mockApplications = {
     if (room.roomTypeId !== a.roomTypeId) fail(422, 'ROOM_TYPE_MISMATCH', 'Chỉ được đổi sang phòng cùng loại với đơn đăng ký');
     if (room.gender !== st.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
 
+    // Giả lập duyệt đồng thời: cán bộ khác vừa duyệt đơn cùng nhắm giường cuối (chỉ có trong dữ liệu giả)
+    const racer = a.demoRaceWith && applications.find((x) => x.id === a.demoRaceWith && x.status === 'pending');
+    if (racer && racer.requestedRoomId === room.id) approveApplication(racer, room);
+
     const result = approveApplication(a, room, { startDate: a.startDate });
-    if (!result) fail(409, 'ROOM_FULL', `Phòng ${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác cùng loại`);
+    if (!result) fail(409, 'ROOM_FULL', `Phòng ${room.buildingCode}${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác cùng loại`);
     const { bed, contract } = result;
+    a.reviewedAt = new Date().toISOString();
 
     const due = '2026-12-08';
     const mk = (type, amount, description) => {
@@ -406,8 +432,8 @@ export const mockApplications = {
       mk('monthly', contract.monthlyPrice, 'Tiền phòng tháng 12/2026'),
     ];
     return ok({
-      application: a,
-      assigned: { roomNumber: room.roomNumber, buildingName: room.buildingName, bedCode: bed.bedCode },
+      application: { id: a.id, status: a.status },
+      assigned: { roomNumber: room.roomNumber, buildingName: room.buildingName, buildingCode: room.buildingCode, bedCode: bed.bedCode },
       contract,
       invoices: created,
     }, 'Đã duyệt và xếp phòng');
@@ -420,7 +446,7 @@ export const mockApplications = {
     }
     const a = applications.find((x) => x.id === id);
     if (a.status !== 'pending') fail(422, 'APPLICATION_NOT_PENDING', 'Đơn đăng ký đã được xử lý');
-    Object.assign(a, { status: 'rejected', reviewNote });
+    Object.assign(a, { status: 'rejected', reviewNote: reviewNote.trim(), reviewedAt: new Date().toISOString() });
     return ok(a, 'Đã từ chối đơn đăng ký');
   },
 };

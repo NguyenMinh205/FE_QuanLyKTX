@@ -2,7 +2,7 @@
  * Bộ dữ liệu giả dùng chung cho toàn bộ mock API — mô hình ĐĂNG KÝ THEO PHÒNG (DATA-SCHEMA.md v1.2).
  *
  *   6 loại phòng → 2 tòa → 20 phòng → giường TỰ SINH theo sức chứa
- *   → 90 sinh viên (70 đang ở) → đơn đăng ký → hợp đồng → hóa đơn → thanh toán
+ *   → 90 sinh viên (72 đang ở) → đơn đăng ký → hợp đồng → hóa đơn → thanh toán
  *   → 8 sản phẩm nhu yếu phẩm → đơn hàng
  *
  * Tài khoản thử (xem mockApi.js): sv001 đang ở phòng Tiêu chuẩn, có nợ · sv002 chưa có chỗ ·
@@ -227,7 +227,28 @@ const roomFor = (st, typeId) => rooms.find((r) => r.gender === st.gender && r.ro
     createdAt: `2026-11-0${k + 1}T14:0${k}:00+07:00`,
   });
 });
-newApplication(students[73], roomFor(students[73], 'rt1'), { status: 'rejected', reviewNote: 'Hồ sơ còn thiếu giấy xác nhận sinh viên' });
+// Hai tình huống xung đột chỗ cho màn Duyệt đơn (SCR-31) — đều là sinh viên nữ, tòa B, đơn nộp sớm nên nằm đầu hàng đợi
+const femaleRooms = rooms.filter((r) => r.gender === 'female' && r.status === 'active');
+const hasAlternative = (room) => femaleRooms.some((r) => r.id !== room.id && r.roomTypeId === room.roomTypeId && availableSlots(r.id) > 0);
+// (1) Phòng nguyện vọng đã đầy từ trước (BR-34: nộp đơn không giữ chỗ) → màn hình cảnh báo ngay khi mở đơn
+const fullRoom = femaleRooms.find((r) => availableSlots(r.id) === 0 && hasAlternative(r));
+if (fullRoom) {
+  newApplication(students[75], fullRoom, { note: 'Em muốn ở cùng phòng với chị khóa trên', createdAt: '2026-10-28T08:15:00+07:00' });
+}
+// (2) Phòng còn đúng 1 chỗ, có 2 đơn cùng nhắm. Đơn của students[77] mang cờ `demoRaceWith`: lúc bấm duyệt, mock
+//     giả lập một cán bộ khác vừa duyệt đơn students[79] trước → giường cuối bị lấy → trả 409 ROOM_FULL.
+//     Chọn phòng có loại còn một phòng khác dư chỗ (để duyệt lại được), xếp thêm sinh viên cho tới khi còn 1 chỗ
+const raceRoom = femaleRooms.find((r) => availableSlots(r.id) >= 2
+  && femaleRooms.some((o) => o.id !== r.id && o.roomTypeId === r.roomTypeId && availableSlots(o.id) >= 2));
+if (raceRoom) {
+  [81, 83, 87].forEach((idx) => {
+    if (availableSlots(raceRoom.id) > 1) approveApplication(newApplication(students[idx], raceRoom), raceRoom);
+  });
+  const racer = newApplication(students[79], raceRoom, { createdAt: '2026-10-30T16:40:00+07:00' });
+  newApplication(students[77], raceRoom, { createdAt: '2026-10-29T10:05:00+07:00', demoRaceWith: racer.id });
+}
+
+newApplication(students[73], roomFor(students[73], 'rt1'), { status: 'rejected', reviewNote: 'Hồ sơ còn thiếu giấy xác nhận sinh viên', reviewedAt: '2026-09-02T09:30:00+07:00' });
 newApplication(students[74], roomFor(students[74], 'rt2'), { status: 'cancelled' });
 
 // ---------------------------------------------------------------- danh mục phí

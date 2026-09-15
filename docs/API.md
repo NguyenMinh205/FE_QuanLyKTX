@@ -154,7 +154,7 @@ For any endpoint a `student` may call, the backend derives the student identity 
 | POST | `/api/room-types` | admin | Create room type *(v1.2)* |
 | PUT | `/api/room-types/:id` | admin | Update price, deposit, amenities; `tier`/`capacity` locked once used *(v1.2)* |
 | GET | `/api/rooms` | admin, staff, viewer | List — `?buildingId=&roomTypeId=&floor=&gender=&availability=has_slot\|full\|has_maintenance` |
-| GET | `/api/rooms/available` | admin, staff, student | Rooms with at least one free bed — `?roomTypeId=&buildingId=` *(v1.2)* |
+| GET | `/api/rooms/available` | admin, staff, student | Rooms with at least one free bed — `?roomTypeId=&buildingId=&gender=` (`gender` honoured for admin/staff only) *(v1.2)* |
 | GET | `/api/rooms/:id` | admin, staff, viewer | Room detail with every bed and its current occupant (floor-map drawer) |
 | POST | `/api/rooms` | admin, staff | Create room (**`roomTypeId` and `gender` required**) — beds are generated automatically |
 | PUT | `/api/rooms/:id` | admin, staff | Update number, floor, status; `roomTypeId`/`gender` only while the room is empty |
@@ -188,7 +188,7 @@ For any endpoint a `student` may call, the backend derives the student identity 
       "gender": "female", "capacity": 6, "occupied": 4, "availableSlots": 2 }
   ], "total": 3, "page": 1, "limit": 20 } }
 ```
-> For a `student` the gender filter is taken from their own profile via the JWT — any `gender` query parameter is ignored.
+> For a `student` the gender filter is taken from their own profile via the JWT — any `gender` query parameter is ignored. Admin/staff pass `gender` explicitly (SCR-31 lists replacement rooms of the applicant's gender). Each item also carries `buildingCode` and `roomTypeId`.
 
 **GET `/api/rooms/:id`** — floor-map detail panel
 ```json
@@ -241,7 +241,7 @@ For any endpoint a `student` may call, the backend derives the student identity 
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/applications` | admin, staff, viewer | Queue — `?status=pending&roomTypeId=&search=` (oldest first) |
+| GET | `/api/applications` | admin, staff, viewer | Queue — `?status=pending&roomTypeId=&search=&page=&limit=`. `pending` oldest first; `approved`/`rejected` most recently reviewed first. `search` matches application code, student code, student name, requested room number. Response adds `summary: { pending, approved, rejected }` (counts ignore the `status` filter) |
 | GET | `/api/applications/:id` | admin, staff, viewer | Detail: student + debt, requested room with its beds, estimated first invoices |
 | POST | `/api/applications` | admin, staff | File an application for a walk-in student — `{ studentId, roomId, startDate, endDate, note }` |
 | PATCH | `/api/applications/:id/approve` | admin, staff | Approve — `{ roomId? }`. Assigns a bed **automatically**, creates Residency + Contract + two invoices |
@@ -257,14 +257,19 @@ Students submit and cancel through the portal (§10).
     "createdAt": "2026-08-27T14:02:00Z", "note": "Em muốn ở gần bạn cùng lớp",
     "student": { "id": "665f1a...", "studentCode": "SV2024001", "fullName": "Trần Thị Bích",
                  "gender": "female", "className": "CNTT2024A", "phone": "0912345678", "totalDebt": 0 },
-    "roomType": { "id": "665e1b...", "name": "Tiêu chuẩn · 6 người", "pricePerMonth": 320000, "depositAmount": 500000 },
-    "requestedRoom": { "id": "665f2a...", "roomNumber": "203", "buildingName": "Tòa B", "availableSlots": 2,
+    "roomType": { "id": "665e1b...", "name": "Tiêu chuẩn · 6 người", "tier": "standard", "capacity": 6,
+                  "pricePerMonth": 320000, "depositAmount": 500000 },
+    "requestedRoom": { "id": "665f2a...", "roomNumber": "203", "buildingName": "Tòa B", "buildingCode": "B", "floor": 2, "availableSlots": 2,
                        "beds": [ { "bedNumber": 1, "status": "occupied", "occupantName": "Nguyễn Thị Mai" },
                                  { "bedNumber": 3, "status": "available", "occupantName": null } ] },
     "startDate": "2026-09-01", "endDate": "2027-06-30",
-    "estimatedInvoices": { "deposit": 500000, "firstMonth": 320000, "total": 820000 }
+    "estimatedInvoices": { "deposit": 500000, "firstMonth": 320000, "total": 820000 },
+    "reviewedAt": null, "reviewNote": null, "assigned": null, "contractCode": null
   } }
 ```
+> Once reviewed: `reviewedAt` is set; `rejected` fills `reviewNote`; `approved` fills
+> `"assigned": { "roomId", "roomNumber", "buildingName", "buildingCode", "bedCode": "B205-04" }` and `"contractCode"`.
+> List items carry the same shape (without `requestedRoom.beds`) so the queue can show the assigned room.
 
 **PATCH `/api/applications/:id/approve`**
 ```json
@@ -274,7 +279,7 @@ Students submit and cancel through the portal (§10).
 { "code": "OK", "message": "Đã duyệt và xếp phòng",
   "data": {
     "application": { "id": "6660aa...", "status": "approved" },
-    "assigned": { "roomNumber": "205", "buildingName": "Tòa B", "bedCode": "B205-04" },
+    "assigned": { "roomNumber": "205", "buildingName": "Tòa B", "buildingCode": "B", "bedCode": "B205-04" },
     "contract": { "id": "665f4d...", "contractCode": "HD-2026-00087", "status": "active",
                   "monthlyPrice": 320000, "depositAmount": 500000 },
     "invoices": [
@@ -635,5 +640,6 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.1 | 15/09/2026 | FE integration notes (additive, no breaking change): `GET /rooms/:id` example, bed status body `{ status, note? }`; `GET /applications` `summary` counts + sort/search rules; application detail adds `requestedRoom.buildingCode/floor`, `roomType.tier/capacity`, `reviewedAt`, `reviewNote`, `assigned`, `contractCode`; `GET /rooms/available` accepts `gender` for staff. |
 | **1.2** | **13/09/2026** | **Register by room, not bed.** Added room types (§4), applications with automatic bed assignment (§5.1), the supplies module (§11) and the matching portal endpoints (§10). Removed manual bed endpoints, `GET /beds/available`, `POST /residencies`, `POST /contracts` and contract activation. `BED_NOT_AVAILABLE` → `ROOM_FULL`; 10 new error codes (29 total). Dashboard and later sections renumbered §12–§15. |
 | 1.1 | 12/09/2026 | Added utility-reading endpoints and `GENDER_MISMATCH` (A1, A2); checkout approval now returns a `settlement` block (A3). Added password reset, invoice cancel, payment reconcile, and the full `/api/portal/*` group. Documented field-level validation error shape, the two-invoice contract activation, webhook behaviour table, and 11 new error codes. |
