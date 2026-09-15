@@ -73,6 +73,10 @@ For any endpoint a `student` may call, the backend derives the student identity 
 | GET | `/api/auth/me` | authenticated | Current user profile |
 | PATCH | `/api/auth/change-password` | authenticated | Change own password |
 | POST | `/api/users/:id/reset-password` | admin, staff | Issue a one-time temporary password (`FR-09`). Staff may not reset an `admin` account |
+| GET | `/api/users` | admin | Account list — `?search=&role=&isActive=true\|false&page=&limit=` *(v1.2.6)* |
+| POST | `/api/users` | admin | Create an account — `{ email, fullName, role, studentId? }`; returns a one-time temporary password *(v1.2.6)* |
+| PUT | `/api/users/:id` | admin | Update `{ email, fullName, role }` *(v1.2.6)* |
+| PATCH | `/api/users/:id/status` | admin | Lock / unlock — `{ isActive }` *(v1.2.6)* |
 
 **POST `/api/auth/login`**
 ```json
@@ -110,7 +114,44 @@ For any endpoint a `student` may call, the backend derives the student identity 
 { "code": "OK", "message": "Đã đặt lại mật khẩu",
   "data": { "temporaryPassword": "Ktx7Rm2qPz", "mustChangePassword": true } }
 ```
-> `temporaryPassword` is returned **once** and must never be written to a log.
+> `temporaryPassword` is returned **once** and must never be written to a log. Staff resetting an admin → `403 FORBIDDEN` (BR-84); resetting your own account → `422 CANNOT_MODIFY_SELF` (use change-password).
+
+### 2.1 Account management *(v1.2.6 — SCR-81, FR-06)*
+
+**GET `/api/users`** — admin only
+```json
+{ "code": "OK", "message": "Success",
+  "data": { "items": [
+      { "id": "665f..", "email": "sv001@dorm.local", "fullName": "Nguyễn Văn An", "role": "student",
+        "isActive": true, "mustChangePassword": false, "lastLoginAt": "2026-09-15T08:00:00Z", "createdAt": "2026-08-01T01:00:00Z",
+        "student": { "id": "665f1a..", "studentCode": "SV2026001", "fullName": "Nguyễn Văn An" } }
+    ], "total": 12, "page": 1, "limit": 20,
+    "summary": { "all": 12, "admin": 2, "staff": 3, "viewer": 1, "student": 6, "locked": 1 } } }
+```
+> Sorted admin → staff → viewer → student, then by name. `search` matches email, full name and student code. `summary` ignores filters. Never returns `passwordHash`.
+
+**POST `/api/users`**
+```json
+// request — role 'student' requires studentId (fullName is taken from the Student profile); other roles require fullName
+{ "email": "nhanvien3@dorm.local", "fullName": "Vũ Thị Nhân Viên Mới", "role": "staff" }
+// response 201
+{ "code": "OK", "message": "Đã tạo tài khoản",
+  "data": { "user": { "id": "..", "email": "nhanvien3@dorm.local", "role": "staff", "isActive": true, "mustChangePassword": true },
+            "temporaryPassword": "t8rtmpXTvN" } }
+```
+> The account starts with `mustChangePassword: true`; the temporary password follows BR-85 and is shown once. Field errors (`VALIDATION_ERROR`): `email` (format / already used — BR-80), `fullName`, `role`, `studentId` (missing / *"Sinh viên này đã có tài khoản"* — BR-82).
+
+**PUT `/api/users/:id`** — `{ email, fullName, role }`. A `student` account's `fullName` follows its Student profile and its role cannot change to or from `student` (field error on `role`).
+
+**PATCH `/api/users/:id/status`** — `{ "isActive": false }` → *"Đã khóa tài khoản"*. A locked account gets `403 ACCOUNT_LOCKED` at login; its data is kept.
+
+Account errors:
+```json
+{ "code": "CANNOT_MODIFY_SELF", "message": "Không thể tự khóa tài khoản của chính mình", "data": null }            // 422 — also for changing your own role
+{ "code": "LAST_ACTIVE_ADMIN", "message": "Không thể khóa quản trị viên cuối cùng đang hoạt động", "data": null }   // 422 — BR-83, also for demoting it
+```
+
+**Student list** (`GET /api/students`) items also carry `hasAccount` so the create form can disable students that already have an account.
 
 ---
 
@@ -676,6 +717,8 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `CONTRACT_NOT_ACTIVE` | 422 | Operation requires an `active` contract |
 | `APPLICATION_NOT_PENDING` | 422 | Application was already approved, rejected or cancelled *(v1.2)* |
 | `REQUEST_NOT_PENDING` | 422 | Renewal/checkout request was already processed or cancelled |
+| `CANNOT_MODIFY_SELF` | 422 | Admin tried to lock, demote or reset their own account |
+| `LAST_ACTIVE_ADMIN` | 422 | Would leave the system without an active admin (BR-83) |
 | `ROOM_TYPE_MISMATCH` | 422 | Staff tried to switch an application to a room of another type *(v1.2)* |
 | `ROOM_TYPE_IN_USE` | 422 | Cannot change tier/capacity of a room type that rooms already use *(v1.2)* |
 | `ROOM_HAS_OCCUPANTS` | 422 | Cannot change room type or gender of an occupied room *(v1.2)* |
@@ -711,6 +754,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.6 | 15/09/2026 | Accounts (SCR-81): new §2.1 `GET/POST /users`, `PUT /users/:id`, `PATCH /users/:id/status` with list `summary`; create returns a one-time temporary password; errors `CANNOT_MODIFY_SELF`, `LAST_ACTIVE_ADMIN`; student list `hasAccount`. Backend currently only has `POST /users/:id/reset-password` (T3.16 pending). |
 | 1.2.5 | 15/09/2026 | Dashboard (SCR-10): documented the `GET /dashboard/summary` response shape and the occupancy rate rule; recorded current backend differences. |
 | 1.2.4 | 15/09/2026 | Portal requests (SCR-66): list shape/sort, create validation rules (BR-72, checkout date range, required checkout reason), cancel returns `REQUEST_NOT_PENDING`. |
 | 1.2.3 | 15/09/2026 | Requests (SCR-41, additive): list `summary`/`byType`, search and sort rules, `requestCode`; detail adds `student`, `contract`, `unpaidInvoices`, `settlementPreview` (with BR-31 prorated rent), `checklist`, `renewalPreview`; checkout approve accepts `refundMethod`, settlement returns `proratedRent`/`refundMethod`; new error `REQUEST_NOT_PENDING`. Approving a checkout also cancels the contract's other pending requests. |

@@ -23,6 +23,7 @@
 | 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | ⬜ Chưa test |
 | 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | ⬜ Chưa test |
 | 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -638,6 +639,67 @@ Chuẩn bị theo mục 1.2 (backend `npm run dev`, `.env` FE `VITE_USE_MOCK=fal
 - [ ] "Chỗ trống theo loại phòng" hiện **khung vàng** "Chưa lấy được số chỗ theo loại phòng — Không tìm thấy endpoint…" (backend chưa có API loại phòng v1.2), trang không vỡ.
 - [ ] Dải Cần xử lý: "— đơn đăng ký chờ duyệt · 0 yêu cầu gia hạn / trả phòng · — đơn nhu yếu phẩm chờ nhận" (backend chỉ trả tổng số yêu cầu).
 - [ ] Network → `GET /dashboard/summary` 200, `GET /dashboard/occupancy` 200, `GET /contracts?expiringInDays=30&limit=5` 200, `GET /room-types?...` 404 (đã biết).
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 12. Quản lý tài khoản (SCR-81)
+
+**Nhánh:** `feature/user-accounts` · **Đường dẫn:** Hệ thống → Tài khoản (`/admin/users`) · **Chạy:** dữ liệu giả, tài khoản `admin@dorm.local`, **F5 trước khi bắt đầu**; từ 12.3 tới 12.7 làm liền mạch, không F5 (dữ liệu giả reset khi tải lại).
+
+**Ghi chú:** màn không có bản vẽ (📋 code theo khuôn màn Sinh viên). API quản lý tài khoản chưa có trong docs lẫn backend — FE đã định nghĩa ở `API.md` mục 2.1 (bản 1.2.6); backend hiện chỉ có đặt lại mật khẩu. Đặt lại mật khẩu cho Staff (FR-09) sẽ gắn vào màn Sinh viên (SCR-11, FE Dev) — màn này chỉ Admin vào được.
+
+### 12.1. Quyền truy cập
+
+- [ ] Đăng nhập `staff@dorm.local` → menu **không** có mục Hệ thống; gõ `/admin/users` → trang 403.
+- [ ] Đăng nhập `admin@dorm.local` → Hệ thống → **Tài khoản**.
+
+### 12.2. Danh sách + lọc
+
+- [ ] Nút lọc: Tất cả (12) · Quản trị viên (2) · Nhân viên (3) · Người xem (1) · Sinh viên (6). Chân bảng "Tổng 12 tài khoản".
+- [ ] Bảng sắp quản trị viên → nhân viên → người xem → sinh viên. Cột: Tài khoản (họ tên + email), Vai trò (tag màu), Hồ sơ sinh viên (mã SV hoặc —), Trạng thái, Đăng nhập gần nhất, Thao tác.
+- [ ] Dòng **Nguyễn Văn Quản Trị** có tag "Bạn"; hai nút **Đặt lại mật khẩu** và **Khóa** mờ (rê chuột thấy lý do).
+- [ ] `staff2@dorm.local` (Đỗ Minh Tuấn) tag đỏ **Đã khóa**, nút **Mở khóa**; `doimk@dorm.local` có thêm tag vàng **Chờ đổi mật khẩu**; `sv001` cột hồ sơ **SV2026001**; tài khoản chưa từng đăng nhập ghi "Chưa đăng nhập".
+- [ ] Lọc **Sinh viên** → 6 dòng. Ô tìm gõ `SV2026004` → Enter → chỉ `sv004@dorm.local`. Trạng thái **Đã khóa (1)** → chỉ staff2. Xóa bộ lọc.
+
+### 12.3. Tạo tài khoản cán bộ
+
+- [ ] **Thêm tài khoản** → mặc định vai trò **Nhân viên**, dòng gợi ý quyền; bấm **Tạo tài khoản** khi trống → lỗi "Nhập email", "Nhập họ tên".
+- [ ] Email `staff@dorm.local` → lỗi dưới ô Email "Email này đã được dùng cho tài khoản khác".
+- [ ] Email `nhanvien3@dorm.local`, họ tên "Vũ Thị Nhân Viên Mới" → **Tạo tài khoản** → hộp **Đã tạo tài khoản**: mật khẩu tạm 10 ký tự chữ + số, nút **Chép**, khung vàng "Mật khẩu chỉ hiện một lần". Ghi lại mật khẩu này.
+- [ ] Bấm ra ngoài hộp → hộp **không** đóng; chỉ đóng bằng "Tôi đã ghi lại mật khẩu" hoặc ×.
+- [ ] Danh sách có dòng mới: Nhân viên · Đang hoạt động · **Chờ đổi mật khẩu** · Chưa đăng nhập. Nút lọc thành Tất cả (13), Nhân viên (4).
+- [ ] Network → `POST /users` → Response có `temporaryPassword`; Payload **không** có trường mật khẩu.
+
+### 12.4. Tạo tài khoản sinh viên
+
+- [ ] **Thêm tài khoản** → chọn **Sinh viên** → ô "Họ và tên" đổi thành **Hồ sơ sinh viên** (tìm từ xa).
+- [ ] Gõ `SV2026001` → dòng "SV2026001 · Nguyễn Văn An — đã có tài khoản" **mờ, không chọn được** (BR-82).
+- [ ] Gõ `SV2026010` → chọn → email `sv010@dorm.local` → tạo → hộp mật khẩu tạm; danh sách có dòng Sinh viên với hồ sơ **SV2026010**, họ tên lấy theo hồ sơ.
+
+### 12.5. Sửa tài khoản
+
+- [ ] Dòng Đỗ Minh Tuấn → **Sửa** → nút vai trò **Sinh viên** mờ (cán bộ không đổi thành sinh viên). Đổi sang **Người xem**, họ tên "Đỗ Minh Tuấn (đã chuyển)" → **Lưu thay đổi** → thông báo "Cập nhật tài khoản thành công", dòng cập nhật.
+- [ ] Dòng của mình → **Sửa** → tất cả nút vai trò mờ, dòng "Không tự đổi vai trò của chính mình"; đổi họ tên của mình rồi lưu → tên ở góc phải header đổi theo.
+- [ ] Dòng một sinh viên → **Sửa** → ô Họ và tên mờ, ghi "Họ tên sinh viên sửa ở màn Sinh viên"; các vai trò cán bộ mờ.
+
+### 12.6. Khóa / mở khóa
+
+- [ ] Dòng `nhanvien3@dorm.local` → **Khóa** → hộp "Khóa tài khoản nhanvien3@dorm.local?" nêu hậu quả → **Khóa tài khoản** → thông báo "Đã khóa tài khoản", tag **Đã khóa**, nút đổi thành **Mở khóa**.
+- [ ] Network → `PATCH /users/<id>/status` Payload `{ "isActive": false }`.
+- [ ] Dòng staff2 → **Mở khóa** → xác nhận → tag Đang hoạt động.
+
+### 12.7. Đặt lại mật khẩu + kiểm chéo
+
+- [ ] Dòng `sv001@dorm.local` → **Đặt lại mật khẩu** → hộp xác nhận → **Đặt lại mật khẩu** → hộp **Đã đặt lại mật khẩu** với mật khẩu tạm mới; dòng sv001 thêm tag **Chờ đổi mật khẩu**. Ghi lại mật khẩu.
+- [ ] _(Không F5)_ Đăng xuất → đăng nhập `nhanvien3@dorm.local` + mật khẩu tạm ở 12.3 → khung đỏ "Tài khoản của bạn đã bị vô hiệu hóa…" (đã khóa ở 12.6).
+- [ ] Đăng nhập `sv001@dorm.local / Student@123` → "Email hoặc mật khẩu không chính xác" (mật khẩu cũ hết hiệu lực).
+- [ ] Đăng nhập `sv001@dorm.local` + mật khẩu tạm ở 12.7 → bị đưa thẳng tới **Đổi mật khẩu** với khung "Bạn đang dùng mật khẩu tạm".
+
+### 12.8. Màn hình hẹp
+
+- [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ (cột Thao tác ghim phải), trang không cuộn ngang; hộp thoại vẫn đọc được.
 
 **Lỗi phát hiện:** _(chưa có)_
 

@@ -14,6 +14,7 @@ import StudentsPage from '../features/students/pages/StudentsPage';
 import PortalHomePage from '../features/portal/pages/PortalHomePage';
 import ApplyPage from '../features/portal/pages/ApplyPage';
 import MyRequestsPage from '../features/portal/pages/MyRequestsPage';
+import UsersPage from '../features/users/pages/UsersPage';
 import RoomTypesPage from '../features/rooms/pages/RoomTypesPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
@@ -63,7 +64,7 @@ export default function AppRoutes() {
 
       {/* ---------- Chỉ admin ---------- */}
       <Route element={<RoleRoute allowed={[ADMIN]}><AdminLayout /></RoleRoute>}>
-        <Route path="/admin/users" element={todo('Quản lý tài khoản', 'auth', '/api/users')} />
+        <Route path="/admin/users" element={<UsersPage />} />
         <Route path="/admin/fee-types" element={todo('Danh mục loại phí', 'fees', '/api/fee-types')} />
       </Route>
 

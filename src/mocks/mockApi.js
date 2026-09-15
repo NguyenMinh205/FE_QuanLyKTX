@@ -52,11 +52,15 @@ const cancelSupplyOrder = (order, reason) => {
 };
 
 // ---------------------------------------------------------------- auth
-const account = (email, password, role, fullName, studentIndex = null, mustChangePassword = false) => ({
+const account = (email, password, role, fullName, studentIndex = null, mustChangePassword = false, extra = {}) => ({
   email, password, role, mustChangePassword,
   id: `u-${email.split('@')[0]}`,
   fullName: studentIndex === null ? fullName : students[studentIndex].fullName,
   studentId: studentIndex === null ? null : students[studentIndex].id,
+  isActive: true,
+  lastLoginAt: null,
+  createdAt: '2026-08-01T08:00:00+07:00',
+  ...extra,
 });
 
 const ACCOUNTS = [
@@ -70,14 +74,19 @@ const ACCOUNTS = [
   account('sv005@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv005),
   account('sv006@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv006),
   // Mật khẩu tạm do ban quản lý cấp — đăng nhập xong bị buộc đổi mật khẩu (BR-85)
-  account('doimk@dorm.local', 'Tam@12345', 'staff', 'Phạm Văn Mới Vào', null, true),
+  account('doimk@dorm.local', 'Tam@12345', 'staff', 'Phạm Văn Mới Vào', null, true, { createdAt: '2026-09-10T09:00:00+07:00' }),
+  // Cho màn Tài khoản (SCR-81): thêm một quản trị viên và một nhân viên đã bị khóa
+  account('admin2@dorm.local', 'Admin@123', 'admin', 'Hoàng Thị Phó Ban', null, false, { lastLoginAt: '2026-09-12T08:10:00+07:00', createdAt: '2026-08-01T08:05:00+07:00' }),
+  account('staff2@dorm.local', 'Staff@123', 'staff', 'Đỗ Minh Tuấn', null, false, { isActive: false, lastLoginAt: '2026-08-20T17:30:00+07:00', createdAt: '2026-08-01T08:10:00+07:00' }),
 ];
 
 export const mockAuth = {
   login: async ({ email, password }) => {
     await delay(400);
-    const found = ACCOUNTS.find((a) => a.email === email && a.password === password);
+    const found = ACCOUNTS.find((a) => a.email === String(email || '').trim().toLowerCase() && a.password === password);
     if (!found) fail(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác');
+    if (!found.isActive) fail(403, 'ACCOUNT_LOCKED', 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ ban quản lý');
+    found.lastLoginAt = new Date().toISOString();
     return ok({
       token: `mock-token-${found.id}`,
       expiresIn: 604800,
@@ -105,6 +114,139 @@ export const mockAuth = {
   },
 };
 
+// ---------------------------------------------------------------- tài khoản (SCR-81)
+const ROLE_ENUM = ['admin', 'staff', 'viewer', 'student'];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Mật khẩu tạm ≥ 10 ký tự, có chữ và số (BR-81, BR-85). Backend dùng crypto.randomBytes */
+const genTempPassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let s = '';
+  for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return /\d/.test(s) && /[A-Za-z]/.test(s) ? s : genTempPassword();
+};
+
+const currentAccount = () => ACCOUNTS.find((a) => a.email === authStorage.getUser()?.email);
+
+const userView = (a) => {
+  const st = a.studentId ? students.find((s) => s.id === a.studentId) : null;
+  return {
+    id: a.id, email: a.email, fullName: a.fullName, role: a.role,
+    isActive: a.isActive, mustChangePassword: a.mustChangePassword,
+    lastLoginAt: a.lastLoginAt, createdAt: a.createdAt,
+    student: st ? { id: st.id, studentCode: st.studentCode, fullName: st.fullName } : null,
+  };
+};
+
+const findAccount = (id) => {
+  const a = ACCOUNTS.find((x) => x.id === id);
+  if (!a) fail(404, 'NOT_FOUND', 'Không tìm thấy tài khoản');
+  return a;
+};
+
+const activeAdmins = () => ACCOUNTS.filter((a) => a.role === 'admin' && a.isActive);
+
+export const mockUsers = {
+  getList: async (q = {}) => {
+    await delay();
+    let rows = ACCOUNTS.map(userView);
+    if (q.role) rows = rows.filter((u) => u.role === q.role);
+    if (q.isActive !== undefined && q.isActive !== '') rows = rows.filter((u) => String(u.isActive) === String(q.isActive));
+    if (q.search) {
+      const kw = String(q.search).toLowerCase().trim();
+      rows = rows.filter((u) => [u.email, u.fullName, u.student?.studentCode].some((v) => String(v ?? '').toLowerCase().includes(kw)));
+    }
+    const order = { admin: 0, staff: 1, viewer: 2, student: 3 };
+    rows.sort((a, b) => order[a.role] - order[b.role] || a.fullName.localeCompare(b.fullName, 'vi'));
+    const res = paginate(rows, q);
+    res.data.data.summary = {
+      all: ACCOUNTS.length,
+      admin: ACCOUNTS.filter((a) => a.role === 'admin').length,
+      staff: ACCOUNTS.filter((a) => a.role === 'staff').length,
+      viewer: ACCOUNTS.filter((a) => a.role === 'viewer').length,
+      student: ACCOUNTS.filter((a) => a.role === 'student').length,
+      locked: ACCOUNTS.filter((a) => !a.isActive).length,
+    };
+    return res;
+  },
+  /** { email, fullName, role, studentId? } → trả { user, temporaryPassword } — mật khẩu tạm hiện MỘT lần */
+  create: async (body = {}) => {
+    await delay();
+    const email = String(body.email || '').trim().toLowerCase();
+    const role = body.role;
+    const errors = [];
+    if (!EMAIL_RE.test(email)) errors.push({ field: 'email', message: 'Email không đúng định dạng' });
+    else if (ACCOUNTS.some((a) => a.email === email)) errors.push({ field: 'email', message: 'Email này đã được dùng cho tài khoản khác' }); // BR-80
+    if (!ROLE_ENUM.includes(role)) errors.push({ field: 'role', message: 'Chọn vai trò' });
+    let st = null;
+    if (role === 'student') {
+      st = students.find((s) => s.id === body.studentId);
+      if (!st) errors.push({ field: 'studentId', message: 'Chọn hồ sơ sinh viên' });
+      else if (ACCOUNTS.some((a) => a.studentId === st.id)) errors.push({ field: 'studentId', message: 'Sinh viên này đã có tài khoản' }); // BR-82
+    } else if (!String(body.fullName || '').trim()) {
+      errors.push({ field: 'fullName', message: 'Nhập họ tên' });
+    }
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+
+    const temporaryPassword = genTempPassword();
+    const acc = {
+      ...account(email, temporaryPassword, role, st ? null : String(body.fullName).trim(), null, true),
+      id: `u-${Date.now()}`,
+      fullName: st ? st.fullName : String(body.fullName).trim(),
+      studentId: st?.id ?? null,
+      createdAt: new Date().toISOString(),
+    };
+    ACCOUNTS.push(acc);
+    return ok({ user: userView(acc), temporaryPassword }, 'Đã tạo tài khoản');
+  },
+  /** { email, fullName, role } — không đổi vai trò của chính mình, không đổi vai trò sinh viên */
+  update: async (id, body = {}) => {
+    await delay();
+    const a = findAccount(id);
+    const me = currentAccount();
+    const email = body.email !== undefined ? String(body.email).trim().toLowerCase() : a.email;
+    const role = body.role ?? a.role;
+    const errors = [];
+    if (!EMAIL_RE.test(email)) errors.push({ field: 'email', message: 'Email không đúng định dạng' });
+    else if (ACCOUNTS.some((x) => x.id !== a.id && x.email === email)) errors.push({ field: 'email', message: 'Email này đã được dùng cho tài khoản khác' });
+    if (a.role !== 'student' && body.fullName !== undefined && !String(body.fullName).trim()) errors.push({ field: 'fullName', message: 'Nhập họ tên' });
+    if (!ROLE_ENUM.includes(role)) errors.push({ field: 'role', message: 'Vai trò không hợp lệ' });
+    if (role !== a.role && (role === 'student' || a.role === 'student')) {
+      errors.push({ field: 'role', message: 'Không đổi được vai trò giữa sinh viên và cán bộ' });
+    }
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+    if (role !== a.role && me?.id === a.id) fail(422, 'CANNOT_MODIFY_SELF', 'Không thể tự đổi vai trò của chính mình');
+    if (a.role === 'admin' && role !== 'admin' && a.isActive && activeAdmins().length === 1) {
+      fail(422, 'LAST_ACTIVE_ADMIN', 'Không thể đổi vai trò của quản trị viên cuối cùng đang hoạt động'); // BR-83
+    }
+    Object.assign(a, { email, role, ...(a.role !== 'student' && body.fullName !== undefined ? { fullName: String(body.fullName).trim() } : {}) });
+    return ok(userView(a), 'Cập nhật tài khoản thành công');
+  },
+  /** { isActive } — khóa / mở khóa */
+  setStatus: async (id, { isActive } = {}) => {
+    await delay();
+    const a = findAccount(id);
+    if (typeof isActive !== 'boolean') fail(400, 'VALIDATION_ERROR', 'Trạng thái không hợp lệ');
+    if (!isActive && currentAccount()?.id === a.id) fail(422, 'CANNOT_MODIFY_SELF', 'Không thể tự khóa tài khoản của chính mình');
+    if (!isActive && a.role === 'admin' && a.isActive && activeAdmins().length === 1) {
+      fail(422, 'LAST_ACTIVE_ADMIN', 'Không thể khóa quản trị viên cuối cùng đang hoạt động'); // BR-83
+    }
+    a.isActive = isActive;
+    return ok(userView(a), isActive ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản');
+  },
+  /** FR-09 — Staff không được đặt lại mật khẩu Admin (BR-84) */
+  resetPassword: async (id) => {
+    await delay();
+    const a = findAccount(id);
+    const me = currentAccount();
+    if (me?.role === 'staff' && a.role === 'admin') fail(403, 'FORBIDDEN', 'Nhân viên không được đặt lại mật khẩu tài khoản quản trị');
+    if (me?.id === a.id) fail(422, 'CANNOT_MODIFY_SELF', 'Dùng chức năng Đổi mật khẩu cho tài khoản của chính mình');
+    const temporaryPassword = genTempPassword();
+    Object.assign(a, { password: temporaryPassword, mustChangePassword: true });
+    return ok({ temporaryPassword, mustChangePassword: true }, 'Đã đặt lại mật khẩu');
+  },
+};
+
 // ---------------------------------------------------------------- students
 export const mockStudents = {
   getList: async (q = {}) => {
@@ -118,6 +260,7 @@ export const mockStudents = {
       return {
         ...s,
         residence: c ? { bedCode: c.bedCode, buildingName: c.buildingName, roomNumber: c.roomNumber, endDate: c.endDate } : null,
+        hasAccount: ACCOUNTS.some((a) => a.studentId === s.id),
         totalDebt: debtOf(s.id),
       };
     });
