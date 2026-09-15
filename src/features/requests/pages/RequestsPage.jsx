@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Card, Input, Segmented, Skeleton, Alert, Typography, Pagination, Grid, Badge, Tabs,
 } from 'antd';
@@ -30,8 +31,11 @@ export default function RequestsPage() {
   const screens = useBreakpoint();
   const canReview = can(user, 'request:approve');
 
+  // Dashboard mở sẵn bộ lọc loại qua ?type=renewal|checkout
+  const [searchParams] = useSearchParams();
+  const typeParam = searchParams.get('type');
   const [status, setStatus] = useState('pending');
-  const [type, setType] = useState('all');
+  const [type, setType] = useState(['renewal', 'checkout'].includes(typeParam) ? typeParam : 'all');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState(null);

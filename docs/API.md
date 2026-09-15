@@ -631,6 +631,26 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
             "byBuilding": [ { "buildingName": "Building B", "total": 50, "occupied": 45, "rate": 0.9 } ] } }
 ```
 > ⚠️ Bed counts must always satisfy `total = occupied + available + maintenance`.
+> ⚠️ `rate = occupied / (total − maintenance)` — maintenance beds are not rentable (`03` BR-05, FR-70). Rooms of each building may also carry `buildingId`, `buildingCode`, `available`, `maintenance`.
+
+**GET `/api/dashboard/summary`** *(shape the frontend consumes — v1.2.5)*
+```json
+{ "code": "OK", "message": "Success",
+  "data": {
+    "occupancy": { "total": 98, "occupied": 72, "available": 24, "maintenance": 2, "rate": 0.75 },
+    "residents": {
+      "activeStudents": 72, "activeContracts": 72, "expiringIn30Days": 11,
+      "contractsByStatus": { "active": 72, "expired": 2, "terminated": 1 }
+    },
+    "finance": { "totalDebt": 33682500, "overdueInvoiceCount": 18, "overdueAmount": 14519000 },
+    "pendingRequests": { "renewal": 2, "checkout": 3 },
+    "pendingApplications": 6,
+    "supplyOrdersReady": 2
+  } }
+```
+> `expiringIn30Days` uses BR-29 (`0 ≤ endDate − today ≤ 30`). `totalDebt` = sum of `totalAmount − paidAmount` over `unpaid`/`partial`/`overdue` invoices.
+>
+> **Backend status (15/09/2026, `BE_QLKTX` first-commit):** the endpoint exists but returns a different shape — `occupancy.{totalBeds, occupiedBeds, availableBeds, maintenanceBeds, occupancyRate}`, `finance.{totalRevenue, totalOutstandingDebt, overdueInvoiceCount}`, `queue.{pendingRequests (number), expiringContracts}`. Missing: `residents.activeStudents`, `contractsByStatus`, `overdueAmount`, `pendingRequests` split by type, `pendingApplications`, `supplyOrdersReady`. Its `occupancyRate` divides by `total` (includes maintenance). The frontend adapter `normalizeSummary` (`features/dashboard/api/dashboard.api.js`) accepts both shapes, recomputes the rate and shows "—" for missing fields — please align the backend with the shape above.
 
 ---
 
@@ -691,6 +711,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.5 | 15/09/2026 | Dashboard (SCR-10): documented the `GET /dashboard/summary` response shape and the occupancy rate rule; recorded current backend differences. |
 | 1.2.4 | 15/09/2026 | Portal requests (SCR-66): list shape/sort, create validation rules (BR-72, checkout date range, required checkout reason), cancel returns `REQUEST_NOT_PENDING`. |
 | 1.2.3 | 15/09/2026 | Requests (SCR-41, additive): list `summary`/`byType`, search and sort rules, `requestCode`; detail adds `student`, `contract`, `unpaidInvoices`, `settlementPreview` (with BR-31 prorated rent), `checklist`, `renewalPreview`; checkout approve accepts `refundMethod`, settlement returns `proratedRent`/`refundMethod`; new error `REQUEST_NOT_PENDING`. Approving a checkout also cancels the contract's other pending requests. |
 | 1.2.2 | 15/09/2026 | Contracts (SCR-32, additive): list `summary` counts, sort/search rules and extra row fields; detail adds `student`, `depositStatus`, `invoices`, `pendingRequests`, `unpaidSupplyOrders`, `history`; terminate body `{ reason, terminationDate }` and `settlement` response. |

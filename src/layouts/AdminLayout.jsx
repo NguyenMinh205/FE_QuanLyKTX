@@ -97,7 +97,7 @@ export default function AdminLayout() {
   const { data: summary } = useApi(() => dashboardApi.getSummary(), []);
   const menuItems = buildMenu(user?.role, {
     applications: summary?.pendingApplications,
-    requests: (summary?.pendingRequests?.renewal ?? 0) + (summary?.pendingRequests?.checkout ?? 0),
+    requests: summary?.pendingRequests?.total,
     supplies: summary?.supplyOrdersReady,
   });
 

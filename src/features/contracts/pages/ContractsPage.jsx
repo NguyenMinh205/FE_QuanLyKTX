@@ -33,10 +33,11 @@ export default function ContractsPage() {
   const canUpdate = can(user, 'contract:update');
   const canTerminate = can(user, 'contract:terminate');
 
-  // Mở từ nơi khác kèm ?search=HD-... (VD màn Yêu cầu) thì tìm sẵn trong tab Tất cả
+  // Mở từ nơi khác kèm ?search=HD-... (màn Yêu cầu) hoặc ?tab=expiring (Dashboard)
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
-  const [tab, setTab] = useState(initialSearch ? 'all' : 'active');
+  const tabParam = searchParams.get('tab');
+  const [tab, setTab] = useState(TABS.some((t) => t.key === tabParam) ? tabParam : (initialSearch ? 'all' : 'active'));
   const [filters, setFilters] = useState({ page: 1, limit: 20, search: initialSearch, buildingId: undefined, roomTypeId: undefined });
   const [openId, setOpenId] = useState(null);
 

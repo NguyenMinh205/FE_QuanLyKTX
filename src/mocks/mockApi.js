@@ -992,6 +992,11 @@ export const mockDashboard = {
         activeStudents: active.length,
         activeContracts: active.length,
         expiringIn30Days: active.filter((c) => isExpiring(c)).length,
+        contractsByStatus: {
+          active: active.length,
+          expired: contracts.filter((c) => c.status === 'expired').length,
+          terminated: contracts.filter((c) => c.status === 'terminated').length,
+        },
       },
       finance: {
         totalDebt: students.reduce((s, st) => s + debtOf(st.id), 0),

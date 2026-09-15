@@ -22,6 +22,7 @@
 | 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | ⬜ Chưa test |
 | 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | ⬜ Chưa test |
 | 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | ⬜ Chưa test |
+| 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -580,6 +581,63 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 
 - [ ] `sv002@dorm.local` → menu Yêu cầu → khung xanh "Bạn chưa có hợp đồng lưu trú đang hiệu lực" + nút "Về trang chủ"; nút **Tạo yêu cầu** mờ (rê chuột: "Cần có hợp đồng đang hiệu lực để gửi yêu cầu"); bảng "Bạn chưa gửi yêu cầu nào"; Tổng quan ghi "Chưa có hợp đồng đang hiệu lực."
 - [ ] `sv001`, cửa sổ ~900px → cột Tổng quan xuống dưới bảng, bảng cuộn ngang trong thẻ, trang không cuộn ngang.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 11. Dashboard (SCR-10)
+
+**Nhánh:** `feature/admin-dashboard` · **Đường dẫn:** `/admin/dashboard` (trang mở sau khi admin/staff/viewer đăng nhập) · **Chạy:** dữ liệu giả (11.1–11.5), sau đó backend thật (11.6).
+
+**Khác thiết kế đã chấp nhận:** không có "Xuất báo cáo PDF", ô tìm kiếm trên header, chuông, "+4 tuần này", "Mục tiêu 85%", chia Nam/Nữ, "Gửi thông báo nhắc nợ" — không có trong docs/API. **Chưa có bộ lọc theo tòa (FR-75, mức S)** — API summary chưa nhận `buildingId`; số liệu từng tòa xem ở biểu đồ. Thêm so với bản vẽ: "Chỗ trống theo loại phòng" (FR-74) và "Hợp đồng sắp hết hạn gần nhất" (FR-73).
+
+> Số "Hợp đồng sắp hết hạn", "còn N ngày" tính theo ngày máy chạy. Số tiền công nợ đổi nếu trước đó đã thao tác ở màn khác trong cùng phiên — **F5 trước khi test**.
+
+### 11.1. Thẻ chỉ số — `staff@dorm.local`
+
+- [ ] Hàng 1: **Tổng số giường 98** ("Trong đó 2 giường đang bảo trì") · **Đã sử dụng 72** · **Còn trống 24** · **Tỷ lệ lấp đầy 75,00%** + thanh tiến độ + "72 / 96 giường dùng được".
+- [ ] Kiểm công thức (FR-70): 98 = 72 + 24 + 2. Tỷ lệ = 72 / (98 − 2) = 75,00% — **không phải** 72/98 = 73,47%. Rê chuột biểu tượng ⓘ thấy "Đã sử dụng / (tổng giường − giường bảo trì)".
+- [ ] Hàng 2: **Sinh viên đang ở 72** ("Hợp đồng: 72 hiệu lực · 2 hết hạn · 1 chấm dứt") · **Hợp đồng sắp hết hạn 11** (tag "Trong 30 ngày tới", link "Xem danh sách") · **Tổng công nợ** (số đỏ, dạng 33.682.500 đ) · **Hóa đơn quá hạn 18** (tag "Cần đôn đốc", "Còn nợ … đ", link đỏ "Xem hóa đơn").
+- [ ] Không có khung vàng "Số liệu giường không khớp".
+
+### 11.2. Biểu đồ + chỗ trống theo loại
+
+- [ ] **Tỷ lệ lấp đầy theo tòa**: 2 thanh ngang Tòa A / Tòa B, mỗi thanh chia 3 màu (xanh đậm đã có người · xanh nhạt còn trống · hồng bảo trì); bên phải ghi "72,92% · 35/48 giường" và "77,08% · 37/48 giường". Rê chuột lên thanh → hộp số giường từng loại + tỷ lệ.
+- [ ] Dải dưới biểu đồ: "96 giường dùng được" · "2 giường (Tòa A: 1, Tòa B: 1)".
+- [ ] **Chỗ trống theo loại phòng**: 6 dòng loại phòng, mỗi dòng số phòng + tag xanh "Còn N chỗ" (hoặc đỏ "Hết chỗ"). Link "Loại phòng" → `/admin/room-types`.
+
+### 11.3. Hợp đồng sắp hết hạn + cần xử lý
+
+- [ ] **Hợp đồng sắp hết hạn gần nhất**: 5 dòng, gần hết hạn nhất lên đầu, tag đỏ khi ≤ 7 ngày, vàng khi > 7 ngày; link "Xem tất cả (11)".
+- [ ] Bấm một dòng → màn Hợp đồng, ô tìm đã điền mã hợp đồng.
+- [ ] Dải **Cần xử lý · 13**: "6 đơn đăng ký chờ duyệt · 2 yêu cầu gia hạn · 3 yêu cầu trả phòng · 2 đơn nhu yếu phẩm chờ nhận" — mỗi mục là link.
+- [ ] Bấm "3 yêu cầu trả phòng" → `/admin/requests?type=checkout`, nút lọc **Trả phòng** đã chọn sẵn. Quay lại → bấm "2 yêu cầu gia hạn" → lọc **Gia hạn**.
+- [ ] Bấm "Xem danh sách" ở thẻ hợp đồng → `/admin/contracts?tab=expiring`, tab **Sắp hết hạn** đang chọn.
+- [ ] Bấm "6 đơn đăng ký chờ duyệt" → màn Duyệt đơn. "Xem hóa đơn" / "đơn nhu yếu phẩm" → trang đang xây dựng (màn chưa làm).
+
+### 11.4. Làm mới + cập nhật số
+
+- [ ] Bấm **Làm mới dữ liệu** → nút xoay, số liệu tải lại, không lỗi.
+- [ ] _(Không F5)_ Sang Yêu cầu → duyệt 1 yêu cầu trả phòng → quay lại Dashboard → Đã sử dụng **71**, Còn trống **25**, "3 yêu cầu trả phòng" thành **2**.
+
+### 11.5. Quyền + màn hình hẹp
+
+- [ ] `viewer@dorm.local` → thấy đủ thẻ số liệu, biểu đồ, chỗ trống theo loại, dải Cần xử lý (chữ thường, **không** bấm được); **không có** link "Xem danh sách", "Xem hóa đơn", "Loại phòng", **không có** thẻ "Hợp đồng sắp hết hạn gần nhất".
+- [ ] `admin@dorm.local` → có đủ như staff.
+- [ ] Cửa sổ ~900px → thẻ xếp 2 cột, biểu đồ và "Chỗ trống theo loại phòng" xếp chồng, không cuộn ngang.
+
+### 11.6. Với backend thật
+
+Chuẩn bị theo mục 1.2 (backend `npm run dev`, `.env` FE `VITE_USE_MOCK=false`, chạy FE ở **cổng 5173** — backend chỉ cho phép CORS từ 5173). Đăng nhập `admin@dorm.local / Admin@123`.
+
+- [ ] 8 thẻ hiện, số giường khớp dữ liệu DB (lúc test 15/09: 8 giường, 0 đang ở, 8 trống, 0 bảo trì, công nợ 2.100.000 đ).
+- [ ] Kiểm lại công thức: tổng = đã sử dụng + trống + bảo trì; tỷ lệ tính theo (tổng − bảo trì).
+- [ ] Thẻ "Sinh viên đang ở" hiện **"—"** và "— hợp đồng đang hiệu lực" (backend chưa trả trường này) — **không** hiện số 0 sai.
+- [ ] Biểu đồ vẫn có nhãn "0,00% · 0/4 giường" cho tòa chưa có ai ở.
+- [ ] "Chỗ trống theo loại phòng" hiện **khung vàng** "Chưa lấy được số chỗ theo loại phòng — Không tìm thấy endpoint…" (backend chưa có API loại phòng v1.2), trang không vỡ.
+- [ ] Dải Cần xử lý: "— đơn đăng ký chờ duyệt · 0 yêu cầu gia hạn / trả phòng · — đơn nhu yếu phẩm chờ nhận" (backend chỉ trả tổng số yêu cầu).
+- [ ] Network → `GET /dashboard/summary` 200, `GET /dashboard/occupancy` 200, `GET /contracts?expiringInDays=30&limit=5` 200, `GET /room-types?...` 404 (đã biết).
 
 **Lỗi phát hiện:** _(chưa có)_
 
