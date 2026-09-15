@@ -18,6 +18,7 @@
 | 3 | Quản lý phòng — sơ đồ tầng | SCR-23 | `feature/room-management` | Dữ liệu giả | ⬜ Chưa test |
 | 4 | Duyệt đơn đăng ký | SCR-31 | `feature/application-review` | Dữ liệu giả | ⬜ Chưa test |
 | 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | ⬜ Chưa test |
+| 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -43,7 +44,10 @@ Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi ph
 | `staff@dorm.local` | `Staff@123` | Nhân viên | Thao tác nghiệp vụ |
 | `viewer@dorm.local` | `Viewer@123` | Người xem | Kiểm tra chỉ xem, không có nút |
 | `sv001@dorm.local` | `Student@123` | Sinh viên (đang ở) | Kiểm tra bị chặn khỏi khu quản trị, không đăng ký thêm được |
-| `sv002@dorm.local` | `Student@123` | Sinh viên nữ chưa có chỗ | Đăng ký chỗ ở (SCR-62) |
+| `sv002@dorm.local` | `Student@123` | Sinh viên nữ chưa có chỗ, chưa có đơn | Đăng ký chỗ ở (SCR-62), trang chủ "chưa có chỗ" |
+| `sv004@dorm.local` | `Student@123` | Sinh viên đang ở phòng CLC, hợp đồng còn 20 ngày | Trang chủ — thẻ sắp hết hạn |
+| `sv005@dorm.local` | `Student@123` | Sinh viên có đơn gần nhất bị từ chối | Trang chủ — thẻ đơn bị từ chối |
+| `sv006@dorm.local` | `Student@123` | Sinh viên có đơn chờ duyệt (phòng B101 đã đầy) | Trang chủ — thẻ đơn chờ duyệt, hủy đơn |
 | `doimk@dorm.local` | `Tam@12345` | Nhân viên | Mật khẩu tạm — bị buộc đổi mật khẩu |
 
 ### 1.2. Chạy với backend thật (chỉ màn 1)
@@ -316,14 +320,69 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 
 - [ ] **Nộp đơn đăng ký** → màn kết quả xanh "Nộp đơn đăng ký thành công", mã **DK-2026-…**, trạng thái "Chờ duyệt", phòng "Tòa B · Phòng B310", thời gian ở, tiền cọc + tháng đầu + tổng, khung "Nộp đơn chưa giữ chỗ".
 - [ ] Network → POST `my-applications` → **Payload** chỉ có `roomId`, `startDate`, `endDate`, `note` — **không có** `studentId`, `bedId`.
-- [ ] Bấm **Về trang chủ** → bấm **Đăng ký chỗ ở** → màn vàng "Bạn đã có một đơn đăng ký đang chờ duyệt" kèm mã đơn, phòng, loại, ngày nộp; không hiện 3 bước.
+- [ ] Bấm **Về trang chủ** → trang chủ hiện thẻ cam "Đơn đăng ký đang chờ duyệt" với đúng mã đơn vừa nộp, không còn nút "Đăng ký chỗ ở".
+- [ ] Đăng xuất → đăng nhập `sv006@dorm.local` (có sẵn đơn chờ duyệt) → gõ `/portal/apply` → màn vàng "Bạn đã có một đơn đăng ký đang chờ duyệt" kèm mã đơn, phòng, loại, ngày nộp; không hiện 3 bước.
 
 ### 6.7. Màn hình hẹp + chưa kiểm được
 
 - [ ] Cửa sổ ~900px → cột tóm tắt xuống dưới nội dung, không có thanh cuộn ngang.
 - [ ] Cửa sổ < 768px → menu ngang chuyển thành thanh tab dưới đáy; "Chỗ ở", "Mua sắm" mờ với `sv002`.
-- _(Chưa có tài khoản thử)_ Sinh viên có đơn gần nhất bị từ chối → bước 1 hiện khung đỏ "Đơn DK-… trước đây đã bị từ chối — Lý do: …".
+- [ ] `sv005@dorm.local` → gõ `/portal/apply` → bước 1 hiện khung đỏ "Đơn DK-… trước đây đã bị từ chối" + "Lý do: Hồ sơ còn thiếu giấy xác nhận sinh viên. Bạn có thể đăng ký lại."
 - _(Chờ backend v1.2)_ `409 DUPLICATE_PENDING_APPLICATION` / `STUDENT_HAS_ACTIVE_CONTRACT` lúc nộp → thông báo vàng và về trang chủ.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 7. Cổng sinh viên — Trang chủ (SCR-61)
+
+**Nhánh:** `feature/student-home` · **Đường dẫn:** `/portal/home` (trang mở ngay sau khi sinh viên đăng nhập) · **Chạy:** dữ liệu giả, mỗi tài khoản đăng nhập lại từ đầu (F5 được).
+
+**Khác thiết kế đã chấp nhận:** không có "Thẻ phòng số", "Lịch sử ra vào", "Bản scan đã ký số", chuông thông báo, ảnh sản phẩm thật (dữ liệu giả chưa có ảnh — hiện biểu tượng) — không có trong API. Thẻ công nợ chỉ có nút "Thanh toán ngay" (mở danh sách hóa đơn chưa trả), không có nút "Chi tiết nợ" riêng. Các link sang Hóa đơn, Chỗ ở & hợp đồng, Yêu cầu, Mua sắm hiện vẫn mở trang "đang xây dựng" — sẽ có ở các màn sau.
+
+### 7.1. Đang lưu trú — `sv001@dorm.local`
+
+- [ ] Thẻ chào: "Xin chào, Nguyễn Văn An", "Mã sinh viên: SV2026001 · Khoa: Công nghệ thông tin", tag xanh **Đang ở**.
+- [ ] Thẻ đỏ **Công nợ cần thanh toán**: "Bạn đang nợ: 726.000 đ", "2 hóa đơn chưa thanh toán đủ · Hạn gần nhất: dd/mm/yyyy (còn N ngày)". Hóa đơn đã quá hạn thì có tag đỏ "QUÁ HẠN" và chữ "quá hạn N ngày".
+- [ ] Bấm **Thanh toán ngay** → sang `/portal/my-invoices?status=unpaid` (trang đang xây dựng) → quay lại trang chủ.
+- [ ] **Không** có thẻ "Hợp đồng còn N ngày" (hợp đồng sv001 còn hơn 30 ngày).
+- [ ] Thẻ **Chỗ ở của tôi**: "Tòa A · Phòng A101 · Giường 01", loại phòng "Tiêu chuẩn · 6 người", đơn giá 320.000 đ/tháng, mục "CÓ SẴN TRONG PHÒNG" (Giường tầng, Tủ cá nhân, Quạt trần, Bàn học chung), "Bạn cùng phòng: 5 người" — rê chuột thấy họ tên + MSSV.
+- [ ] Thẻ **Hợp đồng của tôi**: tag "Đang hiệu lực", số HD-2026-00001, thời hạn "10 tháng" + "01/09/2026 – 30/06/2027", tiền cọc đã nộp 500.000 đ, link "Gia hạn hợp đồng".
+- [ ] Bảng **Hóa đơn gần đây** tối đa 3 dòng, mới nhất lên đầu: cột Kỳ hóa đơn ("Tháng 10/2026" hoặc "Nhu yếu phẩm"), Khoản thu, Số tiền, Trạng thái (tag màu), "Chi tiết". Chân bảng "Xem tất cả hóa đơn (5)".
+- [ ] Cột phải: khung xanh **"Đơn DH-2026-00002 đang chờ bạn nhận"** — Chăn mỏng, nút "Xem".
+- [ ] Thẻ **Nhu yếu phẩm**: chỉ gợi ý món sinh viên **chưa đặt** (với sv001 chỉ còn "Móc treo quần áo (bộ 10)") — không hiện Chăn mỏng, Màn chống muỗi, Gối bông, Vỏ đệm, Vỏ gối vì đã đặt. Nút "Đến cửa hàng nhu yếu phẩm".
+- [ ] Thẻ **Hỗ trợ sinh viên** có hotline 1900 6868.
+- [ ] Bấm biểu tượng ⟳ ở "Hóa đơn gần đây" → bảng tải lại, không lỗi.
+
+### 7.2. Hợp đồng sắp hết hạn — `sv004@dorm.local`
+
+- [ ] Khung vàng **"Hợp đồng còn 20 ngày"** (hoặc 19, tùy giờ chạy) + "Hợp đồng HD-… hết hạn ngày …", nút **Gia hạn** → sang `/portal/my-requests?create=renewal`.
+- [ ] Thẻ Hợp đồng dòng cuối chữ cam "Còn 20 ngày".
+- [ ] Phòng Chất lượng cao: mục có sẵn trong phòng có "Đệm mút 90x190cm"; header góc phải "Phòng A…".
+
+### 7.3. Chưa có chỗ, chưa có đơn — `sv002@dorm.local`
+
+- [ ] Tag xám "Chưa có chỗ ở". Thẻ xanh lớn **"Bạn chưa có chỗ ở tại ký túc xá"** + nút **Đăng ký chỗ ở** → `/portal/apply`.
+- [ ] Mục **"Loại phòng còn chỗ"**: tối đa 3 thẻ, giá thấp nhất trước (Tiêu chuẩn 8 · 6 · 4 người), mỗi thẻ có giá/người/tháng, tiện nghi, "● Còn N chỗ". Bấm thẻ → `/portal/apply`.
+- [ ] Không có thẻ công nợ, hợp đồng, hóa đơn, nhu yếu phẩm.
+
+### 7.4. Có đơn chờ duyệt — `sv006@dorm.local`
+
+- [ ] Thẻ cam **"Đơn đăng ký đang chờ duyệt"** + tag mã DK-2026-00074: phòng "Tòa B · Phòng B101", "Tiêu chuẩn · 6 người", thời gian ở, "Nộp lúc 28/10/2026 08:15", "Cần thanh toán khi được duyệt 820.000 đ".
+- [ ] Khung vàng **"Phòng B101 hiện đã hết chỗ"** + "…hãy hủy đơn này và đăng ký lại" (vì phòng nguyện vọng đã đầy).
+- [ ] Bấm **Hủy đơn** → hộp xác nhận "Hủy đơn DK-2026-00074?" → **Giữ đơn** → không đổi gì.
+- [ ] **Hủy đơn** lần nữa → **Hủy đơn** → thông báo "Đã hủy đơn đăng ký", trang đổi sang thẻ xanh "Bạn chưa có chỗ ở tại ký túc xá" + loại phòng còn chỗ.
+- [ ] Network → request `DELETE /portal/my-applications/<id>` thành công.
+
+### 7.5. Đơn bị từ chối — `sv005@dorm.local`
+
+- [ ] Thẻ đỏ **"Đơn đăng ký DK-… đã bị từ chối"**: phòng, loại, thời điểm xử lý, "Lý do: Hồ sơ còn thiếu giấy xác nhận sinh viên", nút **Đăng ký lại**.
+- [ ] Bên dưới vẫn có mục "Loại phòng còn chỗ".
+- [ ] Bấm **Đăng ký lại** → `/portal/apply`, bước 1 có khung đỏ nhắc đơn bị từ chối.
+
+### 7.6. Màn hình hẹp
+
+- [ ] `sv001`, cửa sổ ~900px → cột phải (đơn chờ nhận, nhu yếu phẩm, hỗ trợ) xuống dưới; hai thẻ Chỗ ở / Hợp đồng vẫn cạnh nhau hoặc xếp chồng gọn; bảng hóa đơn cuộn ngang trong thẻ, trang không có thanh cuộn ngang.
 
 **Lỗi phát hiện:** _(chưa có)_
 

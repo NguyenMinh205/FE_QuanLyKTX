@@ -20,6 +20,9 @@ const DEMO_ACCOUNTS = USE_MOCK
     ['Người xem', 'viewer@dorm.local', 'Viewer@123'],
     ['SV đang ở', 'sv001@dorm.local', 'Student@123'],
     ['SV chưa có chỗ', 'sv002@dorm.local', 'Student@123'],
+    ['SV sắp hết hạn hợp đồng', 'sv004@dorm.local', 'Student@123'],
+    ['SV bị từ chối đơn', 'sv005@dorm.local', 'Student@123'],
+    ['SV có đơn chờ duyệt', 'sv006@dorm.local', 'Student@123'],
     ['Mật khẩu tạm (buộc đổi)', 'doimk@dorm.local', 'Tam@12345'],
   ]
   : [

@@ -16,7 +16,7 @@ import RoomTypeStep from '../components/apply/RoomTypeStep';
 import RoomStep from '../components/apply/RoomStep';
 import ConfirmStep from '../components/apply/ConfirmStep';
 import SummaryRow from '../components/apply/SummaryRow';
-import SupportCard from '../components/apply/SupportCard';
+import SupportCard from '../components/SupportCard';
 import { defaultStayPeriod, monthsBetween } from '../utils/applyDates';
 
 const { Title, Text } = Typography;

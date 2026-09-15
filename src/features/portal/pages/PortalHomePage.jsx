@@ -1,40 +1,49 @@
-import { Card, Typography, Alert, Space, Button } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Card, Typography, Alert, Skeleton, Tag } from 'antd';
+import { SmileOutlined } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useApi } from '../../../hooks/useApi';
 import { portalApi } from '../api/portal.api';
+import NoResidenceHome from '../components/home/NoResidenceHome';
+import ResidentHome from '../components/home/ResidentHome';
 
 const { Title, Text } = Typography;
 
-/** Khung tạm của SCR-61 — bản đầy đủ 3 trạng thái làm ở màn tiếp theo (docs/08 mục 6.9) */
+/** SCR-61 Trang chủ sinh viên — nội dung đổi theo tình trạng lưu trú (docs/08 mục 6.9) */
 export default function PortalHomePage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const { data: residence } = useApi(() => portalApi.getMyResidence(), []);
+  const { data: profile } = useApi(() => portalApi.getProfile(), []);
+  const { data: residence, loading, error } = useApi(() => portalApi.getMyResidence(), []);
+
+  const hasResidence = residence?.hasResidence === true;
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <div style={{ display: 'grid', gap: 16 }}>
       <Card>
-        <Title level={4} style={{ marginTop: 0 }}>Xin chào, {user?.fullName} 👋</Title>
-        <Text type="secondary">Cổng thông tin sinh viên nội trú</Text>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: '#E6F4FF', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <SmileOutlined style={{ fontSize: 26, color: '#1677FF' }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <Title level={4} style={{ margin: 0 }}>Xin chào, {profile?.fullName ?? user?.fullName}</Title>
+            <Text type="secondary">
+              {profile?.studentCode && <>Mã sinh viên: <Text>{profile.studentCode}</Text></>}
+              {profile?.faculty && <> · Khoa: <Text>{profile.faculty}</Text></>}
+              {residence && (
+                <>
+                  {' · '}
+                  {hasResidence
+                    ? <Tag color="success" style={{ margin: 0 }}>Đang ở</Tag>
+                    : <Tag style={{ margin: 0 }}>Chưa có chỗ ở</Tag>}
+                </>
+              )}
+            </Text>
+          </div>
+        </div>
       </Card>
 
-      {residence?.hasResidence === false && (
-        <Card>
-          <Title level={5} style={{ marginTop: 0 }}>Bạn chưa có chỗ ở tại ký túc xá</Title>
-          <Text type="secondary">Chọn loại phòng, chọn phòng và nộp đơn — ban quản lý sẽ duyệt trong 1–2 ngày làm việc.</Text>
-          <div style={{ marginTop: 12 }}>
-            <Button type="primary" onClick={() => navigate('/portal/apply')}>Đăng ký chỗ ở</Button>
-          </div>
-        </Card>
-      )}
-
-      <Alert
-        type="info"
-        showIcon
-        title="Đây là khung cổng sinh viên"
-        description="Trang chủ đầy đủ (đơn đang chờ duyệt, chỗ ở, công nợ, hóa đơn gần đây) làm ở màn SCR-61 — xem 08-THIET-KE-GIAO-DIEN.md mục 6.9."
-      />
-    </Space>
+      {error && <Alert type="error" showIcon title={error} />}
+      {!error && loading && !residence && <Card><Skeleton active paragraph={{ rows: 6 }} /></Card>}
+      {!error && residence && (hasResidence ? <ResidentHome residence={residence} /> : <NoResidenceHome />)}
+    </div>
   );
 }

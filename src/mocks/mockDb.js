@@ -6,7 +6,8 @@
  *   → 8 sản phẩm nhu yếu phẩm → đơn hàng
  *
  * Tài khoản thử (xem mockApi.js): sv001 đang ở phòng Tiêu chuẩn, có nợ · sv002 chưa có chỗ ·
- * sv003 dùng test IDOR · sv004 đang ở phòng Chất lượng cao (được cấp sẵn đệm).
+ * sv003 dùng test IDOR · sv004 đang ở phòng Chất lượng cao, hợp đồng còn 20 ngày ·
+ * sv005 có đơn gần nhất bị từ chối · sv006 có đơn chờ duyệt (phòng nguyện vọng đã đầy).
  *
  * ⚠️ Chỉ dùng khi chế độ dữ liệu giả bật (src/lib/env.js).
  */
@@ -20,7 +21,7 @@ const TEN_NU = ['Thị Bích', 'Ngọc Ánh', 'Thu Hà', 'Phương Linh', 'Khán
 const KHOA = ['Công nghệ thông tin', 'Kinh tế', 'Cơ khí', 'Điện - Điện tử'];
 
 /** Chỉ số sinh viên dùng cho tài khoản thử */
-export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3 };
+export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75 };
 
 // ---------------------------------------------------------------- loại phòng
 const BASIC = ['Giường tầng', 'Tủ cá nhân', 'Quạt trần', 'Bàn học chung'];
@@ -211,6 +212,12 @@ students.slice(0, PLACED).forEach((st, i) => {
 
 // vài hợp đồng sắp hết hạn
 contracts.filter((_, i) => i % 7 === 6).forEach((c) => { c.endDate = '2026-12-10'; });
+// sv004: hợp đồng còn 20 ngày tính từ lúc chạy — để trang chủ sinh viên hiện thẻ "sắp hết hạn" (BR-29)
+{
+  const c = contracts.find((x) => x.studentId === students[DEMO_STUDENT_INDEX.sv004].id);
+  const d = new Date(); d.setDate(d.getDate() + 20);
+  if (c) c.endDate = `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}`;
+}
 
 // 2 giường trống chuyển bảo trì (không đụng giường có người)
 [rooms[1], rooms[12]].forEach((r) => {

@@ -1,6 +1,6 @@
 import { Card, Typography } from 'antd';
 import { CustomerServiceOutlined } from '@ant-design/icons';
-import { SUPPORT_CONTACT } from '../../../../constants/app';
+import { SUPPORT_CONTACT } from '../../../constants/app';
 
 const { Text } = Typography;
 
