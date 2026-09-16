@@ -1127,7 +1127,12 @@ export const mockFees = {
 };
 
 // ---------------------------------------------------------------- payments
+/** Thời điểm xếp hạng / lọc của giao dịch: đã trả thì theo paidAt, chưa thì theo lúc tạo */
+const paymentTime = (p) => p.paidAt || p.createdAt || '';
+const paymentDate = (p) => String(paymentTime(p)).slice(0, 10);
+
 export const mockPayments = {
+  /** ?search=&invoiceId=&studentId=&type=&method=&status=&from=&to= — mới nhất lên đầu, kèm summary của cả tập đã lọc */
   getList: async (q = {}) => {
     await delay();
     let rows = payments;
@@ -1136,8 +1141,41 @@ export const mockPayments = {
     if (q.type) rows = rows.filter((p) => p.type === q.type);
     if (q.method) rows = rows.filter((p) => p.method === q.method);
     if (q.status) rows = rows.filter((p) => p.status === q.status);
-    rows = search(rows, q.search, ['transactionRef', 'invoiceCode', 'studentName']);
-    return paginate(rows, q);
+    if (q.from) rows = rows.filter((p) => paymentDate(p) >= q.from);
+    if (q.to) rows = rows.filter((p) => paymentDate(p) <= q.to);
+    rows = search(rows, q.search, ['transactionRef', 'invoiceCode', 'studentName', 'studentCode', 'bankReference', 'gatewayTransactionId'])
+      .slice()
+      .sort((a, b) => String(paymentTime(b)).localeCompare(String(paymentTime(a))));
+    const sumOf = (f) => rows.filter(f).reduce((t, p) => t + p.amount, 0);
+    const res = paginate(rows, q);
+    res.data.data.summary = {
+      collectedAmount: sumOf((p) => p.status === 'success' && p.type === 'payment'),
+      refundedAmount: sumOf((p) => p.status === 'success' && p.type === 'refund'),
+      successCount: rows.filter((p) => p.status === 'success').length,
+      pendingCount: rows.filter((p) => p.status === 'pending').length,
+      failedCount: rows.filter((p) => ['failed', 'expired'].includes(p.status)).length,
+    };
+    return res;
+  },
+  /** POST /payments/:id/reconcile — hỏi lại cổng thanh toán cho giao dịch treo (FR-56, BR-64) */
+  reconcile: async (id) => {
+    await delay(700);
+    const payment = payments.find((p) => p.id === id);
+    if (!payment) fail(404, 'NOT_FOUND', 'Không tìm thấy giao dịch');
+    if (payment.status !== 'pending') fail(422, 'PAYMENT_NOT_PENDING', 'Chỉ đối soát được giao dịch đang xử lý');
+    if (['cash', 'bank_transfer'].includes(payment.method)) fail(422, 'PAYMENT_NOT_ONLINE', 'Giao dịch tại quầy không cần đối soát với cổng thanh toán');
+    const inv = invoices.find((x) => x.id === payment.invoiceId);
+    if (payment.demoReconcile === 'success') {
+      payment.status = 'success';
+      payment.paidAt = new Date().toISOString();
+      payment.gatewayTransactionId = payment.gatewayTransactionId || `VNP${Date.now()}`;
+      inv.paidAmount = payments.filter((p) => p.invoiceId === inv.id && p.type === 'payment' && p.status === 'success').reduce((t, p) => t + p.amount, 0); // BR-43
+      inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : inv.paidAmount > 0 ? 'partial' : inv.status;
+      if (inv.status === 'paid' && inv.type === 'supplies') markSupplyOrderReady(inv.id); // BR-95
+      return ok({ payment, invoice: withRemaining(inv) }, `Cổng thanh toán báo giao dịch ${payment.transactionRef} đã thành công — đã cập nhật hóa đơn`);
+    }
+    payment.status = 'expired'; // BR-64
+    return ok({ payment, invoice: withRemaining(inv) }, `Giao dịch ${payment.transactionRef} đã hết hạn ở cổng thanh toán`);
   },
   /**
    * POST /payments/offline — { invoiceId, amount, method: cash|bank_transfer, paidAt, bankReference?, note? } (FR-51).

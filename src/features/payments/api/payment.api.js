@@ -7,5 +7,5 @@ export const paymentApi = {
   getList:       (params) => (USE_MOCK ? mockPayments.getList(params)       : axiosClient.get('/payments', { params })),
   recordOffline: (data)   => (USE_MOCK ? mockPayments.recordOffline(data)   : axiosClient.post('/payments/offline', data)),
   checkout:      (data)   => (USE_MOCK ? mockPayments.checkout(data)        : axiosClient.post('/payments/online/checkout', data)),
-  reconcile:     (id)     => (USE_MOCK ? Promise.resolve({ data: {} })      : axiosClient.post(`/payments/${id}/reconcile`)),
+  reconcile:     (id)     => (USE_MOCK ? mockPayments.reconcile(id)          : axiosClient.post(`/payments/${id}/reconcile`)),
 };

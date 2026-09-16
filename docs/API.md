@@ -555,12 +555,45 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/payments` | admin, staff, viewer | List — `?invoiceId=&studentId=&type=payment\|refund&method=&status=` |
+| GET | `/api/payments` | admin, staff, viewer | List — `?search=&invoiceId=&studentId=&type=payment\|refund&method=&status=&from=&to=`, with `summary` |
 | POST | `/api/payments/offline` | admin, staff | Record manual cash/bank-transfer payment — `{ invoiceId, amount, method, paidAt, bankReference?, note? }` |
 | POST | `/api/payments/online/checkout` | student | Start a VNPay/ZaloPay session — returns redirect URL / QR |
 | POST | `/api/payments/webhook/vnpay` | public (gateway signed) | VNPay callback — verifies signature, updates `Payment` + `Invoice` |
 | POST | `/api/payments/webhook/zalopay` | public (gateway signed) | ZaloPay callback — same as above |
-| POST | `/api/payments/:id/reconcile` | admin, staff | Re-query the gateway for a stuck `pending` transaction |
+| POST | `/api/payments/:id/reconcile` | admin, staff | Re-query the gateway for a stuck `pending` online transaction (FR-56, BR-64) |
+
+**GET `/api/payments`** *(v1.2.13 — SCR-56)*
+```json
+{ "code": "OK", "message": "Success",
+  "data": {
+    "items": [
+      { "id": "6662c1...", "transactionRef": "PAY20260913ABC123",
+        "studentId": "665e3a...", "studentName": "Trần Thị Bích", "studentCode": "SV2024001",
+        "invoiceId": "665f5c...", "invoiceCode": "INV-202610-00042", "invoiceType": "monthly",
+        "amount": 243750, "type": "payment", "method": "bank_transfer", "status": "success",
+        "bankReference": "FT26256891042", "gatewayTransactionId": null,
+        "createdAt": "2026-09-13T14:29:00+07:00", "paidAt": "2026-09-13T14:30:00+07:00",
+        "recordedByName": "Lê Thị Nhân Viên", "note": "Nộp đợt 2" }
+    ],
+    "total": 128, "page": 1, "limit": 20,
+    "summary": { "collectedAmount": 66763500, "refundedAmount": 1250000, "successCount": 115, "pendingCount": 2, "failedCount": 1 }
+  } }
+```
+> - Flat student/invoice fields, not populated objects. `search` matches transaction reference, invoice code, student name/code, bank reference and gateway id.
+> - Sort: newest first by `paidAt`, falling back to `createdAt` for transactions that never succeeded.
+> - `from`/`to` are dates (`YYYY-MM-DD`) on that same timestamp.
+> - `summary` covers the whole filtered set: `collectedAmount` counts successful `payment` rows, `refundedAmount` successful `refund` rows, `failedCount` = `failed` + `expired`.
+
+**POST `/api/payments/:id/reconcile`** *(v1.2.13 — SCR-56)*
+```json
+// response — gateway says the transaction went through
+{ "code": "OK", "message": "Cổng thanh toán báo giao dịch PAY20260913ABC123 đã thành công — đã cập nhật hóa đơn",
+  "data": { "payment": { "id": "6662c1...", "status": "success", "paidAt": "2026-09-16T11:20:00+07:00", "gatewayTransactionId": "VNP090116" },
+            "invoice": { "id": "665f5c...", "paidAmount": 443750, "remainingAmount": 0, "status": "paid" } } }
+```
+> - Only for `pending` transactions paid through a gateway. `cash`/`bank_transfer` → `422 PAYMENT_NOT_ONLINE`; any other status → `422 PAYMENT_NOT_PENDING`.
+> - Success recomputes the invoice from successful payments (BR-43) and moves a paid `supplies` invoice's order to `ready` (BR-95). No answer from the gateway past 15 minutes → `expired` (BR-64).
+> - The message is shown to the user, so it states the outcome.
 
 **POST `/api/payments/offline`** *(v1.2.12 — SCR-55)*
 ```json
@@ -893,6 +926,8 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `BED_OCCUPIED` | 422 | Cannot set an occupied bed to maintenance |
 | `INVOICE_ALREADY_PAID` | 422 | Invoice already fully paid |
 | `INVOICE_CANCELLED` | 422 | Cannot record a payment on a cancelled invoice *(v1.2.12)* |
+| `PAYMENT_NOT_PENDING` | 422 | Reconcile only applies to a `pending` transaction *(v1.2.13)* |
+| `PAYMENT_NOT_ONLINE` | 422 | Reconcile only applies to gateway payments, not counter payments *(v1.2.13)* |
 | `INVOICE_HAS_PAYMENT` | 422 | Cannot cancel an invoice that has payments |
 | `INVOICE_NOT_CANCELLABLE` | 422 | Invoice already cancelled, or is a `supplies`/`settlement` invoice that is cancelled elsewhere *(v1.2.11)* |
 | `PAYMENT_EXCEEDS_REMAINING` | 422 | Payment larger than the outstanding balance |
@@ -924,6 +959,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.13 | 16/09/2026 | Payment history (SCR-56): `GET /payments` flat fields, `search`/`from`/`to` filters, `summary`, sort rule; `POST /payments/:id/reconcile` response and rules with `PAYMENT_NOT_PENDING`, `PAYMENT_NOT_ONLINE`. |
 | 1.2.12 | 15/09/2026 | Invoice detail + offline payment (SCR-54/55): `GET /invoices/:id` adds `contractCode`, `note`, `payments[]` with `recordedByName`/`bankReference`, `supplyOrder`; `POST /payments/offline` body `{ invoiceId, amount, method, paidAt, bankReference?, note? }` and response `{ payment, invoice, supplyOrder }`; duplicate bank reference, `INVOICE_CANCELLED`; `GET /payments` `type` filter. |
 | 1.2.11 | 15/09/2026 | Invoices (SCR-52/53): list filters `search`/`buildingId`, flat room/student fields and `summary`; new `GET /invoices/generation-preview` (same shape as generate, adds `eligibleStudents`, `readyRooms`, `skipped[].code`); one-off `POST /invoices` body and rules; cancel rules with new `INVOICE_NOT_CANCELLABLE` and reading unlock. |
 | 1.2.10 | 15/09/2026 | Utility readings (SCR-51): list item shape with `roomId`, `roomNumber`, frozen prices, amounts, `recordedByName`/`recordedAt`; `roomId` filter; `PUT` keeps frozen prices; future period and duplicate rules; how the entry screen prefills start readings. |

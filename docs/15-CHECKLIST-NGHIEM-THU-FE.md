@@ -29,6 +29,7 @@
 | 14 | Nhập chỉ số điện nước | SCR-51 | `feature/utility-readings` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1019,6 +1020,50 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 - [ ] Mở một hóa đơn `HD-TEST-…` → tên + MSSV, 1 khoản "Tiền phòng tháng 10" (FE đổi `items` → khoản phí), Chỗ ở "—" (backend chưa trả phòng).
 - [ ] Lịch sử thanh toán lấy từ danh sách thanh toán: thấy giao dịch VNPay **Đang xử lý** của hóa đơn đó.
 - [ ] F12 → Network không có request POST/PATCH nào khi chỉ xem.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 18. Lịch sử thanh toán (SCR-56)
+
+**Nhánh:** `feature/payment-history` · **Đường dẫn:** Tài chính → Thanh toán (`/admin/payments`) · **Chạy:** dữ liệu giả, tài khoản `staff@dorm.local`, **F5 trước khi bắt đầu**, từ 18.2 tới 18.4 làm liền mạch không F5.
+
+**Ghi chú:** màn không có bản vẽ (📋). Dữ liệu giả có **2 giao dịch đang xử lý** (1 đối soát ra thành công, 1 treo quá 15 phút) và **1 giao dịch thất bại** (ZaloPay).
+
+### 18.1. Danh sách + thẻ
+
+- [ ] 4 thẻ: **Đã thu** (xanh, "N giao dịch thành công") · **Đã hoàn trả** (xanh dương) · **Đang xử lý** (2 giao dịch, link "Xem và đối soát") · **Thất bại / hết hạn** (1 giao dịch).
+- [ ] Bảng: Mã giao dịch (+ thời gian) · Sinh viên · Hóa đơn (link + loại) · Số tiền (**+** xanh khi thu thành công, **−** xanh dương khi hoàn tiền) · Hình thức · Trạng thái · Thao tác.
+- [ ] Bấm mã hóa đơn → mở đúng trang chi tiết hóa đơn.
+
+### 18.2. Lọc
+
+- [ ] Hình thức **Tiền mặt** → mọi dòng Tiền mặt. **Xóa bộ lọc** (nút tròn) → về tất cả.
+- [ ] Trạng thái **Thất bại** → đúng 1 dòng ZaloPay.
+- [ ] Tìm theo mã giao dịch `PAY…` → còn 1 dòng. Xóa bộ lọc → ô tìm kiếm trống.
+- [ ] Chọn khoảng ngày → chỉ còn giao dịch trong khoảng; không chọn được ngày sau hôm nay.
+
+### 18.3. Đối soát giao dịch treo (FR-56, BR-64)
+
+- [ ] Thẻ **Đang xử lý** → "Xem và đối soát" → lọc còn 2 dòng, mỗi dòng có nút **Đối soát**.
+- [ ] Bấm mã giao dịch dòng đầu → khung bên phải: hộp vàng "Giao dịch đang chờ cổng thanh toán phản hồi", số tiền màu **xám** (chưa vào hóa đơn), "Thời điểm thành công —", "Người ghi nhận: Sinh viên tự thanh toán", nút **Đối soát lại**.
+- [ ] **Đối soát lại** → thông báo "Cổng thanh toán báo giao dịch … đã thành công — đã cập nhật hóa đơn"; trạng thái đổi **Thành công**, mất nút đối soát.
+- [ ] Mở hóa đơn của giao dịch đó → tiền đã được cộng vào **Đã thanh toán**, lịch sử thanh toán có giao dịch này.
+- [ ] Quay lại, đối soát dòng còn lại (tạo đã hơn 15 phút) → "Giao dịch … đã hết hạn ở cổng thanh toán"; thẻ Đang xử lý về **0**, Thất bại / hết hạn thành **2**.
+- [ ] Giao dịch tiền mặt / chuyển khoản **không có** nút Đối soát.
+
+### 18.4. Quyền + màn hẹp
+
+- [ ] `viewer@dorm.local` → xem được danh sách và khung chi tiết; **không có** nút Đối soát ở cả bảng lẫn khung chi tiết.
+- [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ, trang không cuộn ngang.
+
+### 18.5. Với backend thật (chỉ xem — **không** bấm Đối soát trên DB chung)
+
+- [ ] Danh sách hiện các giao dịch thử `PAY…` với tên + MSSV, mã hóa đơn `HD-TEST-…` (FE tự chuyển đổi `paymentMethod`, `transactionId`, trạng thái `completed`).
+- [ ] Giao dịch tại quầy của backend **chưa có mã tham chiếu** nên cột Mã giao dịch hiện "Xem giao dịch" (đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.13).
+- [ ] 4 thẻ hiện "—" kèm "Backend chưa trả số tổng hợp".
+- [ ] F12 → Network không có request POST nào khi chỉ xem.
 
 **Lỗi phát hiện:** _(chưa có)_
 

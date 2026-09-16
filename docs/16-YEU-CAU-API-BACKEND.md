@@ -3,7 +3,7 @@
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
 **Người đọc:** nhóm Backend (3 người)
 **Người lập:** FE Lead · **Ngày:** 15/09/2026
-**Đối chiếu:** `docs/API.md` **v1.2.12** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
+**Đối chiếu:** `docs/API.md` **v1.2.13** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
 
 > **Tóm tắt một dòng:** backend đang làm theo API **v1.1** (xếp giường bằng tay). Frontend đã làm xong 16/31 màn theo **v1.2** (đăng ký theo phòng, giường tự gán, nhu yếu phẩm). Để nối được, backend cần: **thêm 5 nhóm API còn thiếu**, **sửa định dạng/luật ở 7 nhóm đang lệch**, **bỏ 8 API thừa của v1.1**, và **sửa 6 lỗi chung**.
 
@@ -25,7 +25,7 @@
 | **P2** | Dọn dẹp, bảo mật, lỗi tiềm ẩn — không chặn giao diện |
 
 - **Nguồn sự thật** là `docs/API.md` (định dạng request/response, mã lỗi mục 13) và `docs/DATA-SCHEMA.md` (tên trường). Tài liệu này **không lặp lại** định dạng đã có ở `API.md`, chỉ chỉ ra chỗ lệch và việc cần làm.
-- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.12**.
+- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.13**.
 - Frontend có lớp dữ liệu giả (`src/mocks/`) trả **đúng** định dạng trong `API.md` — khi phân vân, chạy FE ở chế độ dữ liệu giả (`VITE_USE_MOCK=true`), mở F12 → Network để xem request/response mẫu.
 
 ---
@@ -224,7 +224,8 @@ Mọi endpoint lấy danh tính **từ JWT** (BR-86). Định dạng: **`API.md`
 | `POST /online/checkout` trả `paymentUrl` | `redirectUrl` như `API.md`; body `{ invoiceId, gateway, amount? }` | `payment.service.js:94-143` |
 | Có 2 bản trùng `/cash`, `/vnpay/create-url`, `/vnpay/verify` | Giữ `/offline`, `/online/checkout`, `/webhook/vnpay` (🗑️ bản trùng) | `payment.routes.js` |
 | `VNP_HASH_SECRET` thiếu thì tạo URL và kiểm chữ ký dùng **2 secret mặc định khác nhau** | Bắt buộc có biến môi trường, không có mặc định | `vnpay.helper.js:43, 81` |
-| `GET /payments` không lọc `type` | Thêm `?type=payment\|refund` | `payment.service.js:257-261` |
+| `GET /payments` không lọc `type`, `search`, `from`/`to`; không có `summary`; `studentId`/`invoiceId` bị populate; giao dịch tại quầy không có `transactionRef` | Theo `API.md` bản 1.2.13: thêm `type`, `search`, `from`, `to`, `summary`; trả trường phẳng (`studentName`, `invoiceCode`…); sinh `transactionRef` cho cả giao dịch tại quầy; sắp xếp theo `paidAt` rồi `createdAt`. FE (SCR-56) tạm chuyển đổi khi đọc | `payment.service.js:243-280` |
+| `POST /payments/:id/reconcile` chưa hỏi lại cổng thanh toán; hết hạn sau **30 phút** (docs BR-64: 15 phút); giao dịch không `pending` vẫn trả 200 | Gọi lại cổng, cập nhật `Payment` + hóa đơn (BR-43), quá 15 phút → `expired` (BR-64); chặn giao dịch tại quầy (`422 PAYMENT_NOT_ONLINE`) và giao dịch không còn `pending` (`422 PAYMENT_NOT_PENDING`); message nêu rõ kết quả vì FE hiện thẳng cho người dùng | `payment.service.js:220-245` |
 | Thanh toán đủ hóa đơn `supplies` → đơn hàng sang `ready` | Làm khi có module nhu yếu phẩm (BR-95) | — |
 
 ### 3.14. Nhu yếu phẩm — P1 ❌
@@ -290,6 +291,7 @@ Chưa có. Làm theo **`API.md` mục 11** + **`DATA-SCHEMA` 3.15–3.16** + **`
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.5 | 16/09/2026 | FE Lead | Lịch sử thanh toán (3.13): danh sách có `summary`, lọc, đối soát giao dịch treo |
 | 1.4 | 15/09/2026 | FE Lead | Chi tiết hóa đơn (3.12) + ghi nhận thanh toán tại quầy (3.13): `payments[]` trong chi tiết, `bankReference`, `paidAt`, `INVOICE_CANCELLED` |
 | 1.3 | 15/09/2026 | FE Lead | Hóa đơn (3.12): xem trước lập hàng loạt, danh sách + `summary`, hóa đơn lẻ, luật hủy |
 | 1.2 | 15/09/2026 | FE Lead | Chỉ số điện nước (3.12): định dạng danh sách cho màn SCR-51 |

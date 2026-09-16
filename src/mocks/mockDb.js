@@ -481,6 +481,28 @@ invoices.filter((inv) => inv.paidAmount > 0).forEach((inv, i) => {
   });
 });
 
+// Giao dịch online chưa xong: 1 đang xử lý đối soát được, 1 đang xử lý quá 15 phút (BR-64), 1 thất bại
+const minutesAgo = (m) => new Date(Date.now() - m * 60000).toISOString();
+invoices.filter((inv) => ['unpaid', 'overdue'].includes(inv.status)).slice(0, 3).forEach((inv, i) => {
+  paySeq += 1;
+  payments.push({
+    id: `p${pad(paySeq)}`,
+    transactionRef: `PAY2026110${pad(paySeq, 4)}`,
+    invoiceId: inv.id, invoiceCode: inv.invoiceCode, invoiceType: inv.type,
+    studentId: inv.studentId, studentName: inv.studentName,
+    amount: inv.totalAmount - inv.paidAmount, type: 'payment',
+    method: i === 2 ? 'zalopay' : 'vnpay',
+    gatewayTransactionId: i === 0 ? `VNP${pad(90000 + paySeq, 6)}` : null,
+    bankReference: null,
+    status: i === 2 ? 'failed' : 'pending',
+    paidAt: null, createdAt: minutesAgo(i === 1 ? 40 : 6),
+    note: i === 2 ? 'Sinh viên hủy ở cổng thanh toán' : null,
+    recordedByName: null,
+    // chỉ có trong dữ liệu giả: kết quả khi bấm "Đối soát lại"
+    demoReconcile: i === 0 ? 'success' : 'expired',
+  });
+});
+
 // ---------------------------------------------------------------- yêu cầu gia hạn / trả phòng
 // Ngày gửi/ngày trả tính theo ngày máy chạy để "còn N ngày", "gửi hôm qua" luôn hợp lý.
 export const requests = [];
