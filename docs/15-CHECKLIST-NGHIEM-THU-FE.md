@@ -32,6 +32,7 @@
 | 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả (backend chưa có API) | ⬜ Chưa test |
 | 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
+| 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1194,6 +1195,61 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 
 - [ ] Backend **chưa có nhóm API cổng sinh viên**: cả 2 màn hiện tiêu đề bình thường kèm hộp đỏ "Không tải được thông tin chỗ ở / hồ sơ — Không tìm thấy endpoint: GET /api/portal/my-residence (hoặc /profile)".
 - [ ] Đây là đúng hiện trạng, đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.10; 2 màn chỉ chạy đầy đủ với dữ liệu giả cho tới khi backend bổ sung.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 21. Cổng SV: Hóa đơn của tôi + Kết quả thanh toán (SCR-64, SCR-65)
+
+**Nhánh:** `feature/portal-invoices-payment` · **Đường dẫn:** Cổng SV → Hóa đơn (`/portal/my-invoices`) · **Chạy:** dữ liệu giả, tài khoản `sv001@dorm.local` / `Student@123`, **F5 trước khi bắt đầu**.
+
+**Khác bản vẽ:**
+- **Bỏ nút "Thanh toán tất cả":** API tạo giao dịch nhận **một** hóa đơn mỗi lần (`POST /payments/online/checkout`), gộp nhiều hóa đơn phải chờ backend hỗ trợ. Thẻ tổng vẫn hiện tổng nợ và kỳ hạn gần nhất.
+- Bỏ "Chi tiết đối soát", nút chia sẻ / in ở góc chi tiết, dòng "Bảo mật SSL 256-bit" và "Hỗ trợ QR VNPAY, Viettel Money, thẻ sinh viên": ngoài phạm vi docs, hệ thống chỉ có VNPay/ZaloPay sandbox.
+- Thêm phần **Đã thanh toán** trong chi tiết (liệt kê các lần thu) vì hóa đơn có thể trả nhiều đợt.
+
+**Lưu ý dữ liệu giả:** không có cổng thanh toán thật, nên nút VNPay quay thẳng về màn Kết quả và "webhook" được giả lập về sau **5 giây** — đúng để thử luồng hỏi lại nhiều lần.
+
+### 21.1. Danh sách hóa đơn
+
+- [ ] Thẻ trên cùng: **Tổng đang nợ** (đỏ) + tag "N khoản cần nộp" + "Kỳ hạn gần nhất: dd/mm/yyyy".
+- [ ] Cột trái có 2 tab: **Chưa thanh toán** (có chấm đếm) và **Đã thanh toán (N)**.
+- [ ] Mỗi dòng: biểu tượng (giỏ hàng cho hóa đơn nhu yếu phẩm), tên loại + kỳ, mã hóa đơn, hạn, số tiền, tag trạng thái. Hóa đơn quá hạn có chữ đỏ "Quá hạn thanh toán".
+- [ ] Vào màn là hóa đơn đầu tiên **tự mở** ở cột phải.
+
+### 21.2. Chi tiết hóa đơn
+
+- [ ] Khối vàng: "SỐ TIỀN CẦN THANH TOÁN" + số tiền lớn + "Hạn thanh toán: … (còn N ngày / quá hạn N ngày)".
+- [ ] Bảng khoản thu (dòng điện nước có dòng phụ xám) + dòng **Tổng cộng**.
+- [ ] Mục gập **Cách tính tiền điện nước** → mở ra thấy câu kiểu "Tiền điện: phòng dùng 60 kWh hết 150.000 đ, chia đều 5 người → phần của bạn 30.000 đ" và ghi chú phần lẻ do sinh viên có mã nhỏ nhất chịu.
+- [ ] Nút xanh **Thanh toán … đ qua VNPay** + dòng xám "Hoặc nộp tiền mặt trực tiếp tại văn phòng ban quản lý ký túc xá".
+- [ ] Tab **Đã thanh toán** → chọn một hóa đơn: khối xanh "Hóa đơn đã thanh toán", có mục "Đã thanh toán" liệt kê các lần thu, **không** còn nút thanh toán.
+
+### 21.3. Thanh toán trực tuyến (SCR-65)
+
+- [ ] Chọn hóa đơn **Nhu yếu phẩm** → bấm **Thanh toán … qua VNPay** → chuyển sang `/portal/payment-result?ref=PAY…`.
+- [ ] Màn kết quả hiện **"Đang kiểm tra giao dịch…"** kèm số lần thử (lần 1/5, 2/5…).
+- [ ] Sau vài giây → **Thanh toán thành công**: số tiền, mã giao dịch, mã cổng thanh toán, hình thức, thời gian, mã hóa đơn.
+- [ ] Vì là hóa đơn nhu yếu phẩm → thêm hộp xanh **"Đơn hàng đã sẵn sàng — mời bạn đến văn phòng ban quản lý ký túc xá để nhận hàng"** (BR-95).
+- [ ] Bấm **Xem hóa đơn** → quay lại màn Hóa đơn, tự mở tab **Đã thanh toán** đúng hóa đơn vừa trả. Tab Chưa thanh toán còn 1 hóa đơn, tổng nợ giảm.
+- [ ] Vào màn quản trị (tài khoản staff) → **Nhu yếu phẩm**: đơn của hóa đơn vừa trả đã sang **Chờ nhận hàng**.
+
+### 21.4. Trường hợp chưa chắc chắn
+
+- [ ] Gõ `/portal/payment-result?ref=KHONG-CO-MA` → hỏi đủ 5 lần rồi hiện **"Giao dịch đang được xử lý"** + nút **Kiểm tra lại**. **Không** được hiện "Thất bại".
+- [ ] Mở tab trình duyệt mới (phiên mới), vào `/portal/payment-result` không kèm mã → "Không có giao dịch để kiểm tra" + nút về trang Hóa đơn.
+- [ ] Bấm **Kiểm tra lại** → chạy lại vòng hỏi từ lần 1.
+
+### 21.5. Trạng thái khác + màn hẹp
+
+- [ ] Sinh viên chưa có hóa đơn (`sv002@dorm.local`): tổng nợ 0 đ, danh sách rỗng "Bạn không còn hóa đơn nào cần nộp", cột phải nhắc chọn hóa đơn.
+- [ ] Thu cửa sổ ~400px: hai cột xếp chồng, trang không cuộn ngang.
+
+### 21.6. Với backend thật
+
+- [ ] Backend **chưa có API cổng sinh viên**: màn Hóa đơn hiện tiêu đề + hộp đỏ "Không tìm thấy endpoint: GET /api/portal/my-invoices"; màn Kết quả (không mã) báo "Không có giao dịch để kiểm tra".
+- [ ] Đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.10 — 2 màn chỉ chạy đầy đủ với dữ liệu giả cho tới khi backend bổ sung.
 
 **Lỗi phát hiện:** _(chưa có)_
 

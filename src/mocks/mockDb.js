@@ -336,6 +336,9 @@ export const invoices = [];
 let invSeq = 0;
 const nextInvoiceCode = (period) => { invSeq += 1; return { id: `i${pad(invSeq)}`, invoiceCode: `INV-${period}-${pad(invSeq, 5)}` }; };
 
+/** Số người đang ở cùng phòng — tiền điện nước chia đều cho ngần này người */
+const roommateCount = (c) => contracts.filter((x) => x.roomId === c.roomId && x.status === 'active').length || 1;
+
 contracts.forEach((c, i) => {
   invoices.push({
     ...nextInvoiceCode('202609'),
@@ -362,8 +365,8 @@ contracts.forEach((c, i) => {
     type: 'monthly', billingPeriod: '2026-10',
     lineItems: [
       { feeTypeId: 'f1', description: 'Tiền phòng tháng 10/2026', quantity: 1, unitPrice: rent, amount: rent },
-      { feeTypeId: 'f2', description: `Tiền điện tháng 10/2026 (${elec / 2500} kWh)`, quantity: elec / 2500, unitPrice: 2500, amount: elec },
-      { feeTypeId: 'f3', description: `Tiền nước tháng 10/2026 (${water / 12000} m³)`, quantity: water / 12000, unitPrice: 12000, amount: water },
+      { feeTypeId: 'f2', description: `Tiền điện tháng 10/2026 (${elec / 2500} kWh, chia đều ${roommateCount(c)} người)`, quantity: elec / 2500, unitPrice: 2500, amount: elec },
+      { feeTypeId: 'f3', description: `Tiền nước tháng 10/2026 (${water / 12000} m³, chia đều ${roommateCount(c)} người)`, quantity: water / 12000, unitPrice: 12000, amount: water },
     ],
     totalAmount: total, paidAmount: paid,
     issueDate: '2026-11-01', dueDate: cycle === 3 ? '2026-11-05' : '2026-11-10', status,

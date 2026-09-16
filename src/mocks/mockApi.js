@@ -1128,6 +1128,40 @@ export const mockFees = {
 };
 
 // ---------------------------------------------------------------- payments
+/**
+ * Dữ liệu giả: cổng thanh toán "gửi webhook" sau `demoWebhookAt` — cộng tiền vào hóa đơn đúng một lần (BR-62),
+ * hóa đơn nhu yếu phẩm trả đủ thì đơn sang chờ nhận hàng (BR-95).
+ */
+const DEMO_PAYMENT_KEY = 'mockOnlinePayments';
+/** Dữ liệu giả sống trong bộ nhớ, mà cổng thanh toán lại tải lại trang → giữ giao dịch đang chờ ở sessionStorage */
+const saveDemoPayment = (payment) => {
+  try {
+    const kept = JSON.parse(sessionStorage.getItem(DEMO_PAYMENT_KEY) || '[]');
+    sessionStorage.setItem(DEMO_PAYMENT_KEY, JSON.stringify([...kept, payment].slice(-5)));
+  } catch { /* chế độ riêng tư: bỏ qua, demo vẫn chạy trong một lần tải trang */ }
+};
+const restoreDemoPayments = () => {
+  try {
+    JSON.parse(sessionStorage.getItem(DEMO_PAYMENT_KEY) || '[]')
+      .filter((p) => !payments.some((x) => x.transactionRef === p.transactionRef))
+      .forEach((p) => payments.push({ ...p }));
+  } catch { /* bỏ qua */ }
+};
+
+const applyDemoWebhooks = () => {
+  restoreDemoPayments();
+  payments.filter((p) => p.status === 'pending' && p.demoWebhookAt && Date.now() >= p.demoWebhookAt).forEach((p) => {
+    p.status = 'success';
+    p.paidAt = new Date().toISOString();
+    p.gatewayTransactionId = `VNP${String(Date.now()).slice(-8)}`;
+    const inv = invoices.find((i) => i.id === p.invoiceId);
+    if (!inv) return;
+    inv.paidAmount = payments.filter((x) => x.invoiceId === inv.id && x.type === 'payment' && x.status === 'success').reduce((t, x) => t + x.amount, 0); // BR-43
+    inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : 'partial';
+    if (inv.status === 'paid' && inv.type === 'supplies') markSupplyOrderReady(inv.id);
+  });
+};
+
 /** Thời điểm xếp hạng / lọc của giao dịch: đã trả thì theo paidAt, chưa thì theo lúc tạo */
 const paymentTime = (p) => p.paidAt || p.createdAt || '';
 const paymentDate = (p) => String(paymentTime(p)).slice(0, 10);
@@ -1222,14 +1256,36 @@ export const mockPayments = {
     const message = inv.status === 'paid' ? `Đã thu ${amount.toLocaleString('vi-VN')} đ — hóa đơn đã thanh toán đủ` : `Đã thu ${amount.toLocaleString('vi-VN')} đ`;
     return ok({ payment, invoice: withRemaining(inv), supplyOrder }, message);
   },
+  /**
+   * POST /payments/online/checkout — tạo giao dịch `pending` rồi trả link cổng thanh toán (FR-53).
+   * Dữ liệu giả: không có cổng thật nên link quay thẳng về màn kết quả, và webhook "về" sau 5 giây
+   * để thử đúng luồng hỏi lại nhiều lần của SCR-65.
+   */
   checkout: async ({ invoiceId, gateway = 'vnpay' }) => {
     await delay();
     const inv = invoices.find((x) => x.id === invoiceId);
     if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
     if (inv.studentId !== me().id) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này');
+    if (inv.status === 'cancelled') fail(422, 'INVOICE_CANCELLED', 'Hóa đơn đã hủy, không thanh toán được');
+    if (inv.status === 'paid') fail(422, 'INVOICE_ALREADY_PAID', 'Hóa đơn đã được thanh toán đủ');
+    const amount = inv.totalAmount - inv.paidAmount;
+    const transactionRef = `PAY${Date.now()}`;
+    const payment = {
+      id: `p-online-${Date.now()}`, transactionRef,
+      invoiceId: inv.id, invoiceCode: inv.invoiceCode, invoiceType: inv.type,
+      studentId: inv.studentId, studentName: inv.studentName,
+      amount, type: 'payment', method: gateway, gatewayTransactionId: null, bankReference: null,
+      status: 'pending', paidAt: null, createdAt: new Date().toISOString(), note: null, recordedByName: null,
+      demoWebhookAt: Date.now() + 5000, // webhook giả về sau 5 giây
+    };
+    payments.push(payment);
+    saveDemoPayment(payment);
     return ok({
-      paymentId: 'p999', transactionRef: `PAY${Date.now()}`,
-      redirectUrl: `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?mock=1&invoice=${invoiceId}&gateway=${gateway}`,
+      paymentId: payment.id,
+      transactionRef,
+      gateway,
+      amount,
+      redirectUrl: `${window.location.origin}/portal/payment-result?ref=${transactionRef}`,
     });
   },
   /** Chỉ có ở mock: giả lập webhook VNPay báo thành công — gọi nhiều lần vẫn chỉ ghi nhận một lần */
@@ -1600,7 +1656,14 @@ export const mockPortal = {
     if (inv && inv.studentId !== me().id) { await delay(); fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này'); }
     return mockFees.getInvoiceById(id);
   },
-  getMyPayments: async () => { await delay(); return ok(payments.filter((p) => p.studentId === me().id)); },
+  /** ?transactionRef= — màn Kết quả thanh toán hỏi lại giao dịch vừa tạo (SCR-65) */
+  getMyPayments: async (q = {}) => {
+    await delay();
+    applyDemoWebhooks();
+    let rows = payments.filter((p) => p.studentId === me().id);
+    if (q.transactionRef) rows = rows.filter((p) => p.transactionRef === q.transactionRef);
+    return ok(rows.map((p) => ({ ...p, invoice: invoices.find((i) => i.id === p.invoiceId) ? withRemaining(invoices.find((i) => i.id === p.invoiceId)) : null })));
+  },
 
   /** Yêu cầu của chính sinh viên — mới nhất lên đầu */
   getMyRequests: async () => {

@@ -9,7 +9,7 @@ export const portalApi = {
   getMyContracts:    ()       => (USE_MOCK ? mockPortal.getMyContracts()         : axiosClient.get('/portal/my-contracts')),
   getMyInvoices:     (params) => (USE_MOCK ? mockPortal.getMyInvoices(params)    : axiosClient.get('/portal/my-invoices', { params })),
   getMyInvoiceById:  (id)     => (USE_MOCK ? mockPortal.getMyInvoiceById(id)     : axiosClient.get(`/portal/my-invoices/${id}`)),
-  getMyPayments:     ()       => (USE_MOCK ? mockPortal.getMyPayments()          : axiosClient.get('/portal/my-payments')),
+  getMyPayments:     (params) => (USE_MOCK ? mockPortal.getMyPayments(params)    : axiosClient.get('/portal/my-payments', { params })),
 
   // Yêu cầu gia hạn / trả phòng
   getMyRequests:     ()       => (USE_MOCK ? mockPortal.getMyRequests()          : axiosClient.get('/portal/my-requests')),

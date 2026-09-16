@@ -634,6 +634,19 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 > - The frontend falls back to `GET /payments?invoiceId=`, mapping `paymentMethod`, `transactionId` and `recordedBy.fullName`.
 > - The offline body uses `paymentMethod`, has no `bankReference`/`paidAt` and allows `bank_transfer` without a reference. Recording from the screen is not verified against the backend.
 
+**GET `/api/portal/my-payments?transactionRef=PAY20260916ABC`** *(v1.2.16 — SCR-65)*
+```json
+{ "code": "OK", "message": "Success",
+  "data": [
+    { "id": "6662d1...", "transactionRef": "PAY20260916ABC", "invoiceId": "665f5c...", "invoiceCode": "INV-202611-00150",
+      "invoiceType": "supplies", "amount": 160000, "type": "payment", "method": "vnpay", "status": "pending",
+      "gatewayTransactionId": null, "createdAt": "2026-09-16T13:42:00+07:00", "paidAt": null }
+  ] }
+```
+> - The result screen calls this **up to 5 times, 2 seconds apart**, because the gateway webhook can arrive after the student is redirected back.
+> - Still `pending` after the last try → the screen says "đang được xử lý" with a retry button. It must **never** claim failure while the outcome is unknown.
+> - `status: 'success'` on a `supplies` invoice → the screen also tells the student the order is ready to collect (BR-95).
+
 **POST `/api/payments/online/checkout`**
 ```json
 // request
@@ -735,7 +748,7 @@ All endpoints resolve the student from the **JWT**. Passing another student's id
 | GET | `/api/portal/my-contracts` | student | Current + historical contracts — plain array, newest first; history rows need `contractCode`, `bedCode`, `buildingName`, dates, `status`, `terminationReason` (FR-39) |
 | GET | `/api/portal/my-invoices` | student | Own invoices — `?status=&type=` |
 | GET | `/api/portal/my-invoices/:id` | student | Own invoice detail with line items |
-| GET | `/api/portal/my-payments` | student | Own payment history |
+| GET | `/api/portal/my-payments` | student | Own payment history — `?transactionRef=` to poll one transaction (SCR-65) |
 | GET | `/api/portal/my-requests` | student | Own renewal/checkout requests — plain array, newest first, same fields as the staff list item (`requestCode`, `renewal`, `settlement`, `reviewNote`, `reviewedAt`) |
 | POST | `/api/portal/my-requests` | student | Submit a renewal or checkout request |
 | DELETE | `/api/portal/my-requests/:id` | student | Cancel own request while still `pending` — otherwise `422 REQUEST_NOT_PENDING` (BR-79) |
@@ -970,6 +983,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.16 | 16/09/2026 | Portal invoices + payment result (SCR-64/65): `/portal/my-payments` `transactionRef` filter and the polling contract behind the result screen; `/portal/my-invoices/:id` is the invoice detail shape (§7 v1.2.12) restricted to the student's own invoice. |
 | 1.2.15 | 16/09/2026 | Portal residence + profile (SCR-63/69): `/portal/profile` field list for the read-only profile screen, `/portal/my-contracts` fields used by the residence history table. |
 | 1.2.14 | 16/09/2026 | Supplies staff screen (SCR-71): `supply-orders` `from`/`to` + search fields, full `summary` counts, flat order fields with `roomCode`/`deliveredByName`, detail `invoice`; `supply-items` pagination + `includedRoomTypeNames` and the create/update body; cancel reason minimum length. |
 | 1.2.13 | 16/09/2026 | Payment history (SCR-56): `GET /payments` flat fields, `search`/`from`/`to` filters, `summary`, sort rule; `POST /payments/:id/reconcile` response and rules with `PAYMENT_NOT_PENDING`, `PAYMENT_NOT_ONLINE`. |
