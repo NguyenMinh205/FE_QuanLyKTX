@@ -28,6 +28,8 @@ import MyResidencePage from '../features/portal/pages/MyResidencePage';
 import ProfilePage from '../features/portal/pages/ProfilePage';
 import MyInvoicesPage from '../features/portal/pages/MyInvoicesPage';
 import PaymentResultPage from '../features/portal/pages/PaymentResultPage';
+import ShopPage from '../features/portal/pages/ShopPage';
+import MyOrdersPage from '../features/portal/pages/MyOrdersPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 import RequestsPage from '../features/requests/pages/RequestsPage';
@@ -88,8 +90,8 @@ export default function AppRoutes() {
         <Route path="/portal/my-invoices" element={<MyInvoicesPage />} />
         <Route path="/portal/payment-result" element={<PaymentResultPage />} />
         <Route path="/portal/my-requests" element={<MyRequestsPage />} />
-        <Route path="/portal/shop" element={todo('Mua sắm nhu yếu phẩm', 'portal', '/api/portal/supply-items')} />
-        <Route path="/portal/my-orders" element={todo('Đơn hàng của tôi', 'portal', '/api/portal/my-supply-orders')} />
+        <Route path="/portal/shop" element={<ShopPage />} />
+        <Route path="/portal/my-orders" element={<MyOrdersPage />} />
         <Route path="/portal/profile" element={<ProfilePage />} />
       </Route>
 

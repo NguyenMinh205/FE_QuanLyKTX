@@ -756,7 +756,7 @@ All endpoints resolve the student from the **JWT**. Passing another student's id
 | POST | `/api/portal/my-applications` | student | Submit an application — `{ roomId, startDate, endDate, note }` *(v1.2)* |
 | DELETE | `/api/portal/my-applications/:id` | student | Cancel own application while `pending` *(v1.2)* |
 | GET | `/api/portal/supply-items` | student | Shop: active items **not** issued with the student's room type, plus what is issued *(v1.2)* |
-| GET | `/api/portal/my-supply-orders` | student | Own orders — `?status=` *(v1.2)* |
+| GET | `/api/portal/my-supply-orders` | student | Own orders — `?status=` *(v1.2)* — newest first, each with `items`, `totalAmount`, `invoiceId`, `status`, `createdAt`, `cancelReason` |
 | POST | `/api/portal/my-supply-orders` | student | Place an order — creates a `supplies` invoice *(v1.2)* |
 | PATCH | `/api/portal/my-supply-orders/:id/cancel` | student | Cancel own order while `pending_payment` *(v1.2)* |
 
@@ -832,6 +832,14 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 { "code": "ORDER_NOT_CANCELLABLE", "message": "Đơn hàng đã thanh toán, không thể hủy", "data": null }                    // 422
 ```
 > The student pays the returned invoice through the normal payment flow (§8). There is no separate supplies checkout.
+
+**Shop and orders for the student screens (SCR-67/68)** *(v1.2.17)*
+> - `GET /portal/supply-items` drives the shop: `items` already excludes what the room type provides (FR-101) and what is no longer sold, so the screen never has to filter. `roomNumber` + `roomType.name` + `includedInRoom` fill the banner. No active contract → `422 CONTRACT_NOT_ACTIVE`, and the screen shows a link to apply for a room.
+> - `POST /portal/my-supply-orders` takes **only** `{ supplyItemId, quantity }` per line (1–5, BR-91); the screen shows a cart total but the amount that counts comes back in the response (BR-92).
+> - The response `{ orderCode, totalAmount, invoice: { id, invoiceCode, totalAmount, dueDate } }` is what the success notice needs — order code, amount, due date and a link straight to the invoice.
+> - `PATCH /portal/my-supply-orders/:id/cancel` needs no body from the student (the reason is recorded as a self-cancel); it must cancel the linked invoice too (FR-105).
+>
+> **Backend status (16/09/2026):** the portal supplies endpoints do not exist yet (`404`), like the rest of `/api/portal/*`.
 
 ---
 
@@ -983,6 +991,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.17 | 16/09/2026 | Portal shop + orders (SCR-67/68): what the shop screen needs from `/portal/supply-items`, the order response fields the success notice uses, student cancel without a body. |
 | 1.2.16 | 16/09/2026 | Portal invoices + payment result (SCR-64/65): `/portal/my-payments` `transactionRef` filter and the polling contract behind the result screen; `/portal/my-invoices/:id` is the invoice detail shape (§7 v1.2.12) restricted to the student's own invoice. |
 | 1.2.15 | 16/09/2026 | Portal residence + profile (SCR-63/69): `/portal/profile` field list for the read-only profile screen, `/portal/my-contracts` fields used by the residence history table. |
 | 1.2.14 | 16/09/2026 | Supplies staff screen (SCR-71): `supply-orders` `from`/`to` + search fields, full `summary` counts, flat order fields with `roomCode`/`deliveredByName`, detail `invoice`; `supply-items` pagination + `includedRoomTypeNames` and the create/update body; cancel reason minimum length. |

@@ -33,6 +33,7 @@
 | 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả (backend chưa có API) | ⬜ Chưa test |
 | 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
 | 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
+| 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1250,6 +1251,67 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 
 - [ ] Backend **chưa có API cổng sinh viên**: màn Hóa đơn hiện tiêu đề + hộp đỏ "Không tìm thấy endpoint: GET /api/portal/my-invoices"; màn Kết quả (không mã) báo "Không có giao dịch để kiểm tra".
 - [ ] Đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.10 — 2 màn chỉ chạy đầy đủ với dữ liệu giả cho tới khi backend bổ sung.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 22. Cổng SV: Mua sắm + Đơn hàng của tôi (SCR-67, SCR-68)
+
+**Nhánh:** `feature/portal-shop-orders` · **Đường dẫn:** Cổng SV → Mua sắm (`/portal/shop`) và Đơn hàng của tôi (`/portal/my-orders`) · **Chạy:** dữ liệu giả, `sv001@dorm.local` / `Student@123`, **F5 trước khi bắt đầu**.
+
+**Khác bản vẽ:**
+- **Bỏ "Giao về phòng", "Đổi trả miễn phí 48h", hotline, giờ 08:00–20:00, "gói hỗ trợ tân sinh viên":** docs chỉ có hình thức **nhận tại văn phòng ban quản lý**, không có chính sách đổi trả hay giao tận phòng. Màn ghi giờ làm việc 8:00–17:00 như docs/08 mục 6.13.
+- **Bỏ ô tìm kiếm đơn và phân trang khi ít đơn:** sinh viên thường chỉ có vài đơn; đã có dải lọc theo trạng thái.
+- Thêm cột **Thao tác** với **Thanh toán** (mở đúng hóa đơn của đơn) và **Hủy**.
+
+### 22.1. Cửa hàng (SCR-67)
+
+- [ ] Thẻ đầu trang: "Phòng 101 · Tiêu chuẩn · 6 người", các tag **Phòng đã được cấp sẵn**, ghi chú món cấp sẵn không hiện trong cửa hàng, nút **Đơn hàng của tôi**.
+- [ ] Dải lọc nhóm: Tất cả (7) · Chăn ga gối đệm (5) · Đồ dùng cá nhân (2). Lưới sản phẩm có ảnh (ô xám khi chưa có ảnh), tên, nhóm · đơn vị, giá.
+- [ ] **Không** thấy "Ổ cắm điện" (đã ngừng bán). Với phòng Chất lượng cao (`sv004@dorm.local`) thì **không** thấy "Đệm mút 90x190cm" vì phòng đã cấp sẵn (FR-101).
+- [ ] Giỏ hàng bên phải khi chưa chọn: "Chưa chọn món nào".
+
+### 22.2. Giỏ hàng
+
+- [ ] Bấm **Thêm vào giỏ** ở 2 sản phẩm → giỏ hiện "(2 món)", từng dòng có đơn giá × số lượng, **Tổng cộng** đúng bằng tổng, hộp xanh "Nhận hàng tại văn phòng ban quản lý".
+- [ ] Ô số lượng: gõ 9 → tự về **5** (mỗi sản phẩm tối đa 5 cái, BR-91). Gõ 0 → món rời khỏi giỏ.
+- [ ] Bấm **Bỏ** ở một dòng → giỏ còn 1 món.
+- [ ] Sang màn khác rồi quay lại → giỏ vẫn còn (lưu trong phiên làm việc). Đóng hẳn trình duyệt rồi mở lại → giỏ trống (đúng thiết kế, không có API giỏ hàng).
+- [ ] **Xóa giỏ** → giỏ trống.
+
+### 22.3. Đặt hàng
+
+- [ ] Bấm **Đặt hàng** → thông báo "Đặt hàng thành công — đơn DH-…" kèm mã hóa đơn, số tiền, hạn thanh toán và nút **Thanh toán ngay**.
+- [ ] Bấm **Thanh toán ngay** → mở màn Hóa đơn đúng hóa đơn nhu yếu phẩm vừa tạo.
+- [ ] Sau khi đặt, giỏ hàng trống.
+- [ ] F12 → Network: `POST /portal/my-supply-orders` Payload chỉ có `supplyItemId` + `quantity`, **không** có giá tiền (BR-92).
+
+### 22.4. Đơn hàng của tôi (SCR-68)
+
+- [ ] Dải xanh "N đơn đã sẵn sàng tại văn phòng ban quản lý — mang thẻ sinh viên đến nhận: DH-…".
+- [ ] Dải vàng "N đơn chờ bạn thanh toán — đơn quá hạn thanh toán sẽ tự hủy, bạn không bị trừ vào tiền cọc".
+- [ ] Bảng: mã đơn + ngày đặt · sản phẩm ("Vỏ đệm ×1, Vỏ gối ×1" + số món) · tổng tiền · trạng thái · thao tác.
+- [ ] Dải lọc Tất cả / Chờ thanh toán / Chờ nhận hàng / Đã nhận / Đã hủy kèm số đếm.
+- [ ] Đơn **Chờ nhận hàng**: có dòng "Mang thẻ sinh viên đến văn phòng nhận", không có nút thao tác.
+- [ ] Thẻ phải: **Tổng quan đơn hàng** (chờ thanh toán, chờ nhận, đã chi) và **Nhận hàng** (văn phòng, giờ 8:00–17:00, không giao tận phòng).
+
+### 22.5. Thanh toán và hủy đơn
+
+- [ ] Đơn **Chờ thanh toán** → **Thanh toán** → mở đúng hóa đơn của đơn đó ở màn Hóa đơn.
+- [ ] Đơn **Chờ thanh toán** → **Hủy** → hộp xác nhận nêu sản phẩm, số tiền và "Hóa đơn đi kèm cũng bị hủy" → xác nhận → "Đã hủy đơn hàng", đơn chuyển **Đã hủy**.
+- [ ] Sang màn **Hóa đơn**: hóa đơn của đơn vừa hủy không còn ở mục chưa thanh toán.
+- [ ] Đơn đã thanh toán (Chờ nhận hàng) **không có** nút Hủy.
+
+### 22.6. Trạng thái rỗng + màn hẹp
+
+- [ ] `sv002@dorm.local` (chưa có chỗ ở): màn Mua sắm báo "Bạn cần có chỗ ở để mua nhu yếu phẩm" + nút **Đăng ký chỗ ở**; màn Đơn hàng báo "Bạn chưa đặt đơn nhu yếu phẩm nào" + nút **Mua sắm ngay**.
+- [ ] Thu cửa sổ ~400px: lưới sản phẩm 2 cột, giỏ hàng xuống dưới, trang không cuộn ngang.
+
+### 22.7. Với backend thật
+
+- [ ] Backend **chưa có API cổng sinh viên**: màn Mua sắm và Đơn hàng hiện tiêu đề kèm báo lỗi endpoint; không gửi request ghi nào.
+- [ ] Đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.10 và 3.14.
 
 **Lỗi phát hiện:** _(chưa có)_
 
