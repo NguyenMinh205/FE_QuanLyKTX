@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   FileAddOutlined, FileDoneOutlined, WalletOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
-  WarningOutlined, ReloadOutlined, StopOutlined,
+  WarningOutlined, ReloadOutlined, StopOutlined, DollarOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
@@ -21,6 +21,7 @@ import StatCard from '../../../components/StatCard';
 import StatusTag from '../../../components/StatusTag';
 import GenerateInvoicesModal from '../components/invoices/GenerateInvoicesModal';
 import CreateInvoiceModal from '../components/invoices/CreateInvoiceModal';
+import RecordPaymentModal from '../components/invoices/RecordPaymentModal';
 import { periodOptions } from '../utils/readingSheet';
 import { cancelBlockReason, invoiceRoomOf, isOpenInvoice, periodShort } from '../utils/invoiceView';
 
@@ -41,6 +42,7 @@ function InvoicesView({ searchParams }) {
   const { modal, message, notification } = App.useApp();
   const canCreate = can(user, 'invoice:create');
   const canCancel = can(user, 'invoice:cancel');
+  const canRecord = can(user, 'payment:record');
 
   // Mở từ Dashboard kèm ?status=overdue, hoặc từ nơi khác kèm ?search=
   const [filters, setFilters] = useState(() => ({
@@ -52,6 +54,7 @@ function InvoicesView({ searchParams }) {
   const [tableKey, setTableKey] = useState(0); // đổi key để ô tìm kiếm của DataTable về rỗng khi đặt lại
   const [generateOpen, setGenerateOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [payInvoice, setPayInvoice] = useState(null); // hóa đơn đang thu tiền (SCR-55)
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
   const { data, meta, loading, error, refetch } = useApi(
@@ -100,6 +103,18 @@ function InvoicesView({ searchParams }) {
     refetch();
   };
 
+  const handleRecorded = (res) => {
+    setPayInvoice(null);
+    if (res) {
+      const order = res.data?.supplyOrder;
+      notification.success({
+        title: res.message,
+        description: order?.status === 'ready' ? `Đơn hàng ${order.orderCode} chuyển sang Chờ nhận hàng` : undefined,
+      });
+    }
+    refetch();
+  };
+
   const handleCreated = (res) => {
     setCreateOpen(false);
     message.success(res.message);
@@ -140,15 +155,22 @@ function InvoicesView({ searchParams }) {
       render: (v, inv) => (inv.status === 'overdue' ? <Text type="danger">{formatDate(v)}</Text> : formatDate(v)),
     },
     { title: 'Trạng thái', dataIndex: 'status', width: 150, render: (v) => <StatusTag type="invoice" value={v} /> },
-    ...(canCancel ? [{
-      title: 'Thao tác', key: 'actions', width: 95, fixed: 'right',
+    ...(canCancel || canRecord ? [{
+      title: 'Thao tác', key: 'actions', width: 165, fixed: 'right',
       render: (_, inv) => {
         if (inv.status === 'cancelled') return null;
         const reason = cancelBlockReason(inv);
         return (
-          <Tooltip title={reason}>
-            <Button size="small" type="link" danger icon={<StopOutlined />} disabled={!!reason} onClick={() => cancelInvoice(inv)}>Hủy</Button>
-          </Tooltip>
+          <span style={{ display: 'inline-flex', gap: 2 }}>
+            {canRecord && isOpenInvoice(inv) && (
+              <Button size="small" type="link" icon={<DollarOutlined />} onClick={() => setPayInvoice(inv)}>Thu tiền</Button>
+            )}
+            {canCancel && (
+              <Tooltip title={reason}>
+                <Button size="small" type="link" danger icon={<StopOutlined />} disabled={!!reason} onClick={() => cancelInvoice(inv)}>Hủy</Button>
+              </Tooltip>
+            )}
+          </span>
         );
       },
     }] : []),
@@ -219,7 +241,7 @@ function InvoicesView({ searchParams }) {
           onFiltersChange={setFilters}
           searchPlaceholder="Tìm mã hóa đơn, MSSV, họ tên, mã giường…"
           unit="hóa đơn"
-          scrollX={1255}
+          scrollX={1325}
           onRow={(inv) => ({ style: inv.status === 'cancelled' ? { opacity: 0.6 } : undefined, onDoubleClick: () => navigate(`/admin/invoices/${inv.id}`) })}
           extraFilters={(
             <>
@@ -248,11 +270,12 @@ function InvoicesView({ searchParams }) {
             </>
           )}
         />
-        {data?.some(isOpenInvoice) && (
-          <Text type="secondary" style={{ fontSize: 12 }}>Bấm mã hóa đơn để xem chi tiết và ghi nhận thanh toán.</Text>
-        )}
+        <Text type="secondary" style={{ fontSize: 12 }}>Bấm mã hóa đơn để xem chi tiết các khoản và lịch sử thanh toán.</Text>
       </Card>
 
+      {canRecord && (
+        <RecordPaymentModal key={payInvoice?.id ?? 'closed'} open={!!payInvoice} invoice={payInvoice} onCancel={() => setPayInvoice(null)} onRecorded={handleRecorded} />
+      )}
       {canCreate && (
         <>
           <GenerateInvoicesModal open={generateOpen} buildings={buildings} onCancel={() => setGenerateOpen(false)} onDone={handleGenerated} />

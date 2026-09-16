@@ -477,6 +477,7 @@ invoices.filter((inv) => inv.paidAmount > 0).forEach((inv, i) => {
     status: 'success',
     paidAt: `2026-11-0${(i % 8) + 1}T10:${pad((i * 7) % 60, 2)}:00+07:00`,
     note: online ? null : 'Thu tiền mặt tại văn phòng',
+    recordedByName: online ? null : 'Lê Thị Nhân Viên', bankReference: null,
   });
 });
 

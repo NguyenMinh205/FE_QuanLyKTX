@@ -3,7 +3,7 @@
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
 **Người đọc:** nhóm Backend (3 người)
 **Người lập:** FE Lead · **Ngày:** 15/09/2026
-**Đối chiếu:** `docs/API.md` **v1.2.11** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
+**Đối chiếu:** `docs/API.md` **v1.2.12** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
 
 > **Tóm tắt một dòng:** backend đang làm theo API **v1.1** (xếp giường bằng tay). Frontend đã làm xong 16/31 màn theo **v1.2** (đăng ký theo phòng, giường tự gán, nhu yếu phẩm). Để nối được, backend cần: **thêm 5 nhóm API còn thiếu**, **sửa định dạng/luật ở 7 nhóm đang lệch**, **bỏ 8 API thừa của v1.1**, và **sửa 6 lỗi chung**.
 
@@ -25,7 +25,7 @@
 | **P2** | Dọn dẹp, bảo mật, lỗi tiềm ẩn — không chặn giao diện |
 
 - **Nguồn sự thật** là `docs/API.md` (định dạng request/response, mã lỗi mục 13) và `docs/DATA-SCHEMA.md` (tên trường). Tài liệu này **không lặp lại** định dạng đã có ở `API.md`, chỉ chỉ ra chỗ lệch và việc cần làm.
-- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.11**.
+- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.12**.
 - Frontend có lớp dữ liệu giả (`src/mocks/`) trả **đúng** định dạng trong `API.md` — khi phân vân, chạy FE ở chế độ dữ liệu giả (`VITE_USE_MOCK=true`), mở F12 → Network để xem request/response mẫu.
 
 ---
@@ -210,7 +210,7 @@ Mọi endpoint lấy danh tính **từ JWT** (BR-86). Định dạng: **`API.md`
 | ❌ Chưa có xem trước lập hàng loạt | **Thêm `GET /invoices/generation-preview`** (`API.md` bản 1.2.11) — cùng cách tính, không ghi. Khai báo route **trước** `/invoices/:id`. Màn SCR-53 khóa nút Lập khi chưa xem trước được | `fee.routes.js:44-53` |
 | `GET /invoices` không có `search`, `buildingId`, `summary`; `studentId` bị populate; không có `remainingAmount`, phòng/tòa | Theo `API.md` bản 1.2.11: trường phẳng `studentName`, `studentCode`, `roomNumber`, `buildingCode`; `summary` của cả tập đã lọc, bỏ hóa đơn hủy | `fee.service.js:328-361` |
 | Hủy hóa đơn: cho hủy cả hóa đơn nhu yếu phẩm, quyết toán; không mở khóa chỉ số khi hủy hết hóa đơn tháng của phòng | `422 INVOICE_NOT_CANCELLABLE` cho `supplies`/`settlement`/đã hủy; mở lại `isInvoiced` của chỉ số khi phòng không còn hóa đơn tháng nào có tiền điện nước | `fee.service.js:398-417` |
-| `GET /invoices/:id` không có `payments` | Thêm danh sách thanh toán của hóa đơn | `fee.service.js:363-380` |
+| `GET /invoices/:id` không có `payments`, mã hợp đồng, phòng; vẫn dùng `items[{ name }]` | Theo `API.md` bản 1.2.12: `contractCode`, `note`, `payments[]` (cũ → mới, có `recordedByName`, `bankReference`), `supplyOrder`. FE tạm lấy lịch sử từ `GET /payments?invoiceId=` | `fee.service.js:363-380` |
 | `GET /invoices/overdue` bỏ sót hóa đơn đã ở trạng thái `overdue` | Lọc `status in [unpaid, partial, overdue]` và `dueDate < now` | `fee.service.js:419-427` |
 | `POST /invoices` không kiểm tra `amount = quantity × unitPrice` | Tự tính `amount`, không nhận từ client; `type` luôn `other`, `billingPeriod` null; hợp đồng phải `active`; từ chối loại phí `rent`, `deposit`, `supplies` (`API.md` bản 1.2.11) | `fee.service.js:382-396` |
 
@@ -219,7 +219,7 @@ Mọi endpoint lấy danh tính **từ JWT** (BR-86). Định dạng: **`API.md`
 | Lệch | Cần làm | Trích dẫn |
 |---|---|---|
 | **`GET /payments/vnpay/return` lỗi 500** (đọc `req.body` khi GET) | Đọc tham số từ `req.query` | `payment.controller.js:41` |
-| Trường `paymentMethod`; body offline không có `method` | Theo `DATA-SCHEMA` 3.11: `method`, `gatewayTransactionId`; body offline `{ invoiceId, amount, method: cash\|bank_transfer, note }` | `payment.model.js`, `payment.validation.js:8-18` |
+| Trường `paymentMethod`; body offline không có `method`, `paidAt`, `bankReference`; cho chuyển khoản không cần mã | Theo `API.md` bản 1.2.12 + `DATA-SCHEMA` 3.11 (bản 1.2.1): `method`, `gatewayTransactionId`, **`bankReference`** (bắt buộc khi chuyển khoản, không trùng → `409 DUPLICATE_ENTRY`); body `{ invoiceId, amount, method, paidAt, bankReference?, note? }`; trả `{ payment, invoice, supplyOrder }`; hóa đơn đã hủy → `422 INVOICE_CANCELLED`; `paidAmount` tính lại từ các thanh toán thành công (BR-43) | `payment.model.js`, `payment.validation.js:8-18` |
 | Trạng thái có cả `completed` và `success` | Chỉ `pending`, `success`, `failed`, `expired` | `enums.js:40` |
 | `POST /online/checkout` trả `paymentUrl` | `redirectUrl` như `API.md`; body `{ invoiceId, gateway, amount? }` | `payment.service.js:94-143` |
 | Có 2 bản trùng `/cash`, `/vnpay/create-url`, `/vnpay/verify` | Giữ `/offline`, `/online/checkout`, `/webhook/vnpay` (🗑️ bản trùng) | `payment.routes.js` |
@@ -290,6 +290,7 @@ Chưa có. Làm theo **`API.md` mục 11** + **`DATA-SCHEMA` 3.15–3.16** + **`
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.4 | 15/09/2026 | FE Lead | Chi tiết hóa đơn (3.12) + ghi nhận thanh toán tại quầy (3.13): `payments[]` trong chi tiết, `bankReference`, `paidAt`, `INVOICE_CANCELLED` |
 | 1.3 | 15/09/2026 | FE Lead | Hóa đơn (3.12): xem trước lập hàng loạt, danh sách + `summary`, hóa đơn lẻ, luật hủy |
 | 1.2 | 15/09/2026 | FE Lead | Chỉ số điện nước (3.12): định dạng danh sách cho màn SCR-51 |
 | 1.1 | 15/09/2026 | FE Lead | Phí (3.12): cập nhật dữ liệu loại phí đang có trên DB chung, thêm yêu cầu cho màn SCR-82 (`includeInactive`, `isSystem`, `FEE_TYPE_REQUIRED`) |

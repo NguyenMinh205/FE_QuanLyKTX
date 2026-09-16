@@ -25,3 +25,12 @@ export const cancelBlockReason = (inv) => {
 
 /** Hạn thanh toán mặc định của một kỳ: ngày 10 tháng kế tiếp */
 export const defaultDueDateOf = (period) => dayjs(`${period}-01`).add(1, 'month').date(10);
+
+/** "Tiền điện tháng 9/2026 (56 kWh, chia đều 2 người)" → { main: "Tiền điện tháng 9/2026", sub: "56 kWh, chia đều 2 người" } */
+export const splitLineDescription = (text) => {
+  const m = String(text || '').match(/^(.*?)\s*\(([^()]+)\)\s*$/);
+  return m ? { main: m[1], sub: m[2] } : { main: text || '—', sub: null };
+};
+
+/** Nội dung chuyển khoản gợi ý để kế toán đối soát: mã hóa đơn bỏ dấu "-" + MSSV */
+export const transferNoteOf = (inv) => `${String(inv.invoiceCode || '').replace(/-/g, '')} ${inv.studentCode || ''}`.trim();

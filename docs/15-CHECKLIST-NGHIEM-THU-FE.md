@@ -28,6 +28,7 @@
 | 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 14 | Nhập chỉ số điện nước | SCR-51 | `feature/utility-readings` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -959,6 +960,65 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 - [ ] 4 thẻ hiện "—", thẻ Quá hạn ghi "Backend chưa trả số tổng hợp".
 - [ ] Mở **Lập hóa đơn hàng loạt** → hộp đỏ "Không xem trước được kết quả lập hóa đơn — chưa lập được từ màn này", nút Lập mờ. F12 → Network chỉ có `GET /invoices/generation-preview` (400) — **không** có POST nào.
 - [ ] F12 → Console: 2 lỗi 404 `/room-types` (Dashboard) + 1 lỗi 400 `generation-preview` — đều đã biết.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 17. Chi tiết hóa đơn + Ghi nhận thanh toán (SCR-54, SCR-55)
+
+**Nhánh:** `feature/invoice-detail-payment` · **Đường dẫn:** Tài chính → Hóa đơn → bấm mã hóa đơn (`/admin/invoices/:id`) · **Chạy:** dữ liệu giả, tài khoản `staff@dorm.local`, **F5 trước khi bắt đầu**, từ 17.2 tới 17.5 làm liền mạch không F5.
+
+**Khác bản vẽ:**
+- Có thêm nút **Danh sách** (quay lại) và **Hủy hóa đơn** ở đầu trang (docs/08 mục 6.7: nút hủy khóa kèm lý do khi đã có thanh toán).
+- **In hóa đơn** dùng lệnh in của trình duyệt; bản in ẩn menu, nút.
+- **Ghi chú đối soát** chỉ hiện khi còn nợ, cú pháp chuyển khoản = mã hóa đơn bỏ dấu "-" + MSSV (có nút sao chép). Không có "tự động đối soát trong 15 phút": hệ thống không kết nối ngân hàng.
+- Modal thu tiền dùng nút radio **Tiền mặt / Chuyển khoản** gọn thay cho 2 thẻ lớn. Không có nút "Khớp tự động" (ngoài phạm vi).
+
+### 17.1. Trang chi tiết
+
+- [ ] Danh sách → Trạng thái **Thanh toán một phần** → bấm mã một hóa đơn **Hàng tháng** → mở `/admin/invoices/<id>`.
+- [ ] Tiêu đề "Hóa đơn INV-…" + tag trạng thái, dòng phụ "Hàng tháng · Kỳ MM/YYYY".
+- [ ] 3 thẻ: **Tổng tiền** ("N khoản phí") · **Đã thanh toán** (xanh, %) · **Còn lại** (đỏ, "Chưa thu x%"). Tổng = Đã thanh toán + Còn lại.
+- [ ] **Thông tin chung:** Sinh viên (MSSV) · Chỗ ở "Tòa B - Phòng B309 - Giường 02" · Loại · Kỳ · Ngày lập · Hạn (đỏ khi quá hạn) · Hợp đồng (link → màn Hợp đồng đã tìm sẵn mã).
+- [ ] **Chi tiết các khoản:** bảng Khoản mục / Đơn giá / Số lượng / Thành tiền, dòng điện nước có dòng phụ xám (VD "65 kWh" hoặc "56 kWh, chia đều 2 người" với hóa đơn lập ở mục 16), dòng **Tổng cộng** xanh.
+- [ ] **Lịch sử thanh toán:** "1 đợt thu", mục thời gian · VNPay · tag "+… đ" · mã giao dịch; mục cuối "Còn lại … chưa thanh toán — Chờ sinh viên tất toán trước …".
+- [ ] Nút **Hủy hóa đơn** mờ, rê chuột "Đã có thanh toán — không hủy được (BR-46)".
+- [ ] Ghi chú đối soát có mã dạng `INV202610000140 SV2026070`, bấm biểu tượng sao chép → "Đã sao chép".
+
+### 17.2. Ghi nhận thanh toán (SCR-55)
+
+- [ ] **Ghi nhận thanh toán** → khung xám: tên, MSSV, mã hóa đơn · tháng · phòng; Tổng / Đã trả (xanh) / **Còn lại** (đỏ).
+- [ ] Ô Số tiền thu = số còn lại, chip **Thu đủ (…)** sáng; nút **Xác nhận thu …** đúng số đó. Dưới cùng "Người thu: Lê Thị Nhân Viên".
+- [ ] Bấm **Thu một phần** → ô trống, con trỏ vào ô, nút mờ.
+- [ ] Gõ số lớn hơn còn lại → viền đỏ + "Số tiền vượt quá số còn phải trả (…)" + nút mờ có ổ khóa (BR-44).
+- [ ] Gõ **100000**, chọn **Chuyển khoản** → hiện ô Mã giao dịch ngân hàng; bấm xác nhận khi trống → "Nhập mã giao dịch ngân hàng".
+- [ ] Gõ `ft26256891042` → tự thành **FT26256891042** → xác nhận → "Đã thu 100.000 đ"; thẻ Đã thanh toán +100.000, Còn lại −100.000; lịch sử "2 đợt thu" có "Chuyển khoản", "Người thu: Lê Thị Nhân Viên", mã FT….
+- [ ] Mở lại, 1.000 đ, Chuyển khoản, cùng mã **FT26256891042** → lỗi dưới ô mã "Mã giao dịch này đã được ghi nhận trước đó".
+- [ ] Trong cùng hộp: **Thu đủ** + **Tiền mặt** → "Đã thu … — hóa đơn đã thanh toán đủ"; tag **Đã thanh toán**, Còn lại 0 đ, mất nút Ghi nhận thanh toán, lịch sử cuối "Đã thanh toán đủ".
+- [ ] Ô Ngày thu không chọn được ngày sau hôm nay.
+
+### 17.3. Thu tiền từ danh sách + nhu yếu phẩm (BR-95)
+
+- [ ] Danh sách → Chưa thanh toán + Loại **Nhu yếu phẩm** → dòng đầu có nút **Thu tiền** → hộp đúng mã hóa đơn → xác nhận thu đủ → thông báo "… Đơn hàng DH-… chuyển sang Chờ nhận hàng".
+- [ ] Tìm lại mã đó → **Đã thanh toán**, không còn nút Thu tiền. Mở chi tiết → dòng "Đơn hàng: Xem đơn hàng DH-…" + "Chờ nhận hàng".
+
+### 17.4. Hủy ở trang chi tiết
+
+- [ ] Mở một hóa đơn **Hàng tháng · Chưa thanh toán** → **Hủy hóa đơn** bật → xác nhận → hộp vàng "Hóa đơn đã hủy — sinh viên không phải trả khoản này", thẻ Còn lại "—", không còn nút thu / hủy, lịch sử "Hóa đơn đã hủy".
+- [ ] Gõ `/admin/invoices/khong-co` → trang "Không mở được hóa đơn" + nút **Về danh sách hóa đơn**.
+
+### 17.5. Quyền, in, màn hẹp
+
+- [ ] `viewer@dorm.local` → xem được chi tiết, **không có** Ghi nhận thanh toán, Hủy hóa đơn; danh sách không có cột Thao tác.
+- [ ] **In hóa đơn** → bản xem trước chỉ có nội dung hóa đơn, không có menu trái, thanh trên, các nút.
+- [ ] Cửa sổ ~1000px → 2 cột xếp chồng, trang không cuộn ngang.
+
+### 17.6. Với backend thật (chỉ xem — **không** bấm Ghi nhận thanh toán, Hủy trên DB chung)
+
+- [ ] Mở một hóa đơn `HD-TEST-…` → tên + MSSV, 1 khoản "Tiền phòng tháng 10" (FE đổi `items` → khoản phí), Chỗ ở "—" (backend chưa trả phòng).
+- [ ] Lịch sử thanh toán lấy từ danh sách thanh toán: thấy giao dịch VNPay **Đang xử lý** của hóa đơn đó.
+- [ ] F12 → Network không có request POST/PATCH nào khi chỉ xem.
 
 **Lỗi phát hiện:** _(chưa có)_
 

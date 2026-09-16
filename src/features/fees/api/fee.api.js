@@ -28,9 +28,10 @@ const withNormalizedFeeTypes = (promise) => promise.then((res) => ({
  * Chuẩn hóa hóa đơn về dạng DATA-SCHEMA 3.10. Backend hiện tại populate `studentId` thành object,
  * dùng `items[{ name }]` thay cho `lineItems[{ description }]` và không trả `remainingAmount` — nhận cả hai.
  */
-export const normalizeInvoice = (inv = {}) => {
+export const normalizeInvoice = ({ items, ...inv } = {}) => {
   const student = inv.studentId && typeof inv.studentId === 'object' ? inv.studentId : null;
-  const lineItems = inv.lineItems ?? (inv.items || []).map((it) => ({ ...it, description: it.description ?? it.name }));
+  // Bỏ hẳn `items` cũ: useApi coi mọi response có mảng `items` là danh sách phân trang
+  const lineItems = inv.lineItems ?? (items || []).map((it) => ({ ...it, description: it.description ?? it.name }));
   return {
     ...inv,
     studentId: student ? (student.id ?? student._id) : inv.studentId,
@@ -61,7 +62,8 @@ export const feeApi = {
 
   // Hóa đơn
   getInvoices:        (params)  => withNormalizedInvoiceList(USE_MOCK ? mockFees.getInvoices(params) : axiosClient.get('/invoices', { params })),
-  getInvoiceById:     (id)      => (USE_MOCK ? mockFees.getInvoiceById(id)         : axiosClient.get(`/invoices/${id}`)),
+  getInvoiceById:     (id)      => (USE_MOCK ? mockFees.getInvoiceById(id)         : axiosClient.get(`/invoices/${id}`))
+    .then((res) => ({ ...res, data: { ...res.data, data: normalizeInvoice(res.data?.data) } })),
   createInvoice:      (data)    => (USE_MOCK ? mockFees.createInvoice(data)        : axiosClient.post('/invoices', data)),
   // Xem trước dùng GET riêng: không bao giờ ghi dữ liệu, kể cả khi backend chưa hỗ trợ (POST dryRun bị backend bỏ qua sẽ lập hóa đơn thật)
   previewInvoiceGeneration: (params) => (USE_MOCK ? mockFees.previewInvoiceGeneration(params)

@@ -340,6 +340,7 @@ const INVOICE_TYPE = ['deposit', 'monthly', 'settlement', 'supplies', 'other'];
 | `gatewayRawResponse` | Mixed | raw webhook payload, stored for audit/reconciliation |
 | `status` | String (enum) | `pending`, `success`, `failed`, `expired` |
 | `paidAt` | Date | set when `status` becomes `success` |
+| `bankReference` | String | *(1.2.1)* bank statement reference for `method: 'bank_transfer'` — required for that method, uppercased, unique among `success` payments (partial index) so one transfer is never recorded twice; null otherwise |
 | `recordedBy` | ObjectId ref `User` | staff who recorded it; null for online self-service payments |
 | `note` | String | |
 
@@ -628,5 +629,6 @@ module.exports = mongoose.model('Bed', bedSchema);
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial schema, 9 collections |
+| 1.2.1 | 15/09/2026 | `Payment.bankReference` for offline bank transfers (SCR-55): required for `bank_transfer`, unique among successful payments. |
 | **1.2** | **13/09/2026** | **Register by room, not bed.** Added `RoomType` (§3.13: tier × capacity, price, deposit, amenities), `Application` (§3.14: student applications, approval assigns the lowest free bed atomically), `SupplyItem` + `SupplyOrder` (§3.15–3.16: supplies shop billed through a `supplies` invoice, auto-cancel when unpaid). `Room` loses `pricePerBed`, gains `roomTypeId` + `floor`, beds are generated automatically; `Bed` gains `bedNumber`. `Contract` loses `pending`, gains `applicationId` + `roomTypeId`, price and deposit frozen from the room type. Checkout cancels unpaid supply orders before settlement. 16 collections. |
 | 1.1 | 12/09/2026 | Added `Room.gender` (A1), `UtilityReading` collection (A2), `Contract.depositRefunded` + `Payment.type` + §4 settlement (A3). Added `invoiceCode`/`contractCode`/`transactionRef`, invoice `type` and `cancelled` status, `User.fullName`/`mustChangePassword`. Documented the deposit-invoice separation trap, the atomic bed claim, and concrete `partialFilterExpression` index definitions. |

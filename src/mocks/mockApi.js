@@ -1038,12 +1038,19 @@ export const mockFees = {
     };
     return res;
   },
+  /** GET /invoices/:id — kèm hợp đồng, chỗ ở, lịch sử thanh toán (cũ → mới) và đơn hàng nhu yếu phẩm */
   getInvoiceById: async (id) => {
     await delay();
     const inv = invoices.find((x) => x.id === id);
     if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
     const order = supplyOrders.find((o) => o.invoiceId === id);
-    return ok({ ...withRemaining(inv), payments: payments.filter((p) => p.invoiceId === id), supplyOrder: order ? { id: order.id, orderCode: order.orderCode, status: order.status } : null });
+    const contract = contracts.find((c) => c.id === inv.contractId);
+    return ok({
+      ...invoiceView(inv),
+      contractCode: contract?.contractCode ?? null,
+      payments: payments.filter((p) => p.invoiceId === id).sort((a, b) => String(a.paidAt).localeCompare(String(b.paidAt))),
+      supplyOrder: order ? { id: order.id, orderCode: order.orderCode, status: order.status } : null,
+    });
   },
   /**
    * POST /invoices — hóa đơn lẻ loại `other` cho sinh viên đang có hợp đồng (FR-46).
@@ -1124,26 +1131,57 @@ export const mockPayments = {
   getList: async (q = {}) => {
     await delay();
     let rows = payments;
+    if (q.invoiceId) rows = rows.filter((p) => p.invoiceId === q.invoiceId);
+    if (q.studentId) rows = rows.filter((p) => p.studentId === q.studentId);
+    if (q.type) rows = rows.filter((p) => p.type === q.type);
     if (q.method) rows = rows.filter((p) => p.method === q.method);
     if (q.status) rows = rows.filter((p) => p.status === q.status);
     rows = search(rows, q.search, ['transactionRef', 'invoiceCode', 'studentName']);
     return paginate(rows, q);
   },
-  recordOffline: async ({ invoiceId, amount, method = 'cash' }) => {
+  /**
+   * POST /payments/offline — { invoiceId, amount, method: cash|bank_transfer, paidAt, bankReference?, note? } (FR-51).
+   * Chuyển khoản bắt buộc mã giao dịch ngân hàng, không trùng (tránh ghi một khoản chuyển hai lần).
+   */
+  recordOffline: async (body = {}) => {
     await delay();
-    const inv = invoices.find((x) => x.id === invoiceId);
+    const inv = invoices.find((x) => x.id === body.invoiceId);
     if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
-    if (inv.status === 'paid') fail(422, 'INVOICE_ALREADY_PAID', 'Hóa đơn đã được thanh toán đủ');
-    if (Number(amount) > inv.totalAmount - inv.paidAmount) fail(422, 'PAYMENT_EXCEEDS_REMAINING', 'Số tiền thanh toán vượt quá số còn nợ');
-    inv.paidAmount += Number(amount);
-    inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : 'partial';
-    payments.push({
+    if (inv.status === 'cancelled') fail(422, 'INVOICE_CANCELLED', 'Hóa đơn đã hủy, không thu tiền được');
+    if (inv.status === 'paid') fail(422, 'INVOICE_ALREADY_PAID', 'Hóa đơn đã được thanh toán đủ'); // BR-45
+    const errors = [];
+    const amount = Number(body.amount);
+    if (!Number.isInteger(amount) || amount <= 0) errors.push({ field: 'amount', message: 'Số tiền thu phải lớn hơn 0' });
+    if (!['cash', 'bank_transfer'].includes(body.method)) errors.push({ field: 'method', message: 'Chọn hình thức thanh toán' });
+    const bankReference = String(body.bankReference || '').trim().toUpperCase();
+    if (body.method === 'bank_transfer' && !bankReference) errors.push({ field: 'bankReference', message: 'Nhập mã giao dịch ngân hàng' });
+    if (!body.paidAt) errors.push({ field: 'paidAt', message: 'Chọn ngày thu' });
+    else if (String(body.paidAt).slice(0, 10) > todayPlus(0)) errors.push({ field: 'paidAt', message: 'Ngày thu không được sau hôm nay' });
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+    const remaining = inv.totalAmount - inv.paidAmount;
+    if (amount > remaining) fail(422, 'PAYMENT_EXCEEDS_REMAINING', `Số tiền vượt quá số còn phải trả (${remaining.toLocaleString('vi-VN')} đ)`); // BR-44
+    if (bankReference && payments.some((p) => p.bankReference === bankReference && p.status === 'success')) {
+      fail(409, 'DUPLICATE_ENTRY', `Mã giao dịch ${bankReference} đã được ghi nhận`, { errors: [{ field: 'bankReference', message: 'Mã giao dịch này đã được ghi nhận trước đó' }] });
+    }
+    const payment = {
       id: `p-${Date.now()}`, transactionRef: `PAY${Date.now()}`, invoiceId: inv.id, invoiceCode: inv.invoiceCode, invoiceType: inv.type,
-      studentId: inv.studentId, studentName: inv.studentName, amount: Number(amount), type: 'payment', method,
-      gatewayTransactionId: null, status: 'success', paidAt: new Date().toISOString(), note: null,
-    });
-    if (inv.status === 'paid' && inv.type === 'supplies') markSupplyOrderReady(inv.id); // BR-95
-    return ok({ invoice: withRemaining(inv) }, 'Ghi nhận thanh toán thành công');
+      studentId: inv.studentId, studentName: inv.studentName, amount, type: 'payment', method: body.method,
+      gatewayTransactionId: null, bankReference: bankReference || null, status: 'success',
+      paidAt: String(body.paidAt).length === 10 ? `${body.paidAt}T${new Date().toTimeString().slice(0, 8)}+07:00` : body.paidAt,
+      note: String(body.note || '').trim() || null, recordedByName: authStorage.getUser()?.fullName ?? null,
+    };
+    payments.push(payment);
+    // BR-43: tính lại từ các thanh toán thành công, không cộng dồn
+    inv.paidAmount = payments.filter((p) => p.invoiceId === inv.id && p.type === 'payment' && p.status === 'success').reduce((t, p) => t + p.amount, 0);
+    inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : 'partial';
+    let supplyOrder = null;
+    if (inv.status === 'paid' && inv.type === 'supplies') { // BR-95
+      markSupplyOrderReady(inv.id);
+      const order = supplyOrders.find((o) => o.invoiceId === inv.id);
+      supplyOrder = order ? { id: order.id, orderCode: order.orderCode, status: order.status } : null;
+    }
+    const message = inv.status === 'paid' ? `Đã thu ${amount.toLocaleString('vi-VN')} đ — hóa đơn đã thanh toán đủ` : `Đã thu ${amount.toLocaleString('vi-VN')} đ`;
+    return ok({ payment, invoice: withRemaining(inv), supplyOrder }, message);
   },
   checkout: async ({ invoiceId, gateway = 'vnpay' }) => {
     await delay();

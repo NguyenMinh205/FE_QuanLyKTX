@@ -555,12 +555,51 @@ Errors: `CONTRACT_NOT_ACTIVE` (422), `VALIDATION_ERROR` with field errors on `re
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/payments` | admin, staff, viewer | List — `?invoiceId=&studentId=&method=&status=` |
-| POST | `/api/payments/offline` | admin, staff | Record manual cash/bank-transfer payment |
+| GET | `/api/payments` | admin, staff, viewer | List — `?invoiceId=&studentId=&type=payment\|refund&method=&status=` |
+| POST | `/api/payments/offline` | admin, staff | Record manual cash/bank-transfer payment — `{ invoiceId, amount, method, paidAt, bankReference?, note? }` |
 | POST | `/api/payments/online/checkout` | student | Start a VNPay/ZaloPay session — returns redirect URL / QR |
 | POST | `/api/payments/webhook/vnpay` | public (gateway signed) | VNPay callback — verifies signature, updates `Payment` + `Invoice` |
 | POST | `/api/payments/webhook/zalopay` | public (gateway signed) | ZaloPay callback — same as above |
 | POST | `/api/payments/:id/reconcile` | admin, staff | Re-query the gateway for a stuck `pending` transaction |
+
+**POST `/api/payments/offline`** *(v1.2.12 — SCR-55)*
+```json
+// request — bankReference required when method = bank_transfer
+{ "invoiceId": "665f5c...", "amount": 243750, "method": "bank_transfer", "paidAt": "2026-09-13",
+  "bankReference": "FT26256891042", "note": "Nộp đợt 2" }
+// response 201
+{ "code": "OK", "message": "Đã thu 243.750 đ — hóa đơn đã thanh toán đủ",
+  "data": {
+    "payment": { "id": "6662c1...", "transactionRef": "PAY20260913ABC123", "invoiceId": "665f5c...", "amount": 243750, "type": "payment",
+                 "method": "bank_transfer", "bankReference": "FT26256891042", "status": "success",
+                 "paidAt": "2026-09-13T14:30:00+07:00", "recordedByName": "Lê Thị Nhân Viên", "note": "Nộp đợt 2" },
+    "invoice": { "id": "665f5c...", "totalAmount": 443750, "paidAmount": 443750, "remainingAmount": 0, "status": "paid" },
+    "supplyOrder": null
+  } }
+```
+> - Offline payments are recorded as `success` immediately. `paidAmount` is then **recomputed** from successful payments (BR-43).
+> - `paidAt` is a date not after today; the server adds the current time.
+> - `bankReference` is uppercased; the same reference on another successful payment → `409 DUPLICATE_ENTRY` with a field error on `bankReference`, so one bank transfer is never recorded twice.
+> - A `supplies` invoice that becomes `paid` moves its order to `ready` (BR-95); the order is returned in `supplyOrder` so the screen can say so.
+>
+> Errors:
+> - `400 VALIDATION_ERROR`: `amount` ≤ 0, missing `method`/`paidAt`, `bankReference` missing for bank transfer.
+> - `422 PAYMENT_EXCEEDS_REMAINING` (BR-44).
+> - `422 INVOICE_ALREADY_PAID` (BR-45).
+> - `422 INVOICE_CANCELLED`.
+
+**GET `/api/invoices/:id`** *(v1.2.12 — SCR-54)*
+> Same fields as a list item (§7 v1.2.11), plus:
+> - `contractCode`, `note`.
+> - `payments[]`, oldest first: `transactionRef`, `amount`, `type`, `method`, `status`, `paidAt`, `recordedByName`, `bankReference`, `gatewayTransactionId`, `note`.
+> - `supplyOrder: { id, orderCode, status } | null` for `supplies` invoices.
+>
+> Utility line descriptions keep the `(… kWh, chia đều N người)` suffix; the screen shows it as a second line.
+>
+> **Backend status (15/09/2026):**
+> - Detail has no `payments`, contract code or room fields, and still uses `items[{ name }]`.
+> - The frontend falls back to `GET /payments?invoiceId=`, mapping `paymentMethod`, `transactionId` and `recordedBy.fullName`.
+> - The offline body uses `paymentMethod`, has no `bankReference`/`paidAt` and allows `bank_transfer` without a reference. Recording from the screen is not verified against the backend.
 
 **POST `/api/payments/online/checkout`**
 ```json
@@ -853,6 +892,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `ROOM_HAS_OCCUPANTS` | 422 | Cannot change room type or gender of an occupied room *(v1.2)* |
 | `BED_OCCUPIED` | 422 | Cannot set an occupied bed to maintenance |
 | `INVOICE_ALREADY_PAID` | 422 | Invoice already fully paid |
+| `INVOICE_CANCELLED` | 422 | Cannot record a payment on a cancelled invoice *(v1.2.12)* |
 | `INVOICE_HAS_PAYMENT` | 422 | Cannot cancel an invoice that has payments |
 | `INVOICE_NOT_CANCELLABLE` | 422 | Invoice already cancelled, or is a `supplies`/`settlement` invoice that is cancelled elsewhere *(v1.2.11)* |
 | `PAYMENT_EXCEEDS_REMAINING` | 422 | Payment larger than the outstanding balance |
@@ -884,6 +924,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.12 | 15/09/2026 | Invoice detail + offline payment (SCR-54/55): `GET /invoices/:id` adds `contractCode`, `note`, `payments[]` with `recordedByName`/`bankReference`, `supplyOrder`; `POST /payments/offline` body `{ invoiceId, amount, method, paidAt, bankReference?, note? }` and response `{ payment, invoice, supplyOrder }`; duplicate bank reference, `INVOICE_CANCELLED`; `GET /payments` `type` filter. |
 | 1.2.11 | 15/09/2026 | Invoices (SCR-52/53): list filters `search`/`buildingId`, flat room/student fields and `summary`; new `GET /invoices/generation-preview` (same shape as generate, adds `eligibleStudents`, `readyRooms`, `skipped[].code`); one-off `POST /invoices` body and rules; cancel rules with new `INVOICE_NOT_CANCELLABLE` and reading unlock. |
 | 1.2.10 | 15/09/2026 | Utility readings (SCR-51): list item shape with `roomId`, `roomNumber`, frozen prices, amounts, `recordedByName`/`recordedAt`; `roomId` filter; `PUT` keeps frozen prices; future period and duplicate rules; how the entry screen prefills start readings. |
 | 1.2.9 | 15/09/2026 | Fee types (SCR-82): `includeInactive` list flag, `isSystem`, create/update bodies and validation, `FEE_TYPE_REQUIRED`; recorded backend differences. |
