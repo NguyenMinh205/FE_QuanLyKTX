@@ -24,6 +24,8 @@ import InvoicesPage from '../features/fees/pages/InvoicesPage';
 import InvoiceDetailPage from '../features/fees/pages/InvoiceDetailPage';
 import PaymentsPage from '../features/payments/pages/PaymentsPage';
 import SuppliesPage from '../features/supplies/pages/SuppliesPage';
+import MyResidencePage from '../features/portal/pages/MyResidencePage';
+import ProfilePage from '../features/portal/pages/ProfilePage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 import RequestsPage from '../features/requests/pages/RequestsPage';
@@ -80,13 +82,13 @@ export default function AppRoutes() {
         <Route path="/portal/home" element={<PortalHomePage />} />
         <Route path="/portal/change-password" element={<ChangePasswordPage />} />
         <Route path="/portal/apply" element={<ApplyPage />} />
-        <Route path="/portal/my-residence" element={todo('Chỗ ở & hợp đồng', 'portal', '/api/portal/my-residence')} />
+        <Route path="/portal/my-residence" element={<MyResidencePage />} />
         <Route path="/portal/my-invoices" element={todo('Hóa đơn của tôi', 'portal', '/api/portal/my-invoices')} />
         <Route path="/portal/payment-result" element={todo('Kết quả thanh toán', 'payments', '/api/payments')} />
         <Route path="/portal/my-requests" element={<MyRequestsPage />} />
         <Route path="/portal/shop" element={todo('Mua sắm nhu yếu phẩm', 'portal', '/api/portal/supply-items')} />
         <Route path="/portal/my-orders" element={todo('Đơn hàng của tôi', 'portal', '/api/portal/my-supply-orders')} />
-        <Route path="/portal/profile" element={todo('Hồ sơ cá nhân', 'portal', '/api/portal/profile')} />
+        <Route path="/portal/profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

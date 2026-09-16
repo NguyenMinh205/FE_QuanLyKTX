@@ -3,7 +3,7 @@
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
 **Người đọc:** nhóm Backend (3 người)
 **Người lập:** FE Lead · **Ngày:** 15/09/2026
-**Đối chiếu:** `docs/API.md` **v1.2.14** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
+**Đối chiếu:** `docs/API.md` **v1.2.15** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
 
 > **Tóm tắt một dòng:** backend đang làm theo API **v1.1** (xếp giường bằng tay). Frontend đã làm xong 16/31 màn theo **v1.2** (đăng ký theo phòng, giường tự gán, nhu yếu phẩm). Để nối được, backend cần: **thêm 5 nhóm API còn thiếu**, **sửa định dạng/luật ở 7 nhóm đang lệch**, **bỏ 8 API thừa của v1.1**, và **sửa 6 lỗi chung**.
 
@@ -25,7 +25,7 @@
 | **P2** | Dọn dẹp, bảo mật, lỗi tiềm ẩn — không chặn giao diện |
 
 - **Nguồn sự thật** là `docs/API.md` (định dạng request/response, mã lỗi mục 13) và `docs/DATA-SCHEMA.md` (tên trường). Tài liệu này **không lặp lại** định dạng đã có ở `API.md`, chỉ chỉ ra chỗ lệch và việc cần làm.
-- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.14**.
+- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.15**.
 - Frontend có lớp dữ liệu giả (`src/mocks/`) trả **đúng** định dạng trong `API.md` — khi phân vân, chạy FE ở chế độ dữ liệu giả (`VITE_USE_MOCK=true`), mở F12 → Network để xem request/response mẫu.
 
 ---
@@ -176,13 +176,14 @@ Mọi endpoint lấy danh tính **từ JWT** (BR-86). Định dạng: **`API.md`
 
 | Endpoint | Màn FE | Ưu tiên | Ghi chú định dạng FE đang dùng |
 |---|---|---|---|
-| `GET /portal/profile` | SCR-61, 62, 69 | P0 | Hồ sơ `Student` (cần `fullName`, `studentCode`, `gender`, `faculty`, `className`) |
+| `GET /portal/profile` | SCR-61, 62, **69 (đã xong)** | P0 | Hồ sơ `Student`: `fullName`, `studentCode`, `gender`, `dob`, `faculty`, `className`, `phone`, `email`, `emergencyContact { name, relationship, phone }` — màn hồ sơ chỉ đọc (FR-86) |
 | `GET /portal/my-residence` | SCR-61, 66, header cổng SV | **P0** | Xem **`API.md` mục 10** (bản 1.2.8): `{ hasResidence: false }` hoặc `{ hasResidence: true, contract, roomType, includedInRoom, roommates, debtSummary }` |
 | `GET /portal/my-applications` · `POST` · `DELETE /:id` | SCR-61, 62 | **P0** | Mảng đơn của mình, **mới nhất lên đầu**, cùng định dạng item của `GET /applications`. Tạo đơn không giữ chỗ (BR-34) |
 | `GET /portal/my-requests` · `POST` · `DELETE /:id` | SCR-66 | P0 ⚠️ | Đã có — xem 3.9 (kiểm tra ngày, tách router) |
 | `GET /portal/my-invoices` · `/:id` | SCR-61, 64 | P0 (trang chủ) / P1 | Hóa đơn của mình, có `lineItems`, `remainingAmount` |
 | `GET /portal/supply-items` · `GET/POST /portal/my-supply-orders` · `PATCH /:id/cancel` | SCR-61, 67, 68 | P0 (trang chủ gợi ý) / P1 | Xem `API.md` mục 10–11 |
-| `GET /portal/my-contracts`, `GET /portal/my-payments` | SCR-63, 64 | P1 | |
+| `GET /portal/my-contracts` | **SCR-63 (đã xong)** | **P0** | Mảng hợp đồng của mình, mới nhất lên đầu; hợp đồng cũ cần `contractCode`, `bedCode`, `buildingName`, `startDate`, `endDate`, `status`, `terminationReason` để dựng bảng lịch sử lưu trú (FR-39) |
+| `GET /portal/my-payments` | SCR-64 | P1 | |
 
 > Hiện `GET /invoices`, `GET /payments`, `GET /contracts/:id` cho role `student` xem đồ của mình — **giữ quyền đó** nhưng FE chỉ gọi qua `/portal/*` để tách rõ.
 
@@ -291,6 +292,7 @@ Chưa có (`/api/supply-items`, `/api/supply-orders` đều trả `404`). Màn S
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.7 | 16/09/2026 | FE Lead | Cổng SV (3.10): `profile` và `my-contracts` cho 2 màn SCR-63, SCR-69 đã xong |
 | 1.6 | 16/09/2026 | FE Lead | Nhu yếu phẩm (3.14): định dạng cho màn quản trị SCR-71 đã làm xong |
 | 1.5 | 16/09/2026 | FE Lead | Lịch sử thanh toán (3.13): danh sách có `summary`, lọc, đối soát giao dịch treo |
 | 1.4 | 15/09/2026 | FE Lead | Chi tiết hóa đơn (3.12) + ghi nhận thanh toán tại quầy (3.13): `payments[]` trong chi tiết, `bankReference`, `paidAt`, `INVOICE_CANCELLED` |

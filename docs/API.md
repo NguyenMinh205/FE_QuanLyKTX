@@ -730,9 +730,9 @@ All endpoints resolve the student from the **JWT**. Passing another student's id
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/portal/profile` | student | Own profile (read-only) |
+| GET | `/api/portal/profile` | student | Own profile (read-only) — full `Student` record incl. `dob`, `faculty`, `className`, `phone`, `email`, `emergencyContact` |
 | GET | `/api/portal/my-residence` | student | Current building/room/bed, room type with everything issued, contract + debt summary |
-| GET | `/api/portal/my-contracts` | student | Current + historical contracts |
+| GET | `/api/portal/my-contracts` | student | Current + historical contracts — plain array, newest first; history rows need `contractCode`, `bedCode`, `buildingName`, dates, `status`, `terminationReason` (FR-39) |
 | GET | `/api/portal/my-invoices` | student | Own invoices — `?status=&type=` |
 | GET | `/api/portal/my-invoices/:id` | student | Own invoice detail with line items |
 | GET | `/api/portal/my-payments` | student | Own payment history |
@@ -970,6 +970,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.15 | 16/09/2026 | Portal residence + profile (SCR-63/69): `/portal/profile` field list for the read-only profile screen, `/portal/my-contracts` fields used by the residence history table. |
 | 1.2.14 | 16/09/2026 | Supplies staff screen (SCR-71): `supply-orders` `from`/`to` + search fields, full `summary` counts, flat order fields with `roomCode`/`deliveredByName`, detail `invoice`; `supply-items` pagination + `includedRoomTypeNames` and the create/update body; cancel reason minimum length. |
 | 1.2.13 | 16/09/2026 | Payment history (SCR-56): `GET /payments` flat fields, `search`/`from`/`to` filters, `summary`, sort rule; `POST /payments/:id/reconcile` response and rules with `PAYMENT_NOT_PENDING`, `PAYMENT_NOT_ONLINE`. |
 | 1.2.12 | 15/09/2026 | Invoice detail + offline payment (SCR-54/55): `GET /invoices/:id` adds `contractCode`, `note`, `payments[]` with `recordedByName`/`bankReference`, `supplyOrder`; `POST /payments/offline` body `{ invoiceId, amount, method, paidAt, bankReference?, note? }` and response `{ payment, invoice, supplyOrder }`; duplicate bank reference, `INVOICE_CANCELLED`; `GET /payments` `type` filter. |

@@ -31,6 +31,7 @@
 | 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả (backend chưa có API) | ⬜ Chưa test |
+| 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1134,6 +1135,65 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 
 - [ ] Vào màn → cả 2 tab báo **"Không tìm thấy endpoint: GET /api/supply-orders…"** và `/api/supply-items`; 4 thẻ hiện "—".
 - [ ] Đây là đúng hiện trạng: backend **chưa có module nhu yếu phẩm** (xem `16-YEU-CAU-API-BACKEND.md` mục 3.14). Màn chỉ chạy đầy đủ với dữ liệu giả cho tới khi backend bổ sung.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 20. Cổng SV: Chỗ ở & hợp đồng + Hồ sơ cá nhân (SCR-63, SCR-69)
+
+**Nhánh:** `feature/portal-residence-profile` · **Đường dẫn:** Cổng SV → Chỗ ở & hợp đồng (`/portal/my-residence`) và Hồ sơ cá nhân (menu tài khoản, `/portal/profile`) · **Chạy:** dữ liệu giả, **F5 trước khi bắt đầu**.
+
+**Tài khoản dùng để test** (mật khẩu đều `Student@123`):
+- `sv001@dorm.local` — đang ở A101, có công nợ.
+- `sv002@dorm.local` — chưa có chỗ ở.
+- `sv007@dorm.local` — **mới thêm**: từng ở năm trước, hiện không còn chỗ (để xem lịch sử lưu trú).
+
+**Ghi chú:** cả 2 màn không có bản vẽ (📋). Hồ sơ **chỉ đọc** theo FR-86 — không có ô nhập hay nút lưu.
+
+### 20.1. Chỗ ở & hợp đồng — đang ở (sv001)
+
+- [ ] Thẻ **Chỗ ở của tôi**: số phòng lớn **A101**, dòng "Tòa A · Giường 01", loại phòng "Tiêu chuẩn · 6 người" kèm giá tháng.
+- [ ] **Bạn cùng phòng**: danh sách họ tên + MSSV (5 người). Phòng chỉ có mình → "Chưa có ai khác trong phòng".
+- [ ] **Phòng đã có sẵn**: các tag đồ cấp sẵn (Giường tầng, Tủ cá nhân…) + link **Mua thêm đồ dùng** → màn Mua sắm.
+- [ ] Thẻ **Hợp đồng lưu trú**: tag Đang hiệu lực, mã hợp đồng, thời hạn `01/09/2026 → 30/06/2027` kèm "Còn N ngày", tiền phòng, tiền cọc, điều khoản.
+- [ ] Thẻ **Công nợ**: số tiền đỏ + "N hóa đơn chưa thanh toán" + nút **Thanh toán ngay** → màn Hóa đơn. Không nợ thì hiện "Bạn không còn khoản nào phải thanh toán".
+- [ ] **Lịch sử lưu trú**: sv001 chưa có hợp đồng cũ → "Đây là lần đầu bạn ở ký túc xá".
+
+### 20.2. Điều hướng
+
+- [ ] **Gia hạn hợp đồng** → mở màn Yêu cầu của tôi với hộp **Tạo yêu cầu mới** (loại Gia hạn, có dòng "Gia hạn không thu thêm tiền cọc").
+- [ ] **Xin trả phòng** → hộp Tạo yêu cầu mới ở loại Trả phòng (có ô "Ngày dự kiến trả phòng").
+- [ ] Link **Xem hóa đơn** ở thẻ Công nợ → màn Hóa đơn của tôi.
+- [ ] Hợp đồng còn ≤ 30 ngày (đăng nhập `sv004@dorm.local`) → đầu trang có dải vàng "Hợp đồng còn N ngày…" kèm nút **Gia hạn**.
+
+### 20.3. Chưa có chỗ ở (sv002)
+
+- [ ] Màn hiện "Bạn chưa có chỗ ở tại ký túc xá" + nút **Đăng ký chỗ ở** → mở màn đăng ký.
+- [ ] Vào Hồ sơ cá nhân → dòng "Chỗ ở hiện tại: Chưa có chỗ ở".
+
+### 20.4. Lịch sử lưu trú (sv007, FR-39)
+
+- [ ] Màn Chỗ ở & hợp đồng: phần trên báo chưa có chỗ ở, phía dưới có bảng **Lịch sử lưu trú**.
+- [ ] Bảng có mã hợp đồng cũ `HD-2025-…`, chỗ ở, thời hạn, trạng thái **Hết hạn** hoặc **Đã chấm dứt** (kèm lý do chấm dứt).
+
+### 20.5. Hồ sơ cá nhân (SCR-69, FR-86)
+
+- [ ] Mở từ menu tài khoản góc phải → **Hồ sơ cá nhân**.
+- [ ] Hộp xanh "Hồ sơ chỉ để xem — … mang thẻ sinh viên đến văn phòng ban quản lý để chỉnh sửa".
+- [ ] Thẻ trái: chữ cái tên, họ tên, MSSV, tag giới tính, chỗ ở hiện tại, tài khoản đăng nhập, nút **Đổi mật khẩu** → màn đổi mật khẩu.
+- [ ] Thẻ **Thông tin sinh viên**: họ tên, mã SV, ngày sinh, khoa, lớp, số điện thoại (dạng `0912 000 000`), email.
+- [ ] Thẻ **Liên hệ khẩn cấp**: họ tên, quan hệ, số điện thoại. Không có dữ liệu → câu nhắc báo văn phòng bổ sung.
+- [ ] **Toàn trang không có ô nhập hay nút Lưu** (FR-86).
+
+### 20.6. Màn hẹp
+
+- [ ] Thu cửa sổ ~400px (hoặc mở bằng điện thoại): 2 cột xếp chồng, trang không cuộn ngang.
+
+### 20.7. Với backend thật
+
+- [ ] Backend **chưa có nhóm API cổng sinh viên**: cả 2 màn hiện tiêu đề bình thường kèm hộp đỏ "Không tải được thông tin chỗ ở / hồ sơ — Không tìm thấy endpoint: GET /api/portal/my-residence (hoặc /profile)".
+- [ ] Đây là đúng hiện trạng, đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.10; 2 màn chỉ chạy đầy đủ với dữ liệu giả cho tới khi backend bổ sung.
 
 **Lỗi phát hiện:** _(chưa có)_
 

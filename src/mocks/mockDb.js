@@ -21,7 +21,8 @@ const TEN_NU = ['Thị Bích', 'Ngọc Ánh', 'Thu Hà', 'Phương Linh', 'Khán
 const KHOA = ['Công nghệ thông tin', 'Kinh tế', 'Cơ khí', 'Điện - Điện tử'];
 
 /** Chỉ số sinh viên dùng cho tài khoản thử */
-export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75 };
+// sv007: sinh viên từng ở năm trước, hiện không còn chỗ — dùng để xem lịch sử lưu trú (FR-39)
+export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75, sv007: 80 };
 
 // ---------------------------------------------------------------- loại phòng
 const BASIC = ['Giường tầng', 'Tủ cá nhân', 'Quạt trần', 'Bàn học chung'];
