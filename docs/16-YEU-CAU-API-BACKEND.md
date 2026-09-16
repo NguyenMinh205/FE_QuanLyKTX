@@ -3,7 +3,7 @@
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
 **Người đọc:** nhóm Backend (3 người)
 **Người lập:** FE Lead · **Ngày:** 15/09/2026
-**Đối chiếu:** `docs/API.md` **v1.2.13** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
+**Đối chiếu:** `docs/API.md` **v1.2.14** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
 
 > **Tóm tắt một dòng:** backend đang làm theo API **v1.1** (xếp giường bằng tay). Frontend đã làm xong 16/31 màn theo **v1.2** (đăng ký theo phòng, giường tự gán, nhu yếu phẩm). Để nối được, backend cần: **thêm 5 nhóm API còn thiếu**, **sửa định dạng/luật ở 7 nhóm đang lệch**, **bỏ 8 API thừa của v1.1**, và **sửa 6 lỗi chung**.
 
@@ -25,7 +25,7 @@
 | **P2** | Dọn dẹp, bảo mật, lỗi tiềm ẩn — không chặn giao diện |
 
 - **Nguồn sự thật** là `docs/API.md` (định dạng request/response, mã lỗi mục 13) và `docs/DATA-SCHEMA.md` (tên trường). Tài liệu này **không lặp lại** định dạng đã có ở `API.md`, chỉ chỉ ra chỗ lệch và việc cần làm.
-- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.13**.
+- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.14**.
 - Frontend có lớp dữ liệu giả (`src/mocks/`) trả **đúng** định dạng trong `API.md` — khi phân vân, chạy FE ở chế độ dữ liệu giả (`VITE_USE_MOCK=true`), mở F12 → Network để xem request/response mẫu.
 
 ---
@@ -47,7 +47,7 @@
 | 11 | Dashboard (`/dashboard`) | SCR-10 | ⚠️ định dạng khác | P0 |
 | 12 | Phí, chỉ số, hóa đơn (`/fee-types`, `/utility-readings`, `/invoices`) | SCR-51→55, 82 | ⚠️ lệch tên trường | P1 |
 | 13 | Thanh toán (`/payments`) | SCR-54→56, 64, 65 | ⚠️ | P1 |
-| 14 | **Nhu yếu phẩm (`/supply-items`, `/supply-orders`)** | SCR-67, 68, 71 | ❌ | P1 |
+| 14 | **Nhu yếu phẩm (`/supply-items`, `/supply-orders`)** | SCR-67, 68, **71 (đã xong)** | ❌ | **P0 cho `/supply-*`** · P1 cho cổng SV |
 | 15 | Lưu trú (`/residencies`) | — (không có màn riêng) | 🗑️ phần tạo tay | P2 |
 
 ---
@@ -230,7 +230,7 @@ Mọi endpoint lấy danh tính **từ JWT** (BR-86). Định dạng: **`API.md`
 
 ### 3.14. Nhu yếu phẩm — P1 ❌
 
-Chưa có. Làm theo **`API.md` mục 11** + **`DATA-SCHEMA` 3.15–3.16** + **`03` BR-90 → BR-97**: `supply-items` (CRUD, `includedInRoomTypes`), `supply-orders` (danh sách + `summary`, chi tiết, giao hàng, hủy), đặt hàng ở cổng SV sinh **1 hóa đơn `supplies`**, giá lấy từ danh mục (không tin giá client gửi), Scheduler hủy đơn quá hạn thanh toán.
+Chưa có (`/api/supply-items`, `/api/supply-orders` đều trả `404`). Màn SCR-71 đã xong và đang chạy bằng dữ liệu giả. Làm theo **`API.md` mục 11** (bản 1.2.14) + **`DATA-SCHEMA` 3.15–3.16** + **`03` BR-90 → BR-97**: `supply-items` (CRUD, `includedInRoomTypes`), `supply-orders` (danh sách + `summary`, chi tiết, giao hàng, hủy), đặt hàng ở cổng SV sinh **1 hóa đơn `supplies`**, giá lấy từ danh mục (không tin giá client gửi), Scheduler hủy đơn quá hạn thanh toán.
 
 ### 3.15. Lưu trú `/residencies` — P2
 
@@ -291,6 +291,7 @@ Chưa có. Làm theo **`API.md` mục 11** + **`DATA-SCHEMA` 3.15–3.16** + **`
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.6 | 16/09/2026 | FE Lead | Nhu yếu phẩm (3.14): định dạng cho màn quản trị SCR-71 đã làm xong |
 | 1.5 | 16/09/2026 | FE Lead | Lịch sử thanh toán (3.13): danh sách có `summary`, lọc, đối soát giao dịch treo |
 | 1.4 | 15/09/2026 | FE Lead | Chi tiết hóa đơn (3.12) + ghi nhận thanh toán tại quầy (3.13): `payments[]` trong chi tiết, `bankReference`, `paidAt`, `INVOICE_CANCELLED` |
 | 1.3 | 15/09/2026 | FE Lead | Hóa đơn (3.12): xem trước lập hàng loạt, danh sách + `summary`, hóa đơn lẻ, luật hủy |

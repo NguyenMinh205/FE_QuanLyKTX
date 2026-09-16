@@ -432,6 +432,7 @@ export const createSupplyOrder = (student, contract, lines, { status = 'pending_
     orderCode: `DH-2026-${pad(orderSeq, 5)}`,
     studentId: student.id, studentCode: student.studentCode, studentName: student.fullName,
     contractId: contract.id, roomNumber: contract.roomNumber, buildingName: contract.buildingName,
+    roomCode: String(contract.bedCode).split('-')[0],
     items, totalAmount, invoiceId: inv.id, status,
     createdAt: `${date}T09:30:00+07:00`,
     deliveredAt: status === 'delivered' ? `${date}T16:00:00+07:00` : null,

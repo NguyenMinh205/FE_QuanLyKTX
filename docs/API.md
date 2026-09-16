@@ -826,13 +826,13 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| GET | `/api/supply-items` | admin, staff, viewer | Catalog — `?category=&isActive=` |
+| GET | `/api/supply-items` | admin, staff, viewer | Catalog — `?search=&category=&isActive=`, paginated |
 | POST | `/api/supply-items` | admin, staff | Create item |
 | PUT | `/api/supply-items/:id` | admin, staff | Update price, image URL, included room types, `isActive` |
 | GET | `/api/supply-orders` | admin, staff, viewer | List — `?status=&search=&from=&to=`; response adds a `summary` block |
 | GET | `/api/supply-orders/:id` | admin, staff, viewer | Detail |
 | PATCH | `/api/supply-orders/:id/deliver` | admin, staff | `ready → delivered` |
-| PATCH | `/api/supply-orders/:id/cancel` | admin, staff | `pending_payment → cancelled` — `{ cancelReason }` |
+| PATCH | `/api/supply-orders/:id/cancel` | admin, staff | `pending_payment → cancelled` — `{ cancelReason }` (≥ 5 ký tự); cancels the linked invoice too |
 
 **GET `/api/supply-orders?status=ready`**
 ```json
@@ -850,6 +850,17 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
   } }
 ```
 > `summary` sits next to the pagination fields. The frontend `useApi` hook passes any extra field through on `meta`, so the screen reads it as `meta.summary`.
+
+**Supplies for the staff screen (SCR-71)** *(v1.2.14)*
+> - `GET /supply-orders` also accepts `from`/`to` (order date, `YYYY-MM-DD`); `search` matches order code, student code/name and room number. Newest first.
+> - `summary` carries every status count the screen shows: `{ all, pendingPayment, ready, delivered, cancelled, deliveredToday }`.
+> - Order items are flat: `studentName`, `studentCode`, `roomCode` (e.g. `B203`), `buildingName`, `items[{ supplyItemId, name, unitPrice, quantity, amount }]`, `totalAmount`, `invoiceId`, `status`, `createdAt`, `deliveredAt`, `deliveredByName`, `cancelledAt`, `cancelReason`.
+> - `GET /supply-orders/:id` adds `invoice` (with `invoiceCode`, `remainingAmount`, `dueDate`) so the screen can link to the invoice and collect payment at the counter.
+> - `PATCH /supply-orders/:id/deliver` records who delivered it (`deliveredByName` in the response, FR-104).
+> - `GET /supply-items` is paginated and each item carries `includedRoomTypeNames` next to `includedInRoomTypes`, so the catalog can show room-type tags without a second call.
+> - `POST`/`PUT /supply-items` body: `{ name, category, unit, price, description, imageUrl, includedInRoomTypes, isActive }`.
+>
+> **Backend status (16/09/2026):** the whole supplies module is missing — `/api/supply-items` and `/api/supply-orders` return `404`. The screen shows the missing-endpoint message on both tabs and stays read-only until the backend adds it.
 
 ```json
 { "code": "INVALID_ORDER_STATUS", "message": "Chỉ giao được đơn đang chờ nhận hàng", "data": null } // 422
@@ -959,6 +970,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.14 | 16/09/2026 | Supplies staff screen (SCR-71): `supply-orders` `from`/`to` + search fields, full `summary` counts, flat order fields with `roomCode`/`deliveredByName`, detail `invoice`; `supply-items` pagination + `includedRoomTypeNames` and the create/update body; cancel reason minimum length. |
 | 1.2.13 | 16/09/2026 | Payment history (SCR-56): `GET /payments` flat fields, `search`/`from`/`to` filters, `summary`, sort rule; `POST /payments/:id/reconcile` response and rules with `PAYMENT_NOT_PENDING`, `PAYMENT_NOT_ONLINE`. |
 | 1.2.12 | 15/09/2026 | Invoice detail + offline payment (SCR-54/55): `GET /invoices/:id` adds `contractCode`, `note`, `payments[]` with `recordedByName`/`bankReference`, `supplyOrder`; `POST /payments/offline` body `{ invoiceId, amount, method, paidAt, bankReference?, note? }` and response `{ payment, invoice, supplyOrder }`; duplicate bank reference, `INVOICE_CANCELLED`; `GET /payments` `type` filter. |
 | 1.2.11 | 15/09/2026 | Invoices (SCR-52/53): list filters `search`/`buildingId`, flat room/student fields and `summary`; new `GET /invoices/generation-preview` (same shape as generate, adds `eligibleStudents`, `readyRooms`, `skipped[].code`); one-off `POST /invoices` body and rules; cancel rules with new `INVOICE_NOT_CANCELLABLE` and reading unlock. |

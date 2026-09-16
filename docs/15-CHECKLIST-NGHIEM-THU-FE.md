@@ -30,6 +30,7 @@
 | 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả (backend chưa có API) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1064,6 +1065,75 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 - [ ] Giao dịch tại quầy của backend **chưa có mã tham chiếu** nên cột Mã giao dịch hiện "Xem giao dịch" (đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.13).
 - [ ] 4 thẻ hiện "—" kèm "Backend chưa trả số tổng hợp".
 - [ ] F12 → Network không có request POST nào khi chỉ xem.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 19. Nhu yếu phẩm — đơn hàng + danh mục (SCR-71)
+
+**Nhánh:** `feature/supplies-management` · **Đường dẫn:** Nhu yếu phẩm (`/admin/supplies`) · **Chạy:** dữ liệu giả, tài khoản `staff@dorm.local`, **F5 trước khi bắt đầu**, từ 19.2 tới 19.5 làm liền mạch không F5.
+
+**Dữ liệu giả:** 7 đơn — 2 chờ thanh toán, 2 chờ nhận hàng, 2 đã giao, 1 đã hủy · 8 sản phẩm (1 ngừng bán, "Đệm mút" được cấp sẵn cho 3 loại phòng Chất lượng cao).
+
+**Khác bản vẽ:**
+- Bỏ **Xuất Excel**, **Tạo đơn tại quầy**, **In phiếu**, dòng "Kho phát", "Cập nhật tự động": docs không có FR/API cho các phần này (sinh viên tự đặt hàng ở cổng SV).
+- Thẻ thứ tư là **Đã giao hôm nay** thay cho "Doanh thu trong ngày": `summary` của API không có doanh thu; số tiền đã thu xem ở màn Thanh toán.
+- Bảng ghép **Sinh viên · Phòng** thành một cột; đơn đã giao / đã hủy chỉ còn nút **Xem** (không thao tác gì thêm).
+- Thêm **Thu tiền** ngay trên đơn chờ thanh toán — mở đúng hóa đơn của đơn hàng (docs/08 mục 6.7).
+
+### 19.1. Tab Đơn hàng — thẻ và danh sách
+
+- [ ] 4 thẻ: **Tổng đơn 7** · **Chờ thanh toán 2** · **Chờ nhận tại quầy 2** (link "Xem đơn cần giao") · **Đã giao hôm nay 0** ("Tổng đã giao: 2").
+- [ ] Dải lọc: Tất cả (7) · Chờ thanh toán (2) · Chờ nhận hàng (2) · Đã giao (2) · Đã hủy (1).
+- [ ] Bảng: Mã đơn + ngày đặt · Sinh viên · MSSV · tag phòng · Sản phẩm ("Vỏ đệm 90x190cm ×1, Vỏ gối ×1") · Tổng tiền · Trạng thái · Thao tác.
+- [ ] Đơn **Chờ thanh toán** có **Thu tiền** + **Hủy**; đơn **Chờ nhận hàng** có **Đã giao**; đơn đã giao / đã hủy chỉ có **Xem**.
+
+### 19.2. Lọc + chi tiết đơn
+
+- [ ] Thẻ **Chờ nhận tại quầy** → "Xem đơn cần giao" → còn 2 dòng Chờ nhận hàng. Bấm dải lọc **Chờ thanh toán** → 2 dòng.
+- [ ] Tìm `SV2026007` → chỉ đơn của sinh viên đó. **Xóa bộ lọc** → về tất cả. Chọn khoảng ngày đặt → lọc đúng.
+- [ ] Bấm mã đơn → khung bên phải: trạng thái, tổng tiền, hộp "Chờ sinh viên thanh toán", thông tin sinh viên / phòng / ngày đặt, link **Xem hóa đơn** kèm số còn lại, bảng sản phẩm có dòng **Tổng cộng**.
+
+### 19.3. Thu tiền → đơn sẵn sàng (BR-95)
+
+- [ ] Dải lọc **Chờ thanh toán** → dòng đầu bấm **Thu tiền** → hộp Ghi nhận thanh toán mở đúng hóa đơn của đơn hàng (mã `INV-…`, số tiền bằng tổng đơn).
+- [ ] Xác nhận thu đủ → thông báo "… Đơn hàng DH-… chuyển sang Chờ nhận hàng".
+- [ ] Dải lọc **Chờ nhận hàng** → đơn vừa thu nằm trong danh sách, số đếm thành **3**.
+
+### 19.4. Xác nhận đã giao (FR-104)
+
+- [ ] Bấm **Đã giao** ở đơn đó → hộp "Xác nhận đã giao DH-…?" liệt kê sản phẩm và ghi rõ không hoàn tác được.
+- [ ] Xác nhận → thông báo "Đã giao đơn DH-… cho <tên sinh viên>"; thẻ **Đã giao hôm nay** thành **1**.
+- [ ] Mở lại đơn đó → khung chi tiết có "Đã giao lúc" + "Người giao: Lê Thị Nhân Viên", không còn nút thao tác.
+
+### 19.5. Hủy đơn (FR-105)
+
+- [ ] Dải lọc **Chờ thanh toán** → **Hủy** ở dòng đầu → hộp nêu sản phẩm + hộp xanh "Hóa đơn đi kèm cũng bị hủy".
+- [ ] Bấm hủy khi chưa nhập lý do → "Nhập lý do hủy". Nhập "Sinh viên báo không mua nữa" → "Đã hủy đơn DH-… và hóa đơn đi kèm".
+- [ ] Dải lọc **Đã hủy (2)** → có đơn vừa hủy; mở chi tiết thấy dòng "Lý do: …".
+- [ ] Sang màn **Hóa đơn**, tìm mã hóa đơn của đơn đó → trạng thái **Đã hủy**.
+- [ ] Đơn **Chờ nhận hàng** (đã thanh toán) **không có** nút Hủy — mở chi tiết thấy ghi chú "chỉ hủy được đơn chưa thanh toán".
+
+### 19.6. Tab Danh mục sản phẩm (FR-100)
+
+- [ ] Sang tab **Danh mục sản phẩm**: 8 sản phẩm, có cột Ảnh (ô xám khi chưa có ảnh), Nhóm, Đơn vị, Giá, **Loại phòng cấp sẵn** (Đệm mút có 3 tag Chất lượng cao), Trạng thái.
+- [ ] Dòng **Ổ cắm điện**: tag **Ngừng bán** + nút **Bán lại**. Dòng cuối bảng có ghi chú "Sản phẩm được cấp sẵn cho loại phòng nào sẽ tự ẩn khỏi cửa hàng…".
+- [ ] Lọc Nhóm **Điện** → 1 sản phẩm. Tìm theo tên → lọc đúng. **Xóa bộ lọc** → về 8 sản phẩm.
+- [ ] **Thêm sản phẩm** → bấm Thêm khi trống → lỗi "Nhập tên sản phẩm", "Nhập giá bán". Nhập tên "Quạt mini để bàn", giá 250000, mô tả → thêm → dòng mới **250.000 đ**, **Đang bán**.
+- [ ] **Sửa** sản phẩm vừa thêm: form có sẵn dữ liệu; đổi giá 260000 → lưu → bảng cập nhật.
+- [ ] Chọn "Loại phòng được cấp sẵn" cho một sản phẩm → lưu → tag loại phòng hiện ở cột Loại phòng cấp sẵn.
+- [ ] **Ngừng bán** → hộp xác nhận nêu "không còn hiện trong cửa hàng của sinh viên" → xác nhận → tag **Ngừng bán** + nút **Bán lại**.
+
+### 19.7. Quyền + màn hẹp
+
+- [ ] `viewer@dorm.local` → xem được cả 2 tab; **không có** Thu tiền, Đã giao, Hủy, Thêm sản phẩm, Sửa.
+- [ ] Cửa sổ ~1000px → bảng cuộn ngang trong thẻ, trang không cuộn ngang.
+
+### 19.8. Với backend thật
+
+- [ ] Vào màn → cả 2 tab báo **"Không tìm thấy endpoint: GET /api/supply-orders…"** và `/api/supply-items`; 4 thẻ hiện "—".
+- [ ] Đây là đúng hiện trạng: backend **chưa có module nhu yếu phẩm** (xem `16-YEU-CAU-API-BACKEND.md` mục 3.14). Màn chỉ chạy đầy đủ với dữ liệu giả cho tới khi backend bổ sung.
 
 **Lỗi phát hiện:** _(chưa có)_
 

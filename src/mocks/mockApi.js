@@ -1480,18 +1480,25 @@ export const mockSupplies = {
     Object.assign(it, body);
     return ok(it, 'Cập nhật sản phẩm thành công');
   },
+  /** ?status=&search=&from=&to= — mới nhất lên đầu, kèm summary đếm theo trạng thái (đếm trên toàn bộ đơn) */
   getOrders: async (q = {}) => {
     await delay();
     let rows = [...supplyOrders].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     if (q.status) rows = rows.filter((o) => o.status === q.status);
-    rows = search(rows, q.search, ['orderCode', 'studentCode', 'studentName']);
+    if (q.from) rows = rows.filter((o) => o.createdAt.slice(0, 10) >= q.from);
+    if (q.to) rows = rows.filter((o) => o.createdAt.slice(0, 10) <= q.to);
+    rows = search(rows, q.search, ['orderCode', 'studentCode', 'studentName', 'roomNumber']);
     const page = paginate(rows, q).data.data;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayPlus(0);
+    const count = (st) => supplyOrders.filter((o) => o.status === st).length;
     return ok({
       ...page,
       summary: {
-        pendingPayment: supplyOrders.filter((o) => o.status === 'pending_payment').length,
-        ready: supplyOrders.filter((o) => o.status === 'ready').length,
+        all: supplyOrders.length,
+        pendingPayment: count('pending_payment'),
+        ready: count('ready'),
+        delivered: count('delivered'),
+        cancelled: count('cancelled'),
         deliveredToday: supplyOrders.filter((o) => o.status === 'delivered' && o.deliveredAt?.startsWith(today)).length,
       },
     });
@@ -1502,20 +1509,28 @@ export const mockSupplies = {
     if (!o) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn hàng');
     return ok({ ...o, invoice: withRemaining(invoices.find((i) => i.id === o.invoiceId)) });
   },
+  /** PATCH /supply-orders/:id/deliver — ready → delivered, lưu người giao (FR-104) */
   deliver: async (id) => {
     await delay();
     const o = supplyOrders.find((x) => x.id === id);
     if (!o) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn hàng');
     if (o.status !== 'ready') fail(422, 'INVALID_ORDER_STATUS', 'Chỉ giao được đơn đang chờ nhận hàng');
-    Object.assign(o, { status: 'delivered', deliveredAt: new Date().toISOString() });
-    return ok(o, 'Đã xác nhận giao hàng');
+    Object.assign(o, {
+      status: 'delivered',
+      deliveredAt: new Date().toISOString(),
+      deliveredByName: authStorage.getUser()?.fullName ?? null,
+    });
+    return ok(o, `Đã giao đơn ${o.orderCode} cho ${o.studentName}`);
   },
+  /** PATCH /supply-orders/:id/cancel — { cancelReason } ≥ 5 ký tự; hủy đơn thì hủy luôn hóa đơn (FR-105) */
   cancel: async (id, { cancelReason } = {}) => {
     await delay();
     const o = supplyOrders.find((x) => x.id === id);
     if (!o) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn hàng');
-    cancelSupplyOrder(o, cancelReason);
-    return ok(o, 'Đã hủy đơn hàng');
+    const reason = String(cancelReason || '').trim();
+    if (reason.length < 5) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'cancelReason', message: 'Nhập lý do hủy (ít nhất 5 ký tự)' }] });
+    cancelSupplyOrder(o, reason);
+    return ok(o, `Đã hủy đơn ${o.orderCode} và hóa đơn đi kèm`);
   },
 };
 

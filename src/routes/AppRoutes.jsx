@@ -23,6 +23,7 @@ import UtilityReadingsPage from '../features/fees/pages/UtilityReadingsPage';
 import InvoicesPage from '../features/fees/pages/InvoicesPage';
 import InvoiceDetailPage from '../features/fees/pages/InvoiceDetailPage';
 import PaymentsPage from '../features/payments/pages/PaymentsPage';
+import SuppliesPage from '../features/supplies/pages/SuppliesPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 import RequestsPage from '../features/requests/pages/RequestsPage';
@@ -65,7 +66,7 @@ export default function AppRoutes() {
         <Route path="/admin/invoices" element={<InvoicesPage />} />
         <Route path="/admin/invoices/:id" element={<InvoiceDetailPage />} />
         <Route path="/admin/payments" element={<PaymentsPage />} />
-        <Route path="/admin/supplies" element={todo('Nhu yếu phẩm', 'supplies', '/api/supply-orders')} />
+        <Route path="/admin/supplies" element={<SuppliesPage />} />
       </Route>
 
       {/* ---------- Chỉ admin ---------- */}
