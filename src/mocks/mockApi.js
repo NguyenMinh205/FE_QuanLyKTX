@@ -81,9 +81,81 @@ const ACCOUNTS = [
   account('staff2@dorm.local', 'Staff@123', 'staff', 'Đỗ Minh Tuấn', null, false, { isActive: false, lastLoginAt: '2026-08-20T17:30:00+07:00', createdAt: '2026-08-01T08:10:00+07:00' }),
 ];
 
+const REGISTERED_KEY = 'mockRegisteredAccounts';
+/** Dữ liệu giả nằm trong bộ nhớ nên tải lại trang là mất — giữ tài khoản vừa đăng ký để còn đăng nhập thử */
+const saveRegistered = (account) => {
+  try {
+    const kept = JSON.parse(localStorage.getItem(REGISTERED_KEY) || '[]');
+    localStorage.setItem(REGISTERED_KEY, JSON.stringify([...kept.filter((a) => a.email !== account.email), account]));
+  } catch { /* chế độ riêng tư: bỏ qua */ }
+};
+const restoreRegistered = () => {
+  try {
+    JSON.parse(localStorage.getItem(REGISTERED_KEY) || '[]')
+      .filter((a) => !ACCOUNTS.some((x) => x.email === a.email))
+      .forEach((a) => ACCOUNTS.push(a));
+  } catch { /* bỏ qua */ }
+};
+
+/** Bỏ dấu, gộp khoảng trắng — so họ tên nhập vào với hồ sơ ban quản lý đang giữ */
+const plainName = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
 export const mockAuth = {
+  /**
+   * POST /auth/register — sinh viên tự tạo tài khoản và **liên kết với hồ sơ có sẵn** (FR-80).
+   * Không khớp hồ sơ thì từ chối, không tạo hồ sơ mới (FR-81).
+   */
+  register: async (body = {}) => {
+    await delay(500);
+    const studentCode = String(body.studentCode || '').trim().toUpperCase();
+    const email = String(body.email || '').trim().toLowerCase();
+    const fullName = String(body.fullName || '').trim();
+    const password = String(body.password || '');
+    const errors = [];
+    if (!studentCode) errors.push({ field: 'studentCode', message: 'Nhập mã số sinh viên' });
+    if (!fullName) errors.push({ field: 'fullName', message: 'Nhập họ và tên' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push({ field: 'email', message: 'Email không đúng định dạng' });
+    // BR-81: tối thiểu 8 ký tự, có cả chữ và số
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      errors.push({ field: 'password', message: 'Mật khẩu tối thiểu 8 ký tự, gồm cả chữ và số' });
+    }
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+
+    restoreRegistered();
+    const st = students.find((x) => x.studentCode === studentCode);
+    if (!st) {
+      fail(422, 'STUDENT_NOT_FOUND', `Không tìm thấy hồ sơ sinh viên mã ${studentCode}. Liên hệ ban quản lý ký túc xá để được thêm hồ sơ trước khi đăng ký`);
+    }
+    if (plainName(st.fullName) !== plainName(fullName)) {
+      fail(422, 'STUDENT_INFO_MISMATCH', `Họ tên không khớp hồ sơ của mã sinh viên ${studentCode}. Kiểm tra lại hoặc liên hệ ban quản lý`);
+    }
+    if (ACCOUNTS.some((a) => a.studentId === st.id)) {
+      fail(409, 'STUDENT_ALREADY_HAS_ACCOUNT', `Mã sinh viên ${studentCode} đã có tài khoản. Dùng chức năng đăng nhập, quên mật khẩu thì liên hệ ban quản lý`);
+    }
+    if (ACCOUNTS.some((a) => a.email === email)) {
+      fail(409, 'DUPLICATE_ENTRY', 'Email này đã được sử dụng', { errors: [{ field: 'email', message: 'Email này đã được sử dụng' }] });
+    }
+
+    if (body.phone) st.phone = String(body.phone).trim();
+    const account = {
+      id: `u-new${ACCOUNTS.length + 1}`, email, password, role: 'student', fullName: st.fullName,
+      studentId: st.id, mustChangePassword: false, isActive: true,
+      lastLoginAt: new Date().toISOString(), createdAt: new Date().toISOString(),
+    };
+    ACCOUNTS.push(account);
+    saveRegistered(account);
+    return ok({
+      token: `mock-token-${account.id}`,
+      expiresIn: 604800,
+      user: {
+        id: account.id, email: account.email, fullName: account.fullName,
+        role: 'student', studentId: st.id, mustChangePassword: false,
+      },
+    }, 'Đăng ký tài khoản thành công');
+  },
   login: async ({ email, password }) => {
     await delay(400);
+    restoreRegistered();
     const found = ACCOUNTS.find((a) => a.email === String(email || '').trim().toLowerCase() && a.password === password);
     if (!found) fail(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác');
     if (!found.isActive) fail(403, 'ACCOUNT_LOCKED', 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ ban quản lý');

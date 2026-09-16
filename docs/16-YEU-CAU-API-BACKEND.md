@@ -3,9 +3,9 @@
 **Hệ thống:** DMS – Hệ thống quản lý ký túc xá
 **Người đọc:** nhóm Backend (3 người)
 **Người lập:** FE Lead · **Ngày:** 15/09/2026
-**Đối chiếu:** `docs/API.md` **v1.2.17** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
+**Đối chiếu:** `docs/API.md` **v1.2.18** ↔ repo `BE_QLKTX` commit `ab7db8c` (first-commit). Trích dẫn `file:dòng` trỏ vào `BE_QLKTX/src`.
 
-> **Tóm tắt một dòng:** backend đang làm theo API **v1.1** (xếp giường bằng tay). Frontend đã làm xong 16/31 màn theo **v1.2** (đăng ký theo phòng, giường tự gán, nhu yếu phẩm). Để nối được, backend cần: **thêm 5 nhóm API còn thiếu**, **sửa định dạng/luật ở 7 nhóm đang lệch**, **bỏ 8 API thừa của v1.1**, và **sửa 6 lỗi chung**.
+> **Tóm tắt một dòng:** backend đang làm theo API **v1.1** (xếp giường bằng tay). Frontend đã làm xong **toàn bộ 31/31 màn** theo **v1.2** (đăng ký theo phòng, giường tự gán, nhu yếu phẩm). Để nối được, backend cần: **thêm 5 nhóm API còn thiếu**, **sửa định dạng/luật ở 7 nhóm đang lệch**, **bỏ 8 API thừa của v1.1**, và **sửa 6 lỗi chung**.
 
 ---
 
@@ -25,7 +25,7 @@
 | **P2** | Dọn dẹp, bảo mật, lỗi tiềm ẩn — không chặn giao diện |
 
 - **Nguồn sự thật** là `docs/API.md` (định dạng request/response, mã lỗi mục 13) và `docs/DATA-SCHEMA.md` (tên trường). Tài liệu này **không lặp lại** định dạng đã có ở `API.md`, chỉ chỉ ra chỗ lệch và việc cần làm.
-- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.17**.
+- Mọi phần FE bổ sung vào `API.md` nằm ở bảng **Change Log** cuối file, bản **1.2.1 → 1.2.18**.
 - Frontend có lớp dữ liệu giả (`src/mocks/`) trả **đúng** định dạng trong `API.md` — khi phân vân, chạy FE ở chế độ dữ liệu giả (`VITE_USE_MOCK=true`), mở F12 → Network để xem request/response mẫu.
 
 ---
@@ -74,7 +74,7 @@ Những điểm **đã khớp** (giữ nguyên): envelope `{ code, message, data
 | Endpoint | Trạng thái | Cần làm |
 |---|---|---|
 | `POST /auth/login` | ✅ | Đúng định dạng, đúng `INVALID_CREDENTIALS` 401 / `ACCOUNT_LOCKED` 403. Chỉ còn G3, G4 |
-| `POST /auth/register` | ✅ | Đã tạo cả `Student` + `User`. Sửa mã lỗi trùng (G5) và luật mật khẩu (G6) |
+| `POST /auth/register` | ❌ **sai nghiệp vụ** | Hiện **tạo mới hồ sơ `Student`** từ dữ liệu người dùng nhập. Theo FR-80/FR-81 phải **liên kết với hồ sơ sinh viên ban quản lý đã có**: sai mã → `422 STUDENT_NOT_FOUND`, sai họ tên → `422 STUDENT_INFO_MISMATCH`, đã có tài khoản → `409 STUDENT_ALREADY_HAS_ACCOUNT` (`API.md` bản 1.2.18). Tạo hồ sơ tự do khiến tài khoản không gắn được với hồ sơ thật, sinh viên không có phòng/hợp đồng. Kèm mã lỗi trùng (G5) và luật mật khẩu (G6) |
 | `GET /auth/me`, `POST /auth/logout` | ✅ | — |
 | `PATCH /auth/change-password` | ✅ | Body `{ oldPassword, newPassword }` khớp. G6 |
 | `POST /users/:id/reset-password` | ⚠️ | Mật khẩu tạm đang là **10 ký tự hex** — BR-85 cần có cả chữ và số (hex có thể toàn số). Thêm `422 CANNOT_MODIFY_SELF` khi tự reset mình. Bỏ bản trùng `/api/auth/users/:id/reset-password` (`auth.routes.js:30`) |
@@ -292,6 +292,7 @@ Chưa có (`/api/supply-items`, `/api/supply-orders` đều trả `404`). Màn S
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.10 | 16/09/2026 | FE Lead | Đăng ký tài khoản sinh viên (3.1): `register` phải liên kết hồ sơ có sẵn (FR-80/81), backend đang tạo hồ sơ mới. **FE đã xong toàn bộ 31 màn** |
 | 1.9 | 16/09/2026 | FE Lead | Cổng SV (3.10): mua sắm + đơn hàng của tôi (SCR-67/68) đã xong |
 | 1.8 | 16/09/2026 | FE Lead | Cổng SV (3.10): hóa đơn + kết quả thanh toán (SCR-64/65) đã xong, cần `my-invoices`, `my-payments?transactionRef=` |
 | 1.7 | 16/09/2026 | FE Lead | Cổng SV (3.10): `profile` và `my-contracts` cho 2 màn SCR-63, SCR-69 đã xong |

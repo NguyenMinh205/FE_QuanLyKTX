@@ -30,10 +30,10 @@ import MyInvoicesPage from '../features/portal/pages/MyInvoicesPage';
 import PaymentResultPage from '../features/portal/pages/PaymentResultPage';
 import ShopPage from '../features/portal/pages/ShopPage';
 import MyOrdersPage from '../features/portal/pages/MyOrdersPage';
+import RegisterPage from '../features/auth/pages/RegisterPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 import RequestsPage from '../features/requests/pages/RequestsPage';
-import PlaceholderPage from '../components/PlaceholderPage';
 
 const { ADMIN, STUDENT } = ROLES;
 
@@ -44,16 +44,13 @@ function RootRedirect() {
   return <Navigate to={user.role === STUDENT ? '/portal/home' : '/admin/dashboard'} replace />;
 }
 
-/** Màn hình chưa làm — mã SCR và API tra ở docs/08 mục 5 */
-const todo = (title, module, apiGroup) => <PlaceholderPage title={title} module={module} apiGroup={apiGroup} />;
-
 export default function AppRoutes() {
   return (
     <Routes>
       {/* ---------- Công khai ---------- */}
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={todo('Đăng ký tài khoản sinh viên', 'auth', '/api/auth/register')} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/403" element={<ForbiddenPage />} />
 
       {/* ---------- Khu quản trị: admin / staff / viewer ---------- */}

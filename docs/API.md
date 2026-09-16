@@ -67,7 +67,7 @@ For any endpoint a `student` may call, the backend derives the student identity 
 
 | Method | Endpoint | Roles | Description |
 |---|---|---|---|
-| POST | `/api/auth/register` | public | Student self-registration only (`role` forced to `student` server-side) |
+| POST | `/api/auth/register` | public | Student self-registration — **links to an existing `Student` record**, never creates one (FR-80, FR-81); `role` forced to `student` server-side |
 | POST | `/api/auth/login` | public | Returns JWT + user profile |
 | POST | `/api/auth/logout` | authenticated | Client clears the token |
 | GET | `/api/auth/me` | authenticated | Current user profile |
@@ -77,6 +77,30 @@ For any endpoint a `student` may call, the backend derives the student identity 
 | POST | `/api/users` | admin | Create an account — `{ email, fullName, role, studentId? }`; returns a one-time temporary password *(v1.2.6)* |
 | PUT | `/api/users/:id` | admin | Update `{ email, fullName, role }` *(v1.2.6)* |
 | PATCH | `/api/users/:id/status` | admin | Lock / unlock — `{ isActive }` *(v1.2.6)* |
+
+**POST `/api/auth/register`** *(v1.2.18 — SCR-02)*
+```json
+// request
+{ "studentCode": "SV2026080", "fullName": "Bùi Ngọc Ánh", "email": "ngocanh@sv.edu.vn",
+  "phone": "0912345678", "gender": "female", "password": "••••••••" }
+// response 201 — same shape as login, so the student lands straight in the portal
+{ "code": "OK", "message": "Đăng ký tài khoản thành công",
+  "data": { "token": "eyJhbGciOi…", "expiresIn": 604800,
+            "user": { "id": "665e9a…", "email": "ngocanh@sv.edu.vn", "fullName": "Bùi Ngọc Ánh",
+                      "role": "student", "studentId": "665e3a…", "mustChangePassword": false } } }
+```
+> The account is **attached to the `Student` record the staff already manage** (FR-80). The server must not create a new student profile — a self-registered profile would have no room, no contract and no way to be matched later.
+>
+> Checks, in this order:
+> - `studentCode` not in `Student` → `422 STUDENT_NOT_FOUND`, message telling the student to contact the dormitory office (FR-81).
+> - `fullName` does not match that record (compare ignoring accents, case and extra spaces) → `422 STUDENT_INFO_MISMATCH`.
+> - That student already has a `User` → `409 STUDENT_ALREADY_HAS_ACCOUNT`.
+> - `email` already used → `409 DUPLICATE_ENTRY` with a field error on `email`.
+> - Password: at least 8 characters with letters and digits (BR-81) → `400 VALIDATION_ERROR` on `password`.
+>
+> The screen shows the first three as errors under the **Mã số sinh viên** field, so the student sees which value to fix.
+>
+> **Backend status (16/09/2026):** `register` **creates a new `User` + `Student`** from the form instead of linking to the existing record, so any code can register and the account is never tied to the managed profile. Password rule is min 6 with no character check.
 
 **POST `/api/auth/login`**
 ```json
@@ -943,6 +967,9 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | `DUPLICATE_PENDING_REQUEST` | 409 | Student already has an open request of that type |
 | `DUPLICATE_PENDING_APPLICATION` | 409 | Student already has a pending application *(v1.2)* |
 | `GENDER_MISMATCH` | 422 | Student gender does not match room gender *(A1)* |
+| `STUDENT_NOT_FOUND` | 422 | Self-registration: no student record with that code *(v1.2.18)* |
+| `STUDENT_INFO_MISMATCH` | 422 | Self-registration: name does not match the student record *(v1.2.18)* |
+| `STUDENT_ALREADY_HAS_ACCOUNT` | 409 | Self-registration: that student already has an account *(v1.2.18)* |
 | `STUDENT_HAS_ACTIVE_CONTRACT` | 422 | Student already has an `active` contract |
 | `STUDENT_HAS_DEBT` | 422 | Student still owes money |
 | `CONTRACT_NOT_ACTIVE` | 422 | Operation requires an `active` contract |
@@ -991,6 +1018,7 @@ Errors: `ROOM_FULL`, `GENDER_MISMATCH`, `STUDENT_HAS_ACTIVE_CONTRACT`, `DUPLICAT
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 12/09/2026 | Initial API reference |
+| 1.2.18 | 16/09/2026 | Student self-registration (SCR-02): `POST /auth/register` body/response, the link-to-existing-student rule (FR-80/81) and its three new error codes; recorded that the backend currently creates a new student instead. |
 | 1.2.17 | 16/09/2026 | Portal shop + orders (SCR-67/68): what the shop screen needs from `/portal/supply-items`, the order response fields the success notice uses, student cancel without a body. |
 | 1.2.16 | 16/09/2026 | Portal invoices + payment result (SCR-64/65): `/portal/my-payments` `transactionRef` filter and the polling contract behind the result screen; `/portal/my-invoices/:id` is the invoice detail shape (§7 v1.2.12) restricted to the student's own invoice. |
 | 1.2.15 | 16/09/2026 | Portal residence + profile (SCR-63/69): `/portal/profile` field list for the read-only profile screen, `/portal/my-contracts` fields used by the residence history table. |

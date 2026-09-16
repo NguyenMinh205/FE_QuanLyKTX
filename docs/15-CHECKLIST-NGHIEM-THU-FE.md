@@ -34,6 +34,7 @@
 | 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
 | 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
 | 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
+| 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả (backend đăng ký sai nghiệp vụ) | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1312,6 +1313,53 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 
 - [ ] Backend **chưa có API cổng sinh viên**: màn Mua sắm và Đơn hàng hiện tiêu đề kèm báo lỗi endpoint; không gửi request ghi nào.
 - [ ] Đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.10 và 3.14.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 23. Đăng ký tài khoản sinh viên (SCR-02)
+
+**Nhánh:** `feature/student-register` · **Đường dẫn:** `/register` (công khai, có link từ màn Đăng nhập) · **Chạy:** dữ liệu giả, **không cần đăng nhập**, F5 trước khi bắt đầu.
+
+**Ghi chú nghiệp vụ:** tài khoản **gắn với hồ sơ sinh viên ban quản lý đã có** (FR-80). Không khớp hồ sơ thì từ chối, không tạo hồ sơ mới (FR-81).
+
+**Dữ liệu giả để test:** hồ sơ `SV2026080` — **Bùi Ngọc Ánh** (chưa có tài khoản). `SV2026001` — Nguyễn Văn An (đã có tài khoản `sv001@dorm.local`).
+
+### 23.1. Giao diện
+
+- [ ] Vào `/register` khi chưa đăng nhập → mở được, có tiêu đề "Đăng ký tài khoản sinh viên", dòng "Dành cho sinh viên đã có hồ sơ tại ký túc xá".
+- [ ] Hộp xanh "Thông tin phải khớp hồ sơ ban quản lý đang giữ …" hướng dẫn mang thẻ sinh viên đến văn phòng.
+- [ ] Đủ ô: Mã số sinh viên · Họ và tên · Email · Giới tính · Số điện thoại · Mật khẩu · Nhập lại mật khẩu. Cuối trang có link **Đã có tài khoản? Đăng nhập**.
+
+### 23.2. Kiểm tra dữ liệu nhập
+
+- [ ] Bấm **Đăng ký** khi trống → lỗi ở từng ô: "Nhập mã số sinh viên", "Nhập họ và tên", "Nhập email", "Nhập mật khẩu", "Nhập lại mật khẩu".
+- [ ] Email `sai-dinh-dang` → "Email không đúng định dạng".
+- [ ] Mật khẩu `abc` → "Mật khẩu tối thiểu 8 ký tự"; `khongcoso` → "Mật khẩu phải có cả chữ và số" (BR-81).
+- [ ] Nhập lại mật khẩu khác → "Mật khẩu nhập lại không khớp".
+- [ ] Số điện thoại `123` → "Số điện thoại gồm 10 chữ số, bắt đầu bằng 0".
+- [ ] Gõ mã `sv2026080` → tự viết hoa thành **SV2026080**.
+
+### 23.3. Đối chiếu hồ sơ (FR-81)
+
+- [ ] Mã `SV9999999` (không có hồ sơ) → lỗi dưới ô Mã số sinh viên: "Không tìm thấy hồ sơ sinh viên mã SV9999999. Liên hệ ban quản lý ký túc xá…".
+- [ ] Mã `SV2026080` + họ tên "Nguyễn Sai Tên" → "Họ tên không khớp hồ sơ của mã sinh viên SV2026080".
+- [ ] Mã `SV2026001` + "Nguyễn Văn An" (đã có tài khoản) → "Mã sinh viên SV2026001 đã có tài khoản…".
+- [ ] Email `sv001@dorm.local` (đã dùng) → lỗi dưới ô Email "Email này đã được sử dụng".
+
+### 23.4. Đăng ký thành công
+
+- [ ] Mã `SV2026080`, họ tên **Bùi Ngọc Ánh**, email mới, mật khẩu `Ktx@2026` → thông báo "Đăng ký thành công" và **vào thẳng** trang chủ cổng sinh viên.
+- [ ] Trang chủ hiện đúng tên **Bùi Ngọc Ánh** lấy từ hồ sơ ban quản lý (không phải tên tự nhập), trạng thái **Chưa có chỗ ở** kèm đơn đăng ký đang chờ duyệt của hồ sơ đó.
+- [ ] Đăng xuất rồi đăng nhập lại bằng email + mật khẩu vừa tạo → vào được cổng sinh viên.
+  _(Dữ liệu giả: tài khoản vừa đăng ký được giữ trong trình duyệt để đăng nhập thử; xóa dữ liệu trang web thì mất.)_
+- [ ] Thu cửa sổ ~400px: form vẫn đọc được, trang không cuộn ngang.
+
+### 23.5. Với backend thật
+
+- [ ] Mở `/register` với backend thật: form hiện bình thường (đây là API công khai duy nhất ngoài đăng nhập).
+- [ ] **Không thử đăng ký trên DB chung.** Backend hiện **tạo hồ sơ sinh viên mới** từ dữ liệu nhập thay vì liên kết hồ sơ có sẵn — sai FR-80/FR-81, đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.1 và `API.md` bản 1.2.18. Chờ backend sửa rồi mới thử.
 
 **Lỗi phát hiện:** _(chưa có)_
 
