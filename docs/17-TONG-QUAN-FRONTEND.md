@@ -169,7 +169,7 @@ Cột bên phải là **thứ đáng nói khi bị hỏi "màn này có gì khó
 |---|---|
 | SCR-31 Duyệt đơn | Bố cục **hai cột**: trái danh sách đơn, phải chi tiết. Trước khi duyệt, khung xem trước cho thấy đúng giường sẽ được gán = **giường trống số nhỏ nhất trong phòng** (BR-38) — nhân viên không chọn giường, tránh cãi nhau về chỗ đẹp. Nếu trong lúc đang xem có người khác duyệt trước làm hết chỗ, backend trả `ROOM_FULL` và màn hình hiện hướng dẫn đổi phòng thay vì báo lỗi kỹ thuật. Duyệt một đơn là sinh ra **lưu trú + hợp đồng + 2 hóa đơn** (cọc, tiền phòng kỳ đầu). |
 | SCR-32 Hợp đồng | Có tab **"Sắp hết hạn"** dùng chung nguồn dữ liệu với thẻ cảnh báo ở dashboard (≤ 30 ngày, BR-29). Chấm dứt hợp đồng phải nhập lý do; hợp đồng đã chấm dứt thì khóa mọi nút. |
-| SCR-41 Yêu cầu | Hai loại yêu cầu dùng chung một màn: **gia hạn** và **trả phòng**. Với trả phòng, khối **Quyết toán** tính sẵn: tiền cọc − nợ còn lại + hoàn tiền phòng những ngày chưa ở (tính theo ngày, BR-31/75/76/77); ra số dương thì hoàn cho sinh viên, số âm thì sinh viên nộp thêm. Duyệt xong hệ thống **hủy các đơn nhu yếu phẩm chưa thanh toán** của sinh viên đó (BR-97). |
+| SCR-41 Yêu cầu | Hai loại yêu cầu dùng chung một màn: **gia hạn** và **trả phòng**. Với trả phòng, khối **Quyết toán** tính sẵn: tiền cọc − nợ còn lại + hoàn tiền phòng những ngày chưa ở (BR-31, BR-75/76/77); ra số dương thì hoàn cho sinh viên, số âm thì sinh viên nộp thêm. Duyệt xong hệ thống **hủy các đơn nhu yếu phẩm chưa thanh toán** của sinh viên đó (BR-97). |
 
 ### 5.4. Tiền: chỉ số → hóa đơn → thanh toán
 
@@ -235,7 +235,7 @@ SCR-31  Nhân viên mở đơn, xem trước giường sẽ gán (giường tr�
                +- gán giường (nguyên tử: hai người duyệt cùng lúc thì người sau nhận ROOM_FULL)
                +- tạo lưu trú (đang ở)
                +- tạo hợp đồng (đang hiệu lực)
-               +- tạo 2 hóa đơn: tiền cọc + tiền phòng kỳ đầu (tính theo ngày - BR-31)
+               +- tạo 2 hóa đơn: tiền cọc + tiền phòng tháng đầu (thu đủ một tháng - BR-32)
 SCR-61  Trang chủ sinh viên đổi sang trạng thái "Đang ở" + hiện 2 hóa đơn cần thanh toán
 ```
 
@@ -458,7 +458,8 @@ FE **kiểm tra trước để người dùng biết sớm**, backend **kiểm t
 | BR-22 | Thời hạn tối thiểu 1 tháng, ngày kết thúc sau ngày bắt đầu | Ô chọn ngày ở đơn đăng ký |
 | BR-27 | Giá thuê và cọc **chốt tại thời điểm duyệt đơn** | Đổi giá loại phòng không làm đổi hợp đồng cũ |
 | BR-29 | Hợp đồng sắp hết hạn = còn ≤ 30 ngày | Thẻ cảnh báo ở dashboard + tab ở màn hợp đồng |
-| BR-31 | Tiền phòng kỳ đầu/kỳ cuối tính **theo ngày** | Bước xác nhận đăng ký, khối quyết toán |
+| BR-31 | Tiền phòng **kỳ cuối** (trả phòng sớm) tính **theo ngày ở thực tế** | Khối quyết toán ở màn Yêu cầu |
+| BR-32 | Tiền phòng **tháng đầu thu đủ một tháng**, kể cả khi vào ở giữa tháng (cố ý bất đối xứng với BR-31) | Bước xác nhận đăng ký |
 | BR-38 | Gán **giường trống số nhỏ nhất**, người dùng không chọn giường | Khung xem trước giường ở màn duyệt đơn |
 | BR-43 | Số đã trả = tổng các thanh toán **thành công** | Ba thẻ ở chi tiết hóa đơn |
 | BR-44 | Thanh toán không vượt quá số còn lại | Lỗi đỏ + khóa nút ngay khi gõ số tiền |
@@ -554,7 +555,7 @@ Bốn điểm luôn kiểm ở mọi màn: **trạng thái trống** (chưa có 
 12. *Vì sao sinh viên không được chọn giường?* — BR-38: hệ thống gán giường trống số nhỏ nhất. Tránh tranh chấp chỗ đẹp và tránh tình huống hai người chọn cùng một giường.
 13. *Hai nhân viên duyệt cùng lúc một phòng còn một chỗ thì sao?* — Backend gán giường **nguyên tử**; người sau nhận `ROOM_FULL` và màn hình hướng dẫn chuyển phòng.
 14. *Tiền điện nước tính sao?* — (chỉ số mới − chỉ số cũ) × đơn giá, chia đều cho số người đang ở phòng (BR-52).
-15. *Sinh viên vào ở giữa tháng thì tính tiền thế nào?* — Theo ngày (BR-31), không thu tròn tháng.
+15. *Sinh viên vào ở giữa tháng thì tính tiền thế nào?* — **Thu đủ một tháng** (BR-32). Ngược lại, trả phòng sớm thì **hoàn theo số ngày chưa ở** (BR-31). Đây là bất đối xứng **có chủ ý**, ghi rõ trong nội quy để tránh khiếu nại.
 16. *Trả phòng thì tiền cọc xử lý ra sao?* — Cọc − nợ + hoàn tiền phòng những ngày chưa ở; dương thì hoàn, âm thì nộp thêm (mục 6.6).
 17. *Đã thanh toán rồi có hủy hóa đơn được không?* — Không (BR-46); nút bị vô hiệu hóa kèm lý do.
 

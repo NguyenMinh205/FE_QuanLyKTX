@@ -524,10 +524,13 @@ Gán giường theo BR-38, chặn trùng yêu cầu theo BR-71, chặn chỉ s�
 |---|---|---|---|---|
 | 1 | `POST /utility-readings` luôn trả **400** `"Path totalAmount is required"` | **Chặn toàn bộ luồng thu tiền tháng** — không nhập được chỉ số nên không lập được hóa đơn | `fee.service.js` — chỗ `UtilityReading.create({...})` thiếu `totalAmount: electricityAmount + waterAmount`. Nhóm FE đã vá tạm trong bản clone local để test tiếp, **chưa có trong repo backend** | **P0** |
 | 2 | `PUT /utility-readings/:id` cập nhật `electricityAmount`, `waterAmount` nhưng **không cập nhật `totalAmount`** | Sửa chỉ số xong thì tổng tiền giữ nguyên số cũ → hóa đơn sai | `fee.service.js` — thêm `reading.totalAmount = reading.electricityAmount + reading.waterAmount;` ngay sau hai dòng tính lại | **P0** |
-| 3 | `POST /payments/offline` lần thứ hai trả **409** `DUPLICATE_ENTRY: gatewayTransactionId` | **Chỉ thu được tiền mặt đúng một lần trong cả hệ thống** — lần thu thứ hai luôn lỗi | `payment.model.js:54` để `default: null`, nên index `sparse` không bỏ qua được (sparse chỉ bỏ qua khi **không có** trường). Sửa: bỏ `default: null` (để `undefined`), hoặc đổi sang partial index `{ partialFilterExpression: { gatewayTransactionId: { $type: 'string' } } }` | **P0** |
+| 3 | Mọi giao dịch từ lần thứ hai trở đi trả **409** `DUPLICATE_ENTRY: gatewayTransactionId` | **Toàn bộ khâu thu tiền chết sau giao dịch đầu tiên** — đã kiểm lại 17/09: chặn cả `POST /payments/offline` (thu tại quầy) **lẫn** `POST /payments/online/checkout` (thanh toán online). Đây là lỗi nặng nhất hiện nay: demo sẽ vỡ ngay sau lần thu tiền đầu tiên | `payment.model.js:54` để `default: null`, nên index `sparse` không bỏ qua được (sparse chỉ bỏ qua khi **không có** trường). Sửa: bỏ `default: null` (để `undefined`), hoặc đổi sang partial index `{ partialFilterExpression: { gatewayTransactionId: { $type: 'string' } } }` | **P0** |
 | 4 | `PATCH /requests/:id/approve` (trả phòng) **hủy đơn nhu yếu phẩm trước khi kiểm tra công nợ** | Nhân viên bấm duyệt, gặp cảnh báo còn nợ rồi bấm "Xem lại" → yêu cầu vẫn `pending` nhưng **đơn hàng của sinh viên đã bị hủy vĩnh viễn** | `request.service.js` — chuyển bước hủy đơn (BR-97) xuống **sau** bước kiểm tra `STUDENT_HAS_DEBT`; lý tưởng nhất là bọc cả khối trong transaction | **P0** |
 | 5 | `GET /requests/:id` chỉ trả phần bổ sung, **thiếu các trường phẳng** của dòng danh sách (`studentName`, `bedCode`, `contractCode`, `roomNumber`, `outstandingDebt`) | Mở chi tiết yêu cầu thì tên sinh viên và mã giường biến mất — hộp xác nhận hiện "Duyệt trả phòng cho **undefined**?" | `API.md` mục 9 ghi rõ chi tiết là "**adds**" — tức là dòng danh sách **cộng thêm** `student`, `contract`, `settlementPreview`… Frontend đã tự ghép hai nguồn để không phụ thuộc, nhưng nên trả đúng hợp đồng | P1 |
 | 6 | Chặn đăng nhập đếm **mọi** lần đăng nhập theo IP, kể cả đăng nhập đúng | 10 lần/15 phút là khóa. Cả nhóm demo chung một mạng sẽ bị khóa giữa buổi bảo vệ, thông báo lại ghi "sai quá nhiều lần" | `auth.routes.js:16` + `rate-limiter.js` — chỉ đếm **lần đăng nhập thất bại**, đếm theo `email + IP`, và xóa bộ đếm khi đăng nhập thành công | **P0 trước buổi demo** |
+
+| 7 | `POST /portal/my-supply-orders` nhận số lượng tới **99** một món | BR-91 quy định tối đa **5**. Giao diện đã chặn ở 5 nhưng gọi thẳng API thì đặt được 9 cái (đã thử, đơn 1.080.000 đ tạo thành công) | `supply.validation.js:70` — đổi `.max(99)` thành `.max(5)` | P1 |
+| 8 | `GET /contracts/expiring` **bỏ qua tham số `days`** | Trả về mọi hợp đồng đang hiệu lực, kể cả hợp đồng còn 470 ngày mới hết hạn (BR-29 sai hoàn toàn) | `contract.routes.js:25-28` gán `req.query.expiringInDays` — **Express 5 không cho ghi vào `req.query`** nên giá trị không tới service. Truyền thẳng: `contractService.getContracts({ ...req.query, expiringInDays: days })`. *(Frontend không dùng endpoint này — cả dashboard lẫn tab "Sắp hết hạn" đều dùng `GET /contracts?expiringInDays=` và chạy đúng)* | P2 |
 
 ### 10.3. Lỗi frontend tự tìm và đã sửa
 
@@ -537,6 +540,7 @@ Gán giường theo BR-38, chặn trùng yêu cầu theo BR-71, chặn chỉ s�
 | 2 | Tên phòng hiện **"AA101"** khi dữ liệu đã có sẵn mã tòa trong số phòng | `roomLabelOf` không ghép lại mã tòa nếu số phòng đã bắt đầu bằng mã đó; gom 3 chỗ ghép trùng lặp về dùng chung hàm này |
 | 3 | Chi tiết yêu cầu mất tên sinh viên / mã giường khi backend trả thiếu trường phẳng | Ghép dòng danh sách với chi tiết |
 | 4 | Hỏi xác nhận hai lần khi duyệt trả phòng có công nợ | Đọc số nợ ở cả dòng danh sách lẫn `settlementPreview` |
+| 5 | `contractApi.getExpiring()` trỏ tới endpoint hỏng (mã chết, không màn nào dùng) | Xóa hẳn, ghi chú rõ phải dùng `getList({ expiringInDays })` |
 
 ### 10.4. Cách nhóm FE đang chạy thử
 
@@ -558,6 +562,7 @@ VITE_USE_MOCK=false VITE_API_BASE_URL=http://localhost:5000/api npm run dev -- -
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.14 | 17/09/2026 | FE Lead | Rà soát toàn bộ luật nghiệp vụ (53 mục kiểm): **49 đúng**. Thêm 2 lỗi backend (số lượng nhu yếu phẩm tới 99, `/contracts/expiring` bỏ qua `days`) và xác định lỗi `gatewayTransactionId` chặn **cả thanh toán online** chứ không riêng thu tại quầy |
 | 1.13 | 16/09/2026 | FE Lead | **Mục 10 mới**: chạy thử toàn bộ luồng nghiệp vụ trên CSDL test — luồng vào ở 18/18 bước đạt; tìm **6 lỗi backend** (4 lỗi P0: `totalAmount` khi lưu/sửa chỉ số, trùng `gatewayTransactionId` khi thu tiền lần hai, hủy đơn nhu yếu phẩm trước khi kiểm tra nợ, chặn đăng nhập đếm cả lần đúng) và **4 lỗi frontend đã sửa** |
 | 1.12 | 16/09/2026 | FE Lead | **Mục 9 mới**: kết quả nối thử với backend `c1a24e1` — 82/82 endpoint đã có, 31/31 màn hiển thị được; còn 6 chỗ lệch (trần `limit` của `/rooms`, `roomTypeId` lúc object lúc chuỗi, phòng thiếu giường, danh sách trả mảng trần, `isSystem`, `stats` lồng) |
 | 1.11 | 16/09/2026 | FE Lead | Cập nhật mục 0, 1 theo hiện trạng FE đã xong. Viết lại **mục 5** theo luồng nghiệp vụ (FE đã xong 31/31 màn). Thêm **mục 6** (đợt 2: phần thêm sau bản v1.2.8) và **mục 7** (bảng đối chiếu toàn bộ 82 endpoint frontend gọi kèm hiện trạng backend) |

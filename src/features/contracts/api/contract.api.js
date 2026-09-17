@@ -8,6 +8,6 @@ export const contractApi = {
   getById:     (id)       => (USE_MOCK ? mockContracts.getById(id)            : axiosClient.get(`/contracts/${id}`)),
   update:      (id, data) => (USE_MOCK ? mockContracts.update(id, data)       : axiosClient.put(`/contracts/${id}`, data)),
   terminate:   (id, data) => (USE_MOCK ? mockContracts.terminate(id, data)    : axiosClient.patch(`/contracts/${id}/terminate`, data)),
-  getExpiring: (days = 30) =>
-    (USE_MOCK ? mockContracts.getList({ expiringInDays: days }) : axiosClient.get('/contracts/expiring', { params: { days } })),
+  // Sắp hết hạn (BR-29) dùng chính `getList({ expiringInDays })` — KHÔNG dùng `/contracts/expiring`:
+  // endpoint đó của backend bỏ qua tham số ngày nên trả về mọi hợp đồng đang hiệu lực.
 };
