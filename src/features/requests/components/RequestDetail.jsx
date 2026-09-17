@@ -80,7 +80,9 @@ export default function RequestDetail({ request: listItem, canReview, onProcesse
     () => (canReview ? requestApi.getById(listItem.id) : Promise.resolve({ data: { data: null } })),
     [listItem.id, canReview],
   );
-  const r = detail || listItem;
+  // Chi tiết là phần BỔ SUNG cho dòng danh sách (API.md mục 9). Backend hiện chỉ trả phần bổ sung
+  // nên phải ghép với dòng danh sách, nếu không tên sinh viên / mã giường sẽ mất khi chi tiết tải xong.
+  const r = detail ? { ...listItem, ...detail } : listItem;
   const isCheckout = r.type === 'checkout';
   const isPending = r.status === 'pending';
   const preview = detail?.settlementPreview;
@@ -139,8 +141,10 @@ export default function RequestDetail({ request: listItem, canReview, onProcesse
   };
 
   const startApprove = () => {
-    // Còn nợ → gọi thẳng API, modal STUDENT_HAS_DEBT chính là bước xác nhận (tránh hỏi hai lần)
-    if (isCheckout && detail?.outstandingDebt > 0) { callApprove(false); return; }
+    // Còn nợ → gọi thẳng API, modal STUDENT_HAS_DEBT chính là bước xác nhận (tránh hỏi hai lần).
+    // Số nợ nằm ở dòng danh sách, backend hiện để trong settlementPreview — nhận cả hai chỗ.
+    const debt = r.outstandingDebt ?? preview?.outstandingDebt ?? 0;
+    if (isCheckout && debt > 0) { callApprove(false); return; }
     modal.confirm({
       title: isCheckout ? `Duyệt trả phòng cho ${r.studentName}?` : `Duyệt gia hạn hợp đồng ${r.contractCode}?`,
       icon: <CheckCircleOutlined style={{ color: '#1677FF' }} />,

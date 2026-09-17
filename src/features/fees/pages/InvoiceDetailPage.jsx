@@ -19,6 +19,7 @@ import StatusTag from '../../../components/StatusTag';
 import StatCard from '../../../components/StatCard';
 import PageHeader from '../../../components/PageHeader';
 import RecordPaymentModal from '../components/invoices/RecordPaymentModal';
+import { roomLabelOf } from '../../rooms/utils/roomStatus';
 import {
   cancelBlockReason, isOpenInvoice, periodShort, splitLineDescription, transferNoteOf,
 } from '../utils/invoiceView';
@@ -40,7 +41,7 @@ const InfoRow = ({ label, children }) => (
 
 const bedTextOf = (inv) => {
   const bed = inv.bedCode ? String(inv.bedCode).split('-')[1] : null;
-  const parts = [inv.buildingName, inv.roomNumber ? `Phòng ${inv.buildingCode ?? ''}${inv.roomNumber}` : null, bed ? `Giường ${bed}` : null].filter(Boolean);
+  const parts = [inv.buildingName, inv.roomNumber ? `Phòng ${roomLabelOf(inv)}` : null, bed ? `Giường ${bed}` : null].filter(Boolean);
   return parts.length ? parts.join(' - ') : (inv.bedCode || '—');
 };
 

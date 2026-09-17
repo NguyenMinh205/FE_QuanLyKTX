@@ -32,8 +32,16 @@ export const slotTextOf = (room) => {
   return level === 'maintenance' ? `${slots} · ${room.maintenanceBeds} bảo trì` : slots;
 };
 
-/** VD "B203" — mã tòa + số phòng khi có, không thì chỉ số phòng */
-export const roomLabelOf = (room) => `${room.buildingCode ?? ''}${room.roomNumber}`;
+/**
+ * VD "B203" — mã tòa + số phòng khi có, không thì chỉ số phòng.
+ * Dữ liệu thực tế có nơi đã nhập sẵn mã tòa vào số phòng ("A101"); khi đó
+ * không ghép thêm lần nữa để tránh hiện "AA101".
+ */
+export const roomLabelOf = (room) => {
+  const number = String(room.roomNumber ?? '');
+  const building = String(room.buildingCode ?? '');
+  return building && !number.toUpperCase().startsWith(building.toUpperCase()) ? `${building}${number}` : number;
+};
 
 /** VD "TC · 6" */
 export const tierShortOf = (room) => `${ROOM_TIER[room.tier]?.short ?? ''} · ${room.capacity}`;

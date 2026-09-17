@@ -10,6 +10,7 @@ import { getErrorMessage, getFieldErrors } from '../../../../lib/axiosClient';
 import { formatCurrency } from '../../../../utils/formatter';
 import { periodLabel } from '../../utils/readingSheet';
 import { defaultDueDateOf } from '../../utils/invoiceView';
+import { roomLabelOf } from '../../../rooms/utils/roomStatus';
 
 const { Text } = Typography;
 
@@ -61,7 +62,7 @@ export default function GenerateInvoicesModal({ open, buildings, onCancel, onDon
   const invoiced = skipped.filter((s) => s.code === 'ALREADY_INVOICED');
   const noResident = skipped.filter((s) => s.code === 'NO_RESIDENT');
   const willWrite = (data?.created ?? 0) + (data?.updated ?? 0);
-  const roomText = (list) => list.map((s) => `${s.buildingCode ?? ''}${s.roomNumber}`).join(', ');
+  const roomText = (list) => list.map(roomLabelOf).join(', ');
   const firstMissingBuilding = buildings?.find((b) => b.code === missing[0]?.buildingCode)?.id;
 
   const handleSubmit = async (values) => {

@@ -30,7 +30,10 @@ const AVAILABILITY_OPTIONS = [
   { value: 'has_maintenance', label: 'Có giường bảo trì' },
 ];
 
-const EMPTY_PAGE = Promise.resolve({ data: { data: { items: [], total: 0, page: 1, limit: 200 } } });
+/** Sơ đồ tầng cần cả tòa trong một lần gọi; 100 là mức trần backend cho phép mỗi trang */
+const MAP_PAGE_SIZE = 100;
+
+const EMPTY_PAGE = Promise.resolve({ data: { data: { items: [], total: 0, page: 1, limit: MAP_PAGE_SIZE } } });
 
 /** SCR-23 Phòng — sơ đồ tầng + khung chi tiết (docs/08 mục 6.3) */
 export default function RoomsPage() {
@@ -53,15 +56,17 @@ export default function RoomsPage() {
   // Tòa trong URL không còn hoạt động thì quay về tòa đầu tiên
   const buildingId = (buildings?.some((b) => b.id === filters.buildingId) ? filters.buildingId : null) ?? buildings?.[0]?.id;
 
-  const { data: rooms, loading, error, refetch } = useApi(
+  const { data: rooms, meta, loading, error, refetch } = useApi(
     () => (buildingId
-      ? roomApi.getRooms({ buildingId, roomTypeId: filters.roomTypeId, availability: filters.availability, limit: 200 })
+      ? roomApi.getRooms({ buildingId, roomTypeId: filters.roomTypeId, availability: filters.availability, limit: MAP_PAGE_SIZE })
       : EMPTY_PAGE),
     [buildingId, filters.roomTypeId, filters.availability],
   );
 
   // Lọc tầng ở phía giao diện để danh sách tầng trong ô chọn không bị thu hẹp theo chính nó
   const allRooms = rooms || [];
+  // Tòa có nhiều phòng hơn một trang: nói rõ sơ đồ đang thiếu phòng thay vì im lặng vẽ nửa tòa
+  const truncated = (meta?.total ?? 0) > allRooms.length;
   const floorOptions = [...new Set(allRooms.map((r) => r.floor))].sort((a, b) => a - b).map((f) => ({ value: f, label: `Tầng ${f}` }));
   const shown = filters.floor ? allRooms.filter((r) => r.floor === filters.floor) : allRooms;
 
@@ -170,6 +175,13 @@ export default function RoomsPage() {
       <Row gutter={16} wrap={false}>
         <Col flex="auto" style={{ minWidth: 0 }}>
           {error && <Alert type="error" showIcon title={error} />}
+          {!error && !loading && truncated && (
+            <Alert
+              type="warning" showIcon style={{ marginBottom: 12 }}
+              title={`Sơ đồ đang hiện ${allRooms.length}/${meta.total} phòng của tòa này`}
+              description="Dùng bộ lọc loại phòng hoặc tình trạng để thu hẹp danh sách."
+            />
+          )}
           {!error && loading && <Card><Skeleton active paragraph={{ rows: 6 }} /></Card>}
           {!error && !loading && shown.length === 0 && (
             <Card>
