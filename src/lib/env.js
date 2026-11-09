@@ -13,7 +13,7 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Hệ thống quản lý ký túc xá';
+export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Hệ thống quản lý ký túc xá HaUI';
 
 // In ra console lúc khởi động để không ai nhầm dữ liệu giả với dữ liệu thật
 if (import.meta.env.DEV) {

@@ -6,7 +6,7 @@ export const ROLES = {
 
 export const ROLE_LABEL = {
   admin: 'Quản trị viên',
-  staff: 'Nhân viên',
+  staff: 'Cán bộ KTX',
   student: 'Sinh viên',
 };
 

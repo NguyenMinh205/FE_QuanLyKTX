@@ -49,7 +49,8 @@
 
 | Màn | Đổi gì | FR | Mốc |
 |---|---|---|---|
-| Đăng nhập | Ô "Email hoặc MSSV" (đang chặn định dạng email ở [LoginPage.jsx:144](../src/features/auth/pages/LoginPage.jsx#L144)), nút "Đăng ký ở KTX", "Tra cứu đơn", nhận diện HaUI | 01, 30 | M2 |
+| Đăng nhập | Ô "Email hoặc MSSV" , nhận diện HaUI | 01 | M2 |
+| Đăng nhập | Nút "Đăng ký ở KTX", "Tra cứu đơn" (làm cùng trang đích, nếu làm sớm sẽ thành link hỏng) | 30, 33 | M4 |
 | Đổi mật khẩu | Cơ chế buộc đổi đã có ở `RoleRoute`. Thêm gợi ý "mật khẩu hiện tại là MSSV", chặn mật khẩu mới trùng MSSV (UC-04) | 05 | M2 |
 | Tài khoản | Chỉ tạo admin/staff, bỏ nhánh liên kết sinh viên | 06, 07 | M2 |
 | Tòa nhà | Bỏ `address`, kiểm thống kê theo tòa | 20, 21 | M3 |
@@ -145,11 +146,11 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 - **Thử:** đăng nhập bằng MSSV của tài khoản buộc đổi MK → bị chuyển sang đổi mật khẩu; sai mật khẩu báo đúng lỗi.
 
 ### M3. Tòa nhà và phòng · Vừa · `feature/v2-rooms`
-- **AI:** model phòng nhúng giường, viết lại form và bộ lọc, sửa `RoomTile`, `RoomDetailPanel`, `roomStatus.js`, xoá màn Loại phòng. Mock tạm giữ `getRoomTypes` suy ra từ phòng để màn Đăng ký/Duyệt cũ không gãy, hết M4 thì xoá.
+- **AI:** model phòng nhúng giường, viết lại form và bộ lọc, sửa `RoomTile`, `RoomDetailPanel`, `roomStatus.js`, xoá màn Loại phòng. Sửa lỗi có từ v1 ở màn Tòa nhà: cột đầu không có `width` nên tên tòa bị ngắt từng chữ theo chiều dọc ở màn 1366px. Mock tạm giữ `getRoomTypes` suy ra từ phòng để màn Đăng ký/Duyệt cũ không gãy, hết M4 thì xoá.
 - **Thử:** tạo phòng 6 chỗ → có 6 giường; phòng đang có người không đổi được giới tính, sức chứa; chỉ chọn được 4/6/8.
 
 ### M4. Nộp đơn online và duyệt đơn · Lớn · `feature/v2-online-application`
-- **AI:** `/apply` 3 bước, chọn giới tính → lọc phòng → chọn giường, gói 6/12 tháng tính sẵn tổng tiền; `/apply/status`; chuyển màn Duyệt đơn sang contract; duyệt sinh 2 hóa đơn và tài khoản; từ chối kèm lý do; xử lý trùng giường theo §3.
+- **AI:** hai nút "Đăng ký ở KTX", "Tra cứu đơn" ở màn đăng nhập; `/apply` 3 bước, chọn giới tính → lọc phòng → chọn giường, gói 6/12 tháng tính sẵn tổng tiền; `/apply/status`; chuyển màn Duyệt đơn sang contract; duyệt sinh 2 hóa đơn và tài khoản; từ chối kèm lý do; xử lý trùng giường theo §3.
 - **Thử:** mở `/apply` khi chưa đăng nhập, nộp đơn → tra cứu thấy "Chờ duyệt" → staff duyệt → đăng nhập bằng MSSV/MSSV → buộc đổi MK. Đơn thứ hai không chọn được giường đã có đơn chờ; nộp trùng MSSV đang có đơn thì báo lỗi.
 
 ### M5. Hợp đồng và trả phòng · Vừa · `feature/v2-contracts-checkout`

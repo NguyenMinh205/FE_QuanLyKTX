@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { roomLabelOf } from '../../rooms/utils/roomStatus';
+import { roomLabelOf, splitBedCode } from '../../rooms/utils/roomStatus';
 
 /** "2026-10" → "10/2026"; null → "—" */
 export const periodShort = (period) => {
@@ -10,7 +10,7 @@ export const periodShort = (period) => {
 /** "A" + "101" → "A101"; không có phòng thì lấy phần phòng của mã giường "A101-02" */
 export const invoiceRoomOf = (inv) => (inv.roomNumber
   ? roomLabelOf(inv)
-  : (inv.bedCode ? String(inv.bedCode).split('-')[0] : '—'));
+  : (inv.bedCode ? splitBedCode(String(inv.bedCode)).room : '—'));
 
 const OPEN_STATUSES = ['unpaid', 'partial', 'overdue'];
 export const isOpenInvoice = (inv) => OPEN_STATUSES.includes(inv.status);

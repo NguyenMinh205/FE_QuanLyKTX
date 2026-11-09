@@ -136,8 +136,8 @@ export default function AdminLayout() {
           {isMobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} />}
           <BrandLogo size={40} />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3, whiteSpace: 'nowrap' }}>QUẢN LÝ KÝ TÚC XÁ</div>
-            {!isMobile && <Text type="secondary" style={{ fontSize: 12 }}>Hệ thống Quản lý Ký túc xá Đại học</Text>}
+            <div style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3, whiteSpace: 'nowrap' }}>KÝ TÚC XÁ HaUI</div>
+            {!isMobile && <Text type="secondary" style={{ fontSize: 12 }}>Trường Đại học Công nghiệp Hà Nội</Text>}
           </div>
         </div>
 

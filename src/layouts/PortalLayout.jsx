@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { portalApi } from '../features/portal/api/portal.api';
 import BrandLogo from '../components/BrandLogo';
+import { splitBedCode } from '../features/rooms/utils/roomStatus';
 
 const { Header, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -32,7 +33,7 @@ export default function PortalLayout() {
   // Chưa tải xong hoặc lỗi thì không khóa gì — backend vẫn tự chặn.
   const { data: residence } = useApi(() => portalApi.getMyResidence(), [location.pathname === '/portal/home']);
   const locked = residence?.hasResidence === false;
-  const roomText = residence?.contract?.bedCode ? `Phòng ${residence.contract.bedCode.split('-')[0]}` : null;
+  const roomText = residence?.contract?.bedCode ? `Phòng ${splitBedCode(residence.contract.bedCode).room}` : null;
 
   const go = (tab) => {
     if (tab.needsResidence && locked) return;
@@ -54,7 +55,7 @@ export default function PortalLayout() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', minWidth: 0 }} onClick={() => navigate('/portal/home')}>
           <BrandLogo size={36} />
           <div style={{ lineHeight: 1.25 }}>
-            <div style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>KÝ TÚC XÁ</div>
+            <div style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>KÝ TÚC XÁ HaUI</div>
             {!isMobile && <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>Cổng thông tin sinh viên</Text>}
           </div>
         </div>

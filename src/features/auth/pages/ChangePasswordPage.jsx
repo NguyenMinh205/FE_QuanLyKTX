@@ -20,6 +20,7 @@ export default function ChangePasswordPage() {
   const { user, updateUser, logout } = useAuth();
   const [saving, setSaving] = useState(false);
   const forced = !!user?.mustChangePassword;
+  const studentCode = user?.studentCode;
 
   const handleSubmit = async ({ oldPassword, newPassword }) => {
     setSaving(true);
@@ -35,6 +36,8 @@ export default function ChangePasswordPage() {
         form.setFields(fieldErrors.map((e) => ({ name: e.field, errors: [e.message] })));
       } else if (getErrorCode(err) === 'INVALID_CURRENT_PASSWORD') {
         form.setFields([{ name: 'oldPassword', errors: [getErrorMessage(err)] }]);
+      } else if (getErrorCode(err) === 'PASSWORD_SAME_AS_DEFAULT') {
+        form.setFields([{ name: 'newPassword', errors: [getErrorMessage(err)] }]);
       } else {
         message.error(getErrorMessage(err));
       }
@@ -56,8 +59,10 @@ export default function ChangePasswordPage() {
           type="warning"
           showIcon
           style={{ maxWidth: 480, marginBottom: 16 }}
-          title="Bạn đang dùng mật khẩu tạm"
-          description="Vì lý do bảo mật, bạn cần đặt mật khẩu mới trước khi sử dụng hệ thống. Mật khẩu hiện tại là mật khẩu tạm được ban quản lý cấp."
+          title="Bạn cần đổi mật khẩu trước khi tiếp tục"
+          description={studentCode
+            ? 'Mật khẩu hiện tại là mã sinh viên của bạn, hoặc mật khẩu tạm do ban quản lý cấp nếu vừa được đặt lại.'
+            : 'Mật khẩu hiện tại là mật khẩu tạm được ban quản lý cấp.'}
         />
       )}
 
@@ -65,7 +70,7 @@ export default function ChangePasswordPage() {
         <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off">
           <Form.Item
             name="oldPassword"
-            label={forced ? 'Mật khẩu tạm' : 'Mật khẩu hiện tại'}
+            label={forced && !studentCode ? 'Mật khẩu tạm' : 'Mật khẩu hiện tại'}
             rules={[{ required: true, message: 'Vui lòng nhập mật khẩu hiện tại' }]}
           >
             <Input.Password prefix={<LockOutlined />} placeholder="••••••••" autoComplete="current-password" />
@@ -75,15 +80,23 @@ export default function ChangePasswordPage() {
             name="newPassword"
             label="Mật khẩu mới"
             dependencies={['oldPassword']}
+            // Mỗi lần chỉ hiện một lỗi: gõ MSSV sai cùng lúc 3 luật, lỗi trùng MSSV mới là lỗi cần đọc
+            validateFirst
             rules={[
               { required: true, message: 'Vui lòng nhập mật khẩu mới' },
-              { min: 8, message: 'Mật khẩu tối thiểu 8 ký tự' },
-              { pattern: /^(?=.*[A-Za-z])(?=.*\d).+$/, message: 'Mật khẩu phải có cả chữ và số' },
+              {
+                // UC-04: mật khẩu khởi tạo là MSSV nên không được đặt lại đúng giá trị đó
+                validator: (_, value) => (!value || !studentCode || value.toUpperCase() !== studentCode.toUpperCase()
+                  ? Promise.resolve()
+                  : Promise.reject(new Error('Mật khẩu mới không được trùng mã sinh viên'))),
+              },
               ({ getFieldValue }) => ({
                 validator: (_, value) => (!value || value !== getFieldValue('oldPassword')
                   ? Promise.resolve()
                   : Promise.reject(new Error('Mật khẩu mới không được trùng mật khẩu hiện tại'))),
               }),
+              { min: 8, message: 'Mật khẩu tối thiểu 8 ký tự' },
+              { pattern: /^(?=.*[A-Za-z])(?=.*\d).+$/, message: 'Mật khẩu phải có cả chữ và số' },
             ]}
           >
             <Input.Password prefix={<LockOutlined />} placeholder="••••••••" autoComplete="new-password" />

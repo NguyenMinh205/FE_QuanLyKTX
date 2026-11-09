@@ -36,6 +36,7 @@
 | 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 23 | v2 · M1: cắt Viewer, tự đăng ký, Nhu yếu phẩm, Yêu cầu, Gia hạn | — | `feature/v2-trim-scope` | Dữ liệu giả | ⬜ Chưa test |
+| 24 | v2 · M2: đăng nhập Email/MSSV, tài khoản cán bộ, nhận diện HaUI | — | `feature/v2-auth-accounts` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1408,7 +1409,7 @@ Chạy dữ liệu giả: `VITE_USE_MOCK=true npx vite --port 5174 --strictPort`
 
 ### 24.1. Vai trò và đăng nhập
 
-- [ ] Đăng nhập `viewer@dorm.local` / `Viewer@123` → báo "Email hoặc mật khẩu không chính xác".
+- [ ] Đăng nhập `viewer@dorm.local` / `Viewer@123` → báo "Tài khoản hoặc mật khẩu không chính xác".
 - [ ] Mở `/register` → trang 404.
 - [ ] Khung tài khoản thử ở màn đăng nhập không còn dòng "Người xem".
 - [ ] `admin@dorm.local` / `Admin@123` → màn Tài khoản: bộ lọc vai trò và nút chọn vai trò không còn "Người xem".
@@ -1431,6 +1432,46 @@ Chạy dữ liệu giả: `VITE_USE_MOCK=true npx vite --port 5174 --strictPort`
 - [ ] Chỗ ở & hợp đồng: không còn nút Gia hạn, Xin trả phòng; có dòng "Muốn trả phòng, bạn đến văn phòng KTX làm thủ tục".
 - [ ] `/portal/my-requests`, `/portal/shop`, `/portal/my-orders` → trang 404.
 - [ ] `sv004@dorm.local` (hợp đồng sắp hết hạn) → cảnh báo hướng dẫn nộp đơn mới, không có nút Gia hạn.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 25. v2 · M2 — Đăng nhập, tài khoản, nhận diện
+
+Chạy dữ liệu giả như mục 24. Từ mốc này, các mã phòng hiện dạng `K1-101`, MSSV dạng `2021600001`. Các mục cũ nhắc `SV2026…`, Tòa A, B hiểu theo dữ liệu mới.
+
+### 25.1. Đăng nhập (FR-01)
+
+- [ ] Màn đăng nhập hiện "KÝ TÚC XÁ HaUI", ô nhập có nhãn **Email hoặc mã sinh viên**.
+- [ ] Để trống ô đó, bấm Đăng nhập → "Vui lòng nhập email hoặc mã sinh viên".
+- [ ] `admin@dorm.local` / `Admin@123` → vào Dashboard.
+- [ ] `2021600001` / `Student@123` (sv001 dùng MSSV) → vào Cổng sinh viên.
+- [ ] `2021600001` / `sai` → khung đỏ "Tài khoản hoặc mật khẩu không chính xác".
+- [ ] `staff2@dorm.local` / `Staff@123` (đã khóa) → báo tài khoản bị vô hiệu hóa.
+
+### 25.2. Đổi mật khẩu lần đầu (FR-05, UC-04)
+
+> Nếu đăng nhập bằng `2021600005` mà Chrome không nhận phím ở trang đổi mật khẩu, đăng nhập lại bằng `sv008@dorm.local` / `2021600005`. Chrome chạy tự động khi kiểm thử gặp hiện tượng này khi tên đăng nhập trùng mật khẩu; cùng tài khoản đăng nhập bằng email thì bình thường.
+
+- [ ] `2021600005` / `2021600005` → bị chuyển sang Đổi mật khẩu, cảnh báo nêu "mật khẩu hiện tại là mã sinh viên".
+- [ ] Gõ thẳng `/portal/home` trên thanh địa chỉ → vẫn quay lại Đổi mật khẩu.
+- [ ] Mật khẩu hiện tại sai → lỗi ngay dưới ô đó.
+- [ ] Mật khẩu mới `2021600005` → báo không được trùng mã sinh viên.
+- [ ] Mật khẩu mới `Ktx@2026`, nhập lại đúng → vào Trang chủ sinh viên.
+
+### 25.3. Tài khoản (`admin@dorm.local`)
+
+- [ ] Nút **Thêm tài khoản cán bộ** → form chỉ có 2 vai trò: Quản trị viên, Cán bộ KTX. Không có ô chọn hồ sơ sinh viên.
+- [ ] Tạo tài khoản email mới, vai trò Cán bộ KTX → hiện mật khẩu tạm một lần. Đăng nhập bằng email đó → buộc đổi mật khẩu.
+- [ ] Sửa một tài khoản sinh viên → vai trò khóa ở Sinh viên, ô họ tên khóa.
+- [ ] Sửa chính mình → không đổi được vai trò.
+
+### 25.4. Nhận diện và dữ liệu
+
+- [ ] Header khu quản trị và cổng sinh viên hiện "KÝ TÚC XÁ HaUI". Tab trình duyệt ghi "Ký túc xá HaUI".
+- [ ] Màn Tòa nhà có K1, K2 hoạt động, K3, K4 ngừng hoạt động.
+- [ ] Màn Phòng hiện mã dạng `K1-101`. Trang chủ sinh viên hiện Phòng `K1-101` · Giường `01`, header ghi Phòng K1-101.
 
 **Lỗi phát hiện:** _(chưa có)_
 

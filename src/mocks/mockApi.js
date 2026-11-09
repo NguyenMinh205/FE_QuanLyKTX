@@ -39,6 +39,7 @@ const account = (email, password, role, fullName, studentIndex = null, mustChang
   id: `u-${email.split('@')[0]}`,
   fullName: studentIndex === null ? fullName : students[studentIndex].fullName,
   studentId: studentIndex === null ? null : students[studentIndex].id,
+  studentCode: studentIndex === null ? null : students[studentIndex].studentCode,
   isActive: true,
   lastLoginAt: null,
   createdAt: '2026-08-01T08:00:00+07:00',
@@ -55,6 +56,8 @@ const ACCOUNTS = [
   account('sv005@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv005),
   account('sv006@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv006),
   account('sv007@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv007),
+  // Vừa được duyệt đơn: tài khoản = mật khẩu = MSSV, phải đổi ở lần đăng nhập đầu (FR-02, BR-06)
+  account('sv008@dorm.local', students[DEMO_STUDENT_INDEX.sv008].studentCode, 'student', null, DEMO_STUDENT_INDEX.sv008, true),
   // Mật khẩu tạm do ban quản lý cấp — đăng nhập xong bị buộc đổi mật khẩu (BR-85)
   account('doimk@dorm.local', 'Tam@12345', 'staff', 'Phạm Văn Mới Vào', null, true, { createdAt: '2026-09-10T09:00:00+07:00' }),
   // Cho màn Tài khoản (SCR-81): thêm một quản trị viên và một nhân viên đã bị khóa
@@ -63,10 +66,12 @@ const ACCOUNTS = [
 ];
 
 export const mockAuth = {
-  login: async ({ email, password }) => {
+  /** { identifier, password } — identifier là email hoặc mã sinh viên (FR-01) */
+  login: async ({ identifier, password }) => {
     await delay(400);
-    const found = ACCOUNTS.find((a) => a.email === String(email || '').trim().toLowerCase() && a.password === password);
-    if (!found) fail(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác');
+    const key = String(identifier || '').trim();
+    const found = ACCOUNTS.find((a) => (a.email === key.toLowerCase() || a.studentCode === key.toUpperCase()) && a.password === password);
+    if (!found) fail(401, 'INVALID_CREDENTIALS', 'Tài khoản hoặc mật khẩu không chính xác');
     if (!found.isActive) fail(403, 'ACCOUNT_LOCKED', 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ ban quản lý');
     found.lastLoginAt = new Date().toISOString();
     return ok({
@@ -74,7 +79,7 @@ export const mockAuth = {
       expiresIn: 604800,
       user: {
         id: found.id, email: found.email, fullName: found.fullName,
-        role: found.role, studentId: found.studentId, mustChangePassword: found.mustChangePassword,
+        role: found.role, studentId: found.studentId, studentCode: found.studentCode, mustChangePassword: found.mustChangePassword,
       },
     }, 'Đăng nhập thành công');
   },
@@ -91,6 +96,7 @@ export const mockAuth = {
     }
     const acc = ACCOUNTS.find((x) => x.email === authStorage.getUser()?.email);
     if (!acc || acc.password !== oldPassword) fail(400, 'INVALID_CURRENT_PASSWORD', 'Mật khẩu hiện tại không chính xác');
+    if (acc.studentCode && newPassword === acc.studentCode) fail(400, 'PASSWORD_SAME_AS_DEFAULT', 'Mật khẩu mới không được trùng mã sinh viên');
     Object.assign(acc, { password: newPassword, mustChangePassword: false });
     return ok(null, 'Đổi mật khẩu thành công');
   },
@@ -150,7 +156,7 @@ export const mockUsers = {
     };
     return res;
   },
-  /** { email, fullName, role, studentId? } → trả { user, temporaryPassword } — mật khẩu tạm hiện MỘT lần */
+  /** { email, fullName, role: admin|staff } → { user, temporaryPassword } — mật khẩu tạm hiện MỘT lần. Tài khoản sinh viên chỉ sinh ra khi duyệt đơn (FR-02) */
   create: async (body = {}) => {
     await delay();
     const email = String(body.email || '').trim().toLowerCase();
@@ -158,23 +164,14 @@ export const mockUsers = {
     const errors = [];
     if (!EMAIL_RE.test(email)) errors.push({ field: 'email', message: 'Email không đúng định dạng' });
     else if (ACCOUNTS.some((a) => a.email === email)) errors.push({ field: 'email', message: 'Email này đã được dùng cho tài khoản khác' }); // BR-80
-    if (!ROLE_ENUM.includes(role)) errors.push({ field: 'role', message: 'Chọn vai trò' });
-    let st = null;
-    if (role === 'student') {
-      st = students.find((s) => s.id === body.studentId);
-      if (!st) errors.push({ field: 'studentId', message: 'Chọn hồ sơ sinh viên' });
-      else if (ACCOUNTS.some((a) => a.studentId === st.id)) errors.push({ field: 'studentId', message: 'Sinh viên này đã có tài khoản' }); // BR-82
-    } else if (!String(body.fullName || '').trim()) {
-      errors.push({ field: 'fullName', message: 'Nhập họ tên' });
-    }
+    if (!['admin', 'staff'].includes(role)) errors.push({ field: 'role', message: 'Chọn vai trò' });
+    if (!String(body.fullName || '').trim()) errors.push({ field: 'fullName', message: 'Nhập họ tên' });
     if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
 
     const temporaryPassword = genTempPassword();
     const acc = {
-      ...account(email, temporaryPassword, role, st ? null : String(body.fullName).trim(), null, true),
+      ...account(email, temporaryPassword, role, String(body.fullName).trim(), null, true),
       id: `u-${Date.now()}`,
-      fullName: st ? st.fullName : String(body.fullName).trim(),
-      studentId: st?.id ?? null,
       createdAt: new Date().toISOString(),
     };
     ACCOUNTS.push(acc);
@@ -514,7 +511,7 @@ const validateNewApplication = (st, room) => {
     fail(409, 'DUPLICATE_PENDING_APPLICATION', 'Sinh viên đã có một đơn đăng ký đang chờ duyệt');
   }
   if (room.gender !== st.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
-  if (availableSlots(room.id) === 0) fail(409, 'ROOM_FULL', `Phòng ${room.buildingCode}${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác`);
+  if (availableSlots(room.id) === 0) fail(409, 'ROOM_FULL', `Phòng ${room.buildingCode}-${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác`);
 };
 
 const submitApplication = (st, { roomId, startDate, endDate, note }) => {
@@ -586,7 +583,7 @@ export const mockApplications = {
     if (racer && racer.requestedRoomId === room.id) approveApplication(racer, room);
 
     const result = approveApplication(a, room, { startDate: a.startDate });
-    if (!result) fail(409, 'ROOM_FULL', `Phòng ${room.buildingCode}${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác cùng loại`);
+    if (!result) fail(409, 'ROOM_FULL', `Phòng ${room.buildingCode}-${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác cùng loại`);
     const { bed, contract } = result;
     a.reviewedAt = new Date().toISOString();
 

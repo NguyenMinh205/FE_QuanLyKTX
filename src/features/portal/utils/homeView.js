@@ -8,11 +8,7 @@ export const OPEN_INVOICE_STATUSES = ['unpaid', 'partial', 'overdue'];
 /** Số ngày từ hôm nay tới `date` (âm = đã qua) */
 export const daysUntil = (date) => (date ? dayjs(date).startOf('day').diff(dayjs().startOf('day'), 'day') : null);
 
-/** "B204-03" → { room: "B204", bed: "03" } */
-export const splitBedCode = (bedCode = '') => {
-  const [room, bed] = bedCode.split('-');
-  return { room: room || null, bed: bed || null };
-};
+export { splitBedCode } from '../../rooms/utils/roomStatus';
 
 /** Kỳ hiển thị của hóa đơn: "Tháng 10/2026" hoặc tên loại khi không có kỳ */
 export const invoicePeriodText = (inv, typeLabel) => {

@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { splitBedCode } from '../../rooms/utils/roomStatus';
 
 /** Ngưỡng "sắp hết hạn" — BR-29, khớp core/config/settings.js ở backend */
 export const EXPIRING_DAYS = 30;
@@ -14,9 +15,9 @@ export const contractMonths = (startDate, endDate) => {
   return Math.ceil(e.diff(s, 'month', true) - 0.01);
 };
 
-/** "B203-03" → "B203 · Giường 03" */
+/** "K1-203-03" → "K1-203 · Giường 03" */
 export const bedTextOf = (bedCode) => {
   if (!bedCode) return '—';
-  const [room, bed] = bedCode.split('-');
+  const { room, bed } = splitBedCode(bedCode);
   return bed ? `${room} · Giường ${bed}` : room;
 };

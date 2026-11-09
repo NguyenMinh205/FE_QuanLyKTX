@@ -153,7 +153,7 @@ Success sets `mustChangePassword` to `false`. New password: at least 8 character
 { "code": "OK", "message": "Đã tạo tài khoản", "data": { "user": { }, "temporaryPassword": "Ktx7Rm2qPz" } }
 ```
 
-**User item:** `{ id, email, fullName, role, isActive, mustChangePassword, lastLoginAt, createdAt, student: StudentRef | null }`. The list adds `summary: { total, active, locked }`.
+**User item:** `{ id, email, fullName, role, isActive, mustChangePassword, lastLoginAt, createdAt, student: StudentRef | null }`. The list adds `summary: { all, admin, staff, student, locked }`, counted over all accounts.
 
 **POST `/users/:id/reset-password`** (FR-06)
 ```json

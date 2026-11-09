@@ -6,7 +6,8 @@
  *
  * Tài khoản thử (xem mockApi.js): sv001 đang ở phòng Tiêu chuẩn, có nợ · sv002 chưa có chỗ ·
  * sv003 dùng test IDOR · sv004 đang ở phòng Chất lượng cao, hợp đồng còn 20 ngày ·
- * sv005 có đơn gần nhất bị từ chối · sv006 có đơn chờ duyệt (phòng nguyện vọng đã đầy).
+ * sv005 có đơn gần nhất bị từ chối · sv006 có đơn chờ duyệt (phòng nguyện vọng đã đầy) ·
+ * sv008 vừa được cấp tài khoản, mật khẩu là MSSV, phải đổi ở lần đăng nhập đầu.
  *
  * ⚠️ Chỉ dùng khi chế độ dữ liệu giả bật (src/lib/env.js).
  */
@@ -17,11 +18,15 @@ const pick = (arr, i) => arr[i % arr.length];
 const HO = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Vũ', 'Đặng', 'Bùi'];
 const TEN_NAM = ['Văn An', 'Minh Quân', 'Hoàng Long', 'Đức Anh', 'Quốc Bảo', 'Tiến Đạt'];
 const TEN_NU = ['Thị Bích', 'Ngọc Ánh', 'Thu Hà', 'Phương Linh', 'Khánh Vy', 'Minh Châu'];
-const KHOA = ['Công nghệ thông tin', 'Kinh tế', 'Cơ khí', 'Điện - Điện tử'];
+/** [Khoa/Viện, tiền tố lớp] — dữ liệu minh họa */
+const KHOA = [
+  ['Công nghệ thông tin', 'KTPM'], ['Kinh tế', 'QTKD'], ['Cơ khí', 'CKCT'], ['Điện', 'KTD'],
+  ['Điện tử', 'KTDT'], ['Du lịch', 'QTDL'], ['Ngoại ngữ', 'NNA'],
+];
 
 /** Chỉ số sinh viên dùng cho tài khoản thử */
 // sv007: sinh viên từng ở năm trước, hiện không còn chỗ — dùng để xem lịch sử lưu trú (FR-39)
-export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75, sv007: 80 };
+export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75, sv007: 80, sv008: 4 };
 
 // ---------------------------------------------------------------- loại phòng
 /**
@@ -51,8 +56,8 @@ export const roomTypes = [
 
 // ---------------------------------------------------------------- tòa nhà
 export const buildings = [
-  { id: 'b1', code: 'A', name: 'Tòa A', address: 'Khu KTX số 1', isActive: true },
-  { id: 'b2', code: 'B', name: 'Tòa B', address: 'Khu KTX số 1', isActive: true },
+  { id: 'b1', code: 'K1', name: 'Tòa K1', address: 'KTX Cơ sở 1', isActive: true },
+  { id: 'b2', code: 'K2', name: 'Tòa K2', address: 'KTX Cơ sở 1', isActive: true },
 ];
 
 // ---------------------------------------------------------------- phòng (10 mỗi tòa) + giường tự sinh
@@ -70,14 +75,14 @@ export const generateBeds = (room) => {
       id: `${room.id}-bed${n}`,
       roomId: room.id,
       bedNumber: n,
-      bedCode: `${room.buildingCode}${room.roomNumber}-${pad(n, 2)}`,
+      bedCode: `${room.buildingCode}-${room.roomNumber}-${pad(n, 2)}`,
       status: 'available',
       note: null,
     });
   }
 };
 
-// 20 phòng chia cho 2 tòa đầu. Tòa C thêm SAU vòng tạo phòng: đang cải tạo, chưa có phòng, ngừng hoạt động (SCR-21)
+// 20 phòng chia cho 2 tòa đầu. Tòa K3, K4 thêm SAU vòng tạo phòng: đang cải tạo, chưa có phòng, ngừng hoạt động (SCR-21)
 buildings.slice(0, 2).forEach((b, bi) => {
   for (let i = 1; i <= 10; i++) {
     const floor = Math.ceil(i / 4);
@@ -90,7 +95,7 @@ buildings.slice(0, 2).forEach((b, bi) => {
       roomTypeId: rt.id,
       roomNumber: `${floor}${pad(i, 2)}`,
       floor,
-      gender: bi === 0 ? 'male' : 'female', // Tòa A nam, tòa B nữ
+      gender: bi === 0 ? 'male' : 'female', // Tòa K1 nam, tòa K2 nữ
       capacity: rt.capacity,
       status: 'active',
     };
@@ -100,7 +105,9 @@ buildings.slice(0, 2).forEach((b, bi) => {
 });
 
 buildings.push({
-  id: 'b3', code: 'C', name: 'Tòa C', address: 'Khu KTX số 2', description: 'Đang cải tạo, dự kiến mở lại năm học 2027-2028', isActive: false,
+  id: 'b3', code: 'K3', name: 'Tòa K3', address: 'KTX Cơ sở 2', description: 'Đang cải tạo, dự kiến mở lại năm học 2027-2028', isActive: false,
+}, {
+  id: 'b4', code: 'K4', name: 'Tòa K4', address: 'KTX Cơ sở 3', description: 'Chưa đưa vào sử dụng', isActive: false,
 });
 
 // ---------------------------------------------------------------- tiện ích tra cứu
@@ -122,14 +129,14 @@ export const students = Array.from({ length: 90 }, (_, i) => {
   const isMale = i % 2 === 0;
   return {
     id: `s${pad(i + 1)}`,
-    studentCode: `SV2026${pad(i + 1)}`,
+    studentCode: `20216${pad(i + 1, 5)}`,
     fullName: `${pick(HO, i)} ${isMale ? pick(TEN_NAM, i) : pick(TEN_NU, i)}`,
     gender: isMale ? 'male' : 'female',
     dob: `200${5 - (i % 3)}-${pad((i % 12) + 1, 2)}-${pad((i % 28) + 1, 2)}`,
     phone: `09${String(12000000 + i * 137)}`.slice(0, 10),
-    email: `sv2026${pad(i + 1)}@sv.edu.vn`,
-    className: `${pick(['CNTT', 'KT', 'CK', 'DT'], i)}2026${pick(['A', 'B', 'C'], i)}`,
-    faculty: pick(KHOA, i),
+    email: `sv20216${pad(i + 1, 5)}@sv.edu.vn`,
+    className: `${pick(KHOA, i)[1]}0${(i % 3) + 1}-K16`,
+    faculty: pick(KHOA, i)[0],
     emergencyContact: { name: `${pick(HO, i + 1)} Văn C`, phone: '0987654321', relationship: 'Bố' },
     status: 'active',
   };
@@ -310,8 +317,8 @@ export const periodPlus = (months) => {
 };
 
 /**
- * Chỉ số điện nước (FR-59): kỳ trước đủ 20 phòng, đã lập hóa đơn · kỳ này Tòa A nhập xong,
- * Tòa B mới nhập 5 phòng đầu (phòng trống không cần nhập). Chỉ số đầu kỳ này = cuối kỳ trước (BR-51).
+ * Chỉ số điện nước (FR-59): kỳ trước đủ 20 phòng, đã lập hóa đơn · kỳ này Tòa K1 nhập xong,
+ * Tòa K2 mới nhập 5 phòng đầu (phòng trống không cần nhập). Chỉ số đầu kỳ này = cuối kỳ trước (BR-51).
  */
 export const utilityReadings = [];
 let readingSeq = 0;

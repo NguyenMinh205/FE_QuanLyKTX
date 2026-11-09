@@ -136,8 +136,8 @@ export default function UsersPage() {
       <PageHeader
         breadcrumb={['Hệ thống', 'Tài khoản']}
         title="Quản lý tài khoản"
-        description="Tạo tài khoản cán bộ và sinh viên, phân quyền, khóa và đặt lại mật khẩu"
-        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setFormUser({})}>Thêm tài khoản</Button>}
+        description="Tạo tài khoản cán bộ, khóa và đặt lại mật khẩu. Tài khoản sinh viên do hệ thống cấp khi duyệt đơn"
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setFormUser({})}>Thêm tài khoản cán bộ</Button>}
       />
 
       <Card>

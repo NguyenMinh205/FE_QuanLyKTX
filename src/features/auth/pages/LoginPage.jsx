@@ -23,6 +23,7 @@ const DEMO_ACCOUNTS = USE_MOCK
     ['SV bị từ chối đơn', 'sv005@dorm.local', 'Student@123'],
     ['SV có đơn chờ duyệt', 'sv006@dorm.local', 'Student@123'],
     ['SV từng ở, có lịch sử', 'sv007@dorm.local', 'Student@123'],
+    ['SV vừa được cấp tài khoản (MSSV)', '2021600005', '2021600005'],
     ['Mật khẩu tạm (buộc đổi)', 'doimk@dorm.local', 'Tam@12345'],
   ]
   : [
@@ -55,12 +56,12 @@ export default function LoginPage() {
     return <Navigate to={safeRedirectPath(user.role, location.state?.from)} replace />;
   }
 
-  const handleSubmit = async ({ email, password, remember }) => {
+  const handleSubmit = async ({ identifier, password, remember }) => {
     setLoading(true);
     setError(null);
     try {
-      const loggedIn = await login(email.trim(), password, remember);
-      if (loggedIn.mustChangePassword) message.warning('Bạn đang dùng mật khẩu tạm, vui lòng đổi mật khẩu để tiếp tục');
+      const loggedIn = await login(identifier.trim(), password, remember);
+      if (loggedIn.mustChangePassword) message.warning('Vui lòng đổi mật khẩu để tiếp tục');
       else message.success('Đăng nhập thành công');
     } catch (err) {
       const fieldErrors = getFieldErrors(err);
@@ -87,8 +88,8 @@ export default function LoginPage() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, textAlign: 'center',
         }}>
           <BrandLogo size={96} variant="glass" />
-          <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: 1, marginTop: 28, lineHeight: 1.2 }}>QUẢN LÝ KÝ TÚC XÁ</div>
-          <div style={{ fontSize: 16, opacity: 0.9, marginTop: 10 }}>Hệ thống quản lý ký túc xá sinh viên</div>
+          <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: 1, marginTop: 28, lineHeight: 1.2 }}>KÝ TÚC XÁ HaUI</div>
+          <div style={{ fontSize: 16, opacity: 0.9, marginTop: 10 }}>Trường Đại học Công nghiệp Hà Nội</div>
           <div style={{
             marginTop: 36, padding: '6px 16px', borderRadius: 999, fontSize: 13,
             background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
@@ -98,7 +99,7 @@ export default function LoginPage() {
             Phiên bản {APP_VERSION} · Dành cho ban quản lý và sinh viên nội trú
           </div>
           <div style={{ position: 'absolute', bottom: 24, fontSize: 12, opacity: 0.7 }}>
-            © {new Date().getFullYear()} Hệ thống Ký túc xá Đại học. Tất cả quyền được bảo lưu.
+            © {new Date().getFullYear()} Ký túc xá Đại học Công nghiệp Hà Nội. Tất cả quyền được bảo lưu.
           </div>
         </div>
       )}
@@ -109,12 +110,12 @@ export default function LoginPage() {
           {!screens.md && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
               <BrandLogo size={40} />
-              <Text strong style={{ fontSize: 16 }}>QUẢN LÝ KÝ TÚC XÁ</Text>
+              <Text strong style={{ fontSize: 16 }}>KÝ TÚC XÁ HaUI</Text>
             </div>
           )}
 
           <Title level={2} style={{ marginBottom: 4 }}>Đăng nhập</Title>
-          <Text type="secondary">Sử dụng tài khoản do nhà trường cấp</Text>
+          <Text type="secondary">Sinh viên dùng mã sinh viên, cán bộ dùng email</Text>
 
           {error && (
             <Alert
@@ -137,14 +138,11 @@ export default function LoginPage() {
             style={{ marginTop: 24 }}
           >
             <Form.Item
-              name="email"
-              label="Email"
-              rules={[
-                { required: true, message: 'Vui lòng nhập email' },
-                { type: 'email', message: 'Email không đúng định dạng' },
-              ]}
+              name="identifier"
+              label="Email hoặc mã sinh viên"
+              rules={[{ required: true, whitespace: true, message: 'Vui lòng nhập email hoặc mã sinh viên' }]}
             >
-              <Input prefix={<UserOutlined style={{ color: '#8C8C8C' }} />} placeholder="email@dorm.local" autoComplete="username" autoFocus />
+              <Input prefix={<UserOutlined style={{ color: '#8C8C8C' }} />} placeholder="VD: 2021601234" autoComplete="username" autoFocus />
             </Form.Item>
 
             <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}>
@@ -185,9 +183,9 @@ export default function LoginPage() {
                 label: <Text type="secondary" style={{ fontSize: 12 }}>Tài khoản thử ({USE_MOCK ? 'dữ liệu giả' : 'seed của backend'}) — chỉ hiện khi chạy dev</Text>,
                 children: (
                   <div style={{ display: 'grid', gap: 6, fontSize: 12 }}>
-                    {DEMO_ACCOUNTS.map(([label, email, password]) => (
-                      <a key={email} onClick={() => form.setFieldsValue({ email, password })}>
-                        {label}: <code>{email}</code> / <code>{password}</code>
+                    {DEMO_ACCOUNTS.map(([label, identifier, password]) => (
+                      <a key={identifier} onClick={() => form.setFieldsValue({ identifier, password })}>
+                        {label}: <code>{identifier}</code> / <code>{password}</code>
                       </a>
                     ))}
                   </div>
