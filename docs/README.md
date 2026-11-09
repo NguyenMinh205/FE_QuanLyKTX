@@ -30,6 +30,9 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 | 01 | [Tổng quan dự án](01-TONG-QUAN-DU-AN.md) | Bối cảnh, khảo sát hiện trạng, mục tiêu, rủi ro — nguyên liệu cho Chương 1 báo cáo |
 | 02 | [Đặc tả yêu cầu (SRS)](02-DAC-TA-YEU-CAU.md) | **87 FR / 20 NFR / 8 use case chi tiết** — mọi chức năng phải truy vết về đây |
 | 03 | [Phân tích nghiệp vụ](03-PHAN-TICH-NGHIEP-VU.md) | Quy tắc nghiệp vụ, máy trạng thái, luồng quy trình, công thức tính tiền |
+| ~~04~~ | → [Thiết kế CSDL: `DATA-SCHEMA.md`](DATA-SCHEMA.md) | *Số 04 đã bỏ.* Nội dung nằm ở tài liệu tầng 1 |
+| ~~05~~ | → [Kiến trúc mã nguồn: `ARCHITECTURE.md`](ARCHITECTURE.md) | *Số 05 đã bỏ.* Nội dung nằm ở tài liệu tầng 1 |
+| ~~06~~ | → [Đặc tả API: `API.md`](API.md) | *Số 06 đã bỏ.* Nội dung nằm ở tài liệu tầng 1 |
 | 07 | [Phân quyền & bảo mật](07-PHAN-QUYEN-BAO-MAT.md) | Ma trận RBAC, luồng JWT, chống IDOR, checklist bảo mật |
 | 08 | [Thiết kế giao diện](08-THIET-KE-GIAO-DIEN.md) | Sitemap, danh sách màn hình, wireframe, bảng màu & trạng thái |
 | 09 | [Kế hoạch & phân công](09-KE-HOACH-PHAN-CONG.md) | WBS, ngày công, phân vai, RACI |
@@ -38,8 +41,12 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 | 12 | [Khung báo cáo đồ án](12-KHUNG-BAO-CAO.md) | Mục lục báo cáo, map tài liệu → chương, câu hỏi phản biện |
 | 13 | [Lộ trình triển khai A→Z](13-LO-TRINH-TRIEN-KHAI.md) | Timeline 12 tuần, runbook cài đặt → deploy, 26 cạm bẫy |
 | 14 | [Hướng dẫn cho người mới](14-PHIEN-BAN-DON-GIAN-HOA.md) | Lý do đơn giản hóa, lộ trình tự học, **mẫu code một module hoàn chỉnh** |
+| 15 | [Checklist nghiệm thu frontend](15-CHECKLIST-NGHIEM-THU-FE.md) | Từng màn một: cách chạy, các bước bấm thử, mẫu ghi lỗi |
+| 16 | [Yêu cầu API gửi backend](16-YEU-CAU-API-BACKEND.md) | Đối chiếu API.md với backend thật, danh sách việc backend cần sửa |
+| 17 | [Tổng quan frontend](17-TONG-QUAN-FRONTEND.md) | 31 màn hình, luồng chạy, cơ chế dùng chung, câu hỏi phản biện |
+| — | [**Mô tả đề tài**](MO-TA-DE-TAI.md) | Bản nộp cho giảng viên: bài toán, yêu cầu, mô hình hóa, CSDL, công nghệ, kiểm thử |
 
-> **Vì sao thiếu 04, 05, 06?** Ba tài liệu đó (Thiết kế CSDL, Kiến trúc, Đặc tả API) đã được thay thế bằng `DATA-SCHEMA.md`, `ARCHITECTURE.md`, `API.md` ở tầng 1 vào ngày 12/09/2026. Giữ số cũ cho các tài liệu còn lại để không phải sửa hàng trăm tham chiếu chéo. **Không tạo lại 04/05/06.**
+> **Vì sao không có tệp 04, 05, 06?** Ba tài liệu đó (Thiết kế CSDL, Kiến trúc, Đặc tả API) đã được thay thế bằng `DATA-SCHEMA.md`, `ARCHITECTURE.md`, `API.md` ở tầng 1 vào ngày 12/09/2026. Giữ số cũ cho các tài liệu còn lại để không phải sửa hàng trăm tham chiếu chéo. **Không tạo lại 04/05/06.**
 
 ---
 
