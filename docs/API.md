@@ -245,12 +245,12 @@ Account errors:
   "data": { "items": [
     { "id": "665e1b...", "tier": "standard", "capacity": 6, "name": "Tiêu chuẩn · 6 người",
       "pricePerMonth": 320000, "depositAmount": 500000,
-      "amenities": ["Giường tầng", "Tủ cá nhân", "Quạt trần", "Bàn học chung"],
+      "amenities": ["Giường tầng", "Bàn học chung", "Tủ cá nhân", "WC riêng", "Bình nóng lạnh", "Quạt trần"],
       "includedSupplies": [],
       "roomCount": 10, "availableSlots": 9, "isActive": true },
     { "id": "665e1c...", "tier": "premium", "capacity": 4, "name": "Chất lượng cao · 4 người",
       "pricePerMonth": 950000, "depositAmount": 1000000,
-      "amenities": ["Giường tầng", "Tủ cá nhân", "Điều hòa", "Bình nóng lạnh", "WC riêng", "Bàn học riêng"],
+      "amenities": ["Giường tầng", "Bàn học chung", "Tủ cá nhân", "WC riêng", "Bình nóng lạnh", "Quạt trần", "Bàn học riêng"],
       "includedSupplies": ["Đệm mút 90x190cm"],
       "roomCount": 6, "availableSlots": 2, "isActive": true }
   ], "total": 6, "page": 1, "limit": 20 } }
@@ -274,7 +274,7 @@ Account errors:
     "id": "665f2a...", "roomNumber": "203", "floor": 2, "buildingName": "Tòa B", "gender": "female", "status": "active",
     "roomTypeId": "665e1b...", "roomTypeName": "Tiêu chuẩn · 6 người", "tier": "standard", "pricePerMonth": 320000,
     "capacity": 6, "occupied": 4, "availableSlots": 1, "maintenanceBeds": 1,
-    "amenities": ["Giường tầng", "Tủ cá nhân", "Quạt trần", "Bàn học chung"], "includedSupplies": [],
+    "amenities": ["Giường tầng", "Bàn học chung", "Tủ cá nhân", "WC riêng", "Bình nóng lạnh", "Quạt trần"], "includedSupplies": [],
     "beds": [
       { "id": "6660b1...", "bedNumber": 1, "bedCode": "B203-01", "status": "occupied", "note": null,
         "occupant": { "studentCode": "SV2024003", "studentName": "Nguyễn Thị Mai", "className": "K64 QTKD" } },

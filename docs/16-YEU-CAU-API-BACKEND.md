@@ -558,10 +558,59 @@ VITE_USE_MOCK=false VITE_API_BASE_URL=http://localhost:5000/api npm run dev -- -
 
 ---
 
+## 11. Danh mục loại phòng chốt ngày 17/09/2026
+
+Nghiệp vụ chốt lại: **mỗi hạng có đủ 4 mức sức chứa 3 · 4 · 6 · 8 người → 8 loại phòng**. Dữ liệu giả của frontend đã cập nhật theo bảng này; **seed của backend cần sửa cho khớp**, nếu không hai bên sẽ lệch danh mục khi demo.
+
+### 11.1. Tiện nghi
+
+**Mọi phòng** (cả hai hạng, mọi sức chứa) đều có đủ 6 món:
+
+> Giường tầng · Bàn học chung · Tủ cá nhân · WC riêng · Bình nóng lạnh · Quạt trần
+
+Hạng **Chất lượng cao** được cộng thêm theo sức chứa:
+
+| Loại | Thêm so với tiêu chuẩn |
+|---|---|
+| Chất lượng cao · 8 người | **Đệm** |
+| Chất lượng cao · 6 người | **Đệm** |
+| Chất lượng cao · 4 người | Đệm + **Bàn học riêng** |
+| Chất lượng cao · 3 người | Đệm + Bàn học riêng + **Tủ lạnh mini**, và **Giường đơn** thay cho Giường tầng |
+
+> **Đệm nằm ở `includedSupplies`, không phải `amenities`.** Đệm là `SupplyItem` ("Đệm mút 90x190cm") được cấp sẵn miễn phí, nên đặt bằng `includedInRoomTypes` của vật phẩm — đúng như `DATA-SCHEMA` mục 3.13 quy định (`amenities` là đồ cố định **không bán**). Nhờ vậy màn Mua sắm (SCR-67) tự ẩn đệm với sinh viên ở phòng chất lượng cao.
+
+### 11.2. Bảng danh mục đầy đủ
+
+| Hạng | Sức chứa | Giá / người / tháng | Tiền cọc | `amenities` | `includedSupplies` |
+|---|---|---|---|---|---|
+| Tiêu chuẩn | 8 | 250.000 | 500.000 | 6 món cơ bản | — |
+| Tiêu chuẩn | 6 | 320.000 | 500.000 | 6 món cơ bản | — |
+| Tiêu chuẩn | 4 | 450.000 | 500.000 | 6 món cơ bản | — |
+| Tiêu chuẩn | 3 | **600.000** ⚠️ | 500.000 | 6 món cơ bản | — |
+| Chất lượng cao | 8 | **550.000** ⚠️ | 1.000.000 | 6 món cơ bản | Đệm mút 90x190cm |
+| Chất lượng cao | 6 | 750.000 | 1.000.000 | 6 món cơ bản | Đệm mút 90x190cm |
+| Chất lượng cao | 4 | 950.000 | 1.000.000 | 6 món cơ bản + Bàn học riêng | Đệm mút 90x190cm |
+| Chất lượng cao | 3 | 1.200.000 | 1.000.000 | 6 món cơ bản (Giường **đơn**) + Bàn học riêng + Tủ lạnh mini | Đệm mút 90x190cm |
+
+> ⚠️ **Hai giá cần chốt:** *Tiêu chuẩn · 3 người* và *Chất lượng cao · 8 người* là hai tổ hợp mới, chưa có giá chính thức. Frontend tạm đặt 600.000 và 550.000 theo mạch giá sẵn có (hạng cao ≈ 2 lần hạng tiêu chuẩn cùng sức chứa). **Cần người phụ trách nghiệp vụ xác nhận trước khi seed lên bản demo.**
+
+### 11.3. Thay đổi so với bản seed hiện tại của backend
+
+| # | Việc cần làm |
+|---|---|
+| 1 | Thêm 2 loại còn thiếu: **Tiêu chuẩn · 3 người** và **Chất lượng cao · 8 người** |
+| 2 | Bỏ **Điều hòa** khỏi `amenities` của mọi loại — ký túc xá không có điều hòa |
+| 3 | Thêm **WC riêng, Bình nóng lạnh, Quạt trần, Bàn học chung** vào **tất cả** loại, kể cả hạng tiêu chuẩn |
+| 4 | Đặt `includedInRoomTypes` của "Đệm mút 90x190cm" cho **cả 4 loại chất lượng cao** (hiện chỉ có 3) |
+| 5 | Riêng Chất lượng cao · 3 người: `amenities` dùng **"Giường đơn"** thay cho "Giường tầng" |
+
+---
+
 ## Lịch sử phiên bản
 
 | Phiên bản | Ngày | Người | Nội dung |
 |---|---|---|---|
+| 1.15 | 17/09/2026 | FE Lead | **Mục 11 mới**: danh mục loại phòng chốt lại — **8 loại** (2 hạng × 3/4/6/8 người), tiện nghi cơ bản giống nhau cho mọi phòng, hạng cao cộng thêm đệm / bàn học riêng / tủ lạnh mini. Dữ liệu giả của FE đã cập nhật, seed của backend cần sửa theo |
 | 1.14 | 17/09/2026 | FE Lead | Rà soát toàn bộ luật nghiệp vụ (53 mục kiểm): **49 đúng**. Thêm 2 lỗi backend (số lượng nhu yếu phẩm tới 99, `/contracts/expiring` bỏ qua `days`) và xác định lỗi `gatewayTransactionId` chặn **cả thanh toán online** chứ không riêng thu tại quầy |
 | 1.13 | 16/09/2026 | FE Lead | **Mục 10 mới**: chạy thử toàn bộ luồng nghiệp vụ trên CSDL test — luồng vào ở 18/18 bước đạt; tìm **6 lỗi backend** (4 lỗi P0: `totalAmount` khi lưu/sửa chỉ số, trùng `gatewayTransactionId` khi thu tiền lần hai, hủy đơn nhu yếu phẩm trước khi kiểm tra nợ, chặn đăng nhập đếm cả lần đúng) và **4 lỗi frontend đã sửa** |
 | 1.12 | 16/09/2026 | FE Lead | **Mục 9 mới**: kết quả nối thử với backend `c1a24e1` — 82/82 endpoint đã có, 31/31 màn hiển thị được; còn 6 chỗ lệch (trần `limit` của `/rooms`, `roomTypeId` lúc object lúc chuỗi, phòng thiếu giường, danh sách trả mảng trần, `isSystem`, `stats` lồng) |
