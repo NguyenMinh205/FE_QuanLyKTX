@@ -408,7 +408,7 @@ A room category: **tier × capacity**. One document per combination, e.g. "Tiêu
 | `name` | String | generated from tier + capacity, e.g. `"Tiêu chuẩn · 6 người"` |
 | `pricePerMonth` | Number | VND **per student per month** — required |
 | `depositAmount` | Number | VND, collected once at move-in — required |
-| `amenities` | [String] | fixed equipment that comes with the room and is **never sold**, e.g. `"Giường tầng"`, `"Điều hòa"`, `"WC riêng"` |
+| `amenities` | [String] | fixed equipment that comes with the room and is **never sold**, e.g. `"Giường tầng"`, `"WC riêng"`, `"Bình nóng lạnh"` |
 | `description` | String | |
 | `isActive` | Boolean | default `true`; `false` hides the type from new applications — existing rooms and contracts are unaffected |
 

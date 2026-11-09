@@ -30,15 +30,15 @@
 | 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
-| 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả (backend chưa có API) | ⬜ Chưa test |
-| 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
-| 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
-| 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả (backend chưa có API cổng SV) | ⬜ Chưa test |
-| 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả (backend đăng ký sai nghiệp vụ) | ⬜ Chưa test |
+| 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
-> **Vì sao phần lớn chạy với dữ liệu giả?** Backend hiện làm theo API v1.1, chưa có loại phòng, giường tự sinh, đơn đăng ký (API v1.2). Khi backend có đủ, chạy lại đúng checklist này ở chế độ backend thật.
+> **Cập nhật 17/09/2026:** backend đã làm xong gần hết (82/82 endpoint đã có route) và các luồng chính đã chạy thông với backend thật. Vì vậy mỗi màn nên nghiệm thu **hai lượt**: lượt 1 với dữ liệu giả để soi kỹ giao diện, lượt 2 với backend thật để soi dữ liệu. Chi tiết cách chạy ở mục 1.
 
 ---
 
@@ -46,9 +46,11 @@ Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi ph
 
 ### 1.1. Chạy với dữ liệu giả
 
-- [ ] Mở `.env` ở thư mục gốc FE, đặt `VITE_USE_MOCK=true` → lưu file.
-- [ ] Chạy `npm install` (lần đầu) rồi `npm run dev` → terminal hiện `Local: http://localhost:5173/`.
-- [ ] Mở `http://localhost:5173` bằng Chrome → F12 → tab **Console** hiện dòng vàng `[DỮ LIỆU GIẢ] Đang dùng src/mocks`.
+- [ ] Chạy `npm install` (lần đầu).
+- [ ] Chạy **dữ liệu giả ở cổng riêng 5174** để dùng song song với bản nối backend thật (cổng 5173):
+      `VITE_USE_MOCK=true npx vite --port 5174 --strictPort`
+      *(hoặc đặt `VITE_USE_MOCK=true` trong `.env` rồi `npm run dev` nếu chỉ chạy một bản)*
+- [ ] Mở `http://localhost:5174` bằng Chrome → F12 → tab **Console** hiện dòng vàng `[DỮ LIỆU GIẢ] Đang dùng src/mocks`.
 
 > ⚠️ Dữ liệu giả nằm trong bộ nhớ trình duyệt. **Nhấn F5 là toàn bộ dữ liệu về như ban đầu.** Các bước có con số cụ thể (tên sinh viên, số phòng) đều tính từ trạng thái vừa F5.
 
@@ -66,15 +68,49 @@ Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi ph
 | `sv006@dorm.local` | `Student@123` | Sinh viên có đơn chờ duyệt (phòng B101 đã đầy) | Trang chủ — thẻ đơn chờ duyệt, hủy đơn |
 | `doimk@dorm.local` | `Tam@12345` | Nhân viên | Mật khẩu tạm — bị buộc đổi mật khẩu |
 
-### 1.2. Chạy với backend thật (chỉ màn 1)
+### 1.2. Chạy với backend thật
 
-- [ ] Backend chạy ở `http://localhost:5000` (thư mục `D:\BE_QLKTX`, lệnh `npm run dev`, terminal không báo lỗi kết nối MongoDB).
-- [ ] `.env` của FE: `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=http://localhost:5000/api` → **tắt và chạy lại** `npm run dev` (Vite chỉ đọc `.env` lúc khởi động).
-- [ ] Console **không** còn dòng `[DỮ LIỆU GIẢ]`.
+> ⚠️ **Không trỏ vào cụm Atlas dùng chung khi test.** Test là có ghi dữ liệu; ghi vào cụm chung sẽ làm bẩn dữ liệu của bạn làm backend. Dùng một CSDL test riêng như dưới đây.
 
-Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local / Staff@123`, `viewer@dorm.local / Viewer@123`, `student.nam@dorm.local / Student@123`.
+**Bốn cửa sổ dòng lệnh, chạy theo thứ tự:**
 
-### 1.3. Kiểm tra chung — áp dụng cho MỌI màn
+| # | Chạy gì | Lệnh |
+|---|---|---|
+| 1 | MongoDB cục bộ cho test | `cd <thư mục scratchpad>/localdb` rồi `node start-mongo.mjs` — giữ cửa sổ này mở |
+| 2 | Nạp dữ liệu mẫu *(chỉ khi muốn làm lại từ đầu)* | `cd D:\BE_QLKTX` rồi `MONGODB_URI="mongodb://127.0.0.1:27018/dms_ktx_test" npm run seed` |
+| 3 | Backend | `cd D:\BE_QLKTX` rồi `MONGODB_URI="mongodb://127.0.0.1:27018/dms_ktx_test" node src/server.js` |
+| 4 | Frontend nối backend thật | `cd D:\FE_QuanLyKTX` rồi `VITE_USE_MOCK=false VITE_API_BASE_URL=http://localhost:5000/api npx vite --port 5173 --strictPort` |
+
+- [ ] Backend in `CSDL: dms_ktx_test (Host: 127.0.0.1)` — **nếu thấy tên cụm Atlas thì dừng lại**, đang trỏ nhầm CSDL chung.
+- [ ] Mở `http://localhost:5173`, Console **không** còn dòng vàng `[DỮ LIỆU GIẢ]`.
+- [ ] Kiểm tra nhanh đang đúng CSDL test: màn Sinh viên chỉ có **2 sinh viên** (`SV20260001`, `SV20260002`) sau khi vừa nạp lại dữ liệu mẫu.
+
+**Tài khoản backend thật:** `admin@dorm.local / Admin@123` · `staff1@dorm.local / Staff@123` · `viewer@dorm.local / Viewer@123` · `student.nam@dorm.local / Student@123` · `student.nu@dorm.local / Student@123`.
+
+**Ba điều phải biết trước khi test với backend thật:**
+
+1. **Đăng nhập tối đa 10 lần / 15 phút** (tính theo máy, kể cả đăng nhập đúng). Vượt quá sẽ báo "sai quá nhiều lần" dù mật khẩu đúng. Cách gỡ: **khởi động lại backend** (cửa sổ 3) là bộ đếm về 0. Mẹo: mỗi vai trò dùng một cửa sổ trình duyệt riêng (Chrome thường + cửa sổ ẩn danh) để khỏi đăng xuất/đăng nhập lại liên tục.
+2. **Thu tiền chỉ chạy được một lần** — từ giao dịch thứ hai trở đi backend trả lỗi trùng `gatewayTransactionId` (lỗi backend đã báo, mục 10 của `16-YEU-CAU-API-BACKEND.md`). Trước khi backend sửa, mỗi vòng test chỉ nghiệm thu được một lần thu tiền; muốn thu tiếp thì nạp lại dữ liệu mẫu (bước 2).
+3. **Dữ liệu test giữ nguyên** giữa các lần tắt/bật, khác với dữ liệu giả (F5 là về ban đầu). Muốn quay lại trạng thái sạch thì chạy lại bước 2.
+
+### 1.3. Nghiệm thu theo thứ tự nào
+
+Không bấm lung tung — các màn phụ thuộc dữ liệu của nhau. Thứ tự đỡ tốn công nhất:
+
+| Đợt | Màn | Vì sao trước |
+|---|---|---|
+| 1 | Mục 1 (Đăng nhập, Đổi mật khẩu, 403) | Sai ở đây thì không test được gì khác |
+| 2 | Mục 2, 12, 3 (Loại phòng → Tòa nhà → Phòng) | Dựng cơ sở vật chất trước |
+| 3 | Mục 22, 5, 4 (Đăng ký tài khoản → Đăng ký chỗ ở → Duyệt đơn) | Tạo ra sinh viên đang ở + hợp đồng + 2 hóa đơn cho các màn sau |
+| 4 | Mục 6, 7 (Trang chủ SV, Hợp đồng) | Xem kết quả của đợt 3 |
+| 5 | Mục 13, 14, 15, 16, 17 (Loại phí → Chỉ số → Hóa đơn → Chi tiết + thu tiền → Lịch sử thanh toán) | Toàn bộ khâu tiền |
+| 6 | Mục 18, 21 (Nhu yếu phẩm quản trị ↔ Mua sắm của SV) | Cần sinh viên đang ở |
+| 7 | Mục 8, 9, 19, 20 (Yêu cầu, Cổng SV còn lại) | Cần hợp đồng và hóa đơn đã có |
+| 8 | Mục 10, 11 (Dashboard, Tài khoản) | Dashboard chỉ đúng khi đã có dữ liệu thật |
+
+Mỗi mục làm xong: đánh dấu `- [x]` từng dòng đạt, ghi dòng không đạt vào phần **Lỗi phát hiện** của mục đó, rồi cập nhật cột **Trạng thái** ở bảng theo dõi mục 0.
+
+### 1.4. Kiểm tra chung — áp dụng cho MỌI màn
 
 - [ ] F12 → **Console** trong suốt quá trình test: không có dòng đỏ, không có cảnh báo vàng chứa chữ `antd` hoặc `Warning:`.
 - [ ] Cửa sổ rộng (≥ 1440px): bố cục giống ảnh thiết kế trong `design/` (khác biệt đã chấp nhận được liệt kê trong từng màn).
@@ -89,37 +125,37 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 
 ### 2.1. Đăng nhập
 
-- [ ] Vào `/login` → bố cục 2 nửa: trái nền xanh có logo và dòng "Phiên bản v1.0", phải là form. Ô "Ghi nhớ đăng nhập" đã tích sẵn.
-- [ ] Bấm **Đăng nhập** khi để trống → dưới ô Email hiện "Vui lòng nhập email", dưới ô Mật khẩu hiện "Vui lòng nhập mật khẩu".
-- [ ] Email gõ `abc` → "Email không đúng định dạng".
-- [ ] `admin@dorm.local` + mật khẩu sai → khung đỏ "Email hoặc mật khẩu không chính xác", vẫn ở trang đăng nhập.
-- [ ] F12 → **Network** → bấm request `login` → **Response**: `code` là `INVALID_CREDENTIALS`, mã HTTP 401.
-- [ ] Đăng nhập đúng `admin@dorm.local / Admin@123` → chuyển tới `/admin/dashboard`, góc phải trên hiện tên người dùng.
-- [ ] F12 → **Application** → **Local Storage** → `http://localhost:5173` có hai khóa `token` và `user` (vì đã tích "Ghi nhớ").
-- [ ] Đóng tab, mở lại `http://localhost:5173` → vẫn đăng nhập, không phải nhập lại.
-- [ ] Đăng xuất → đăng nhập lại nhưng **bỏ tích** "Ghi nhớ" → token nằm ở **Session Storage**, không ở Local Storage.
-- [ ] Đang đăng nhập mà gõ `/login` trên thanh địa chỉ → tự quay về trang chủ đúng vai trò.
-- [ ] Bấm "Cần trợ giúp?" → hiện khung thông tin hỗ trợ (phòng quản sinh, hotline).
+- [x] Vào `/login` → bố cục 2 nửa: trái nền xanh có logo và dòng "Phiên bản v1.0", phải là form. Ô "Ghi nhớ đăng nhập" đã tích sẵn.
+- [X] Bấm **Đăng nhập** khi để trống → dưới ô Email hiện "Vui lòng nhập email", dưới ô Mật khẩu hiện "Vui lòng nhập mật khẩu".
+- [X] Email gõ `abc` → "Email không đúng định dạng".
+- [X] `admin@dorm.local` + mật khẩu sai → khung đỏ "Email hoặc mật khẩu không chính xác", vẫn ở trang đăng nhập.
+- [x] F12 → **Network** → bấm request `login` → **Response**: `code` là `INVALID_CREDENTIALS`, mã HTTP 401.
+- [X] Đăng nhập đúng `admin@dorm.local / Admin@123` → chuyển tới `/admin/dashboard`, góc phải trên hiện tên người dùng.
+- [x] F12 → **Application** → **Local Storage** → `http://localhost:5173` có hai khóa `token` và `user` (vì đã tích "Ghi nhớ").
+- [X] Đóng tab, mở lại `http://localhost:5173` → vẫn đăng nhập, không phải nhập lại.
+- [X] Đăng xuất → đăng nhập lại nhưng **bỏ tích** "Ghi nhớ" → token nằm ở **Session Storage**, không ở Local Storage.
+- [X] Đang đăng nhập mà gõ `/login` trên thanh địa chỉ → tự quay về trang chủ đúng vai trò.
+- [X] Bấm "Cần trợ giúp?" → hiện khung thông tin hỗ trợ (phòng quản sinh, hotline).
 
 ### 2.2. Chặn theo vai trò
 
-- [ ] Đăng nhập `sv001@dorm.local` → vào `/portal/home`.
-- [ ] Gõ `/admin/rooms` → trang **403 Không có quyền**, hiện tài khoản đang dùng, có nút "Về trang chủ" và "Đăng nhập tài khoản khác".
-- [ ] Bấm "Đăng nhập tài khoản khác" → về `/login`, đã đăng xuất.
-- [ ] Chưa đăng nhập, gõ `/admin/rooms` → bị đưa về `/login`; đăng nhập admin xong → **quay lại đúng** `/admin/rooms`.
+- [X] Đăng nhập `sv001@dorm.local` → vào `/portal/home`.
+- [X] Gõ `/admin/rooms` → trang **403 Không có quyền**, hiện tài khoản đang dùng, có nút "Về trang chủ" và "Đăng nhập tài khoản khác".
+- [X] Bấm "Đăng nhập tài khoản khác" → về `/login`, đã đăng xuất.
+- [X] Chưa đăng nhập, gõ `/admin/rooms` → bị đưa về `/login`; đăng nhập admin xong → **quay lại đúng** `/admin/rooms`.
 
 ### 2.3. Đổi mật khẩu
 
-- [ ] Đăng nhập `doimk@dorm.local / Tam@12345` → bị đưa thẳng tới trang **Đổi mật khẩu**, có khung vàng "Bạn đang dùng mật khẩu tạm".
-- [ ] Bấm menu hoặc gõ `/admin/dashboard` → vẫn bị giữ ở trang đổi mật khẩu.
-- [ ] Mật khẩu mới `abc` → "Mật khẩu tối thiểu 8 ký tự"; `abcdefgh` → "Mật khẩu phải có cả chữ và số"; ô nhập lại khác → báo không khớp.
-- [ ] Mật khẩu hiện tại sai → lỗi hiện **ngay dưới ô Mật khẩu hiện tại** (không phải thông báo góc màn hình).
-- [ ] Nhập đúng `Tam@12345` → mới `Moi@12345` → "Đổi mật khẩu thành công", vào được dashboard.
-- [ ] Network → request đổi mật khẩu → **Payload** có đúng 2 trường `oldPassword`, `newPassword`.
+- [x] Đăng nhập `doimk@dorm.local / Tam@12345` → bị đưa thẳng tới trang **Đổi mật khẩu**, có khung vàng "Bạn đang dùng mật khẩu tạm".
+- [X] Bấm menu hoặc gõ `/admin/dashboard` → vẫn bị giữ ở trang đổi mật khẩu.
+- [X] Mật khẩu mới `abc` → "Mật khẩu tối thiểu 8 ký tự"; `abcdefgh` → "Mật khẩu phải có cả chữ và số"; ô nhập lại khác → báo không khớp.
+- [X] Mật khẩu hiện tại sai → lỗi hiện **ngay dưới ô Mật khẩu hiện tại** (không phải thông báo góc màn hình).
+- [x] Nhập đúng `Tam@12345` → mới `Moi@12345` → "Đổi mật khẩu thành công", vào được dashboard.
+- [X] Network → request đổi mật khẩu → **Payload** có đúng 2 trường `oldPassword`, `newPassword`.
 
 ### 2.4. Phiên đăng nhập hỏng
 
-- [ ] Đăng nhập admin → F12 → Application → Local Storage → sửa giá trị khóa `user`, đổi `"role":"admin"` thành `"role":"ADMIN"` → F5 → bị đưa về `/login` (không kẹt ở trang 403).
+- [X] Đăng nhập admin → F12 → Application → Local Storage → sửa giá trị khóa `user`, đổi `"role":"admin"` thành `"role":"ADMIN"` → F5 → bị đưa về `/login` (không kẹt ở trang 403).
 
 **Lỗi phát hiện:** _(chưa có)_
 
@@ -129,14 +165,14 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 
 **Nhánh:** `feature/login-and-room-types` · **Đường dẫn:** Cơ sở vật chất → Loại phòng · **Chạy:** dữ liệu giả, tài khoản `admin@dorm.local`.
 
-- [ ] Lưới thẻ 3 cột, mỗi thẻ có: tag hạng, tên (VD "Tiêu chuẩn · 6 người"), giá `/người/tháng`, tiện nghi, số phòng và số chỗ trống. Loại không còn chỗ ghi "hết chỗ" màu đỏ (nếu có).
-- [ ] Segmented "Tất cả · Tiêu chuẩn · Chất lượng cao" → lọc đúng hạng.
-- [ ] Bấm **Sửa** trên một thẻ đang có phòng dùng → drawer "Sửa loại phòng": ô **Hạng phòng** và **Sức chứa** bị khóa, rê chuột thấy "Đang có N phòng dùng loại này — tạo loại mới nếu cần đổi".
-- [ ] Trong drawer có khung vàng "Lưu ý quan trọng — Đổi giá hoặc tiền cọc không ảnh hưởng hợp đồng đã ký".
-- [ ] Đổi giá → **Lưu thay đổi** → "Cập nhật loại phòng thành công", thẻ hiện giá mới.
-- [ ] **Thêm loại phòng** trùng hạng + sức chứa đã có (VD Tiêu chuẩn · 6) → báo "Loại phòng này đã tồn tại".
-- [ ] Thêm loại mới (VD Chất lượng cao · 8) → thẻ mới xuất hiện.
-- [ ] Đăng nhập `staff@dorm.local` hoặc `viewer@dorm.local` → không có nút "Thêm loại phòng", không có link "Sửa".
+- [X] Lưới thẻ 3 cột, mỗi thẻ có: tag hạng, tên (VD "Tiêu chuẩn · 6 người"), giá `/người/tháng`, tiện nghi, số phòng và số chỗ trống. Loại không còn chỗ ghi "hết chỗ" màu đỏ (nếu có).
+- [X] Segmented "Tất cả · Tiêu chuẩn · Chất lượng cao" → lọc đúng hạng.
+- [X] Bấm **Sửa** trên một thẻ đang có phòng dùng → drawer "Sửa loại phòng": ô **Hạng phòng** và **Sức chứa** bị khóa, rê chuột thấy "Đang có N phòng dùng loại này — tạo loại mới nếu cần đổi".
+- [X] Trong drawer có khung vàng "Lưu ý quan trọng — Đổi giá hoặc tiền cọc không ảnh hưởng hợp đồng đã ký".
+- [X] Đổi giá → **Lưu thay đổi** → "Cập nhật loại phòng thành công", thẻ hiện giá mới.
+- [X] **Thêm loại phòng** trùng hạng + sức chứa đã có (VD Tiêu chuẩn · 6) → báo "Loại phòng này đã tồn tại".
+- [X] Thêm loại mới (VD Chất lượng cao · 8) → thẻ mới xuất hiện.
+- [X] Đăng nhập `staff@dorm.local` hoặc `viewer@dorm.local` → không có nút "Thêm loại phòng", không có link "Sửa".
 
 **Lỗi phát hiện:** _(chưa có)_
 
@@ -150,20 +186,20 @@ Tài khoản backend thật: `admin@dorm.local / Admin@123`, `staff1@dorm.local 
 
 ### 4.1. Sơ đồ
 
-- [ ] Mặc định chọn **Tòa A**. Các tầng xếp **Tầng 3 → 2 → 1** từ trên xuống; đầu mỗi tầng ghi "N phòng (x/y giường đang sử dụng)" và "Tỷ lệ: z%".
-- [ ] 4 chip chú giải: Còn chỗ · Sắp đầy · Đã đầy · Có giường bảo trì.
-- [ ] Đối chiếu số liệu Tòa A: **A101** "Đã đầy" 6/6 nền xám · **A102** nền đỏ "Hết chỗ", dòng dưới "1 bảo trì", 5/6 · **A206** "Còn 1 chỗ" nền vàng 7/8 · **A310** "Còn 4 chỗ" 0/4.
-- [ ] Không ô nào bị vỡ chữ xuống dòng lung tung (đặc biệt A102).
-- [ ] Rê chuột lên một ô → tooltip tên loại phòng + giá.
+- [X] Mặc định chọn **Tòa A**. Các tầng xếp **Tầng 3 → 2 → 1** từ trên xuống; đầu mỗi tầng ghi "N phòng (x/y giường đang sử dụng)" và "Tỷ lệ: z%".
+- [X] 4 chip chú giải: Còn chỗ · Sắp đầy · Đã đầy · Có giường bảo trì.
+- [X] Đối chiếu số liệu Tòa A: **A101** "Đã đầy" 6/6 nền xám · **A102** nền đỏ "Hết chỗ", dòng dưới "1 bảo trì", 5/6 · **A206** "Còn 1 chỗ" nền vàng 7/8 · **A310** "Còn 4 chỗ" 0/4.
+- [X] Không ô nào bị vỡ chữ xuống dòng lung tung (đặc biệt A102).
+- [X] Rê chuột lên một ô → tooltip tên loại phòng + giá.
 
 ### 4.2. Khung chi tiết + bảo trì giường
 
-- [ ] Bấm **A309** → khung phải "Phòng A309 · Tầng 3 · Tòa A", tag hạng / loại / giới tính, đơn giá, danh sách giường, "Cấp sẵn trong phòng".
-- [ ] Giường có người: tên, mã SV · lớp, **không có nút**.
-- [ ] Giường trống (xanh): dòng "Sẵn sàng — tự gán khi duyệt đơn đăng ký" + nút **Bảo trì**.
-- [ ] Bấm **Bảo trì** → hộp thoại có ô ghi chú (đếm tối đa 200 ký tự) → gõ "Khung giường gãy" → **Chuyển bảo trì** → giường chuyển đỏ, hiện ghi chú; ô A309 trên sơ đồ **đổi sang đỏ ngay** không cần F5.
-- [ ] Bấm **Mở lại** → hộp xác nhận → **Mở lại** → giường về xanh, ô A309 về màu cũ.
-- [ ] Network → request `beds/.../status` → Payload `{ "status": "maintenance", "note": "Khung giường gãy" }`.
+- [X] Bấm **A309** → khung phải "Phòng A309 · Tầng 3 · Tòa A", tag hạng / loại / giới tính, đơn giá, danh sách giường, "Cấp sẵn trong phòng".
+- [X] Giường có người: tên, mã SV · lớp, **không có nút**.
+- [X] Giường trống (xanh): dòng "Sẵn sàng — tự gán khi duyệt đơn đăng ký" + nút **Bảo trì**.
+- [X] Bấm **Bảo trì** → hộp thoại có ô ghi chú (đếm tối đa 200 ký tự) → gõ "Khung giường gãy" → **Chuyển bảo trì** → giường chuyển đỏ, hiện ghi chú; ô A309 trên sơ đồ **đổi sang đỏ ngay** không cần F5.
+- [X] Bấm **Mở lại** → hộp xác nhận → **Mở lại** → giường về xanh, ô A309 về màu cũ.
+- [X] Network → request `beds/.../status` → Payload `{ "status": "maintenance", "note": "Khung giường gãy" }`.
 
 ### 4.3. Bộ lọc + danh sách
 

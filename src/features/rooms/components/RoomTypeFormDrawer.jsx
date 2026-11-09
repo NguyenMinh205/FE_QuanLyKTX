@@ -15,7 +15,7 @@ const { Text } = Typography;
  * không nhập ở đây để hai danh sách không lệch nhau (DATA-SCHEMA.md §3.13).
  */
 const AMENITY_OPTIONS = [
-  'Giường tầng', 'Tủ cá nhân', 'Quạt trần', 'Điều hòa', 'Bình nóng lạnh',
+  'Giường tầng', 'Giường đơn', 'Tủ cá nhân', 'Quạt trần', 'Điều hòa', 'Bình nóng lạnh',
   'WC riêng', 'Bàn học chung', 'Bàn học riêng', 'Tủ lạnh mini',
 ];
 

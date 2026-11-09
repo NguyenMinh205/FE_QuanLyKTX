@@ -390,7 +390,7 @@ VITE_USE_MOCK=true    # dữ liệu giả (mặc định)
 VITE_USE_MOCK=false   # gọi backend thật tại VITE_API_BASE_URL
 ```
 
-Dữ liệu giả không phải vài dòng cho có — `mockDb.js` **dựng cả một ký túc xá thu nhỏ**: 6 loại phòng, 3 tòa nhà (một tòa đang cải tạo để thử trạng thái ngừng hoạt động), 20 phòng với giường sinh tự động, 90 sinh viên, 70 người đã được xếp chỗ, kèm hợp đồng, chỉ số điện nước, hóa đơn, thanh toán và đơn hàng. `mockApi.js` **thực thi cả luật nghiệp vụ**: gán giường nhỏ nhất, báo `ROOM_FULL`, tính tiền theo ngày, cộng dồn thanh toán, chặn hủy hóa đơn đã trả tiền.
+Dữ liệu giả không phải vài dòng cho có — `mockDb.js` **dựng cả một ký túc xá thu nhỏ**: 8 loại phòng (2 hạng × 3/4/6/8 người), 3 tòa nhà (một tòa đang cải tạo để thử trạng thái ngừng hoạt động), 20 phòng với giường sinh tự động, 90 sinh viên, 70 người đã được xếp chỗ, kèm hợp đồng, chỉ số điện nước, hóa đơn, thanh toán và đơn hàng. `mockApi.js` **thực thi cả luật nghiệp vụ**: gán giường nhỏ nhất, báo `ROOM_FULL`, tính tiền theo ngày, cộng dồn thanh toán, chặn hủy hóa đơn đã trả tiền.
 
 Có cả những tình huống khó dựng bằng tay được cài sẵn để demo:
 

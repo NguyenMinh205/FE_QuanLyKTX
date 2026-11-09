@@ -25,16 +25,24 @@ const KHOA = ['Công nghệ thông tin', 'Kinh tế', 'Cơ khí', 'Điện - Đi
 export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75, sv007: 80 };
 
 // ---------------------------------------------------------------- loại phòng
-const BASIC = ['Giường tầng', 'Tủ cá nhân', 'Quạt trần', 'Bàn học chung'];
-const PREMIUM = ['Giường tầng', 'Tủ cá nhân', 'Điều hòa', 'Bình nóng lạnh', 'WC riêng'];
+/**
+ * Tiện nghi cơ bản: MỌI phòng đều có, không phân biệt hạng.
+ * Phòng chất lượng cao được cấp thêm đệm — đệm là nhu yếu phẩm nên nằm ở
+ * `includedInRoomTypes` của SupplyItem, không phải `amenities` (DATA-SCHEMA 3.13).
+ */
+const BASIC = ['Giường tầng', 'Bàn học chung', 'Tủ cá nhân', 'WC riêng', 'Bình nóng lạnh', 'Quạt trần'];
+/** Phòng 3 người hạng cao dùng giường đơn thay giường tầng */
+const BASIC_GIUONG_DON = BASIC.map((a) => (a === 'Giường tầng' ? 'Giường đơn' : a));
 
 export const roomTypes = [
   { id: 'rt1', tier: 'standard', capacity: 8, pricePerMonth: 250000, depositAmount: 500000, amenities: BASIC },
   { id: 'rt2', tier: 'standard', capacity: 6, pricePerMonth: 320000, depositAmount: 500000, amenities: BASIC },
-  { id: 'rt3', tier: 'standard', capacity: 4, pricePerMonth: 450000, depositAmount: 500000, amenities: [...BASIC, 'WC riêng'] },
-  { id: 'rt4', tier: 'premium', capacity: 6, pricePerMonth: 750000, depositAmount: 1000000, amenities: PREMIUM },
-  { id: 'rt5', tier: 'premium', capacity: 4, pricePerMonth: 950000, depositAmount: 1000000, amenities: [...PREMIUM, 'Bàn học riêng'] },
-  { id: 'rt6', tier: 'premium', capacity: 3, pricePerMonth: 1200000, depositAmount: 1000000, amenities: [...PREMIUM, 'Bàn học riêng', 'Tủ lạnh mini'] },
+  { id: 'rt3', tier: 'standard', capacity: 4, pricePerMonth: 450000, depositAmount: 500000, amenities: BASIC },
+  { id: 'rt7', tier: 'standard', capacity: 3, pricePerMonth: 600000, depositAmount: 500000, amenities: BASIC },
+  { id: 'rt8', tier: 'premium', capacity: 8, pricePerMonth: 550000, depositAmount: 1000000, amenities: BASIC },
+  { id: 'rt4', tier: 'premium', capacity: 6, pricePerMonth: 750000, depositAmount: 1000000, amenities: BASIC },
+  { id: 'rt5', tier: 'premium', capacity: 4, pricePerMonth: 950000, depositAmount: 1000000, amenities: [...BASIC, 'Bàn học riêng'] },
+  { id: 'rt6', tier: 'premium', capacity: 3, pricePerMonth: 1200000, depositAmount: 1000000, amenities: [...BASIC_GIUONG_DON, 'Bàn học riêng', 'Tủ lạnh mini'] },
 ].map((t) => ({
   ...t,
   name: `${t.tier === 'standard' ? 'Tiêu chuẩn' : 'Chất lượng cao'} · ${t.capacity} người`,
@@ -49,7 +57,9 @@ export const buildings = [
 ];
 
 // ---------------------------------------------------------------- phòng (10 mỗi tòa) + giường tự sinh
-const ROOM_TYPE_PATTERN = ['rt2', 'rt2', 'rt3', 'rt3', 'rt5', 'rt1', 'rt4', 'rt3', 'rt6', 'rt5'];
+// Mỗi tòa có đủ 8 loại phòng. Hai chỗ lặp (rt2, rt5) là cố ý:
+// rt2 cho kịch bản "phòng nguyện vọng đã đầy", rt5 cho kịch bản "tranh chỗ" ở màn Duyệt đơn.
+const ROOM_TYPE_PATTERN = ['rt2', 'rt2', 'rt3', 'rt8', 'rt5', 'rt1', 'rt4', 'rt7', 'rt6', 'rt5'];
 
 export const rooms = [];
 export const beds = [];
@@ -394,7 +404,7 @@ contracts
 
 // ---------------------------------------------------------------- nhu yếu phẩm
 export const supplyItems = [
-  { id: 'si1', name: 'Đệm mút 90x190cm', category: 'bedding', unit: 'cái', price: 350000, includedInRoomTypes: ['rt4', 'rt5', 'rt6'], isActive: true },
+  { id: 'si1', name: 'Đệm mút 90x190cm', category: 'bedding', unit: 'cái', price: 350000, includedInRoomTypes: ['rt4', 'rt5', 'rt6', 'rt8'], isActive: true },
   { id: 'si2', name: 'Vỏ đệm 90x190cm', category: 'bedding', unit: 'cái', price: 120000, includedInRoomTypes: [], isActive: true },
   { id: 'si3', name: 'Gối bông', category: 'bedding', unit: 'cái', price: 80000, includedInRoomTypes: [], isActive: true },
   { id: 'si4', name: 'Vỏ gối', category: 'bedding', unit: 'cái', price: 40000, includedInRoomTypes: [], isActive: true },
