@@ -6,14 +6,13 @@ import { delay, ok, paginate, fail, search } from './mockHelpers';
 import { authStorage } from '../lib/authStorage';
 import {
   DEMO_STUDENT_INDEX, roomTypes, buildings, rooms, beds, students, applications, residencies, contracts,
-  feeTypes, utilityReadings, invoices, payments, requests, supplyItems, supplyOrders,
-  roomTypeOf, bedsOf, availableSlots, generateBeds, approveApplication, createSupplyOrder,
-  occupancyStats, debtOf, demoRaceRoomIds, simulateRivalApproval, todayPlus, newRequest, periodPlus,
+  feeTypes, utilityReadings, invoices, payments,
+  roomTypeOf, bedsOf, availableSlots, generateBeds, approveApplication,
+  occupancyStats, debtOf, demoRaceRoomIds, simulateRivalApproval, todayPlus, periodPlus,
 } from './mockDb';
 
 // ---------------------------------------------------------------- tiện ích
 const activeContractOf = (studentId) => contracts.find((c) => c.studentId === studentId && c.status === 'active');
-const includedSupplyNames = (roomTypeId) => supplyItems.filter((it) => it.includedInRoomTypes.includes(roomTypeId)).map((it) => it.name);
 const withRemaining = (inv) => ({ ...inv, remainingAmount: inv.totalAmount - inv.paidAmount });
 
 const roomView = (r) => {
@@ -34,23 +33,6 @@ const me = () => {
   return students.find((s) => s.id === user?.studentId) || students[DEMO_STUDENT_INDEX.sv001];
 };
 
-/** Hóa đơn supplies được trả đủ ⇒ đơn hàng sang ready, đúng một lần (BR-95) */
-const markSupplyOrderReady = (invoiceId) => {
-  const order = supplyOrders.find((o) => o.invoiceId === invoiceId && o.status === 'pending_payment');
-  if (order) order.status = 'ready';
-};
-
-const cancelSupplyOrder = (order, reason) => {
-  const inv = invoices.find((i) => i.id === order.invoiceId);
-  if (order.status !== 'pending_payment' || inv.paidAmount > 0) {
-    fail(422, 'ORDER_NOT_CANCELLABLE', 'Đơn hàng đã thanh toán, không thể hủy');
-  }
-  order.status = 'cancelled';
-  order.cancelledAt = new Date().toISOString();
-  order.cancelReason = reason || null;
-  inv.status = 'cancelled';
-};
-
 // ---------------------------------------------------------------- auth
 const account = (email, password, role, fullName, studentIndex = null, mustChangePassword = false, extra = {}) => ({
   email, password, role, mustChangePassword,
@@ -66,7 +48,6 @@ const account = (email, password, role, fullName, studentIndex = null, mustChang
 const ACCOUNTS = [
   account('admin@dorm.local', 'Admin@123', 'admin', 'Nguyễn Văn Quản Trị'),
   account('staff@dorm.local', 'Staff@123', 'staff', 'Lê Thị Nhân Viên'),
-  account('viewer@dorm.local', 'Viewer@123', 'viewer', 'Trần Văn Người Xem'),
   account('sv001@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv001),
   account('sv002@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv002),
   account('sv003@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv003),
@@ -81,81 +62,9 @@ const ACCOUNTS = [
   account('staff2@dorm.local', 'Staff@123', 'staff', 'Đỗ Minh Tuấn', null, false, { isActive: false, lastLoginAt: '2026-08-20T17:30:00+07:00', createdAt: '2026-08-01T08:10:00+07:00' }),
 ];
 
-const REGISTERED_KEY = 'mockRegisteredAccounts';
-/** Dữ liệu giả nằm trong bộ nhớ nên tải lại trang là mất — giữ tài khoản vừa đăng ký để còn đăng nhập thử */
-const saveRegistered = (account) => {
-  try {
-    const kept = JSON.parse(localStorage.getItem(REGISTERED_KEY) || '[]');
-    localStorage.setItem(REGISTERED_KEY, JSON.stringify([...kept.filter((a) => a.email !== account.email), account]));
-  } catch { /* chế độ riêng tư: bỏ qua */ }
-};
-const restoreRegistered = () => {
-  try {
-    JSON.parse(localStorage.getItem(REGISTERED_KEY) || '[]')
-      .filter((a) => !ACCOUNTS.some((x) => x.email === a.email))
-      .forEach((a) => ACCOUNTS.push(a));
-  } catch { /* bỏ qua */ }
-};
-
-/** Bỏ dấu, gộp khoảng trắng — so họ tên nhập vào với hồ sơ ban quản lý đang giữ */
-const plainName = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-
 export const mockAuth = {
-  /**
-   * POST /auth/register — sinh viên tự tạo tài khoản và **liên kết với hồ sơ có sẵn** (FR-80).
-   * Không khớp hồ sơ thì từ chối, không tạo hồ sơ mới (FR-81).
-   */
-  register: async (body = {}) => {
-    await delay(500);
-    const studentCode = String(body.studentCode || '').trim().toUpperCase();
-    const email = String(body.email || '').trim().toLowerCase();
-    const fullName = String(body.fullName || '').trim();
-    const password = String(body.password || '');
-    const errors = [];
-    if (!studentCode) errors.push({ field: 'studentCode', message: 'Nhập mã số sinh viên' });
-    if (!fullName) errors.push({ field: 'fullName', message: 'Nhập họ và tên' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push({ field: 'email', message: 'Email không đúng định dạng' });
-    // BR-81: tối thiểu 8 ký tự, có cả chữ và số
-    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-      errors.push({ field: 'password', message: 'Mật khẩu tối thiểu 8 ký tự, gồm cả chữ và số' });
-    }
-    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
-
-    restoreRegistered();
-    const st = students.find((x) => x.studentCode === studentCode);
-    if (!st) {
-      fail(422, 'STUDENT_NOT_FOUND', `Không tìm thấy hồ sơ sinh viên mã ${studentCode}. Liên hệ ban quản lý ký túc xá để được thêm hồ sơ trước khi đăng ký`);
-    }
-    if (plainName(st.fullName) !== plainName(fullName)) {
-      fail(422, 'STUDENT_INFO_MISMATCH', `Họ tên không khớp hồ sơ của mã sinh viên ${studentCode}. Kiểm tra lại hoặc liên hệ ban quản lý`);
-    }
-    if (ACCOUNTS.some((a) => a.studentId === st.id)) {
-      fail(409, 'STUDENT_ALREADY_HAS_ACCOUNT', `Mã sinh viên ${studentCode} đã có tài khoản. Dùng chức năng đăng nhập, quên mật khẩu thì liên hệ ban quản lý`);
-    }
-    if (ACCOUNTS.some((a) => a.email === email)) {
-      fail(409, 'DUPLICATE_ENTRY', 'Email này đã được sử dụng', { errors: [{ field: 'email', message: 'Email này đã được sử dụng' }] });
-    }
-
-    if (body.phone) st.phone = String(body.phone).trim();
-    const account = {
-      id: `u-new${ACCOUNTS.length + 1}`, email, password, role: 'student', fullName: st.fullName,
-      studentId: st.id, mustChangePassword: false, isActive: true,
-      lastLoginAt: new Date().toISOString(), createdAt: new Date().toISOString(),
-    };
-    ACCOUNTS.push(account);
-    saveRegistered(account);
-    return ok({
-      token: `mock-token-${account.id}`,
-      expiresIn: 604800,
-      user: {
-        id: account.id, email: account.email, fullName: account.fullName,
-        role: 'student', studentId: st.id, mustChangePassword: false,
-      },
-    }, 'Đăng ký tài khoản thành công');
-  },
   login: async ({ email, password }) => {
     await delay(400);
-    restoreRegistered();
     const found = ACCOUNTS.find((a) => a.email === String(email || '').trim().toLowerCase() && a.password === password);
     if (!found) fail(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác');
     if (!found.isActive) fail(403, 'ACCOUNT_LOCKED', 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ ban quản lý');
@@ -188,7 +97,7 @@ export const mockAuth = {
 };
 
 // ---------------------------------------------------------------- tài khoản (SCR-81)
-const ROLE_ENUM = ['admin', 'staff', 'viewer', 'student'];
+const ROLE_ENUM = ['admin', 'staff', 'student'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Mật khẩu tạm ≥ 10 ký tự, có chữ và số (BR-81, BR-85). Backend dùng crypto.randomBytes */
@@ -229,14 +138,13 @@ export const mockUsers = {
       const kw = String(q.search).toLowerCase().trim();
       rows = rows.filter((u) => [u.email, u.fullName, u.student?.studentCode].some((v) => String(v ?? '').toLowerCase().includes(kw)));
     }
-    const order = { admin: 0, staff: 1, viewer: 2, student: 3 };
+    const order = { admin: 0, staff: 1, student: 2 };
     rows.sort((a, b) => order[a.role] - order[b.role] || a.fullName.localeCompare(b.fullName, 'vi'));
     const res = paginate(rows, q);
     res.data.data.summary = {
       all: ACCOUNTS.length,
       admin: ACCOUNTS.filter((a) => a.role === 'admin').length,
       staff: ACCOUNTS.filter((a) => a.role === 'staff').length,
-      viewer: ACCOUNTS.filter((a) => a.role === 'viewer').length,
       student: ACCOUNTS.filter((a) => a.role === 'student').length,
       locked: ACCOUNTS.filter((a) => !a.isActive).length,
     };
@@ -438,7 +346,7 @@ export const mockRooms = {
     if (q.tier) rows = rows.filter((t) => t.tier === q.tier);
     if (q.isActive !== undefined) rows = rows.filter((t) => String(t.isActive) === String(q.isActive));
     const items = rows.map((t) => {
-      const base = { ...t, includedSupplies: includedSupplyNames(t.id) };
+      const base = { ...t, includedSupplies: [] };
       if (String(q.withAvailability) !== 'true') return base;
       // student: chỉ đếm phòng khớp giới tính của chính mình
       const ofType = rooms.filter((r) => r.roomTypeId === t.id && r.status === 'active' && (!q.forGender || r.gender === q.forGender));
@@ -503,7 +411,7 @@ export const mockRooms = {
       const st = c && students.find((s) => s.id === c.studentId);
       return { ...b, occupant: c ? { studentCode: c.studentCode, studentName: c.studentName, className: st?.className ?? null } : null };
     });
-    return ok({ ...roomView(r), amenities: rt.amenities, includedSupplies: includedSupplyNames(rt.id), beds: bedList });
+    return ok({ ...roomView(r), amenities: rt.amenities, includedSupplies: [], beds: bedList });
   },
   createRoom: async (body) => {
     await delay();
@@ -719,24 +627,9 @@ export const mockApplications = {
   },
 };
 
-// ---------------------------------------------------------------- residencies
-export const mockResidencies = {
-  getList: async (q = {}) => {
-    await delay();
-    const items = residencies.map((r) => {
-      const st = students.find((s) => s.id === r.studentId);
-      const c = contracts.find((x) => x.residencyId === r.id);
-      return { ...r, studentCode: st?.studentCode, studentName: st?.fullName, bedCode: c?.bedCode, buildingName: c?.buildingName, roomNumber: c?.roomNumber, contractCode: c?.contractCode };
-    });
-    return paginate(search(items, q.search, ['studentCode', 'studentName', 'bedCode']), q);
-  },
-};
-
 // ---------------------------------------------------------------- contracts
 /** Hợp đồng còn hiệu lực và hết hạn trong N ngày tới (BR-29) */
 const isExpiring = (c, days = 30) => c.status === 'active' && c.endDate >= todayPlus(0) && c.endDate <= todayPlus(days);
-
-const REQUEST_STATUS_TEXT = { pending: 'đang chờ xử lý', approved: 'đã duyệt', rejected: 'bị từ chối', cancelled: 'đã hủy' };
 
 const contractView = (c) => {
   const room = rooms.find((r) => r.id === c.roomId);
@@ -783,7 +676,6 @@ export const mockContracts = {
     const contractInvoices = invoices.filter((i) => i.contractId === id).map(withRemaining)
       .sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''));
     const depositInvoice = contractInvoices.find((i) => i.type === 'deposit');
-    const contractRequests = requests.filter((r) => r.contractId === id);
 
     // Lịch sử hợp đồng — mới nhất lên đầu
     const history = [
@@ -792,12 +684,6 @@ export const mockContracts = {
         at: app.reviewedAt, type: 'application_approved', title: 'Duyệt đơn, tạo hợp đồng',
         description: `Xếp giường ${c.bedCode} · tạo hóa đơn tiền cọc và tiền phòng tháng đầu`,
       },
-      ...contractRequests.map((r) => ({
-        at: r.createdAt,
-        type: `request_${r.type}`,
-        title: `${r.type === 'renewal' ? 'Yêu cầu gia hạn' : 'Yêu cầu trả phòng'} ${REQUEST_STATUS_TEXT[r.status] ?? r.status}`,
-        description: r.type === 'renewal' ? `Đề nghị gia hạn tới ${r.requestedEndDate.split('-').reverse().join('/')}` : r.reason,
-      })),
       c.status === 'terminated' && { at: c.terminatedAt, type: 'terminated', title: 'Chấm dứt hợp đồng', description: c.terminationReason },
       c.status === 'expired' && { at: c.endDate, type: 'expired', title: 'Hết hạn hợp đồng', description: 'Hệ thống tự chuyển trạng thái và trả giường' },
     ].filter(Boolean).sort((a, b) => String(b.at).localeCompare(String(a.at)));
@@ -807,9 +693,6 @@ export const mockContracts = {
       student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender, className: st.className, phone: st.phone },
       depositStatus: depositInvoice?.status ?? null,
       invoices: contractInvoices,
-      pendingRequests: contractRequests.filter((r) => r.status === 'pending')
-        .map((r) => ({ id: r.id, type: r.type, createdAt: r.createdAt, requestedEndDate: r.requestedEndDate })),
-      unpaidSupplyOrders: supplyOrders.filter((o) => o.studentId === c.studentId && o.status === 'pending_payment').length,
       history,
     });
   },
@@ -823,7 +706,7 @@ export const mockContracts = {
     c.terms = terms.trim();
     return ok(c, 'Cập nhật điều khoản thành công');
   },
-  /** { reason, terminationDate } — hủy đơn nhu yếu phẩm chưa trả (BR-97), trả giường, đóng lưu trú, quyết toán cọc */
+  /** { reason, terminationDate } — trả giường, đóng lưu trú, quyết toán cọc */
   terminate: async (id, { reason, terminationDate } = {}) => {
     await delay();
     const c = contracts.find((x) => x.id === id);
@@ -835,8 +718,6 @@ export const mockContracts = {
     if (date < c.startDate || date > c.endDate) errors.push({ field: 'terminationDate', message: 'Ngày chấm dứt phải nằm trong thời hạn hợp đồng' });
     if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
 
-    const pendingOrders = supplyOrders.filter((o) => o.studentId === c.studentId && o.status === 'pending_payment');
-    pendingOrders.forEach((o) => cancelSupplyOrder(o, 'Tự hủy khi chấm dứt hợp đồng'));
     // Mock KHÔNG tính tiền phòng kỳ dở theo ngày ở thực tế (BR-31) — con số cuối cùng do backend chốt
     const outstandingDebt = debtOf(c.studentId);
     const refund = c.depositAmount - outstandingDebt;
@@ -856,15 +737,14 @@ export const mockContracts = {
         depositAmount: c.depositAmount,
         refundAmount: Math.max(0, refund),
         studentStillOwes: Math.max(0, -refund),
-        cancelledSupplyOrders: pendingOrders.length,
       },
     }, 'Đã chấm dứt hợp đồng');
   },
 };
 
 // ---------------------------------------------------------------- fees
-/** Hóa đơn lẻ không dùng các loại phí có nguồn tiền riêng (hợp đồng, đơn hàng) */
-const MANUAL_BLOCKED_FEE_CODES = ['rent', 'deposit', 'supplies'];
+/** Hóa đơn lẻ không dùng các loại phí có nguồn tiền riêng (hợp đồng) */
+const MANUAL_BLOCKED_FEE_CODES = ['rent', 'deposit'];
 const feeIdOf = (code) => feeTypes.find((t) => t.code === code)?.id;
 const UTILITY_FEE_IDS = ['f2', 'f3'];
 let manualInvoiceSeq = 0;
@@ -984,7 +864,7 @@ const meterValues = (body) => {
 };
 
 /** Loại phí hệ thống — lập hóa đơn cần tới, không ngừng dùng được (DATA-SCHEMA 3.8) */
-const SYSTEM_FEE_CODES = ['rent', 'electricity', 'water', 'deposit', 'supplies', 'other'];
+const SYSTEM_FEE_CODES = ['rent', 'electricity', 'water', 'deposit', 'other'];
 /** Chỉ điện, nước dùng defaultAmount làm đơn giá — bắt buộc > 0 */
 const PRICED_FEE_CODES = ['electricity', 'water'];
 const feeTypeErrors = (body, code = String(body.code || '').trim().toLowerCase()) => {
@@ -1111,18 +991,16 @@ export const mockFees = {
     };
     return res;
   },
-  /** GET /invoices/:id — kèm hợp đồng, chỗ ở, lịch sử thanh toán (cũ → mới) và đơn hàng nhu yếu phẩm */
+  /** GET /invoices/:id — kèm hợp đồng, chỗ ở và lịch sử thanh toán (cũ → mới) */
   getInvoiceById: async (id) => {
     await delay();
     const inv = invoices.find((x) => x.id === id);
     if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
-    const order = supplyOrders.find((o) => o.invoiceId === id);
     const contract = contracts.find((c) => c.id === inv.contractId);
     return ok({
       ...invoiceView(inv),
       contractCode: contract?.contractCode ?? null,
       payments: payments.filter((p) => p.invoiceId === id).sort((a, b) => String(a.paidAt).localeCompare(String(b.paidAt))),
-      supplyOrder: order ? { id: order.id, orderCode: order.orderCode, status: order.status } : null,
     });
   },
   /**
@@ -1177,14 +1055,12 @@ export const mockFees = {
     const [y, m] = period.split('-');
     return ok(result, `Đã lập ${result.created} hóa đơn${result.updated ? `, bổ sung ${result.updated} hóa đơn` : ''} cho kỳ ${Number(m)}/${y}`);
   },
-  /** PATCH /invoices/:id/cancel — chỉ khi chưa có thanh toán thành công (BR-46); hóa đơn nhu yếu phẩm, quyết toán không hủy ở đây */
+  /** PATCH /invoices/:id/cancel — chỉ khi chưa có thanh toán thành công (BR-46) */
   cancelInvoice: async (id) => {
     await delay();
     const inv = invoices.find((x) => x.id === id);
     if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
     if (inv.status === 'cancelled') fail(422, 'INVOICE_NOT_CANCELLABLE', 'Hóa đơn đã hủy trước đó');
-    if (inv.type === 'supplies') fail(422, 'INVOICE_NOT_CANCELLABLE', 'Hóa đơn nhu yếu phẩm hủy theo đơn hàng ở màn Nhu yếu phẩm');
-    if (inv.type === 'settlement') fail(422, 'INVOICE_NOT_CANCELLABLE', 'Hóa đơn quyết toán sinh ra khi duyệt trả phòng, không hủy được');
     if (inv.paidAmount > 0) fail(422, 'INVOICE_HAS_PAYMENT', 'Hóa đơn đã phát sinh thanh toán, không thể hủy');
     inv.status = 'cancelled';
     // Hủy hết hóa đơn tháng có tiền điện nước của một phòng → mở khóa chỉ số kỳ đó để sửa (BR-53)
@@ -1201,8 +1077,7 @@ export const mockFees = {
 
 // ---------------------------------------------------------------- payments
 /**
- * Dữ liệu giả: cổng thanh toán "gửi webhook" sau `demoWebhookAt` — cộng tiền vào hóa đơn đúng một lần (BR-62),
- * hóa đơn nhu yếu phẩm trả đủ thì đơn sang chờ nhận hàng (BR-95).
+ * Dữ liệu giả: cổng thanh toán "gửi webhook" sau `demoWebhookAt` — cộng tiền vào hóa đơn đúng một lần (BR-62).
  */
 const DEMO_PAYMENT_KEY = 'mockOnlinePayments';
 /** Dữ liệu giả sống trong bộ nhớ, mà cổng thanh toán lại tải lại trang → giữ giao dịch đang chờ ở sessionStorage */
@@ -1230,7 +1105,6 @@ const applyDemoWebhooks = () => {
     if (!inv) return;
     inv.paidAmount = payments.filter((x) => x.invoiceId === inv.id && x.type === 'payment' && x.status === 'success').reduce((t, x) => t + x.amount, 0); // BR-43
     inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : 'partial';
-    if (inv.status === 'paid' && inv.type === 'supplies') markSupplyOrderReady(inv.id);
   });
 };
 
@@ -1278,7 +1152,6 @@ export const mockPayments = {
       payment.gatewayTransactionId = payment.gatewayTransactionId || `VNP${Date.now()}`;
       inv.paidAmount = payments.filter((p) => p.invoiceId === inv.id && p.type === 'payment' && p.status === 'success').reduce((t, p) => t + p.amount, 0); // BR-43
       inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : inv.paidAmount > 0 ? 'partial' : inv.status;
-      if (inv.status === 'paid' && inv.type === 'supplies') markSupplyOrderReady(inv.id); // BR-95
       return ok({ payment, invoice: withRemaining(inv) }, `Cổng thanh toán báo giao dịch ${payment.transactionRef} đã thành công — đã cập nhật hóa đơn`);
     }
     payment.status = 'expired'; // BR-64
@@ -1319,14 +1192,8 @@ export const mockPayments = {
     // BR-43: tính lại từ các thanh toán thành công, không cộng dồn
     inv.paidAmount = payments.filter((p) => p.invoiceId === inv.id && p.type === 'payment' && p.status === 'success').reduce((t, p) => t + p.amount, 0);
     inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : 'partial';
-    let supplyOrder = null;
-    if (inv.status === 'paid' && inv.type === 'supplies') { // BR-95
-      markSupplyOrderReady(inv.id);
-      const order = supplyOrders.find((o) => o.invoiceId === inv.id);
-      supplyOrder = order ? { id: order.id, orderCode: order.orderCode, status: order.status } : null;
-    }
     const message = inv.status === 'paid' ? `Đã thu ${amount.toLocaleString('vi-VN')} đ — hóa đơn đã thanh toán đủ` : `Đã thu ${amount.toLocaleString('vi-VN')} đ`;
-    return ok({ payment, invoice: withRemaining(inv), supplyOrder }, message);
+    return ok({ payment, invoice: withRemaining(inv) }, message);
   },
   /**
    * POST /payments/online/checkout — tạo giao dịch `pending` rồi trả link cổng thanh toán (FR-53).
@@ -1373,293 +1240,7 @@ export const mockPayments = {
       inv.paidAmount = inv.totalAmount;
       inv.status = 'paid';
     }
-    if (inv.type === 'supplies') markSupplyOrderReady(inv.id);
     return ok({ alreadyConfirmed: payments.filter((p) => p.invoiceId === invoiceId && p.method === 'vnpay').length > 1 });
-  },
-};
-
-// ---------------------------------------------------------------- requests
-const OPEN_INVOICE = ['unpaid', 'partial', 'overdue'];
-const pad2 = (n) => String(n).padStart(2, '0');
-
-/** Công nợ đã LOẠI hóa đơn của đơn nhu yếu phẩm chưa thanh toán — các đơn đó bị hủy khi duyệt trả phòng (BR-97) */
-const settleableDebtOf = (studentId) => {
-  const pendingOrderInvoiceIds = new Set(supplyOrders
-    .filter((o) => o.studentId === studentId && o.status === 'pending_payment').map((o) => o.invoiceId));
-  const open = invoices.filter((i) => i.studentId === studentId && OPEN_INVOICE.includes(i.status) && !pendingOrderInvoiceIds.has(i.id));
-  return { invoices: open, total: open.reduce((s, i) => s + i.totalAmount - i.paidAmount, 0) };
-};
-
-/**
- * Tiền phòng kỳ dở theo ngày ở thực tế (BR-31) = giá tháng / số ngày trong tháng × số ngày ở.
- * Tháng trả phòng đã có hóa đơn tiền phòng thì không tính thêm (mock đơn giản hóa — backend chốt con số cuối).
- */
-const proratedRentOf = (contract, checkoutDate) => {
-  const [y, m, d] = checkoutDate.split('-').map(Number);
-  const daysInMonth = new Date(y, m, 0).getDate();
-  const period = `${y}-${pad2(m)}`;
-  const billed = invoices.some((i) => i.contractId === contract.id && i.type === 'monthly' && i.billingPeriod === period && i.status !== 'cancelled');
-  return {
-    period, daysInMonth, days: billed ? 0 : d, alreadyBilled: billed,
-    amount: billed ? 0 : Math.round((contract.monthlyPrice / daysInMonth) * d),
-  };
-};
-
-/** Số tháng gia hạn, làm tròn lên; cuối tháng → cuối tháng tính tròn tháng (30/06 → 31/12 = 6) */
-const monthsExtra = (from, to) => {
-  const a = new Date(from); const b = new Date(to);
-  const lastDay = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() === d.getDate();
-  const partial = b.getDate() > a.getDate() && !(lastDay(a) && lastDay(b));
-  return Math.max(0, (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) + (partial ? 1 : 0));
-};
-
-const requestView = (r) => {
-  const c = contracts.find((x) => x.id === r.contractId);
-  const room = c && rooms.find((x) => x.id === c.roomId);
-  return {
-    ...r,
-    roomNumber: c?.roomNumber, buildingName: c?.buildingName, buildingCode: room?.buildingCode,
-    contractEndDate: r.renewal?.previousEndDate ?? c?.endDate,
-    outstandingDebt: settleableDebtOf(r.studentId).total,
-  };
-};
-
-export const mockRequests = {
-  getList: async (q = {}) => {
-    await delay();
-    const byStatus = q.status ? requests.filter((r) => r.status === q.status) : requests;
-    let rows = q.type ? byStatus.filter((r) => r.type === q.type) : byStatus;
-    rows = search(rows.map(requestView), q.search, ['studentName', 'studentCode', 'contractCode', 'bedCode', 'requestCode']);
-    // Mới nhất lên đầu (theo bản vẽ); đã xử lý thì xử lý gần nhất lên đầu
-    rows.sort((a, b) => String(b.reviewedAt || b.createdAt).localeCompare(String(a.reviewedAt || a.createdAt)));
-    const res = paginate(rows, q);
-    res.data.data.summary = {
-      pending: requests.filter((r) => r.status === 'pending').length,
-      approved: requests.filter((r) => r.status === 'approved').length,
-      rejected: requests.filter((r) => r.status === 'rejected').length,
-      // Theo loại, trong trạng thái đang lọc
-      byType: { all: byStatus.length, renewal: byStatus.filter((r) => r.type === 'renewal').length, checkout: byStatus.filter((r) => r.type === 'checkout').length },
-    };
-    return res;
-  },
-  getById: async (id) => {
-    await delay();
-    const r = requests.find((x) => x.id === id);
-    if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy yêu cầu');
-    const c = contracts.find((x) => x.id === r.contractId);
-    const st = students.find((s) => s.id === r.studentId);
-    const debt = settleableDebtOf(r.studentId);
-    const unpaidOrders = supplyOrders.filter((o) => o.studentId === r.studentId && o.status === 'pending_payment');
-    const readyOrders = supplyOrders.filter((o) => o.studentId === r.studentId && o.status === 'ready');
-
-    const detail = {
-      ...requestView(r),
-      student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender, className: st.className, phone: st.phone },
-      contract: {
-        id: c.id, contractCode: c.contractCode, status: c.status, startDate: c.startDate, endDate: c.endDate,
-        monthlyPrice: c.monthlyPrice, depositAmount: c.depositAmount, bedCode: c.bedCode, roomTypeName: c.roomTypeName, buildingName: c.buildingName,
-      },
-      depositAmount: c.depositAmount,
-      outstandingDebt: debt.total,
-      unpaidInvoices: debt.invoices.map((i) => ({
-        id: i.id, invoiceCode: i.invoiceCode, type: i.type, billingPeriod: i.billingPeriod, dueDate: i.dueDate, remainingAmount: i.totalAmount - i.paidAmount,
-      })),
-      unpaidSupplyOrders: unpaidOrders.length,
-      readySupplyOrders: readyOrders.length,
-    };
-
-    if (r.type === 'renewal' && r.status === 'pending') {
-      detail.renewalPreview = { currentEndDate: c.endDate, requestedEndDate: r.requestedEndDate, extraMonths: monthsExtra(c.endDate, r.requestedEndDate) };
-    }
-    if (r.type === 'checkout' && r.status === 'pending') {
-      const rent = proratedRentOf(c, r.requestedEndDate);
-      const net = c.depositAmount - debt.total - rent.amount;
-      const room = rooms.find((x) => x.id === c.roomId);
-      const periods = [...new Set(utilityReadings.map((u) => u.billingPeriod))].sort();
-      const latestPeriod = periods[periods.length - 1];
-      detail.settlementPreview = {
-        checkoutDate: r.requestedEndDate,
-        depositAmount: c.depositAmount, outstandingDebt: debt.total,
-        proratedRent: rent.amount, proratedDays: rent.days, daysInMonth: rent.daysInMonth, proratedPeriod: rent.period,
-        refundAmount: Math.max(0, net), studentStillOwes: Math.max(0, -net), cancelledSupplyOrders: unpaidOrders.length,
-      };
-      detail.checklist = {
-        utilityPeriod: latestPeriod,
-        utilityReadingRecorded: utilityReadings.some((u) => u.roomId === room?.id && u.billingPeriod === latestPeriod),
-        readySupplyOrders: readyOrders.length,
-      };
-    }
-    return ok(detail);
-  },
-  /** renewal: {} · checkout: { actualCheckoutDate?, refundMethod?: 'cash' | 'bank_transfer', forceConfirm? } */
-  approve: async (id, { forceConfirm, actualCheckoutDate, refundMethod = 'cash' } = {}) => {
-    await delay();
-    const r = requests.find((x) => x.id === id);
-    if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy yêu cầu');
-    if (r.status !== 'pending') fail(422, 'REQUEST_NOT_PENDING', 'Yêu cầu đã được xử lý');
-    const c = contracts.find((x) => x.id === r.contractId);
-    if (!c || c.status !== 'active') fail(422, 'CONTRACT_NOT_ACTIVE', 'Hợp đồng không ở trạng thái hiệu lực');
-    const reviewedAt = new Date().toISOString();
-
-    if (r.type === 'renewal') {
-      if (!r.requestedEndDate || r.requestedEndDate <= c.endDate) {
-        fail(422, 'VALIDATION_ERROR', 'Ngày gia hạn phải sau ngày kết thúc hiện tại của hợp đồng'); // BR-72
-      }
-      const renewal = { previousEndDate: c.endDate, newEndDate: r.requestedEndDate, extraMonths: monthsExtra(c.endDate, r.requestedEndDate) };
-      c.endDate = r.requestedEndDate;
-      Object.assign(r, { status: 'approved', reviewedAt, renewal });
-      return ok({ request: { id: r.id, status: r.status }, renewal, settlement: null }, 'Duyệt gia hạn thành công');
-    }
-
-    // ---- trả phòng
-    const checkoutDate = actualCheckoutDate || r.requestedEndDate || todayPlus(0);
-    if (checkoutDate < c.startDate || checkoutDate > c.endDate) {
-      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'actualCheckoutDate', message: 'Ngày trả phòng phải nằm trong thời hạn hợp đồng' }] });
-    }
-    const before = settleableDebtOf(r.studentId);
-    if (before.total > 0 && !forceConfirm) {
-      fail(422, 'STUDENT_HAS_DEBT', `Sinh viên còn nợ ${before.total.toLocaleString('vi-VN')} đ. Xác nhận vẫn duyệt?`, { outstandingDebt: before.total });
-    }
-
-    const pendingOrders = supplyOrders.filter((o) => o.studentId === r.studentId && o.status === 'pending_payment');
-    pendingOrders.forEach((o) => cancelSupplyOrder(o, 'Tự hủy khi duyệt trả phòng')); // BR-97 — trước khi chốt nợ
-    const debt = settleableDebtOf(r.studentId);
-    const rent = proratedRentOf(c, checkoutDate);
-    const net = c.depositAmount - debt.total - rent.amount;
-    const refundAmount = Math.max(0, net);
-    const studentStillOwes = Math.max(0, -net);
-
-    // Hóa đơn quyết toán (BR-76): cấn trừ cọc với nợ cũ + tiền phòng kỳ dở. Nợ cũ coi như đã được cọc thanh toán.
-    const [y, m] = rent.period.split('-');
-    const settlementInvoice = {
-      id: `i-settle-${r.id}`, invoiceCode: `INV-${rent.period.replace('-', '')}-QT${r.id.toUpperCase()}`,
-      studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
-      contractId: c.id, bedCode: c.bedCode, type: 'settlement', billingPeriod: null,
-      lineItems: [
-        ...(rent.amount ? [{ feeTypeId: 'f1', description: `Tiền phòng tháng ${Number(m)}/${y} (${rent.days}/${rent.daysInMonth} ngày)`, quantity: 1, unitPrice: rent.amount, amount: rent.amount }] : []),
-        ...(debt.total ? [{ feeTypeId: 'f5', description: `Công nợ chưa thanh toán (${debt.invoices.length} hóa đơn)`, quantity: 1, unitPrice: debt.total, amount: debt.total }] : []),
-        { feeTypeId: 'f4', description: 'Khấu trừ tiền cọc', quantity: 1, unitPrice: -c.depositAmount, amount: -c.depositAmount },
-      ],
-      totalAmount: studentStillOwes, paidAmount: 0,
-      issueDate: todayPlus(0), dueDate: todayPlus(7), status: studentStillOwes > 0 ? 'unpaid' : 'paid',
-    };
-    debt.invoices.forEach((i) => Object.assign(i, { paidAmount: i.totalAmount, status: 'paid' }));
-    invoices.push(settlementInvoice);
-    if (refundAmount > 0) { // BR-77 — lưu vết đã hoàn cọc
-      payments.push({
-        id: `p-refund-${r.id}`, transactionRef: `REFUND-${r.requestCode}`,
-        invoiceId: settlementInvoice.id, invoiceCode: settlementInvoice.invoiceCode, invoiceType: 'settlement',
-        studentId: c.studentId, studentName: c.studentName,
-        amount: refundAmount, type: 'refund', method: refundMethod, gatewayTransactionId: null,
-        status: 'success', paidAt: reviewedAt, note: `Hoàn cọc khi trả phòng ${c.contractCode}`,
-      });
-    }
-
-    Object.assign(c, {
-      status: 'terminated', terminatedAt: checkoutDate, terminationReason: `Trả phòng theo yêu cầu ${r.requestCode}`, depositRefunded: refundAmount,
-    });
-    const bed = beds.find((b) => b.id === c.bedId);
-    if (bed) bed.status = 'available';
-    const residency = residencies.find((x) => x.id === c.residencyId);
-    if (residency) Object.assign(residency, { status: 'closed', endDate: checkoutDate });
-    // Yêu cầu khác của hợp đồng không còn ý nghĩa
-    requests.filter((x) => x.contractId === c.id && x.id !== r.id && x.status === 'pending').forEach((x) => { x.status = 'cancelled'; });
-
-    const settlement = {
-      checkoutDate, outstandingDebt: debt.total, proratedRent: rent.amount, depositAmount: c.depositAmount,
-      refundAmount, studentStillOwes, refundMethod: refundAmount > 0 ? refundMethod : null,
-      settlementInvoiceId: settlementInvoice.id, cancelledSupplyOrders: pendingOrders.length,
-    };
-    Object.assign(r, { status: 'approved', reviewedAt, settlement });
-    return ok({ request: { id: r.id, status: r.status }, settlement }, 'Duyệt trả phòng thành công');
-  },
-  reject: async (id, { reviewNote } = {}) => {
-    await delay();
-    const r = requests.find((x) => x.id === id);
-    if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy yêu cầu');
-    if (r.status !== 'pending') fail(422, 'REQUEST_NOT_PENDING', 'Yêu cầu đã được xử lý');
-    if (!reviewNote || !reviewNote.trim()) { // BR-78
-      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'reviewNote', message: 'Nhập lý do từ chối' }] });
-    }
-    Object.assign(r, { status: 'rejected', reviewNote: reviewNote.trim(), reviewedAt: new Date().toISOString() });
-    return ok({ id: r.id, status: r.status }, 'Đã từ chối yêu cầu');
-  },
-};
-
-// ---------------------------------------------------------------- supplies (quản trị)
-export const mockSupplies = {
-  getItems: async (q = {}) => {
-    await delay();
-    let rows = supplyItems;
-    if (q.category) rows = rows.filter((it) => it.category === q.category);
-    if (q.isActive !== undefined) rows = rows.filter((it) => String(it.isActive) === String(q.isActive));
-    const items = rows.map((it) => ({ ...it, includedRoomTypeNames: it.includedInRoomTypes.map((id) => roomTypes.find((t) => t.id === id)?.name) }));
-    return paginate(search(items, q.search, ['name']), q);
-  },
-  createItem: async (body) => {
-    await delay();
-    const it = { id: `si${supplyItems.length + 1}`, includedInRoomTypes: [], imageUrl: null, description: '', isActive: true, ...body, price: Number(body.price) };
-    supplyItems.push(it);
-    return ok(it, 'Thêm sản phẩm thành công');
-  },
-  updateItem: async (id, body) => {
-    await delay();
-    const it = supplyItems.find((x) => x.id === id);
-    if (!it) fail(404, 'NOT_FOUND', 'Không tìm thấy sản phẩm');
-    Object.assign(it, body);
-    return ok(it, 'Cập nhật sản phẩm thành công');
-  },
-  /** ?status=&search=&from=&to= — mới nhất lên đầu, kèm summary đếm theo trạng thái (đếm trên toàn bộ đơn) */
-  getOrders: async (q = {}) => {
-    await delay();
-    let rows = [...supplyOrders].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    if (q.status) rows = rows.filter((o) => o.status === q.status);
-    if (q.from) rows = rows.filter((o) => o.createdAt.slice(0, 10) >= q.from);
-    if (q.to) rows = rows.filter((o) => o.createdAt.slice(0, 10) <= q.to);
-    rows = search(rows, q.search, ['orderCode', 'studentCode', 'studentName', 'roomNumber']);
-    const page = paginate(rows, q).data.data;
-    const today = todayPlus(0);
-    const count = (st) => supplyOrders.filter((o) => o.status === st).length;
-    return ok({
-      ...page,
-      summary: {
-        all: supplyOrders.length,
-        pendingPayment: count('pending_payment'),
-        ready: count('ready'),
-        delivered: count('delivered'),
-        cancelled: count('cancelled'),
-        deliveredToday: supplyOrders.filter((o) => o.status === 'delivered' && o.deliveredAt?.startsWith(today)).length,
-      },
-    });
-  },
-  getOrderById: async (id) => {
-    await delay();
-    const o = supplyOrders.find((x) => x.id === id);
-    if (!o) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn hàng');
-    return ok({ ...o, invoice: withRemaining(invoices.find((i) => i.id === o.invoiceId)) });
-  },
-  /** PATCH /supply-orders/:id/deliver — ready → delivered, lưu người giao (FR-104) */
-  deliver: async (id) => {
-    await delay();
-    const o = supplyOrders.find((x) => x.id === id);
-    if (!o) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn hàng');
-    if (o.status !== 'ready') fail(422, 'INVALID_ORDER_STATUS', 'Chỉ giao được đơn đang chờ nhận hàng');
-    Object.assign(o, {
-      status: 'delivered',
-      deliveredAt: new Date().toISOString(),
-      deliveredByName: authStorage.getUser()?.fullName ?? null,
-    });
-    return ok(o, `Đã giao đơn ${o.orderCode} cho ${o.studentName}`);
-  },
-  /** PATCH /supply-orders/:id/cancel — { cancelReason } ≥ 5 ký tự; hủy đơn thì hủy luôn hóa đơn (FR-105) */
-  cancel: async (id, { cancelReason } = {}) => {
-    await delay();
-    const o = supplyOrders.find((x) => x.id === id);
-    if (!o) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn hàng');
-    const reason = String(cancelReason || '').trim();
-    if (reason.length < 5) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'cancelReason', message: 'Nhập lý do hủy (ít nhất 5 ký tự)' }] });
-    cancelSupplyOrder(o, reason);
-    return ok(o, `Đã hủy đơn ${o.orderCode} và hóa đơn đi kèm`);
   },
 };
 
@@ -1687,12 +1268,7 @@ export const mockDashboard = {
         overdueInvoiceCount: overdue.length,
         overdueAmount: overdue.reduce((s, i) => s + (i.totalAmount - i.paidAmount), 0),
       },
-      pendingRequests: {
-        renewal: requests.filter((r) => r.status === 'pending' && r.type === 'renewal').length,
-        checkout: requests.filter((r) => r.status === 'pending' && r.type === 'checkout').length,
-      },
       pendingApplications: applications.filter((a) => a.status === 'pending').length,
-      supplyOrdersReady: supplyOrders.filter((o) => o.status === 'ready').length,
     });
   },
 };
@@ -1713,7 +1289,7 @@ export const mockPortal = {
       hasResidence: true,
       contract: c,
       roomType: { id: rt.id, name: rt.name, tier: rt.tier, pricePerMonth: rt.pricePerMonth },
-      includedInRoom: [...rt.amenities, ...includedSupplyNames(rt.id)],
+      includedInRoom: rt.amenities,
       roommates,
       debtSummary: {
         totalDebt: debtOf(st.id),
@@ -1735,48 +1311,6 @@ export const mockPortal = {
     let rows = payments.filter((p) => p.studentId === me().id);
     if (q.transactionRef) rows = rows.filter((p) => p.transactionRef === q.transactionRef);
     return ok(rows.map((p) => ({ ...p, invoice: invoices.find((i) => i.id === p.invoiceId) ? withRemaining(invoices.find((i) => i.id === p.invoiceId)) : null })));
-  },
-
-  /** Yêu cầu của chính sinh viên — mới nhất lên đầu */
-  getMyRequests: async () => {
-    await delay();
-    return ok(requests.filter((r) => r.studentId === me().id)
-      .map(({ studentId, ...rest }) => rest) // eslint-disable-line no-unused-vars -- không trả id nội bộ
-      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
-  },
-  /** { type: 'renewal' | 'checkout', requestedEndDate, reason } */
-  createRequest: async (body = {}) => {
-    await delay();
-    const st = me();
-    const c = activeContractOf(st.id);
-    if (!c) fail(422, 'CONTRACT_NOT_ACTIVE', 'Bạn chưa có hợp đồng đang hiệu lực');
-    if (!['renewal', 'checkout'].includes(body.type)) fail(400, 'VALIDATION_ERROR', 'Loại yêu cầu không hợp lệ');
-    if (requests.some((r) => r.studentId === st.id && r.type === body.type && r.status === 'pending')) {
-      fail(409, 'DUPLICATE_PENDING_REQUEST', 'Bạn đã có một yêu cầu cùng loại đang chờ xử lý'); // BR-71
-    }
-    const errors = [];
-    const date = body.requestedEndDate;
-    if (!date) errors.push({ field: 'requestedEndDate', message: body.type === 'renewal' ? 'Chọn ngày kết thúc mới' : 'Chọn ngày dự kiến trả phòng' });
-    else if (body.type === 'renewal' && date <= c.endDate) {
-      errors.push({ field: 'requestedEndDate', message: 'Ngày kết thúc mới phải sau ngày kết thúc hiện tại của hợp đồng' }); // BR-72
-    } else if (body.type === 'checkout' && (date < todayPlus(0) || date > c.endDate)) {
-      errors.push({ field: 'requestedEndDate', message: 'Ngày trả phòng phải từ hôm nay đến hết hạn hợp đồng' });
-    }
-    if (body.type === 'checkout' && !(body.reason || '').trim()) errors.push({ field: 'reason', message: 'Nhập lý do trả phòng' });
-    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
-
-    const r = newRequest(c, body.type, {
-      reason: (body.reason || '').trim(), requestedEndDate: date, createdAt: new Date().toISOString(),
-    });
-    return ok(r, body.type === 'renewal' ? 'Đã gửi yêu cầu gia hạn' : 'Đã gửi yêu cầu trả phòng');
-  },
-  cancelRequest: async (id) => {
-    await delay();
-    const r = requests.find((x) => x.id === id);
-    if (!r || r.studentId !== me().id) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này'); // BR-79
-    if (r.status !== 'pending') fail(422, 'REQUEST_NOT_PENDING', 'Yêu cầu đã được xử lý, không thể hủy');
-    r.status = 'cancelled';
-    return ok({ id: r.id, status: r.status }, 'Đã hủy yêu cầu');
   },
 
   // ---- đơn đăng ký
@@ -1802,55 +1336,5 @@ export const mockPortal = {
     if (a.status !== 'pending') fail(422, 'APPLICATION_NOT_PENDING', 'Đơn đăng ký đã được xử lý');
     a.status = 'cancelled';
     return ok(a, 'Đã hủy đơn đăng ký');
-  },
-
-  // ---- nhu yếu phẩm
-  getSupplyItems: async () => {
-    await delay();
-    const c = activeContractOf(me().id);
-    if (!c) fail(422, 'CONTRACT_NOT_ACTIVE', 'Bạn cần có chỗ ở để mua nhu yếu phẩm');
-    const rt = roomTypes.find((t) => t.id === c.roomTypeId);
-    return ok({
-      roomType: { name: rt.name },
-      roomNumber: c.roomNumber,
-      includedInRoom: [...rt.amenities, ...includedSupplyNames(rt.id)],
-      items: supplyItems.filter((it) => it.isActive && !it.includedInRoomTypes.includes(rt.id)),
-    });
-  },
-  getMyOrders: async (q = {}) => {
-    await delay();
-    let rows = supplyOrders.filter((o) => o.studentId === me().id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    if (q.status) rows = rows.filter((o) => o.status === q.status);
-    return paginate(rows, q);
-  },
-  createOrder: async ({ items = [] } = {}) => {
-    await delay();
-    const st = me();
-    const c = activeContractOf(st.id);
-    if (!c) fail(422, 'CONTRACT_NOT_ACTIVE', 'Bạn chưa có hợp đồng đang hiệu lực');
-    if (!items.length) fail(400, 'VALIDATION_ERROR', 'Giỏ hàng đang trống');
-    // Chỉ đọc supplyItemId + quantity — mọi trường giá client gửi lên đều bị bỏ qua (BR-92)
-    const lines = items.map(({ supplyItemId, quantity }) => {
-      const it = supplyItems.find((x) => x.id === supplyItemId);
-      if (!it) fail(404, 'NOT_FOUND', 'Không tìm thấy sản phẩm');
-      if (!it.isActive) fail(422, 'SUPPLY_ITEM_INACTIVE', `Sản phẩm ${it.name} đã ngừng bán`);
-      if (it.includedInRoomTypes.includes(c.roomTypeId)) fail(422, 'SUPPLY_ALREADY_INCLUDED', `${it.name} đã được cấp sẵn trong phòng của bạn`);
-      const qty = Number(quantity);
-      if (!Number.isInteger(qty) || qty < 1 || qty > 5) fail(400, 'VALIDATION_ERROR', 'Số lượng mỗi sản phẩm từ 1 đến 5');
-      return { supplyItemId, quantity: qty };
-    });
-    const order = createSupplyOrder(st, c, lines, { date: new Date().toISOString().slice(0, 10) });
-    const inv = invoices.find((i) => i.id === order.invoiceId);
-    return ok({
-      id: order.id, orderCode: order.orderCode, status: order.status, totalAmount: order.totalAmount,
-      invoice: { id: inv.id, invoiceCode: inv.invoiceCode, type: inv.type, totalAmount: inv.totalAmount, dueDate: inv.dueDate },
-    }, 'Đặt hàng thành công');
-  },
-  cancelOrder: async (id) => {
-    await delay();
-    const o = supplyOrders.find((x) => x.id === id);
-    if (!o || o.studentId !== me().id) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này');
-    cancelSupplyOrder(o, 'Sinh viên tự hủy');
-    return ok(o, 'Đã hủy đơn hàng');
   },
 };

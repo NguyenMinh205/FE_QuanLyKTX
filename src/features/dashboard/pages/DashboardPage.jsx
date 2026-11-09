@@ -5,12 +5,10 @@ import {
 import {
   ReloadOutlined, HomeOutlined, UserOutlined, CheckCircleOutlined, PieChartOutlined, TeamOutlined,
   ClockCircleOutlined, CreditCardOutlined, WarningOutlined, ArrowRightOutlined, InboxOutlined,
-  FileSearchOutlined, SyncOutlined, LogoutOutlined, ShoppingOutlined, InfoCircleOutlined,
+  FileSearchOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useApi } from '../../../hooks/useApi';
-import { useAuth } from '../../../context/AuthContext';
-import { ROLES } from '../../../constants/roles';
 import { dashboardApi } from '../api/dashboard.api';
 import { contractApi } from '../../contracts/api/contract.api';
 import { roomApi } from '../../rooms/api/room.api';
@@ -26,16 +24,10 @@ const ROW_STYLE = { display: 'flex', justifyContent: 'space-between', alignItems
 /** SCR-10 Dashboard (docs/08 mục 6.1, FR-70 → FR-74) */
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isViewer = user?.role === ROLES.VIEWER;
 
   const summaryApi = useApi(() => dashboardApi.getSummary(), []);
   const occupancyApi = useApi(() => dashboardApi.getOccupancy(), []);
-  // FR-73 danh sách hợp đồng sắp hết hạn chỉ dành cho Admin, Staff
-  const expiringApi = useApi(
-    () => (isViewer ? Promise.resolve({ data: { data: { items: [], total: 0 } } }) : contractApi.getList({ expiringInDays: EXPIRING_DAYS, limit: 5 })),
-    [isViewer],
-  );
+  const expiringApi = useApi(() => contractApi.getList({ expiringInDays: EXPIRING_DAYS, limit: 5 }), []);
   const typesApi = useApi(() => roomApi.getRoomTypes({ withAvailability: true }), []);
 
   const s = summaryApi.data;
@@ -43,22 +35,12 @@ export default function DashboardPage() {
   const o = s?.occupancy;
   const refreshAll = () => { summaryApi.refetch(); occupancyApi.refetch(); expiringApi.refetch(); typesApi.refetch(); };
 
-  // Link hành động chỉ cho Admin/Staff — Viewer chỉ xem số liệu (docs/08 mục 6.1)
-  const actionLink = (label, to, danger) => (isViewer ? null : (
+  const actionLink = (label, to, danger) => (
     <a onClick={() => navigate(to)} style={danger ? { color: '#CF1322' } : undefined}>{label} <ArrowRightOutlined /></a>
-  ));
+  );
 
-  // Backend chưa tách gia hạn / trả phòng thì hiện tổng số yêu cầu
-  const splitRequests = s?.pendingRequests?.renewal !== null && s?.pendingRequests?.renewal !== undefined;
   const queue = [
     { key: 'app', icon: <FileSearchOutlined />, label: 'đơn đăng ký chờ duyệt', value: s?.pendingApplications, to: '/admin/applications' },
-    ...(splitRequests || !s ? [
-      { key: 'renewal', icon: <SyncOutlined />, label: 'yêu cầu gia hạn', value: s?.pendingRequests?.renewal, to: '/admin/requests?type=renewal' },
-      { key: 'checkout', icon: <LogoutOutlined />, label: 'yêu cầu trả phòng', value: s?.pendingRequests?.checkout, to: '/admin/requests?type=checkout' },
-    ] : [
-      { key: 'requests', icon: <SyncOutlined />, label: 'yêu cầu gia hạn / trả phòng', value: s?.pendingRequests?.total, to: '/admin/requests' },
-    ]),
-    { key: 'supply', icon: <ShoppingOutlined />, label: 'đơn nhu yếu phẩm chờ nhận', value: s?.supplyOrdersReady, to: '/admin/supplies?status=ready' },
   ];
   const queueTotal = queue.reduce((sum, q) => sum + (q.value ?? 0), 0);
   const expiring = expiringApi.data || [];
@@ -130,7 +112,7 @@ export default function DashboardPage() {
             label="Hợp đồng sắp hết hạn" icon={<ClockCircleOutlined style={{ color: '#D48806' }} />} iconBg="#FFFBE6"
             value={s?.residents?.expiringIn30Days} valueColor="#D48806" loading={loading}
             badge={<Tag color="warning" style={{ margin: 0 }}>Trong {EXPIRING_DAYS} ngày tới</Tag>}
-            footer={actionLink('Xem danh sách', '/admin/contracts?tab=expiring') || <Text type="secondary">Cần nhắc sinh viên gia hạn</Text>}
+            footer={actionLink('Xem danh sách', '/admin/contracts?tab=expiring')}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
@@ -138,7 +120,7 @@ export default function DashboardPage() {
             label="Tổng công nợ" icon={<CreditCardOutlined style={{ color: '#CF1322' }} />} iconBg="#FFF1F0"
             value={s?.finance?.totalDebt === null || s?.finance?.totalDebt === undefined ? null : formatCurrency(s.finance.totalDebt)}
             valueColor="#CF1322" loading={loading}
-            footer={<Text type="secondary">Hóa đơn chưa thanh toán đủ (phòng, điện nước, nhu yếu phẩm)</Text>}
+            footer={<Text type="secondary">Hóa đơn chưa thanh toán đủ (phòng, điện nước)</Text>}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
@@ -190,38 +172,36 @@ export default function DashboardPage() {
       </Row>
 
       {/* ---------- Hợp đồng sắp hết hạn (FR-73) ---------- */}
-      {!isViewer && (
-        <Card
-          style={{ marginTop: 16 }}
-          title={<span><ClockCircleOutlined style={{ color: '#D48806' }} /> Hợp đồng sắp hết hạn gần nhất</span>}
-          extra={expiringApi.meta?.total > 0 && actionLink(`Xem tất cả (${expiringApi.meta.total})`, '/admin/contracts?tab=expiring')}
-        >
-          {expiringApi.error && <Alert type="error" showIcon title={expiringApi.error} />}
-          {!expiringApi.error && expiringApi.loading && !expiringApi.data && <Skeleton active paragraph={{ rows: 3 }} />}
-          {!expiringApi.error && expiringApi.data && (
-            <div>
-              {expiring.length === 0 && <Text type="secondary">Không có hợp đồng nào hết hạn trong {EXPIRING_DAYS} ngày tới</Text>}
-              {expiring.map((c) => {
-                const left = dayjs(c.endDate).startOf('day').diff(dayjs().startOf('day'), 'day');
-                return (
-                  <div
-                    key={c.id} data-row="expiring" role="button" tabIndex={0}
-                    style={{ ...ROW_STYLE, cursor: 'pointer' }}
-                    onClick={() => navigate(`/admin/contracts?search=${encodeURIComponent(c.contractCode)}`)}
-                    onKeyDown={(e) => e.key === 'Enter' && navigate(`/admin/contracts?search=${encodeURIComponent(c.contractCode)}`)}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <Text strong>{c.studentName}</Text> <Text type="secondary">· {c.studentCode}</Text>
-                      <div><Text type="secondary" style={{ fontSize: 12 }}>{c.contractCode} · {c.bedCode} · hết hạn {formatDate(c.endDate)}</Text></div>
-                    </div>
-                    <Tag color={left <= 7 ? 'error' : 'warning'} style={{ margin: 0 }}>{left === 0 ? 'Hôm nay' : `Còn ${left} ngày`}</Tag>
+      <Card
+        style={{ marginTop: 16 }}
+        title={<span><ClockCircleOutlined style={{ color: '#D48806' }} /> Hợp đồng sắp hết hạn gần nhất</span>}
+        extra={expiringApi.meta?.total > 0 && actionLink(`Xem tất cả (${expiringApi.meta.total})`, '/admin/contracts?tab=expiring')}
+      >
+        {expiringApi.error && <Alert type="error" showIcon title={expiringApi.error} />}
+        {!expiringApi.error && expiringApi.loading && !expiringApi.data && <Skeleton active paragraph={{ rows: 3 }} />}
+        {!expiringApi.error && expiringApi.data && (
+          <div>
+            {expiring.length === 0 && <Text type="secondary">Không có hợp đồng nào hết hạn trong {EXPIRING_DAYS} ngày tới</Text>}
+            {expiring.map((c) => {
+              const left = dayjs(c.endDate).startOf('day').diff(dayjs().startOf('day'), 'day');
+              return (
+                <div
+                  key={c.id} data-row="expiring" role="button" tabIndex={0}
+                  style={{ ...ROW_STYLE, cursor: 'pointer' }}
+                  onClick={() => navigate(`/admin/contracts?search=${encodeURIComponent(c.contractCode)}`)}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(`/admin/contracts?search=${encodeURIComponent(c.contractCode)}`)}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <Text strong>{c.studentName}</Text> <Text type="secondary">· {c.studentCode}</Text>
+                    <div><Text type="secondary" style={{ fontSize: 12 }}>{c.contractCode} · {c.bedCode} · hết hạn {formatDate(c.endDate)}</Text></div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      )}
+                  <Tag color={left <= 7 ? 'error' : 'warning'} style={{ margin: 0 }}>{left === 0 ? 'Hôm nay' : `Còn ${left} ngày`}</Tag>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
       {/* ---------- Cần xử lý (FR-74) ---------- */}
       <Card style={{ marginTop: 16, borderLeft: '4px solid #1677FF' }} styles={{ body: { padding: '14px 20px' } }}>
@@ -230,7 +210,7 @@ export default function DashboardPage() {
           {queue.map((q) => (
             <span key={q.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {q.icon}
-              {isViewer || !q.value
+              {!q.value
                 ? <Text><b>{q.value ?? '—'}</b> {q.label}</Text>
                 : <a onClick={() => navigate(q.to)}><b>{q.value}</b> {q.label}</a>}
             </span>

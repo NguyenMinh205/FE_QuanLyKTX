@@ -12,7 +12,7 @@ import { formatCurrency } from '../../../../utils/formatter';
 
 const { Text } = Typography;
 
-/** Hóa đơn lẻ không dùng loại phí có nguồn tiền riêng: tiền phòng, tiền cọc (hợp đồng), nhu yếu phẩm (đơn hàng) */
+/** Hóa đơn lẻ không dùng loại phí có nguồn tiền riêng: tiền phòng, tiền cọc (hợp đồng) */
 const BLOCKED_FEE_CODES = ['rent', 'deposit', 'supplies'];
 
 const moneyFormatter = (v) => (v === undefined || v === null || v === '' ? '' : Number(v).toLocaleString('vi-VN'));
@@ -172,7 +172,7 @@ export default function CreateInvoiceModal({ open, onCancel, onCreated }) {
           <Input.TextArea rows={2} maxLength={500} showCount placeholder="VD: Biên bản ngày 12/09 — hỏng khóa tủ" />
         </Form.Item>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          Loại hóa đơn: Khác · không gắn kỳ. Tiền phòng, tiền cọc lấy từ hợp đồng và nhu yếu phẩm lấy từ đơn hàng nên không chọn ở đây.
+          Loại hóa đơn: Khác · không gắn kỳ. Tiền phòng, tiền cọc lấy từ hợp đồng nên không chọn ở đây.
         </Text>
       </Form>
     </Modal>

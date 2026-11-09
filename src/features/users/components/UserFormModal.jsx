@@ -15,7 +15,6 @@ const EMPTY_LIST = Promise.resolve({ data: { data: { items: [], total: 0 } } });
 const ROLE_HINT = {
   admin: 'Toàn quyền, gồm quản lý tài khoản, giá thuê, danh mục phí',
   staff: 'Nghiệp vụ hằng ngày: duyệt đơn, hợp đồng, hóa đơn, thu tiền',
-  viewer: 'Chỉ xem số liệu, không thao tác',
   student: 'Dùng cổng sinh viên — phải gắn với một hồ sơ sinh viên',
 };
 

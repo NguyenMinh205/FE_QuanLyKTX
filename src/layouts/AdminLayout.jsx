@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Layout, Menu, Dropdown, Avatar, Grid, Drawer, Button, Badge, ConfigProvider, Typography } from 'antd';
 import {
-  DashboardOutlined, TeamOutlined, BankOutlined, FileTextOutlined, MailOutlined,
-  DollarOutlined, SettingOutlined, ShoppingOutlined, UserOutlined, LogoutOutlined,
+  DashboardOutlined, TeamOutlined, BankOutlined, FileTextOutlined,
+  DollarOutlined, SettingOutlined, UserOutlined, LogoutOutlined,
   MenuOutlined, LockOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -45,7 +45,6 @@ const buildMenu = (role, counts = {}) => {
         { key: '/admin/contracts', label: 'Hợp đồng' },
       ],
     },
-    { key: '/admin/requests', icon: <MailOutlined />, label: withBadge('Yêu cầu', counts.requests) },
     {
       key: 'fees', icon: <DollarOutlined />, label: 'Tài chính',
       children: [
@@ -54,7 +53,6 @@ const buildMenu = (role, counts = {}) => {
         { key: '/admin/payments', label: 'Thanh toán' },
       ],
     },
-    { key: '/admin/supplies', icon: <ShoppingOutlined />, label: withBadge('Nhu yếu phẩm', counts.supplies) },
   ];
 
   if (role === ROLES.ADMIN) {
@@ -97,8 +95,6 @@ export default function AdminLayout() {
   const { data: summary } = useApi(() => dashboardApi.getSummary(), []);
   const menuItems = buildMenu(user?.role, {
     applications: summary?.pendingApplications,
-    requests: summary?.pendingRequests?.total,
-    supplies: summary?.supplyOrdersReady,
   });
 
   // Trang chi tiết (VD /admin/invoices/:id) vẫn sáng mục cha

@@ -34,7 +34,7 @@ const loadPayments = (filters) => paymentApi.getList({ ...filters, search: filte
     return { ...res, data: { ...res.data, data: { ...list, items: items.map(normalizePayment) } } };
   });
 
-/** SCR-56 Lịch sử thanh toán (FR-56) — tra cứu, đối soát giao dịch treo. Viewer chỉ xem */
+/** SCR-56 Lịch sử thanh toán (FR-56) — tra cứu, đối soát giao dịch treo */
 export default function PaymentsPage() {
   const [searchParams] = useSearchParams();
   return <PaymentsView key={searchParams.toString()} searchParams={searchParams} />;

@@ -90,7 +90,7 @@ export default function ConfirmStep({ form, room, roomType, initialValues, onVal
             <Text strong style={{ color: '#AD4E00' }}>Lưu ý về đồ dùng cá nhân</Text>
             <div>
               <Text style={{ color: '#AD4E00' }}>
-                Đồ không nằm trong danh sách trên (chăn, gối, đệm…) sinh viên tự chuẩn bị, hoặc mua ở mục <b>Mua sắm</b> sau khi vào ở.
+                Đồ không nằm trong danh sách trên (chăn, gối, đệm…) sinh viên tự chuẩn bị.
               </Text>
             </div>
           </div>

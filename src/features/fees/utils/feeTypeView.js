@@ -1,7 +1,7 @@
 import { formatCurrency } from '../../../utils/formatter';
 
 /** Loại phí hệ thống — lập hóa đơn, quyết toán cần tới nên không ngừng dùng được (DATA-SCHEMA 3.8) */
-export const SYSTEM_FEE_CODES = ['rent', 'electricity', 'water', 'deposit', 'supplies', 'other'];
+export const SYSTEM_FEE_CODES = ['rent', 'electricity', 'water', 'deposit', 'other'];
 
 /** Chỉ điện, nước đọc defaultAmount làm đơn giá khi nhập chỉ số */
 export const PRICED_FEE_CODES = ['electricity', 'water'];
@@ -10,7 +10,6 @@ export const PRICED_FEE_CODES = ['electricity', 'water'];
 export const PRICE_SOURCE = {
   rent: 'Theo hợp đồng',
   deposit: 'Theo hợp đồng',
-  supplies: 'Theo đơn hàng',
 };
 
 export const UNIT_OPTIONS = ['tháng', 'kWh', 'm3', 'lần', 'chiếc', 'đơn', 'người'].map((value) => ({ value }));

@@ -3,7 +3,6 @@
  *
  *   6 loại phòng → 2 tòa → 20 phòng → giường TỰ SINH theo sức chứa
  *   → 90 sinh viên (72 đang ở) → đơn đăng ký → hợp đồng → hóa đơn → thanh toán
- *   → 8 sản phẩm nhu yếu phẩm → đơn hàng
  *
  * Tài khoản thử (xem mockApi.js): sv001 đang ở phòng Tiêu chuẩn, có nợ · sv002 chưa có chỗ ·
  * sv003 dùng test IDOR · sv004 đang ở phòng Chất lượng cao, hợp đồng còn 20 ngày ·
@@ -297,7 +296,6 @@ export const feeTypes = [
   { id: 'f2', code: 'electricity', name: 'Tiền điện', unit: 'kWh', defaultAmount: 2500, isRecurring: true, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
   { id: 'f3', code: 'water', name: 'Tiền nước', unit: 'm3', defaultAmount: 12000, isRecurring: true, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
   { id: 'f4', code: 'deposit', name: 'Tiền đặt cọc', unit: 'lần', defaultAmount: 0, isRecurring: false, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
-  { id: 'f6', code: 'supplies', name: 'Nhu yếu phẩm', unit: 'đơn', defaultAmount: 0, isRecurring: false, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
   { id: 'f5', code: 'other', name: 'Phí khác', unit: 'lần', defaultAmount: 0, isRecurring: false, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
   // loại phí tự thêm — minh họa FR-45 (1 đang dùng, 1 đã ngừng)
   { id: 'f7', code: 'lost_key', name: 'Làm mất chìa khóa', unit: 'chiếc', defaultAmount: 50000, isRecurring: false, isActive: true, updatedAt: '2026-08-20T09:30:00+07:00' },
@@ -402,72 +400,6 @@ contracts
     });
   });
 
-// ---------------------------------------------------------------- nhu yếu phẩm
-export const supplyItems = [
-  { id: 'si1', name: 'Đệm mút 90x190cm', category: 'bedding', unit: 'cái', price: 350000, includedInRoomTypes: ['rt4', 'rt5', 'rt6', 'rt8'], isActive: true },
-  { id: 'si2', name: 'Vỏ đệm 90x190cm', category: 'bedding', unit: 'cái', price: 120000, includedInRoomTypes: [], isActive: true },
-  { id: 'si3', name: 'Gối bông', category: 'bedding', unit: 'cái', price: 80000, includedInRoomTypes: [], isActive: true },
-  { id: 'si4', name: 'Vỏ gối', category: 'bedding', unit: 'cái', price: 40000, includedInRoomTypes: [], isActive: true },
-  { id: 'si5', name: 'Chăn mỏng', category: 'bedding', unit: 'cái', price: 180000, includedInRoomTypes: [], isActive: true },
-  { id: 'si6', name: 'Màn chống muỗi', category: 'personal', unit: 'cái', price: 90000, includedInRoomTypes: [], isActive: true },
-  { id: 'si7', name: 'Móc treo quần áo (bộ 10)', category: 'personal', unit: 'bộ', price: 25000, includedInRoomTypes: [], isActive: true },
-  { id: 'si8', name: 'Ổ cắm điện', category: 'electrical', unit: 'cái', price: 60000, includedInRoomTypes: [], isActive: false },
-].map((it) => ({ ...it, imageUrl: null, description: '' }));
-
-export const supplyOrders = [];
-let orderSeq = 0;
-
-/** Giống supplyOrderService.create: giá lấy từ danh mục, sinh 1 hóa đơn supplies */
-export const createSupplyOrder = (student, contract, lines, { status = 'pending_payment', date = '2026-11-08' } = {}) => {
-  orderSeq += 1;
-  const items = lines.map(({ supplyItemId, quantity }) => {
-    const it = supplyItems.find((x) => x.id === supplyItemId);
-    return { supplyItemId, name: it.name, unitPrice: it.price, quantity, amount: it.price * quantity };
-  });
-  const totalAmount = items.reduce((s, x) => s + x.amount, 0);
-  const paid = ['ready', 'delivered'].includes(status);
-  const cancelled = status === 'cancelled';
-  const due = new Date(date); due.setDate(due.getDate() + 3);
-
-  const inv = {
-    ...nextInvoiceCode('202611'),
-    studentId: student.id, studentCode: student.studentCode, studentName: student.fullName,
-    contractId: contract.id, bedCode: contract.bedCode,
-    type: 'supplies', billingPeriod: null,
-    lineItems: items.map((x) => ({ feeTypeId: 'f6', description: x.name, quantity: x.quantity, unitPrice: x.unitPrice, amount: x.amount })),
-    totalAmount, paidAmount: paid ? totalAmount : 0,
-    issueDate: date, dueDate: due.toISOString().slice(0, 10),
-    status: cancelled ? 'cancelled' : paid ? 'paid' : 'unpaid',
-  };
-  invoices.push(inv);
-
-  const order = {
-    id: `so${pad(orderSeq)}`,
-    orderCode: `DH-2026-${pad(orderSeq, 5)}`,
-    studentId: student.id, studentCode: student.studentCode, studentName: student.fullName,
-    contractId: contract.id, roomNumber: contract.roomNumber, buildingName: contract.buildingName,
-    roomCode: String(contract.bedCode).split('-')[0],
-    items, totalAmount, invoiceId: inv.id, status,
-    createdAt: `${date}T09:30:00+07:00`,
-    deliveredAt: status === 'delivered' ? `${date}T16:00:00+07:00` : null,
-    cancelledAt: cancelled ? `${date}T18:00:00+07:00` : null,
-    cancelReason: cancelled ? 'Sinh viên đổi ý' : null,
-  };
-  supplyOrders.push(order);
-  return order;
-};
-
-const contractOf = (studentId) => contracts.find((c) => c.studentId === studentId && c.status === 'active');
-const sv001 = students[DEMO_STUDENT_INDEX.sv001];
-createSupplyOrder(sv001, contractOf(sv001.id), [{ supplyItemId: 'si6', quantity: 1 }, { supplyItemId: 'si3', quantity: 1 }], { status: 'delivered', date: '2026-09-02' });
-createSupplyOrder(sv001, contractOf(sv001.id), [{ supplyItemId: 'si5', quantity: 1 }], { status: 'ready', date: '2026-11-05' });
-createSupplyOrder(sv001, contractOf(sv001.id), [{ supplyItemId: 'si2', quantity: 1 }, { supplyItemId: 'si4', quantity: 1 }], { status: 'pending_payment', date: '2026-11-09' });
-[4, 6, 8, 10].forEach((idx, k) => {
-  const st = students[idx];
-  createSupplyOrder(st, contractOf(st.id), [{ supplyItemId: ['si1', 'si2', 'si7', 'si5'][k], quantity: 1 }],
-    { status: ['ready', 'pending_payment', 'cancelled', 'delivered'][k], date: `2026-11-0${k + 3}` });
-});
-
 // ---------------------------------------------------------------- công nợ
 export const debtOf = (studentId) =>
   invoices
@@ -516,71 +448,6 @@ invoices.filter((inv) => ['unpaid', 'overdue'].includes(inv.status)).slice(0, 3)
     // chỉ có trong dữ liệu giả: kết quả khi bấm "Đối soát lại"
     demoReconcile: i === 0 ? 'success' : 'expired',
   });
-});
-
-// ---------------------------------------------------------------- yêu cầu gia hạn / trả phòng
-// Ngày gửi/ngày trả tính theo ngày máy chạy để "còn N ngày", "gửi hôm qua" luôn hợp lý.
-export const requests = [];
-let reqSeq = 0;
-export const newRequest = (c, type, extra = {}) => {
-  reqSeq += 1;
-  const r = {
-    id: `rq${pad(reqSeq)}`,
-    requestCode: `YC-2026-${pad(reqSeq, 5)}`,
-    studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
-    contractId: c.id, contractCode: c.contractCode, bedCode: c.bedCode,
-    type, reason: '', requestedEndDate: null,
-    status: 'pending', reviewNote: null, reviewedAt: null,
-    renewal: null, settlement: null,
-    createdAt: `${todayPlus(-1)}T08:30:00+07:00`,
-    ...extra,
-  };
-  requests.push(r);
-  return r;
-};
-
-// Chờ xử lý — mỗi yêu cầu là một tình huống nghiệp vụ
-// sv001: gia hạn, còn nợ
-newRequest(contracts[0], 'renewal', {
-  reason: 'Em tiếp tục học năm sau, muốn giữ chỗ hiện tại', requestedEndDate: '2027-12-31', createdAt: `${todayPlus(-3)}T09:10:00+07:00`,
-});
-// trả phòng, nợ nhỏ hơn cọc → hoàn tiền
-newRequest(contracts[1], 'checkout', {
-  reason: 'Em chuyển ra ở cùng gia đình', requestedEndDate: todayPlus(10), createdAt: `${todayPlus(-2)}T14:32:00+07:00`,
-});
-// gia hạn, không nợ
-newRequest(contracts[2], 'renewal', {
-  reason: 'Gia hạn thêm một học kỳ', requestedEndDate: '2027-12-31', createdAt: `${todayPlus(-2)}T10:05:00+07:00`,
-});
-// trả phòng, nợ vượt cọc + có đơn nhu yếu phẩm đã trả tiền nhưng chưa nhận
-newRequest(contracts[4], 'checkout', {
-  reason: 'Em đi thực tập ở tỉnh khác', requestedEndDate: todayPlus(7), createdAt: `${todayPlus(-1)}T16:20:00+07:00`,
-});
-// trả phòng khi hợp đồng sắp hết hạn, có đơn nhu yếu phẩm CHƯA thanh toán (sẽ tự hủy, không trừ cọc — BR-97)
-newRequest(contracts[6], 'checkout', {
-  reason: 'Hết hợp đồng, em không ở tiếp', requestedEndDate: todayPlus(2), createdAt: `${todayPlus(0)}T07:45:00+07:00`,
-});
-
-// sv001 từng gửi rồi tự hủy một yêu cầu trả phòng — để màn "Yêu cầu của tôi" có lịch sử
-newRequest(contracts[0], 'checkout', {
-  reason: 'Em định chuyển ra ngoài nhưng đổi ý', requestedEndDate: todayPlus(40), status: 'cancelled',
-  createdAt: `${todayPlus(-12)}T20:15:00+07:00`,
-});
-
-// Đã xử lý
-{
-  const c = contracts[5];
-  newRequest(c, 'renewal', {
-    reason: 'Em học thêm năm cuối', requestedEndDate: '2027-12-31', status: 'approved',
-    createdAt: `${todayPlus(-22)}T09:00:00+07:00`, reviewedAt: `${todayPlus(-20)}T10:00:00+07:00`,
-    renewal: { previousEndDate: c.endDate, newEndDate: '2027-12-31', extraMonths: 6 },
-  });
-  c.endDate = '2027-12-31';
-}
-newRequest(contracts[8], 'renewal', {
-  reason: 'Em muốn ở thêm 2 năm', requestedEndDate: '2028-06-30', status: 'rejected',
-  reviewNote: 'Chỉ gia hạn tối đa đến hết năm học tiếp theo, vui lòng gửi lại',
-  createdAt: `${todayPlus(-15)}T11:00:00+07:00`, reviewedAt: `${todayPlus(-14)}T15:30:00+07:00`,
 });
 
 // ---------------------------------------------------------------- hợp đồng năm trước (đã hết hạn / đã chấm dứt)
@@ -632,15 +499,6 @@ seedPastContract(students[82], rooms[2], { startDate: '2025-09-01', endDate: '20
 seedPastContract(students[84], rooms[3], {
   startDate: '2025-09-01', endDate: '2026-06-30', status: 'terminated',
   terminatedAt: '2026-01-15', terminationReason: 'Sinh viên chuyển trường, đã bàn giao phòng và thu hồi chìa khóa',
-});
-// Yêu cầu trả phòng đã duyệt của hợp đồng trên — có sẵn bảng quyết toán để xem ở tab "Đã duyệt"
-newRequest(contracts.find((c) => c.contractCode === 'HD-2025-00003'), 'checkout', {
-  requestCode: 'YC-2026-00000', reason: 'Em chuyển trường', requestedEndDate: '2026-01-15', status: 'approved',
-  createdAt: '2026-01-08T09:00:00+07:00', reviewedAt: '2026-01-15T16:00:00+07:00',
-  settlement: {
-    checkoutDate: '2026-01-15', outstandingDebt: 0, proratedRent: 0, depositAmount: 500000,
-    refundAmount: 500000, studentStillOwes: 0, refundMethod: 'cash', settlementInvoiceId: null, cancelledSupplyOrders: 0,
-  },
 });
 
 // ---------------------------------------------------------------- thống kê dashboard

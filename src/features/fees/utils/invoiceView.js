@@ -18,8 +18,6 @@ export const isOpenInvoice = (inv) => OPEN_STATUSES.includes(inv.status);
 /** null = hủy được; chuỗi = lý do không hủy được (BR-46, FR-58) */
 export const cancelBlockReason = (inv) => {
   if (inv.status === 'cancelled') return 'Hóa đơn đã hủy';
-  if (inv.type === 'supplies') return 'Hóa đơn nhu yếu phẩm hủy theo đơn hàng ở màn Nhu yếu phẩm';
-  if (inv.type === 'settlement') return 'Hóa đơn quyết toán sinh ra khi duyệt trả phòng, không hủy được';
   if (inv.paidAmount > 0) return 'Đã có thanh toán — không hủy được (BR-46)';
   return null;
 };

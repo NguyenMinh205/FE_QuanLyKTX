@@ -11,11 +11,6 @@ export const portalApi = {
   getMyInvoiceById:  (id)     => (USE_MOCK ? mockPortal.getMyInvoiceById(id)     : axiosClient.get(`/portal/my-invoices/${id}`)),
   getMyPayments:     (params) => (USE_MOCK ? mockPortal.getMyPayments(params)    : axiosClient.get('/portal/my-payments', { params })),
 
-  // Yêu cầu gia hạn / trả phòng
-  getMyRequests:     ()       => (USE_MOCK ? mockPortal.getMyRequests()          : axiosClient.get('/portal/my-requests')),
-  createRequest:     (data)   => (USE_MOCK ? mockPortal.createRequest(data)      : axiosClient.post('/portal/my-requests', data)),
-  cancelRequest:     (id)     => (USE_MOCK ? mockPortal.cancelRequest(id)        : axiosClient.delete(`/portal/my-requests/${id}`)),
-
   // Đăng ký chỗ ở — loại phòng/phòng còn chỗ đã lọc theo giới tính ở backend
   getRoomTypes:      (params) => (USE_MOCK ? mockPortal.getRoomTypes(params)
     : axiosClient.get('/room-types', { params: { ...params, isActive: true, withAvailability: true } })),
@@ -24,11 +19,4 @@ export const portalApi = {
   /** { roomId, startDate, endDate, note } */
   createApplication: (data)   => (USE_MOCK ? mockPortal.createApplication(data)  : axiosClient.post('/portal/my-applications', data)),
   cancelApplication: (id)     => (USE_MOCK ? mockPortal.cancelApplication(id)    : axiosClient.delete(`/portal/my-applications/${id}`)),
-
-  // Nhu yếu phẩm
-  getSupplyItems:    ()       => (USE_MOCK ? mockPortal.getSupplyItems()         : axiosClient.get('/portal/supply-items')),
-  getMyOrders:       (params) => (USE_MOCK ? mockPortal.getMyOrders(params)      : axiosClient.get('/portal/my-supply-orders', { params })),
-  /** { items: [{ supplyItemId, quantity }] } — KHÔNG gửi giá */
-  createOrder:       (data)   => (USE_MOCK ? mockPortal.createOrder(data)        : axiosClient.post('/portal/my-supply-orders', data)),
-  cancelOrder:       (id)     => (USE_MOCK ? mockPortal.cancelOrder(id)          : axiosClient.patch(`/portal/my-supply-orders/${id}/cancel`)),
 };

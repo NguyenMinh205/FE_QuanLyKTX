@@ -27,6 +27,5 @@ export const invoicePeriodText = (inv, typeLabel) => {
 export const invoiceSummaryText = (inv) => {
   const lines = inv.lineItems || [];
   if (inv.type === 'monthly') return 'Tiền phòng, điện, nước';
-  if (inv.type === 'supplies') return lines.map((l) => l.description).join(', ') || 'Nhu yếu phẩm';
   return lines[0]?.description || '—';
 };

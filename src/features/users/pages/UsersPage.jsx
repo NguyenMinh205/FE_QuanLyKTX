@@ -18,8 +18,8 @@ import TemporaryPasswordModal from '../components/TemporaryPasswordModal';
 
 const { Text } = Typography;
 
-const ROLE_COLOR = { admin: 'red', staff: 'blue', viewer: 'default', student: 'green' };
-const ROLE_FILTERS = ['all', 'admin', 'staff', 'viewer', 'student'];
+const ROLE_COLOR = { admin: 'red', staff: 'blue', student: 'green' };
+const ROLE_FILTERS = ['all', 'admin', 'staff', 'student'];
 
 /** SCR-81 Tài khoản — chỉ Admin (docs/07 mục 2, FR-06, FR-09) */
 export default function UsersPage() {

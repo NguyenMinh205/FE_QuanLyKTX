@@ -18,11 +18,6 @@ export const CONTRACT_STATUS = {
   terminated: { label: 'Đã chấm dứt',   color: 'default' },
 };
 
-export const RESIDENCY_STATUS = {
-  active: { label: 'Đang ở',      color: 'success' },
-  closed: { label: 'Đã kết thúc', color: 'default' },
-};
-
 export const INVOICE_STATUS = {
   unpaid:    { label: 'Chưa thanh toán',     color: 'warning' },
   partial:   { label: 'Thanh toán một phần', color: 'processing' },
@@ -34,8 +29,6 @@ export const INVOICE_STATUS = {
 export const INVOICE_TYPE = {
   deposit:    { label: 'Tiền cọc',     color: 'blue' },
   monthly:    { label: 'Hàng tháng',   color: 'default' },
-  settlement: { label: 'Quyết toán',   color: 'cyan' },
-  supplies:   { label: 'Nhu yếu phẩm', color: 'purple' },
   other:      { label: 'Khác',         color: 'default' },
 };
 
@@ -70,31 +63,6 @@ export const PAYMENT_METHOD = {
   bank_transfer: { label: 'Chuyển khoản' },
   vnpay:         { label: 'VNPay' },
   zalopay:       { label: 'ZaloPay' },
-};
-
-export const REQUEST_STATUS = {
-  pending:   { label: 'Chờ xử lý',  color: 'warning' },
-  approved:  { label: 'Đã duyệt',   color: 'success' },
-  rejected:  { label: 'Bị từ chối', color: 'error' },
-  cancelled: { label: 'Đã hủy',     color: 'default' },
-};
-
-export const REQUEST_TYPE = {
-  renewal:  { label: 'Gia hạn',   color: 'blue' },
-  checkout: { label: 'Trả phòng', color: 'purple' },
-};
-
-export const SUPPLY_ORDER_STATUS = {
-  pending_payment: { label: 'Chờ thanh toán', color: 'warning' },
-  ready:           { label: 'Chờ nhận hàng',  color: 'processing' },
-  delivered:       { label: 'Đã giao',        color: 'success' },
-  cancelled:       { label: 'Đã hủy',         color: 'default' },
-};
-
-export const SUPPLY_CATEGORY = {
-  bedding:    { label: 'Chăn ga gối đệm' },
-  personal:   { label: 'Đồ dùng cá nhân' },
-  electrical: { label: 'Điện' },
 };
 
 export const GENDER = {

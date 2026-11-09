@@ -29,7 +29,7 @@ const { Text } = Typography;
 
 const EMPTY_FILTERS = { page: 1, limit: 10, search: '', billingPeriod: undefined, type: undefined, status: undefined, buildingId: undefined };
 
-/** SCR-52 Danh sách hóa đơn (FR-46, FR-49, FR-58) + mở SCR-53 lập hàng loạt. Viewer chỉ xem */
+/** SCR-52 Danh sách hóa đơn (FR-46, FR-49, FR-58) + mở SCR-53 lập hàng loạt */
 export default function InvoicesPage() {
   // Đổi query trên URL (VD bấm menu Hóa đơn khi đang ở ?status=overdue) → dựng lại bộ lọc từ đầu
   const [searchParams] = useSearchParams();
@@ -105,13 +105,7 @@ function InvoicesView({ searchParams }) {
 
   const handleRecorded = (res) => {
     setPayInvoice(null);
-    if (res) {
-      const order = res.data?.supplyOrder;
-      notification.success({
-        title: res.message,
-        description: order?.status === 'ready' ? `Đơn hàng ${order.orderCode} chuyển sang Chờ nhận hàng` : undefined,
-      });
-    }
+    if (res) notification.success({ title: res.message });
     refetch();
   };
 

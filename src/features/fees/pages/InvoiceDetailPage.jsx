@@ -13,7 +13,7 @@ import { can } from '../../../utils/permission';
 import { feeApi } from '../api/fee.api';
 import { paymentApi } from '../../payments/api/payment.api';
 import { getErrorMessage } from '../../../lib/axiosClient';
-import { INVOICE_TYPE, PAYMENT_METHOD, PAYMENT_STATUS, SUPPLY_ORDER_STATUS } from '../../../constants/statuses';
+import { INVOICE_TYPE, PAYMENT_METHOD, PAYMENT_STATUS } from '../../../constants/statuses';
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '../../../utils/formatter';
 import StatusTag from '../../../components/StatusTag';
 import StatCard from '../../../components/StatCard';
@@ -100,13 +100,7 @@ export default function InvoiceDetailPage() {
 
   const handleRecorded = (res) => {
     setPayOpen(false);
-    if (res) {
-      const order = res.data?.supplyOrder;
-      notification.success({
-        title: res.message,
-        description: order?.status === 'ready' ? `Đơn hàng ${order.orderCode} chuyển sang Chờ nhận hàng — mời sinh viên đến nhận` : undefined,
-      });
-    }
+    if (res) notification.success({ title: res.message });
     refetch();
   };
 
@@ -243,12 +237,6 @@ export default function InvoiceDetailPage() {
             {inv.contractCode && (
               <InfoRow label="Hợp đồng">
                 <Link to={`/admin/contracts?search=${encodeURIComponent(inv.contractCode)}`}>{inv.contractCode} <ExportOutlined /></Link>
-              </InfoRow>
-            )}
-            {inv.supplyOrder && (
-              <InfoRow label="Đơn hàng">
-                <Link to={`/admin/supplies?search=${encodeURIComponent(inv.supplyOrder.orderCode)}`}>Xem đơn hàng {inv.supplyOrder.orderCode} <ExportOutlined /></Link>
-                <div><Text type="secondary" style={{ fontSize: 12 }}>{SUPPLY_ORDER_STATUS[inv.supplyOrder.status]?.label ?? inv.supplyOrder.status}</Text></div>
               </InfoRow>
             )}
             {inv.note && <InfoRow label="Ghi chú">{inv.note}</InfoRow>}

@@ -17,7 +17,6 @@ const DEMO_ACCOUNTS = USE_MOCK
   ? [
     ['Quản trị', 'admin@dorm.local', 'Admin@123'],
     ['Nhân viên', 'staff@dorm.local', 'Staff@123'],
-    ['Người xem', 'viewer@dorm.local', 'Viewer@123'],
     ['SV đang ở', 'sv001@dorm.local', 'Student@123'],
     ['SV chưa có chỗ', 'sv002@dorm.local', 'Student@123'],
     ['SV sắp hết hạn hợp đồng', 'sv004@dorm.local', 'Student@123'],
@@ -29,7 +28,6 @@ const DEMO_ACCOUNTS = USE_MOCK
   : [
     ['Quản trị', 'admin@dorm.local', 'Admin@123'],
     ['Nhân viên', 'staff1@dorm.local', 'Staff@123'],
-    ['Người xem', 'viewer@dorm.local', 'Viewer@123'],
     ['Sinh viên nam', 'student.nam@dorm.local', 'Student@123'],
     ['Sinh viên nữ', 'student.nu@dorm.local', 'Student@123'],
   ];

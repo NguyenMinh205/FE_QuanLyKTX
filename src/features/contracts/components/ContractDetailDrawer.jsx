@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Drawer, Button, Tag, Typography, Skeleton, Alert, Timeline, Table, Input, Space, App, Divider,
 } from 'antd';
@@ -40,7 +39,6 @@ function Row({ label, children }) {
 
 /** Drawer chi tiết hợp đồng — SCR-32 */
 export default function ContractDetailDrawer({ contractId, open, canUpdate, canTerminate, onClose, onChanged }) {
-  const navigate = useNavigate();
   const { message } = App.useApp();
   const [version, setVersion] = useState(0);
   const [terminateOpen, setTerminateOpen] = useState(false);
@@ -108,19 +106,11 @@ export default function ContractDetailDrawer({ contractId, open, canUpdate, canT
 
       {!error && ready && (
         <>
-          {c.status === 'active' && c.pendingRequests?.length > 0 && (
-            <Alert
-              type="info" showIcon style={{ marginBottom: 20 }}
-              title={c.pendingRequests.map((r) => `${r.type === 'renewal' ? 'Yêu cầu gia hạn' : 'Yêu cầu trả phòng'} gửi ngày ${formatDate(r.createdAt)}`).join(' · ')}
-              description="Đang chờ xử lý — duyệt hoặc từ chối ở màn Yêu cầu gia hạn / trả phòng."
-              action={<Button size="small" onClick={() => navigate('/admin/requests')}>Mở Yêu cầu</Button>}
-            />
-          )}
-          {expiring && !c.pendingRequests?.some((r) => r.type === 'renewal') && (
+          {expiring && (
             <Alert
               type="warning" showIcon style={{ marginBottom: 20 }}
               title={daysLeft === 0 ? 'Hợp đồng hết hạn hôm nay' : `Hợp đồng còn ${daysLeft} ngày`}
-              description="Sinh viên chưa gửi yêu cầu gia hạn. Gia hạn được thực hiện qua yêu cầu của sinh viên ở cổng sinh viên."
+              description="Muốn ở tiếp, sinh viên nộp đơn đăng ký mới cho kỳ sau."
             />
           )}
 
@@ -190,7 +180,7 @@ export default function ContractDetailDrawer({ contractId, open, canUpdate, canT
                   <Button size="small" onClick={() => setEditingTerms(null)} disabled={savingTerms}>Hủy</Button>
                 </Space>
                 <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 6 }}>
-                  Chỉ sửa được điều khoản. Ngày ở thay đổi qua yêu cầu gia hạn / trả phòng.
+                  Chỉ sửa được điều khoản, không đổi được ngày ở.
                 </Text>
               </>
             )}

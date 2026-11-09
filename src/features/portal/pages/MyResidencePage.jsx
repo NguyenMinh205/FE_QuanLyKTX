@@ -22,7 +22,7 @@ const Info = ({ label, children }) => (
   </div>
 );
 
-/** SCR-63 Chỗ ở & hợp đồng (FR-82, FR-39) — chỉ xem; gia hạn / trả phòng gửi ở màn Yêu cầu */
+/** SCR-63 Chỗ ở & hợp đồng (FR-82, FR-39) — chỉ xem; trả phòng làm trực tiếp tại văn phòng KTX (UC-07) */
 export default function MyResidencePage() {
   const navigate = useNavigate();
   const { data: residence, loading, error } = useApi(() => portalApi.getMyResidence(), []);
@@ -68,8 +68,7 @@ export default function MyResidencePage() {
         <Alert
           type="warning" showIcon style={{ marginBottom: 16 }}
           title={`Hợp đồng còn ${daysLeft} ngày (hết hạn ${formatDate(contract.endDate)})`}
-          description="Muốn ở tiếp thì gửi yêu cầu gia hạn trước ngày hết hạn."
-          action={<Button size="small" type="primary" onClick={() => navigate('/portal/my-requests?create=renewal')}>Gia hạn</Button>}
+          description="Muốn ở tiếp, bạn nộp đơn đăng ký mới cho kỳ sau. Nếu không ở tiếp, bạn đến văn phòng KTX làm thủ tục trả phòng."
         />
       )}
 
@@ -98,9 +97,6 @@ export default function MyResidencePage() {
                   ? includedInRoom.map((x) => <Tag key={x} style={{ margin: 0 }}>{x}</Tag>)
                   : <Text type="secondary">Không có đồ cấp sẵn</Text>}
               </div>
-              <div style={{ marginTop: 12 }}>
-                <a onClick={() => navigate('/portal/shop')}>Mua thêm đồ dùng <ArrowRightOutlined /></a>
-              </div>
             </div>
           </Card>
         </Col>
@@ -122,13 +118,9 @@ export default function MyResidencePage() {
             <Info label="Tiền cọc đã nộp">{formatCurrency(contract.depositAmount)}</Info>
             {contract.terms && <Info label="Điều khoản"><Text style={{ fontSize: 13 }}>{contract.terms}</Text></Info>}
             <Divider style={{ margin: '12px 0' }} />
-            <Space wrap>
-              <Button onClick={() => navigate('/portal/my-requests?create=renewal')}>Gia hạn hợp đồng</Button>
-              <Button danger onClick={() => navigate('/portal/my-requests?create=checkout')}>Xin trả phòng</Button>
-            </Space>
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Yêu cầu gửi đi sẽ được ban quản lý duyệt, bạn theo dõi ở mục Yêu cầu của tôi.</Text>
-            </div>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              Muốn trả phòng, bạn đến văn phòng KTX làm thủ tục. Cán bộ kiểm tra công nợ và tài sản phòng rồi thanh lý hợp đồng.
+            </Text>
           </Card>
         </Col>
 

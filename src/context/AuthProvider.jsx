@@ -33,15 +33,6 @@ export function AuthProvider({ children }) {
     return loggedInUser;
   }, []);
 
-  /** Đăng ký xong backend trả luôn token → vào thẳng cổng sinh viên, không bắt đăng nhập lại */
-  const register = useCallback(async (data) => {
-    const res = await authApi.register(data);
-    const { token, user: newUser } = res.data.data;
-    authStorage.save({ token, user: newUser }, true);
-    setUser(newUser);
-    return newUser;
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -63,8 +54,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isAuthenticated: !!user, login, register, logout, updateUser }),
-    [user, login, register, logout, updateUser],
+    () => ({ user, isAuthenticated: !!user, login, logout, updateUser }),
+    [user, login, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -23,16 +23,11 @@ const PERMISSIONS = {
   'application:review': OPS,        // duyệt / từ chối
   'contract:update': OPS,
   'contract:terminate': OPS,
-  'request:approve': OPS,
 
   'utilityReading:record': OPS,
   'invoice:create': OPS,
   'invoice:cancel': OPS,
   'payment:record': OPS,
-
-  'supply:manage': OPS,
-  'supplyOrder:deliver': OPS,
-  'supplyOrder:cancel': OPS,
 
   'user:manage': [ADMIN],
   'feeType:manage': [ADMIN],

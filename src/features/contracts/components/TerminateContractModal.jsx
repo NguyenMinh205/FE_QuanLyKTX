@@ -53,11 +53,6 @@ export default function TerminateContractModal({ contract, open, onCancel, onTer
             {settlement.studentStillOwes > 0
               ? <Line strong label="Sinh viên còn phải nộp thêm" value={formatCurrency(settlement.studentStillOwes)} color="#CF1322" />
               : <Line strong label="Hoàn trả cho sinh viên" value={formatCurrency(settlement.refundAmount)} color="#389E0D" />}
-            {settlement.cancelledSupplyOrders > 0 && (
-              <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 12 }}>
-                Đã tự hủy {settlement.cancelledSupplyOrders} đơn nhu yếu phẩm chưa thanh toán.
-              </Text>
-            )}
           </div>
         ),
         okText: 'Đóng',
@@ -90,7 +85,6 @@ export default function TerminateContractModal({ contract, open, onCancel, onTer
         description={(
           <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
             <li>Giường {bedTextOf(contract.bedCode)} trả về trống, lưu trú của {contract.studentName} bị đóng.</li>
-            <li>Đơn nhu yếu phẩm chưa thanh toán của sinh viên tự hủy{contract.unpaidSupplyOrders ? ` (${contract.unpaidSupplyOrders} đơn)` : ''}.</li>
             <li>Tiền phòng kỳ đang ở tính theo số ngày ở thực tế, rồi quyết toán với tiền cọc.</li>
           </ul>
         )}

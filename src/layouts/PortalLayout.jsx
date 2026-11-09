@@ -1,6 +1,6 @@
-import { Layout, Dropdown, Avatar, Menu, Grid, Button, Typography, Tooltip } from 'antd';
+import { Layout, Dropdown, Avatar, Menu, Grid, Typography, Tooltip } from 'antd';
 import {
-  HomeOutlined, BankOutlined, DollarOutlined, MailOutlined, ShoppingOutlined, ShoppingCartOutlined,
+  HomeOutlined, BankOutlined, DollarOutlined,
   UserOutlined, LogoutOutlined, LockOutlined, ProfileOutlined, DownOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -18,8 +18,6 @@ const TABS = [
   { key: '/portal/home',         icon: <HomeOutlined />,     label: 'Trang chủ',        short: 'Trang chủ' },
   { key: '/portal/my-residence', icon: <BankOutlined />,     label: 'Chỗ ở & hợp đồng', short: 'Chỗ ở', needsResidence: true },
   { key: '/portal/my-invoices',  icon: <DollarOutlined />,   label: 'Hóa đơn',          short: 'Hóa đơn' },
-  { key: '/portal/my-requests',  icon: <MailOutlined />,     label: 'Yêu cầu',          short: 'Yêu cầu' },
-  { key: '/portal/shop',         icon: <ShoppingOutlined />, label: 'Mua sắm',          short: 'Mua sắm', needsResidence: true },
 ];
 const NO_RESIDENCE_HINT = 'Mở sau khi bạn có chỗ ở tại ký túc xá';
 
@@ -30,7 +28,7 @@ export default function PortalLayout() {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
 
-  // Sinh viên chưa có hợp đồng active: "Chỗ ở & hợp đồng", "Mua sắm", giỏ hàng hiển thị mờ (docs/08 mục 3.2).
+  // Sinh viên chưa có hợp đồng active: "Chỗ ở & hợp đồng" hiển thị mờ (docs/08 mục 3.2).
   // Chưa tải xong hoặc lỗi thì không khóa gì — backend vẫn tự chặn.
   const { data: residence } = useApi(() => portalApi.getMyResidence(), [location.pathname === '/portal/home']);
   const locked = residence?.hasResidence === false;
@@ -77,13 +75,8 @@ export default function PortalLayout() {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Số món trong giỏ bổ sung cùng màn Mua sắm (SCR-67) */}
-          <Tooltip title={locked ? NO_RESIDENCE_HINT : 'Giỏ hàng'}>
-            <Button type="text" icon={<ShoppingCartOutlined />} disabled={locked} onClick={() => navigate('/portal/shop')} aria-label="Giỏ hàng" />
-          </Tooltip>
           <Dropdown
             menu={{ items: [
-              { key: 'orders', icon: <ShoppingOutlined />, label: 'Đơn hàng của tôi', onClick: () => navigate('/portal/my-orders') },
               { key: 'profile', icon: <ProfileOutlined />, label: 'Hồ sơ cá nhân', onClick: () => navigate('/portal/profile') },
               { key: 'password', icon: <LockOutlined />, label: 'Đổi mật khẩu', onClick: () => navigate('/portal/change-password') },
               { type: 'divider' },

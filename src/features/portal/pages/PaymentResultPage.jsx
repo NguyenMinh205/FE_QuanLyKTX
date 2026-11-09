@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Card, Result, Button, Typography, Spin, Alert, Space, Descriptions,
+  Card, Result, Button, Typography, Spin, Space, Descriptions,
 } from 'antd';
 import {
-  CheckCircleFilled, CloseCircleFilled, ClockCircleOutlined, ReloadOutlined, FileTextOutlined, ShoppingOutlined,
+  CheckCircleFilled, CloseCircleFilled, ClockCircleOutlined, ReloadOutlined, FileTextOutlined,
 } from '@ant-design/icons';
 import { portalApi } from '../api/portal.api';
 import { getErrorMessage } from '../../../lib/axiosClient';
@@ -71,7 +71,6 @@ export default function PaymentResultPage() {
   const goInvoices = (invoiceId) => navigate(invoiceId ? `/portal/my-invoices?invoice=${invoiceId}` : '/portal/my-invoices');
 
   const { status, payment, error, tries } = state;
-  const invoice = payment?.invoice;
 
   const details = payment && (
     <Descriptions column={1} size="small" style={{ maxWidth: 420, margin: '0 auto', textAlign: 'left' }}>
@@ -123,7 +122,6 @@ export default function PaymentResultPage() {
   }
 
   if (status === 'success') {
-    const suppliesReady = payment?.invoiceType === 'supplies' || invoice?.type === 'supplies';
     return (
       <Card>
         <Result
@@ -138,14 +136,6 @@ export default function PaymentResultPage() {
           )}
         >
           {details}
-          {suppliesReady && (
-            <Alert
-              type="success" showIcon style={{ marginTop: 16 }}
-              icon={<ShoppingOutlined />}
-              title="Đơn hàng đã sẵn sàng"
-              description="Mời bạn đến văn phòng ban quản lý ký túc xá để nhận hàng."
-            />
-          )}
         </Result>
       </Card>
     );

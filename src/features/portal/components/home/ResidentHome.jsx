@@ -3,13 +3,13 @@ import {
   Card, Button, Typography, Tag, Row, Col, Table, Skeleton, Alert, Divider, Tooltip,
 } from 'antd';
 import {
-  WarningFilled, CreditCardOutlined, HomeOutlined, FileTextOutlined, ShoppingOutlined, ShoppingCartOutlined,
-  ArrowRightOutlined, ReloadOutlined, CalendarOutlined, InboxOutlined, TeamOutlined, CheckCircleFilled,
+  WarningFilled, CreditCardOutlined, HomeOutlined, FileTextOutlined,
+  ArrowRightOutlined, ReloadOutlined, CalendarOutlined, InboxOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../../hooks/useApi';
 import { portalApi } from '../../api/portal.api';
 import { formatCurrency, formatDate } from '../../../../utils/formatter';
-import { INVOICE_TYPE, SUPPLY_CATEGORY } from '../../../../constants/statuses';
+import { INVOICE_TYPE } from '../../../../constants/statuses';
 import StatusTag from '../../../../components/StatusTag';
 import SupportCard from '../SupportCard';
 import {
@@ -51,9 +51,6 @@ export default function ResidentHome({ residence }) {
   const { data: invoices, meta: invoiceMeta, loading: invLoading, error: invError, refetch: refetchInvoices } = useApi(
     () => portalApi.getMyInvoices({ limit: 100 }), [],
   );
-  // supply-items trả { items, roomType, includedInRoom } — useApi coi là danh sách nên `data` chính là mảng items
-  const { data: shopItems } = useApi(() => portalApi.getSupplyItems(), []);
-  const { data: myOrders } = useApi(() => portalApi.getMyOrders({ limit: 100 }), []);
 
   // ---- công nợ: số liệu tổng lấy từ my-residence, hạn gần nhất lấy từ hóa đơn còn mở
   const openInvoices = (invoices || []).filter((i) => OPEN_INVOICE_STATUSES.includes(i.status));
@@ -70,11 +67,6 @@ export default function ResidentHome({ residence }) {
     .filter((i) => i.status !== 'cancelled')
     .sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''))
     .slice(0, RECENT_COUNT);
-
-  // ---- nhu yếu phẩm: gợi ý 3 món chưa có (chưa cấp sẵn, chưa đặt), đơn đang chờ nhận
-  const ownedIds = new Set((myOrders || []).filter((o) => o.status !== 'cancelled').flatMap((o) => o.items.map((it) => it.supplyItemId)));
-  const suggestions = (shopItems || []).filter((it) => !ownedIds.has(it.id)).slice(0, 3);
-  const readyOrders = (myOrders || []).filter((o) => o.status === 'ready');
 
   const invoiceColumns = [
     {
@@ -136,8 +128,7 @@ export default function ResidentHome({ residence }) {
             <Alert
               type="warning" showIcon
               title={`Hợp đồng còn ${daysLeft} ngày`}
-              description={`Hợp đồng ${contract.contractCode} hết hạn ngày ${formatDate(contract.endDate)}. Gửi yêu cầu gia hạn sớm để giữ chỗ ở hiện tại.`}
-              action={<Button type="primary" onClick={() => navigate('/portal/my-requests?create=renewal')}>Gia hạn</Button>}
+              description={`Hợp đồng ${contract.contractCode} hết hạn ngày ${formatDate(contract.endDate)}. Muốn ở tiếp, bạn nộp đơn đăng ký mới cho kỳ sau. Nếu không ở tiếp, bạn đến văn phòng KTX làm thủ tục trả phòng.`}
             />
           )}
 
@@ -175,7 +166,7 @@ export default function ResidentHome({ residence }) {
                 <Divider style={{ margin: '12px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                   <Text type="secondary">{expiring ? <Text type="warning">Còn {daysLeft} ngày</Text> : `Hết hạn ${formatDate(contract.endDate)}`}</Text>
-                  <a onClick={() => navigate('/portal/my-requests?create=renewal')}>Gia hạn hợp đồng <ReloadOutlined /></a>
+                  <a onClick={() => navigate('/portal/my-residence')}>Xem chi tiết <ArrowRightOutlined /></a>
                 </div>
               </Card>
             </Col>
@@ -205,45 +196,6 @@ export default function ResidentHome({ residence }) {
 
       <Col xs={24} lg={8}>
         <div style={{ display: 'grid', gap: 16 }}>
-          {readyOrders.map((o) => (
-            <Alert
-              key={o.id} type="success" showIcon icon={<CheckCircleFilled />}
-              title={`Đơn ${o.orderCode} đang chờ bạn nhận`}
-              description={`${o.items.map((it) => it.name).join(', ')} — nhận tại văn phòng quản lý tòa nhà.`}
-              action={<Button size="small" onClick={() => navigate('/portal/my-orders')}>Xem</Button>}
-            />
-          ))}
-
-          <Card
-            title={<CardTitle icon={<ShoppingOutlined style={{ color: '#1677FF' }} />} title="Nhu yếu phẩm"
-              extra={<a onClick={() => navigate('/portal/shop')}>Xem tất cả</a>} />}
-          >
-            {!shopItems && <Skeleton active paragraph={{ rows: 3 }} />}
-            {shopItems && suggestions.length === 0 && <Text type="secondary">Bạn đã có đủ các món trong cửa hàng.</Text>}
-            {suggestions.map((it, idx) => (
-              <div key={it.id}>
-                {idx > 0 && <Divider style={{ margin: '12px 0' }} />}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 8, background: '#F5F5F5', flexShrink: 0, overflow: 'hidden',
-                    display: 'grid', placeItems: 'center',
-                  }}>
-                    {it.imageUrl
-                      ? <img src={it.imageUrl} alt={it.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <ShoppingOutlined style={{ fontSize: 20, color: '#BFBFBF' }} />}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Text ellipsis style={{ display: 'block' }}>{it.name}</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{SUPPLY_CATEGORY[it.category]?.label}</Text>
-                    <div><Text strong style={{ color: '#1677FF' }}>{formatCurrency(it.price)}</Text></div>
-                  </div>
-                  <Button icon={<ShoppingCartOutlined />} onClick={() => navigate('/portal/shop')} aria-label={`Mua ${it.name}`} />
-                </div>
-              </div>
-            ))}
-            <Button block style={{ marginTop: 16 }} onClick={() => navigate('/portal/shop')}>Đến cửa hàng nhu yếu phẩm <ArrowRightOutlined /></Button>
-          </Card>
-
           <SupportCard title="Hỗ trợ sinh viên" />
         </div>
       </Col>

@@ -113,7 +113,7 @@ export default function FeeTypesPage() {
       <Alert
         type="info" showIcon style={{ marginBottom: 16 }}
         title="Chỉ tiền điện và tiền nước dùng đơn giá ở đây"
-        description="Tiền phòng và tiền cọc lấy từ hợp đồng, nhu yếu phẩm lấy từ đơn hàng. Đổi đơn giá điện nước chỉ áp dụng cho chỉ số nhập từ nay — chỉ số và hóa đơn đã lập giữ giá cũ."
+        description="Tiền phòng và tiền cọc lấy từ hợp đồng. Đổi đơn giá điện nước chỉ áp dụng cho chỉ số nhập từ nay — chỉ số và hóa đơn đã lập giữ giá cũ."
       />
 
       <Card>

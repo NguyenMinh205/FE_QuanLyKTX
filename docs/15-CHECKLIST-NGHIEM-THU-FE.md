@@ -20,8 +20,8 @@
 | 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | ⬜ Chưa test |
 | 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | ⬜ Chưa test |
 | 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | ⬜ Chưa test |
-| 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | ⬜ Chưa test |
-| 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | ⬜ Chưa test |
+| 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | 🚫 Bỏ ở v2 |
+| 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | 🚫 Bỏ ở v2 |
 | 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 | 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | ⬜ Chưa test |
 | 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
@@ -30,11 +30,12 @@
 | 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
-| 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 | 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
-| 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
-| 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
+| 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
+| 23 | v2 · M1: cắt Viewer, tự đăng ký, Nhu yếu phẩm, Yêu cầu, Gia hạn | — | `feature/v2-trim-scope` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1396,6 +1397,40 @@ Chuẩn bị như mục 11.6, đăng nhập `admin@dorm.local`.
 
 - [ ] Mở `/register` với backend thật: form hiện bình thường (đây là API công khai duy nhất ngoài đăng nhập).
 - [ ] **Không thử đăng ký trên DB chung.** Backend hiện **tạo hồ sơ sinh viên mới** từ dữ liệu nhập thay vì liên kết hồ sơ có sẵn — sai FR-80/FR-81, đã ghi ở `16-YEU-CAU-API-BACKEND.md` mục 3.1 và `API.md` bản 1.2.18. Chờ backend sửa rồi mới thử.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 24. v2 · M1 — Cắt phần không còn dùng
+
+Chạy dữ liệu giả: `VITE_USE_MOCK=true npx vite --port 5174 --strictPort`, mở `http://localhost:5174`. Các mục 9, 10, 19, 22, 23 phía trên mô tả màn đã bỏ, không cần test nữa.
+
+### 24.1. Vai trò và đăng nhập
+
+- [ ] Đăng nhập `viewer@dorm.local` / `Viewer@123` → báo "Email hoặc mật khẩu không chính xác".
+- [ ] Mở `/register` → trang 404.
+- [ ] Khung tài khoản thử ở màn đăng nhập không còn dòng "Người xem".
+- [ ] `admin@dorm.local` / `Admin@123` → màn Tài khoản: bộ lọc vai trò và nút chọn vai trò không còn "Người xem".
+- [ ] `doimk@dorm.local` / `Tam@12345` → vẫn bị chuyển sang đổi mật khẩu.
+
+### 24.2. Khu quản trị (`staff@dorm.local` / `Staff@123`)
+
+- [ ] Menu trái không còn **Yêu cầu** và **Nhu yếu phẩm**.
+- [ ] `/admin/requests`, `/admin/supplies` → trang 404.
+- [ ] Dashboard: dòng **Cần xử lý** chỉ còn "đơn đăng ký chờ duyệt".
+- [ ] Hợp đồng: bấm một dòng → drawer mở bình thường, không có thông báo về yêu cầu gia hạn.
+- [ ] Hợp đồng: bấm **Chấm dứt hợp đồng** → nội dung không nhắc đơn nhu yếu phẩm, chấm dứt thành công.
+- [ ] Hóa đơn: bấm **Thu tiền** một hóa đơn còn nợ, xác nhận → báo "Đã thu", không nhắc đơn hàng.
+
+### 24.3. Cổng sinh viên (`sv001@dorm.local` / `Student@123`)
+
+- [ ] Menu còn đúng 3 mục: Trang chủ, Chỗ ở & hợp đồng, Hóa đơn. Không còn nút giỏ hàng.
+- [ ] Bấm vào tên tài khoản → không còn "Đơn hàng của tôi".
+- [ ] Trang chủ: không còn khối Nhu yếu phẩm và nút Gia hạn.
+- [ ] Chỗ ở & hợp đồng: không còn nút Gia hạn, Xin trả phòng; có dòng "Muốn trả phòng, bạn đến văn phòng KTX làm thủ tục".
+- [ ] `/portal/my-requests`, `/portal/shop`, `/portal/my-orders` → trang 404.
+- [ ] `sv004@dorm.local` (hợp đồng sắp hết hạn) → cảnh báo hướng dẫn nộp đơn mới, không có nút Gia hạn.
 
 **Lỗi phát hiện:** _(chưa có)_
 

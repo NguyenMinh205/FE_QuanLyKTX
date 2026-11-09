@@ -33,7 +33,7 @@ export default function ContractsPage() {
   const canUpdate = can(user, 'contract:update');
   const canTerminate = can(user, 'contract:terminate');
 
-  // Mở từ nơi khác kèm ?search=HD-... (màn Yêu cầu) hoặc ?tab=expiring (Dashboard)
+  // Mở từ nơi khác kèm ?search=HD-... (Dashboard, Hóa đơn) hoặc ?tab=expiring (Dashboard)
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   const tabParam = searchParams.get('tab');

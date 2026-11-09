@@ -9,7 +9,7 @@ const num = (...values) => {
 
 /**
  * Chuẩn hóa response GET /dashboard/summary về một dạng duy nhất (API.md mục 12).
- * Backend hiện tại trả tên trường khác (totalBeds, occupancyRate, queue.pendingRequests...) — chấp nhận cả hai,
+ * Backend hiện tại trả tên trường khác (totalBeds, occupancyRate...) — chấp nhận cả hai,
  * trường nào backend chưa có thì để null để giao diện hiện "—" thay vì số sai.
  * Tỷ lệ lấp đầy KHÔNG lấy từ backend mà tính lại theo docs: đã sử dụng / (tổng − bảo trì).
  */
@@ -21,7 +21,6 @@ export const normalizeSummary = (d = {}) => {
   const maintenance = num(o.maintenance, o.maintenanceBeds) ?? 0;
   const usable = total !== null ? total - maintenance : null;
 
-  const queueRequests = d.pendingRequests ?? d.queue?.pendingRequests;
   return {
     occupancy: {
       total, occupied, available, maintenance,
@@ -39,15 +38,7 @@ export const normalizeSummary = (d = {}) => {
       overdueInvoiceCount: num(d.finance?.overdueInvoiceCount),
       overdueAmount: num(d.finance?.overdueAmount),
     },
-    pendingRequests: typeof queueRequests === 'number'
-      ? { renewal: null, checkout: null, total: queueRequests }
-      : {
-        renewal: num(queueRequests?.renewal),
-        checkout: num(queueRequests?.checkout),
-        total: num(queueRequests?.renewal) !== null ? (queueRequests.renewal + (queueRequests.checkout ?? 0)) : null,
-      },
     pendingApplications: num(d.pendingApplications),
-    supplyOrdersReady: num(d.supplyOrdersReady),
   };
 };
 

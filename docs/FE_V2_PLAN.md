@@ -128,7 +128,7 @@ Ngày 09/11/2026: cả năm mục áp dụng theo khuyến nghị. Các phương
 
 ## 5. Các mốc
 
-Mỗi mốc một nhánh từ `develop`, app vẫn chạy được khi xong mốc. AI kiểm bằng lint, build và bấm thử e2e trên dữ liệu giả, rồi thêm mục vào `docs/15-CHECKLIST-NGHIEM-THU-FE.md`. Cỡ việc là ước lượng tương đối.
+Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `develop` chưa nhận các nhánh v2. App vẫn chạy được khi xong mốc. AI kiểm bằng lint, build và bấm thử e2e trên dữ liệu giả, rồi thêm mục vào `docs/15-CHECKLIST-NGHIEM-THU-FE.md`. Cỡ việc là ước lượng tương đối.
 
 ### M0. Chuẩn bị · Nhỏ
 - **Bản v1 đầy đủ:** giữ ở nhánh `backup/v1-full`, phòng khi giảng viên đổi ý.
@@ -153,7 +153,7 @@ Mỗi mốc một nhánh từ `develop`, app vẫn chạy được khi xong mố
 - **Thử:** mở `/apply` khi chưa đăng nhập, nộp đơn → tra cứu thấy "Chờ duyệt" → staff duyệt → đăng nhập bằng MSSV/MSSV → buộc đổi MK. Đơn thứ hai không chọn được giường đã có đơn chờ; nộp trùng MSSV đang có đơn thì báo lỗi.
 
 ### M5. Hợp đồng và trả phòng · Vừa · `feature/v2-contracts-checkout`
-- **AI:** màn Hợp đồng theo model mới, thanh lý chặn khi còn nợ (BR-04), hướng dẫn trả phòng theo D1, `MyResidencePage` và `ResidentHome`, `NoResidenceHome` thu gọn còn lịch sử + link đăng ký lại. Hoàn cọc: tab "Chờ hoàn cọc" (`status=terminated`, `isDepositRefunded=false`), cột trạng thái cọc, nút "Xác nhận đã hoàn cọc" trong drawer, hiển thị người và ngày xác nhận, quyền mới `contract:refundDeposit`; SV thấy "Đã nhận lại cọc ngày …" hoặc "Chưa nhận, đến văn phòng KTX".
+- **AI:** màn Hợp đồng theo model mới, thanh lý chặn khi còn nợ (BR-04), hướng dẫn trả phòng theo D1, `MyResidencePage` và `ResidentHome`, `NoResidenceHome` thu gọn còn lịch sử + link đăng ký lại. Sửa lỗi có từ v1: `ResidentHome` tràn ngang ở màn 390px (cột `display: grid` bị bảng hóa đơn `scroll.x=600` kéo rộng, cần `gridTemplateColumns: 'minmax(0, 1fr)'`). Hoàn cọc: tab "Chờ hoàn cọc" (`status=terminated`, `isDepositRefunded=false`), cột trạng thái cọc, nút "Xác nhận đã hoàn cọc" trong drawer, hiển thị người và ngày xác nhận, quyền mới `contract:refundDeposit`; SV thấy "Đã nhận lại cọc ngày …" hoặc "Chưa nhận, đến văn phòng KTX".
 - **Thử:** SV còn nợ → thanh lý bị chặn và nêu lý do; hết nợ → giường trống lại, hợp đồng `terminated`, xuất hiện ở tab Chờ hoàn cọc. Bấm xác nhận → rời khỏi tab, không bấm lại được; đăng nhập SV đó thấy đã nhận cọc. Hợp đồng chưa thanh lý không có nút này.
 
 ### M6. Chốt điện nước theo phòng · Vừa · `feature/v2-utility-billing`

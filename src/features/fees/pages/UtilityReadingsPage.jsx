@@ -56,7 +56,7 @@ const loadSheet = (buildingId, period) => (buildingId
   }))
   : Promise.resolve({ data: { data: null } }));
 
-/** SCR-51 Nhập chỉ số điện nước — UC-03, FR-59, BR-50→53. Admin/Staff nhập, Viewer chỉ xem */
+/** SCR-51 Nhập chỉ số điện nước — UC-03, FR-59, BR-50→53 */
 export default function UtilityReadingsPage() {
   const { user } = useAuth();
   const { modal, message } = App.useApp();
@@ -285,7 +285,6 @@ export default function UtilityReadingsPage() {
           description="Chỉ số đã khóa, chỉ xem được (BR-53). Cần sửa thì hủy hóa đơn của kỳ trước."
         />
       )}
-      {!canEdit && !allInvoiced && <Alert type="info" showIcon style={{ marginBottom: 16 }} title="Bạn chỉ có quyền xem chỉ số điện nước" />}
       {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
 
       <Card styles={{ body: { padding: 0 } }}>
