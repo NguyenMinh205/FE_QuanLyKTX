@@ -14,10 +14,8 @@ const PERMISSIONS = {
 
   'building:create': OPS,
   'building:delete': [ADMIN],
-  'roomType:manage': [ADMIN],       // giá thuê + tiền cọc là quyết định tài chính
   'room:create': OPS,
   'room:update': OPS,
-  'bed:update': OPS,                // chỉ bật/tắt bảo trì — không ai chọn giường
 
   'application:create': OPS,        // lập đơn hộ sinh viên đến trực tiếp
   'application:review': OPS,        // duyệt / từ chối

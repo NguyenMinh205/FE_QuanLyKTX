@@ -1,6 +1,6 @@
 import { Tooltip, Typography } from 'antd';
 import { ToolOutlined } from '@ant-design/icons';
-import { FILL_LEVEL, fillLevelOf, slotTextOf, roomLabelOf, tierShortOf } from '../utils/roomStatus';
+import { FILL_LEVEL, fillLevelOf, slotTextOf, roomLabelOf } from '../utils/roomStatus';
 import { formatCurrency } from '../../../utils/formatter';
 
 const { Text } = Typography;
@@ -10,12 +10,12 @@ export default function RoomTile({ room, selected, onSelect }) {
   const level = FILL_LEVEL[fillLevelOf(room)];
   const used = room.occupied / room.capacity;
   const broken = room.maintenanceBeds / room.capacity;
-  const showMaintenance = room.maintenanceBeds > 0 && room.status !== 'inactive';
+  const showMaintenance = room.maintenanceBeds > 0 && room.status === 'active';
 
   const open = () => onSelect(room.id);
 
   return (
-    <Tooltip title={`${room.roomTypeName} · ${formatCurrency(room.pricePerMonth)}/người/tháng`} mouseEnterDelay={0.5}>
+    <Tooltip title={`${formatCurrency(room.pricePerMonth)}/người/tháng · Cọc ${formatCurrency(room.depositAmount)}`} mouseEnterDelay={0.5}>
       <div
         role="button"
         tabIndex={0}
@@ -32,7 +32,7 @@ export default function RoomTile({ room, selected, onSelect }) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 }}>
           <Text strong style={{ fontSize: 16 }}>{roomLabelOf(room)}</Text>
-          <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{tierShortOf(room)}</Text>
+          <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{room.capacity} chỗ</Text>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 4 }}>

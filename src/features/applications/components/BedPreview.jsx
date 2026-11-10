@@ -34,7 +34,7 @@ export default function BedPreview({ beds = [] }) {
                 <Text type="secondary" style={{ fontSize: 12 }}>Giường {String(bed.bedNumber).padStart(2, '0')}</Text>
                 {isNext && <StarFilled style={{ color: '#1677FF' }} />}
               </div>
-              {bed.status === 'occupied' && <Text ellipsis style={{ display: 'block', fontSize: 13 }}>{bed.occupant?.studentName ?? 'Đang có người'}</Text>}
+              {bed.status === 'occupied' && <Text ellipsis style={{ display: 'block', fontSize: 13 }}>{bed.occupant?.fullName ?? 'Đang có người'}</Text>}
               {bed.status === 'available' && (
                 <Text strong style={{ display: 'block', fontSize: 13, color: isNext ? '#1677FF' : style.color }}>
                   {isNext ? 'Dự kiến gán' : 'Trống'}

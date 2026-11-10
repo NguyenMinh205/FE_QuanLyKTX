@@ -14,7 +14,7 @@
 | # | Màn hình | Mã | Nhánh | Chạy với | Trạng thái |
 |---|----------|----|-------|----------|------------|
 | 1 | Đăng nhập · Đổi mật khẩu · Không có quyền | SCR-01, 03, 04 | `feature/login-and-room-types` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
-| 2 | Loại phòng | SCR-22 | `feature/login-and-room-types` | Dữ liệu giả | ⬜ Chưa test |
+| 2 | Loại phòng | SCR-22 | `feature/login-and-room-types` | Dữ liệu giả | 🚫 Bỏ ở v2 |
 | 3 | Quản lý phòng — sơ đồ tầng | SCR-23 | `feature/room-management` | Dữ liệu giả | ⬜ Chưa test |
 | 4 | Duyệt đơn đăng ký | SCR-31 | `feature/application-review` | Dữ liệu giả | ⬜ Chưa test |
 | 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | ⬜ Chưa test |
@@ -37,6 +37,7 @@
 | 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 23 | v2 · M1: cắt Viewer, tự đăng ký, Nhu yếu phẩm, Yêu cầu, Gia hạn | — | `feature/v2-trim-scope` | Dữ liệu giả | ⬜ Chưa test |
 | 24 | v2 · M2: đăng nhập Email/MSSV, tài khoản cán bộ, nhận diện HaUI | — | `feature/v2-auth-accounts` | Dữ liệu giả | ⬜ Chưa test |
+| 25 | v2 · M3: tòa nhà và phòng, bỏ loại phòng | — | `feature/v2-rooms` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1472,6 +1473,46 @@ Chạy dữ liệu giả như mục 24. Từ mốc này, các mã phòng hiện 
 - [ ] Header khu quản trị và cổng sinh viên hiện "KÝ TÚC XÁ HaUI". Tab trình duyệt ghi "Ký túc xá HaUI".
 - [ ] Màn Tòa nhà có K1, K2 hoạt động, K3, K4 ngừng hoạt động.
 - [ ] Màn Phòng hiện mã dạng `K1-101`. Trang chủ sinh viên hiện Phòng `K1-101` · Giường `01`, header ghi Phòng K1-101.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 26. v2 · M3 — Tòa nhà và phòng
+
+Chạy dữ liệu giả như mục 24, đăng nhập `staff@dorm.local` / `Staff@123`. Mục 3 (Loại phòng) phía trên không cần test nữa.
+
+### 26.1. Bỏ Loại phòng
+
+- [ ] Menu **Cơ sở vật chất** còn Tòa nhà và Phòng. Mở `/admin/room-types` → trang 404.
+
+### 26.2. Tòa nhà (FR-20, FR-21)
+
+- [ ] Cột **Tòa nhà** hiện tên và mô tả trên một dòng, không bị ngắt từng chữ.
+- [ ] **Thêm tòa nhà**: chỉ có Mã, Tên, Mô tả. Tạo mã `K5` → xuất hiện trong danh sách.
+- [ ] Tạo lại mã `K5` → lỗi dưới ô Mã.
+- [ ] Tòa K1 (còn người ở): nút **Ngừng hoạt động** bị khóa.
+
+### 26.3. Danh sách phòng (FR-22)
+
+- [ ] Bộ lọc có Tòa nhà, Giới tính, Sức chứa, Tầng, Tình trạng. Không còn lọc Loại phòng.
+- [ ] Ô phòng hiện mã `K1-101` và `6 chỗ`. Rê chuột thấy đơn giá và tiền cọc.
+- [ ] Lọc Sức chứa = 8 → chỉ còn phòng 8 chỗ. Lọc Tình trạng = Còn chỗ → không còn phòng hết chỗ.
+- [ ] Đổi sang **Danh sách**: có cột Sức chứa và Đơn giá.
+- [ ] Bấm một phòng: thấy đơn giá, tiền cọc, danh sách giường kèm tên và MSSV người ở. Không có nút bảo trì giường, không có mục "Cấp sẵn trong phòng".
+
+### 26.4. Thêm và sửa phòng (FR-24, FR-25)
+
+- [ ] **Thêm phòng**: Sức chứa chỉ có 4, 6, 8 chỗ; có ô Đơn giá và Tiền cọc (mặc định 500.000).
+- [ ] Tạo phòng `501`, tầng 5, Nam, 8 chỗ, đơn giá `300.000` → báo tạo với 8 giường. Bấm vào thấy đủ 8 giường trống và đúng giá.
+- [ ] Tạo lại số phòng `501` cùng tòa → lỗi dưới ô Số phòng.
+- [ ] Sửa phòng có người ở: Giới tính và Sức chứa bị khóa, vẫn đổi được đơn giá.
+- [ ] Sửa phòng `501` thành 4 chỗ → cảnh báo tạo lại giường; lưu xong còn 4 giường.
+- [ ] Chuyển phòng `501` sang **Đang bảo trì** → ô phòng màu xám, ghi "Đang bảo trì".
+
+### 26.5. Màn cũ vẫn chạy
+
+- [ ] `2021600086` / `Student@123` (sv002, chưa có chỗ) → **Đăng ký chỗ ở** vẫn chọn được, loại phòng hiện "Phòng 6 chỗ". Màn này được viết lại ở M4.
 
 **Lỗi phát hiện:** _(chưa có)_
 

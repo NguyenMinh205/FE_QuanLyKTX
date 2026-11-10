@@ -40,7 +40,7 @@ export const BED_STATUS = {
 
 export const ROOM_STATUS = {
   active:   { label: 'Đang hoạt động',  color: 'success' },
-  inactive: { label: 'Ngừng hoạt động', color: 'default' },
+  maintenance: { label: 'Đang bảo trì', color: 'warning' },
 };
 
 export const ROOM_TIER = {
@@ -48,8 +48,7 @@ export const ROOM_TIER = {
   premium:  { label: 'Chất lượng cao', short: 'CLC', color: 'gold' },
 };
 
-export const ROOM_TIER_OPTIONS = Object.entries(ROOM_TIER).map(([value, { label }]) => ({ value, label }));
-export const ROOM_CAPACITY_OPTIONS = [3, 4, 6, 8].map((n) => ({ value: n, label: `${n} người` }));
+export const ROOM_CAPACITY_OPTIONS = [4, 6, 8].map((n) => ({ value: n, label: `${n} chỗ` }));
 
 export const PAYMENT_STATUS = {
   pending: { label: 'Đang xử lý', color: 'processing' },

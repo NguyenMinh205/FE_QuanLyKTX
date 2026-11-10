@@ -20,7 +20,8 @@ const roomView = (r) => {
   const rt = roomTypeOf(r.id);
   return {
     ...r,
-    roomTypeName: rt.name, tier: rt.tier, pricePerMonth: rt.pricePerMonth,
+    // Hai trường này chỉ còn cho màn Đăng ký và Duyệt đơn cũ, xoá ở M4
+    roomTypeName: rt.name, tier: rt.tier,
     occupied: bs.filter((b) => b.status === 'occupied').length,
     availableSlots: availableSlots(r.id),
     maintenanceBeds: bs.filter((b) => b.status === 'maintenance').length,
@@ -279,14 +280,34 @@ export const mockStudents = {
   },
 };
 
-// ---------------------------------------------------------------- rooms: tòa nhà, loại phòng, phòng, giường
+// ---------------------------------------------------------------- rooms: tòa nhà, phòng (giường, giá, cọc nằm trên phòng)
+/** Kiểm tra body thêm/sửa phòng (FR-24): sức chứa 4/6/8, tiền là số nguyên không âm */
+const roomErrors = ({ roomNumber, floor, gender, capacity, pricePerMonth, depositAmount, status = 'active' }) => {
+  const errors = [];
+  const money = (v) => Number.isInteger(Number(v)) && v !== '' && v !== null && v !== undefined && Number(v) >= 0;
+  if (!String(roomNumber || '').trim()) errors.push({ field: 'roomNumber', message: 'Nhập số phòng' });
+  if (!(Number(floor) >= 1)) errors.push({ field: 'floor', message: 'Nhập tầng' });
+  if (!['male', 'female'].includes(gender)) errors.push({ field: 'gender', message: 'Vui lòng chọn giới tính phòng' });
+  if (![4, 6, 8].includes(Number(capacity))) errors.push({ field: 'capacity', message: 'Sức chứa phải là 4, 6 hoặc 8' });
+  if (!money(pricePerMonth)) errors.push({ field: 'pricePerMonth', message: 'Nhập đơn giá thuê' });
+  if (!money(depositAmount)) errors.push({ field: 'depositAmount', message: 'Nhập tiền cọc' });
+  if (!['active', 'maintenance'].includes(status)) errors.push({ field: 'status', message: 'Trạng thái không hợp lệ' });
+  return errors;
+};
+
+const assertRoomNumberFree = (buildingId, roomNumber) => {
+  if (rooms.some((r) => r.buildingId === buildingId && r.roomNumber === roomNumber)) {
+    fail(409, 'DUPLICATE_ENTRY', 'Số phòng đã tồn tại trong tòa nhà', { errors: [{ field: 'roomNumber', message: 'Số phòng đã tồn tại trong tòa nhà' }] });
+  }
+};
+
 export const mockRooms = {
   /** Mặc định chỉ tòa đang hoạt động (giống backend); màn Tòa nhà gửi includeInactive=true */
   getBuildings: async (q = {}) => {
     await delay();
     const list = String(q.includeInactive) === 'true' ? buildings : buildings.filter((b) => b.isActive);
     return ok([...list].sort((a, b) => a.code.localeCompare(b.code)).map((b) => {
-      const roomIds = rooms.filter((r) => r.buildingId === b.id && r.status !== 'inactive').map((r) => r.id);
+      const roomIds = rooms.filter((r) => r.buildingId === b.id).map((r) => r.id);
       const bs = beds.filter((x) => roomIds.includes(x.roomId));
       return {
         ...b,
@@ -300,7 +321,7 @@ export const mockRooms = {
       };
     }));
   },
-  /** { code, name, address?, description? } — mã duy nhất, viết hoa (BR-01) */
+  /** { code, name, description? } — mã duy nhất, viết hoa (BR-01) */
   createBuilding: async (body = {}) => {
     await delay();
     const code = String(body.code || '').trim().toUpperCase();
@@ -313,12 +334,12 @@ export const mockRooms = {
     if (buildings.some((b) => b.code === code)) fail(409, 'DUPLICATE_ENTRY', `Mã tòa nhà ${code} đã tồn tại`, { errors: [{ field: 'code', message: `Mã tòa nhà ${code} đã tồn tại` }] });
     const b = {
       id: `b-${Date.now()}`, code, name,
-      address: String(body.address || '').trim(), description: String(body.description || '').trim(), isActive: true,
+      description: String(body.description || '').trim(), isActive: true,
     };
     buildings.push(b);
     return ok(b, `Đã thêm tòa nhà ${name}`);
   },
-  /** { name, address, description, isActive } — không đổi mã; không ngừng hoạt động khi còn người ở */
+  /** { name, description, isActive } — không đổi mã; không ngừng hoạt động khi còn người ở */
   updateBuilding: async (id, body = {}) => {
     await delay();
     const b = buildings.find((x) => x.id === id);
@@ -331,7 +352,7 @@ export const mockRooms = {
       const occupied = beds.filter((x) => roomIds.includes(x.roomId) && x.status === 'occupied').length;
       if (occupied > 0) fail(422, 'BUILDING_HAS_OCCUPANTS', `Tòa ${b.name} còn ${occupied} sinh viên đang ở, không thể ngừng hoạt động`);
     }
-    ['name', 'address', 'description'].forEach((k) => { if (body[k] !== undefined) b[k] = String(body[k]).trim(); });
+    ['name', 'description'].forEach((k) => { if (body[k] !== undefined) b[k] = String(body[k]).trim(); });
     if (typeof body.isActive === 'boolean') b.isActive = body.isActive;
     const message = body.isActive === false ? 'Đã ngừng hoạt động tòa nhà' : body.isActive === true && Object.keys(body).length === 1 ? 'Đã kích hoạt lại tòa nhà' : 'Cập nhật tòa nhà thành công';
     return ok(b, message);
@@ -351,41 +372,16 @@ export const mockRooms = {
     });
     return paginate(items, { page: 1, limit: 100, ...q });
   },
-  createRoomType: async (body) => {
-    await delay();
-    if (roomTypes.some((t) => t.tier === body.tier && Number(t.capacity) === Number(body.capacity))) {
-      fail(409, 'DUPLICATE_ENTRY', 'Loại phòng này đã tồn tại');
-    }
-    const t = {
-      id: `rt${roomTypes.length + 1}`, amenities: [], description: '', isActive: true, ...body,
-      capacity: Number(body.capacity),
-      name: `${body.tier === 'standard' ? 'Tiêu chuẩn' : 'Chất lượng cao'} · ${body.capacity} người`,
-    };
-    roomTypes.push(t);
-    return ok(t, 'Thêm loại phòng thành công');
-  },
-  updateRoomType: async (id, body) => {
-    await delay();
-    const t = roomTypes.find((x) => x.id === id);
-    if (!t) fail(404, 'NOT_FOUND', 'Không tìm thấy loại phòng');
-    const shapeChanged = (body.tier && body.tier !== t.tier) || (body.capacity && Number(body.capacity) !== t.capacity);
-    if (shapeChanged && rooms.some((r) => r.roomTypeId === id)) {
-      fail(422, 'ROOM_TYPE_IN_USE', 'Loại phòng đang được sử dụng, không thể đổi hạng hoặc sức chứa');
-    }
-    Object.assign(t, body);
-    return ok(t, 'Cập nhật loại phòng thành công');
-  },
-
   getRooms: async (q = {}) => {
     await delay();
     let rows = rooms.map(roomView);
     if (q.buildingId) rows = rows.filter((r) => r.buildingId === q.buildingId);
-    if (q.roomTypeId) rows = rows.filter((r) => r.roomTypeId === q.roomTypeId);
     if (q.floor) rows = rows.filter((r) => r.floor === Number(q.floor));
     if (q.gender) rows = rows.filter((r) => r.gender === q.gender);
+    if (q.capacity) rows = rows.filter((r) => r.capacity === Number(q.capacity));
+    if (q.status) rows = rows.filter((r) => r.status === q.status);
     if (q.availability === 'has_slot') rows = rows.filter((r) => r.availableSlots > 0);
     if (q.availability === 'full') rows = rows.filter((r) => r.availableSlots === 0);
-    if (q.availability === 'has_maintenance') rows = rows.filter((r) => r.maintenanceBeds > 0);
     return paginate(search(rows, q.search, ['roomNumber', 'buildingName']), { limit: 100, ...q });
   },
   /** GET /rooms/available — với student, gender lấy từ hồ sơ; tham số gender client gửi bị bỏ qua */
@@ -402,78 +398,57 @@ export const mockRooms = {
     await delay();
     const r = rooms.find((x) => x.id === id);
     if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy phòng');
-    const rt = roomTypeOf(id);
     const bedList = bedsOf(id).map((b) => {
       const c = contracts.find((x) => x.bedId === b.id && x.status === 'active');
       const st = c && students.find((s) => s.id === c.studentId);
-      return { ...b, occupant: c ? { studentCode: c.studentCode, studentName: c.studentName, className: st?.className ?? null } : null };
+      return { ...b, occupant: c ? { studentCode: c.studentCode, fullName: c.studentName, className: st?.className ?? null } : null };
     });
-    return ok({ ...roomView(r), amenities: rt.amenities, includedSupplies: [], beds: bedList });
+    return ok({ ...roomView(r), beds: bedList });
   },
-  createRoom: async (body) => {
+  createRoom: async (body = {}) => {
     await delay();
-    const rt = roomTypes.find((t) => t.id === body.roomTypeId);
     const b = buildings.find((x) => x.id === body.buildingId);
-    if (!rt || !b) fail(400, 'VALIDATION_ERROR', 'Thiếu tòa nhà hoặc loại phòng');
-    if (!body.gender) {
-      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'gender', message: 'Vui lòng chọn giới tính phòng' }] });
-    }
-    if (rooms.some((r) => r.buildingId === b.id && r.roomNumber === body.roomNumber)) {
-      fail(409, 'DUPLICATE_ENTRY', 'Số phòng đã tồn tại trong tòa nhà',
-        { errors: [{ field: 'roomNumber', message: 'Số phòng đã tồn tại trong tòa nhà' }] });
-    }
+    const errors = roomErrors(body);
+    if (!b) errors.push({ field: 'buildingId', message: 'Chọn tòa nhà' });
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+    assertRoomNumberFree(b.id, body.roomNumber);
+    const capacity = Number(body.capacity);
     const room = {
-      id: `r-new-${rooms.length + 1}`, buildingId: b.id, buildingCode: b.code, buildingName: b.name,
-      roomTypeId: rt.id, roomNumber: body.roomNumber, floor: Number(body.floor), gender: body.gender,
-      capacity: rt.capacity, status: 'active',
+      id: `r-new-${Date.now()}`, buildingId: b.id, buildingCode: b.code, buildingName: b.name,
+      roomTypeId: `cap${capacity}`, roomNumber: body.roomNumber, floor: Number(body.floor), gender: body.gender, capacity,
+      pricePerMonth: Number(body.pricePerMonth), depositAmount: Number(body.depositAmount), status: 'active',
     };
     rooms.push(room);
     generateBeds(room);
-    return ok({ id: room.id, roomNumber: room.roomNumber, capacity: room.capacity, bedsCreated: rt.capacity },
-      `Đã tạo phòng ${room.roomNumber} với ${rt.capacity} giường`);
+    return ok(roomView(room), `Đã tạo phòng ${room.roomNumber} với ${capacity} giường`);
   },
-  updateRoom: async (id, body) => {
+  updateRoom: async (id, body = {}) => {
     await delay();
     const r = rooms.find((x) => x.id === id);
     if (!r) fail(404, 'NOT_FOUND', 'Không tìm thấy phòng');
-    const occupied = bedsOf(id).some((b) => b.status === 'occupied');
-    const typeChanged = body.roomTypeId && body.roomTypeId !== r.roomTypeId;
+    const errors = roomErrors({ ...r, ...body });
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+    const capacity = Number(body.capacity ?? r.capacity);
+    const capacityChanged = capacity !== r.capacity;
     const genderChanged = body.gender && body.gender !== r.gender;
-    if (occupied && (typeChanged || genderChanged)) {
-      fail(422, 'ROOM_HAS_OCCUPANTS', 'Phòng đang có người ở, không thể đổi loại phòng hoặc giới tính');
+    if (bedsOf(id).some((b) => b.status === 'occupied') && (capacityChanged || genderChanged)) {
+      fail(422, 'ROOM_HAS_OCCUPANTS', 'Phòng đang có người ở, không thể đổi giới tính hoặc sức chứa'); // FR-25
     }
-    if (occupied && body.status === 'inactive') {
-      fail(422, 'ROOM_HAS_OCCUPANTS', 'Phòng đang có người ở, không thể ngừng hoạt động');
-    }
-    if (body.roomNumber && body.roomNumber !== r.roomNumber
-        && rooms.some((x) => x.id !== id && x.buildingId === r.buildingId && x.roomNumber === body.roomNumber)) {
-      fail(409, 'DUPLICATE_ENTRY', 'Số phòng đã tồn tại trong tòa nhà',
-        { errors: [{ field: 'roomNumber', message: 'Số phòng đã tồn tại trong tòa nhà' }] });
-    }
-    if (typeChanged) {
-      // Phòng trống đổi loại: xóa giường cũ, sinh lại theo sức chứa mới (DATA-SCHEMA §3.4)
-      const rt = roomTypes.find((t) => t.id === body.roomTypeId);
+    if (body.roomNumber && body.roomNumber !== r.roomNumber) assertRoomNumberFree(r.buildingId, body.roomNumber);
+    if (capacityChanged) {
       for (let i = beds.length - 1; i >= 0; i -= 1) if (beds[i].roomId === id) beds.splice(i, 1);
-      Object.assign(r, { roomTypeId: rt.id, capacity: rt.capacity });
+      Object.assign(r, { capacity, roomTypeId: `cap${capacity}` });
       generateBeds(r);
     }
     Object.assign(r, {
       roomNumber: body.roomNumber ?? r.roomNumber,
       floor: body.floor !== undefined ? Number(body.floor) : r.floor,
       gender: body.gender ?? r.gender,
+      pricePerMonth: body.pricePerMonth !== undefined ? Number(body.pricePerMonth) : r.pricePerMonth,
+      depositAmount: body.depositAmount !== undefined ? Number(body.depositAmount) : r.depositAmount,
       status: body.status ?? r.status,
     });
     return ok(roomView(r), 'Cập nhật phòng thành công');
-  },
-  /** Body { status, note? } — chỉ bật/tắt bảo trì, không bao giờ gán người vào giường */
-  setBedStatus: async (id, { status, note } = {}) => {
-    await delay();
-    const b = beds.find((x) => x.id === id);
-    if (!b) fail(404, 'NOT_FOUND', 'Không tìm thấy giường');
-    if (b.status === 'occupied') fail(422, 'BED_OCCUPIED', 'Giường đang có người ở, không thể chuyển bảo trì');
-    if (!['available', 'maintenance'].includes(status)) fail(400, 'VALIDATION_ERROR', 'Trạng thái giường không hợp lệ');
-    Object.assign(b, { status, note: status === 'maintenance' ? (note || null) : null });
-    return ok(b, status === 'maintenance' ? 'Đã chuyển giường sang bảo trì' : 'Đã mở lại giường');
   },
 };
 

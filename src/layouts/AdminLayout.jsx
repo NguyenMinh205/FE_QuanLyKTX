@@ -34,7 +34,6 @@ const buildMenu = (role, counts = {}) => {
       key: 'rooms', icon: <BankOutlined />, label: 'Cơ sở vật chất',
       children: [
         { key: '/admin/buildings', label: 'Tòa nhà' },
-        { key: '/admin/room-types', label: 'Loại phòng' },
         { key: '/admin/rooms', label: 'Phòng' },
       ],
     },

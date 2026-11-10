@@ -62,7 +62,7 @@ export default function BuildingsPage() {
 
   const columns = [
     {
-      title: 'Tòa nhà', key: 'name',
+      title: 'Tòa nhà', key: 'name', width: 230,
       render: (_, b) => (
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <span style={{
@@ -71,14 +71,14 @@ export default function BuildingsPage() {
           }}>{b.code}</span>
           <div style={{ minWidth: 0 }}>
             <Text strong>{b.name}</Text>
-            <div><Text type="secondary" style={{ fontSize: 13 }}>{[b.address, b.description].filter(Boolean).join(' · ') || '—'}</Text></div>
+            <div><Text type="secondary" style={{ fontSize: 13 }}>{b.description || '—'}</Text></div>
           </div>
         </div>
       ),
     },
-    { title: 'Số phòng', key: 'rooms', width: 100, align: 'center', render: (_, b) => b.stats?.totalRooms ?? '—' },
+    { title: 'Số phòng', key: 'rooms', width: 90, align: 'center', render: (_, b) => b.stats?.totalRooms ?? '—' },
     {
-      title: 'Giường', key: 'beds', width: 200,
+      title: 'Giường', key: 'beds', width: 160,
       render: (_, b) => {
         const s = b.stats;
         if (!s) return '—';
@@ -91,17 +91,17 @@ export default function BuildingsPage() {
       },
     },
     {
-      title: 'Tỷ lệ lấp đầy', key: 'rate', width: 180,
+      title: 'Tỷ lệ lấp đầy', key: 'rate', width: 150,
       render: (_, b) => (b.stats?.totalBeds
         ? <Tooltip title="Đã ở / (tổng giường − bảo trì)"><Progress percent={Math.round(rateOf(b.stats) * 100)} size="small" format={() => formatPercent(rateOf(b.stats) * 100)} /></Tooltip>
         : <Text type="secondary">Chưa có giường</Text>),
     },
     {
-      title: 'Trạng thái', dataIndex: 'isActive', width: 150,
+      title: 'Trạng thái', dataIndex: 'isActive', width: 140,
       render: (v) => (v ? <Tag color="success" style={{ margin: 0 }}>Đang hoạt động</Tag> : <Tag style={{ margin: 0 }}>Ngừng hoạt động</Tag>),
     },
     {
-      title: 'Thao tác', key: 'actions', width: canEdit ? 330 : 120, fixed: 'right',
+      title: 'Thao tác', key: 'actions', width: canEdit ? 250 : 120, fixed: 'right',
       render: (_, b) => {
         const occupied = b.stats?.occupiedBeds ?? 0;
         return (
@@ -149,7 +149,7 @@ export default function BuildingsPage() {
         {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
         <Table
           rowKey="id" columns={columns} dataSource={shown} loading={loading && !data}
-          pagination={false} scroll={{ x: 1000 }}
+          pagination={false} scroll={{ x: 1020 }}
           locale={{ emptyText: status === 'inactive' ? 'Không có tòa nào ngừng hoạt động' : 'Chưa có tòa nhà nào' }}
         />
       </Card>

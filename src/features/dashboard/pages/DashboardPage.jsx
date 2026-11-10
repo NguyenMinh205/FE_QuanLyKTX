@@ -146,7 +146,6 @@ export default function DashboardPage() {
         <Col xs={24} xl={8}>
           <Card
             title={<span><InboxOutlined style={{ color: '#1677FF' }} /> Chỗ trống theo loại phòng</span>}
-            extra={actionLink('Loại phòng', '/admin/room-types')}
             style={{ height: '100%' }}
           >
             {typesApi.error && <Alert type="warning" showIcon title="Chưa lấy được số chỗ theo loại phòng" description={typesApi.error} />}

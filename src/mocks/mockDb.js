@@ -1,11 +1,11 @@
 /**
  * Bộ dữ liệu giả dùng chung cho toàn bộ mock API — mô hình ĐĂNG KÝ THEO PHÒNG (DATA-SCHEMA.md v1.2).
  *
- *   6 loại phòng → 2 tòa → 20 phòng → giường TỰ SINH theo sức chứa
+ *   4 tòa (2 đang dùng) → 20 phòng 4/6/8 chỗ, giá và cọc nằm trên phòng → giường TỰ SINH theo sức chứa
  *   → 90 sinh viên (72 đang ở) → đơn đăng ký → hợp đồng → hóa đơn → thanh toán
  *
  * Tài khoản thử (xem mockApi.js): sv001 đang ở phòng Tiêu chuẩn, có nợ · sv002 chưa có chỗ ·
- * sv003 dùng test IDOR · sv004 đang ở phòng Chất lượng cao, hợp đồng còn 20 ngày ·
+ * sv003 dùng test IDOR · sv004 hợp đồng còn 20 ngày ·
  * sv005 có đơn gần nhất bị từ chối · sv006 có đơn chờ duyệt (phòng nguyện vọng đã đầy) ·
  * sv008 vừa được cấp tài khoản, mật khẩu là MSSV, phải đổi ở lần đăng nhập đầu.
  *
@@ -28,42 +28,26 @@ const KHOA = [
 // sv007: sinh viên từng ở năm trước, hiện không còn chỗ — dùng để xem lịch sử lưu trú (FR-39)
 export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75, sv007: 80, sv008: 4 };
 
-// ---------------------------------------------------------------- loại phòng
-/**
- * Tiện nghi cơ bản: MỌI phòng đều có, không phân biệt hạng.
- * Phòng chất lượng cao được cấp thêm đệm — đệm là nhu yếu phẩm nên nằm ở
- * `includedInRoomTypes` của SupplyItem, không phải `amenities` (DATA-SCHEMA 3.13).
- */
+// ---------------------------------------------------------------- giá mẫu theo sức chứa
+const PRICE_BY_CAPACITY = { 8: 250000, 6: 320000, 4: 450000 };
+const DEPOSIT_AMOUNT = 500000;
 const BASIC = ['Giường tầng', 'Bàn học chung', 'Tủ cá nhân', 'WC riêng', 'Bình nóng lạnh', 'Quạt trần'];
-/** Phòng 3 người hạng cao dùng giường đơn thay giường tầng */
-const BASIC_GIUONG_DON = BASIC.map((a) => (a === 'Giường tầng' ? 'Giường đơn' : a));
 
-export const roomTypes = [
-  { id: 'rt1', tier: 'standard', capacity: 8, pricePerMonth: 250000, depositAmount: 500000, amenities: BASIC },
-  { id: 'rt2', tier: 'standard', capacity: 6, pricePerMonth: 320000, depositAmount: 500000, amenities: BASIC },
-  { id: 'rt3', tier: 'standard', capacity: 4, pricePerMonth: 450000, depositAmount: 500000, amenities: BASIC },
-  { id: 'rt7', tier: 'standard', capacity: 3, pricePerMonth: 600000, depositAmount: 500000, amenities: BASIC },
-  { id: 'rt8', tier: 'premium', capacity: 8, pricePerMonth: 550000, depositAmount: 1000000, amenities: BASIC },
-  { id: 'rt4', tier: 'premium', capacity: 6, pricePerMonth: 750000, depositAmount: 1000000, amenities: BASIC },
-  { id: 'rt5', tier: 'premium', capacity: 4, pricePerMonth: 950000, depositAmount: 1000000, amenities: [...BASIC, 'Bàn học riêng'] },
-  { id: 'rt6', tier: 'premium', capacity: 3, pricePerMonth: 1200000, depositAmount: 1000000, amenities: [...BASIC_GIUONG_DON, 'Bàn học riêng', 'Tủ lạnh mini'] },
-].map((t) => ({
-  ...t,
-  name: `${t.tier === 'standard' ? 'Tiêu chuẩn' : 'Chất lượng cao'} · ${t.capacity} người`,
-  description: '',
-  isActive: true,
+/** ⚠️ Tạm thời: giá thật nằm trên phòng. Mảng này chỉ còn để màn Đăng ký và Duyệt đơn cũ chạy, xoá ở M4 */
+export const roomTypes = [8, 6, 4].map((capacity) => ({
+  id: `cap${capacity}`, tier: 'standard', capacity, name: `Phòng ${capacity} chỗ`,
+  pricePerMonth: PRICE_BY_CAPACITY[capacity], depositAmount: DEPOSIT_AMOUNT, amenities: BASIC, description: '', isActive: true,
 }));
 
 // ---------------------------------------------------------------- tòa nhà
 export const buildings = [
-  { id: 'b1', code: 'K1', name: 'Tòa K1', address: 'KTX Cơ sở 1', isActive: true },
-  { id: 'b2', code: 'K2', name: 'Tòa K2', address: 'KTX Cơ sở 1', isActive: true },
+  { id: 'b1', code: 'K1', name: 'Tòa K1', description: 'KTX Cơ sở 1', isActive: true },
+  { id: 'b2', code: 'K2', name: 'Tòa K2', description: 'KTX Cơ sở 1', isActive: true },
 ];
 
 // ---------------------------------------------------------------- phòng (10 mỗi tòa) + giường tự sinh
-// Mỗi tòa có đủ 8 loại phòng. Hai chỗ lặp (rt2, rt5) là cố ý:
-// rt2 cho kịch bản "phòng nguyện vọng đã đầy", rt5 cho kịch bản "tranh chỗ" ở màn Duyệt đơn.
-const ROOM_TYPE_PATTERN = ['rt2', 'rt2', 'rt3', 'rt8', 'rt5', 'rt1', 'rt4', 'rt7', 'rt6', 'rt5'];
+// Hai chỗ lặp là cố ý: cap6 cho kịch bản "phòng nguyện vọng đã đầy", cap4 cho kịch bản "tranh chỗ" ở màn Duyệt đơn.
+const ROOM_TYPE_PATTERN = ['cap6', 'cap6', 'cap4', 'cap8', 'cap4', 'cap8', 'cap6', 'cap4', 'cap6', 'cap4'];
 
 export const rooms = [];
 export const beds = [];
@@ -97,6 +81,8 @@ buildings.slice(0, 2).forEach((b, bi) => {
       floor,
       gender: bi === 0 ? 'male' : 'female', // Tòa K1 nam, tòa K2 nữ
       capacity: rt.capacity,
+      pricePerMonth: rt.pricePerMonth,
+      depositAmount: rt.depositAmount,
       status: 'active',
     };
     rooms.push(room);
@@ -105,9 +91,9 @@ buildings.slice(0, 2).forEach((b, bi) => {
 });
 
 buildings.push({
-  id: 'b3', code: 'K3', name: 'Tòa K3', address: 'KTX Cơ sở 2', description: 'Đang cải tạo, dự kiến mở lại năm học 2027-2028', isActive: false,
+  id: 'b3', code: 'K3', name: 'Tòa K3', description: 'KTX Cơ sở 2. Đang cải tạo, dự kiến mở lại năm học 2027-2028', isActive: false,
 }, {
-  id: 'b4', code: 'K4', name: 'Tòa K4', address: 'KTX Cơ sở 3', description: 'Chưa đưa vào sử dụng', isActive: false,
+  id: 'b4', code: 'K4', name: 'Tòa K4', description: 'KTX Cơ sở 3. Chưa đưa vào sử dụng', isActive: false,
 });
 
 // ---------------------------------------------------------------- tiện ích tra cứu
@@ -197,8 +183,8 @@ export const approveApplication = (app, room, { startDate = app.startDate } = {}
     roomId: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName,
     roomTypeId: rt.id, roomTypeName: rt.name,
     startDate, endDate: app.endDate,
-    monthlyPrice: rt.pricePerMonth,     // chốt giá lúc duyệt (BR-27)
-    depositAmount: rt.depositAmount,
+    monthlyPrice: room.pricePerMonth,   // chốt giá lúc duyệt (BR-27)
+    depositAmount: room.depositAmount,
     depositRefunded: 0,
     status: 'active',
     terms: 'Sinh viên tuân thủ nội quy ký túc xá.',
@@ -220,13 +206,11 @@ const targetOf = Object.fromEntries(rooms.map((r) => {
 }));
 const occupiedCount = (roomId) => bedsOf(roomId).filter((b) => b.status === 'occupied').length;
 
-// 70 sinh viên đầu được xếp phòng (35 nam tòa A, 35 nữ tòa B — đúng tổng chỗ mục tiêu); sv004 cố ý vào phòng Chất lượng cao
+// 70 sinh viên đầu được xếp phòng (35 nam tòa K1, 35 nữ tòa K2)
 const PLACED = 70;
-students.slice(0, PLACED).forEach((st, i) => {
-  const wantPremium = i === DEMO_STUDENT_INDEX.sv004;
+students.slice(0, PLACED).forEach((st) => {
   const fits = (r) => r.gender === st.gender && occupiedCount(r.id) < targetOf[r.id];
-  const room = (wantPremium && rooms.find((r) => fits(r) && roomTypeOf(r.id).tier === 'premium'))
-    || rooms.find(fits)
+  const room = rooms.find(fits)
     || rooms.find((r) => r.gender === st.gender && availableSlots(r.id) > 0);
   const app = newApplication(st, room);
   approveApplication(app, room);
@@ -256,12 +240,12 @@ contracts.filter((_, i) => i % 7 === 6).forEach((c, k) => { c.endDate = todayPlu
 const roomFor = (st, typeId) => rooms.find((r) => r.gender === st.gender && r.roomTypeId === typeId && availableSlots(r.id) > 0)
   || rooms.find((r) => r.gender === st.gender && availableSlots(r.id) > 0);
 [70, 71, 72].forEach((idx, k) => {
-  newApplication(students[idx], roomFor(students[idx], ['rt2', 'rt3', 'rt5'][k]), {
+  newApplication(students[idx], roomFor(students[idx], ['cap6', 'cap4', 'cap4'][k]), {
     note: k === 0 ? 'Em muốn ở gần bạn cùng lớp' : '',
     createdAt: `2026-11-0${k + 1}T14:0${k}:00+07:00`,
   });
 });
-// Hai tình huống xung đột chỗ cho màn Duyệt đơn (SCR-31) — đều là sinh viên nữ, tòa B, đơn nộp sớm nên nằm đầu hàng đợi
+// Hai tình huống xung đột chỗ cho màn Duyệt đơn (SCR-31) — đều là sinh viên nữ, tòa K2, đơn nộp sớm nên nằm đầu hàng đợi
 const femaleRooms = rooms.filter((r) => r.gender === 'female' && r.status === 'active');
 const hasAlternative = (room) => femaleRooms.some((r) => r.id !== room.id && r.roomTypeId === room.roomTypeId && availableSlots(r.id) > 0);
 // (1) Phòng nguyện vọng đã đầy từ trước (BR-34: nộp đơn không giữ chỗ) → màn hình cảnh báo ngay khi mở đơn

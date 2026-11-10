@@ -14,7 +14,6 @@ import StudentsPage from '../features/students/pages/StudentsPage';
 import PortalHomePage from '../features/portal/pages/PortalHomePage';
 import ApplyPage from '../features/portal/pages/ApplyPage';
 import UsersPage from '../features/users/pages/UsersPage';
-import RoomTypesPage from '../features/rooms/pages/RoomTypesPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import BuildingsPage from '../features/rooms/pages/BuildingsPage';
 import FeeTypesPage from '../features/fees/pages/FeeTypesPage';
@@ -53,7 +52,6 @@ export default function AppRoutes() {
         <Route path="/admin/change-password" element={<ChangePasswordPage />} />
 
         <Route path="/admin/buildings" element={<BuildingsPage />} />
-        <Route path="/admin/room-types" element={<RoomTypesPage />} />
         <Route path="/admin/rooms" element={<RoomsPage />} />
         <Route path="/admin/applications" element={<ApplicationsPage />} />
         <Route path="/admin/contracts" element={<ContractsPage />} />
