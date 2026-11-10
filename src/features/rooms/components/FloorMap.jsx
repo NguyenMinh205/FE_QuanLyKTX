@@ -21,10 +21,10 @@ export default function FloorMap({ rooms, selectedId, onSelect }) {
           <Card key={floor} styles={{ body: { padding: 20 } }}>
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-              paddingBottom: 12, marginBottom: 16, borderBottom: '1px solid #F0F0F0',
+              paddingBottom: 12, marginBottom: 16, borderBottom: '1px solid var(--line)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 4, height: 20, borderRadius: 2, background: '#1677FF' }} />
+                <span style={{ width: 4, height: 20, borderRadius: 2, background: 'var(--brand)' }} />
                 <Text strong style={{ fontSize: 16 }}>Tầng {floor}</Text>
                 <Text type="secondary">· {list.length} phòng ({occupied}/{total} giường đang sử dụng)</Text>
               </div>

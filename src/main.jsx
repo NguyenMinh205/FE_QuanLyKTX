@@ -10,6 +10,7 @@ import { AuthProvider } from './context/AuthProvider';
 import ErrorBoundary from './components/ErrorBoundary';
 import App from './App.jsx';
 import './index.css';
+import { antdTheme } from './theme/tokens';
 
 dayjs.locale('vi');
 
@@ -17,26 +18,14 @@ dayjs.locale('vi');
 const requiredMarkAfter = (label, { required }) => (
   <>
     {label}
-    {required && <span style={{ color: '#FF4D4F', marginInlineStart: 4 }}>*</span>}
+    {required && <span style={{ color: 'var(--danger-text)', marginInlineStart: 4 }}>*</span>}
   </>
 );
-
-// Bảng màu lấy từ docs/08 mục 4.1
-const theme = {
-  token: {
-    colorPrimary: '#1677FF',
-    colorSuccess: '#52C41A',
-    colorWarning: '#FAAD14',
-    colorError: '#FF4D4F',
-    borderRadius: 6,
-    fontFamily: "'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-  },
-};
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <ConfigProvider locale={viVN} theme={theme} form={{ requiredMark: requiredMarkAfter }}>
+      <ConfigProvider locale={viVN} theme={antdTheme} form={{ requiredMark: requiredMarkAfter }}>
         {/* <AntApp> bắt buộc để message/modal nhận được theme + locale (docs/14 mục 3.1.1) */}
         <AntApp>
           <AuthProvider>

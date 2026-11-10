@@ -11,31 +11,20 @@ const PERMISSIONS = {
   'student:create': OPS,
   'student:update': OPS,
   'student:delete': OPS,
+  'student:resetPassword': OPS,     // FR-06: Staff đặt lại được cho sinh viên, không cho Admin
 
   'building:create': OPS,
-  'building:delete': [ADMIN],
-  'roomType:manage': [ADMIN],       // giá thuê + tiền cọc là quyết định tài chính
   'room:create': OPS,
   'room:update': OPS,
-  'bed:update': OPS,                // chỉ bật/tắt bảo trì — không ai chọn giường
 
-  'application:create': OPS,        // lập đơn hộ sinh viên đến trực tiếp
   'application:review': OPS,        // duyệt / từ chối
-  'contract:update': OPS,
-  'contract:terminate': OPS,
-  'request:approve': OPS,
+  'contract:terminate': OPS,        // thanh lý khi trả phòng
+  'contract:refundDeposit': OPS,    // xác nhận đã hoàn cọc
 
-  'utilityReading:record': OPS,
-  'invoice:create': OPS,
-  'invoice:cancel': OPS,
-  'payment:record': OPS,
+  'utilityReading:record': OPS,    // nhập và chốt & phát hành
+  'payment:record': OPS,           // thu tiền mặt, xác nhận VietQR
 
-  'supply:manage': OPS,
-  'supplyOrder:deliver': OPS,
-  'supplyOrder:cancel': OPS,
-
-  'user:manage': [ADMIN],
-  'feeType:manage': [ADMIN],
+  // Màn Tài khoản chỉ Admin: chặn bằng vai trò ở AppRoutes, không qua bảng này
 };
 
 export const can = (user, action) => {

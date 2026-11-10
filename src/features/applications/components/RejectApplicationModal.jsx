@@ -1,21 +1,21 @@
 import { useState } from 'react';
 import { Modal, Form, Input, Typography, App } from 'antd';
-import { applicationApi } from '../api/application.api';
+import { contractApi } from '../../contracts/api/contract.api';
 import { getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
 
 const { Text } = Typography;
-const MIN_REASON = 10; // BR-37
+const MIN_REASON = 10;
 
-/** Từ chối đơn — bắt buộc lý do tối thiểu 10 ký tự */
+/** Từ chối đơn (FR-33) — bắt buộc lý do; hệ thống gửi email lý do cho sinh viên, không đụng giường */
 export default function RejectApplicationModal({ app, open, onCancel, onRejected }) {
   const [form] = Form.useForm();
   const { message } = App.useApp();
   const [saving, setSaving] = useState(false);
 
-  const handleSubmit = async ({ reviewNote }) => {
+  const handleSubmit = async ({ reason }) => {
     setSaving(true);
     try {
-      const res = await applicationApi.reject(app.id, { reviewNote: reviewNote.trim() });
+      const res = await contractApi.reject(app.id, { reason: reason.trim() });
       message.success(res.data.message);
       onRejected();
     } catch (err) {
@@ -30,7 +30,7 @@ export default function RejectApplicationModal({ app, open, onCancel, onRejected
   return (
     <Modal
       open={open}
-      title={app ? `Từ chối đơn ${app.applicationCode}` : ''}
+      title={app ? `Từ chối đơn ${app.contractCode}` : ''}
       okText="Từ chối đơn"
       okButtonProps={{ danger: true }}
       cancelText="Hủy"
@@ -41,12 +41,12 @@ export default function RejectApplicationModal({ app, open, onCancel, onRejected
     >
       {app && (
         <Text type="secondary">
-          Sinh viên {app.student.fullName} ({app.student.studentCode}) sẽ thấy lý do này trong cổng sinh viên.
+          Hệ thống gửi email báo lý do cho {app.student.fullName} ({app.student.studentCode}); sinh viên cũng thấy lý do khi tra cứu đơn.
         </Text>
       )}
       <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 12 }} preserve={false}>
         <Form.Item
-          name="reviewNote"
+          name="reason"
           label="Lý do từ chối"
           rules={[
             { required: true, whitespace: true, message: 'Nhập lý do từ chối' },

@@ -1,9 +1,9 @@
 # KẾ HOẠCH CHỈNH SỬA FRONTEND THEO PHIÊN BẢN TINH GỌN HaUI (v2.0)
 
-**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026), chưa sửa code
+**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M11 (M11 chờ commit và chờ bạn nghiệm thu, 10/11/2026)
 **Nguồn yêu cầu:** `D:\BE_QLKTX\docs\EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS v2.0) và `EDIT_DOCS_DATA_SCHEMA.md`. Khác với tài liệu cũ trong `docs/` thì theo hai file này. Chỗ SRS bỏ ngỏ thì theo luồng use case trong `BAO_CAO_CHUONG_2.md`.
 **Bổ sung ngoài SRS:** xác nhận hoàn cọc (FR-35, BR-08), theo yêu cầu ngày 09/11/2026.
-**File này phục vụ một việc:** làm xong v2 thì xoá.
+**File này phục vụ một việc:** làm xong v2 thì xoá. Quyết định D1–D5, mặc định, việc cố ý chưa làm đã chép sang `17-TONG-QUAN-FRONTEND.md` §12; điểm cần báo BE sang `16-YEU-CAU-API-BACKEND.md` §3 — nghiệm thu xong là xoá được.
 
 ---
 
@@ -49,7 +49,8 @@
 
 | Màn | Đổi gì | FR | Mốc |
 |---|---|---|---|
-| Đăng nhập | Ô "Email hoặc MSSV" (đang chặn định dạng email ở [LoginPage.jsx:144](../src/features/auth/pages/LoginPage.jsx#L144)), nút "Đăng ký ở KTX", "Tra cứu đơn", nhận diện HaUI | 01, 30 | M2 |
+| Đăng nhập | Ô "Email hoặc MSSV" , nhận diện HaUI | 01 | M2 |
+| Đăng nhập | Nút "Đăng ký ở KTX", "Tra cứu đơn" (làm cùng trang đích, nếu làm sớm sẽ thành link hỏng) | 30, 33 | M4 |
 | Đổi mật khẩu | Cơ chế buộc đổi đã có ở `RoleRoute`. Thêm gợi ý "mật khẩu hiện tại là MSSV", chặn mật khẩu mới trùng MSSV (UC-04) | 05 | M2 |
 | Tài khoản | Chỉ tạo admin/staff, bỏ nhánh liên kết sinh viên | 06, 07 | M2 |
 | Tòa nhà | Bỏ `address`, kiểm thống kê theo tòa | 20, 21 | M3 |
@@ -128,7 +129,7 @@ Ngày 09/11/2026: cả năm mục áp dụng theo khuyến nghị. Các phương
 
 ## 5. Các mốc
 
-Mỗi mốc một nhánh từ `develop`, app vẫn chạy được khi xong mốc. AI kiểm bằng lint, build và bấm thử e2e trên dữ liệu giả, rồi thêm mục vào `docs/15-CHECKLIST-NGHIEM-THU-FE.md`. Cỡ việc là ước lượng tương đối.
+Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `develop` chưa nhận các nhánh v2. App vẫn chạy được khi xong mốc. AI kiểm bằng lint, build và bấm thử e2e trên dữ liệu giả, rồi thêm mục vào `docs/15-CHECKLIST-NGHIEM-THU-FE.md`. Cỡ việc là ước lượng tương đối.
 
 ### M0. Chuẩn bị · Nhỏ
 - **Bản v1 đầy đủ:** giữ ở nhánh `backup/v1-full`, phòng khi giảng viên đổi ý.
@@ -145,47 +146,69 @@ Mỗi mốc một nhánh từ `develop`, app vẫn chạy được khi xong mố
 - **Thử:** đăng nhập bằng MSSV của tài khoản buộc đổi MK → bị chuyển sang đổi mật khẩu; sai mật khẩu báo đúng lỗi.
 
 ### M3. Tòa nhà và phòng · Vừa · `feature/v2-rooms`
-- **AI:** model phòng nhúng giường, viết lại form và bộ lọc, sửa `RoomTile`, `RoomDetailPanel`, `roomStatus.js`, xoá màn Loại phòng. Mock tạm giữ `getRoomTypes` suy ra từ phòng để màn Đăng ký/Duyệt cũ không gãy, hết M4 thì xoá.
+- **AI:** model phòng nhúng giường, viết lại form và bộ lọc, sửa `RoomTile`, `RoomDetailPanel`, `roomStatus.js`, xoá màn Loại phòng. Sửa lỗi có từ v1 ở màn Tòa nhà: cột đầu không có `width` nên tên tòa bị ngắt từng chữ theo chiều dọc ở màn 1366px. Mock tạm giữ `getRoomTypes` suy ra từ phòng để màn Đăng ký/Duyệt cũ không gãy, hết M4 thì xoá.
 - **Thử:** tạo phòng 6 chỗ → có 6 giường; phòng đang có người không đổi được giới tính, sức chứa; chỉ chọn được 4/6/8.
 
 ### M4. Nộp đơn online và duyệt đơn · Lớn · `feature/v2-online-application`
-- **AI:** `/apply` 3 bước, chọn giới tính → lọc phòng → chọn giường, gói 6/12 tháng tính sẵn tổng tiền; `/apply/status`; chuyển màn Duyệt đơn sang contract; duyệt sinh 2 hóa đơn và tài khoản; từ chối kèm lý do; xử lý trùng giường theo §3.
+- **AI:** hai nút "Đăng ký ở KTX", "Tra cứu đơn" ở màn đăng nhập; `/apply` 3 bước, chọn giới tính → lọc phòng → chọn giường, gói 6/12 tháng tính sẵn tổng tiền; `/apply/status`; chuyển màn Duyệt đơn sang contract; duyệt sinh 2 hóa đơn và tài khoản; từ chối kèm lý do; xử lý trùng giường theo §3.
 - **Thử:** mở `/apply` khi chưa đăng nhập, nộp đơn → tra cứu thấy "Chờ duyệt" → staff duyệt → đăng nhập bằng MSSV/MSSV → buộc đổi MK. Đơn thứ hai không chọn được giường đã có đơn chờ; nộp trùng MSSV đang có đơn thì báo lỗi.
 
 ### M5. Hợp đồng và trả phòng · Vừa · `feature/v2-contracts-checkout`
-- **AI:** màn Hợp đồng theo model mới, thanh lý chặn khi còn nợ (BR-04), hướng dẫn trả phòng theo D1, `MyResidencePage` và `ResidentHome`, `NoResidenceHome` thu gọn còn lịch sử + link đăng ký lại. Hoàn cọc: tab "Chờ hoàn cọc" (`status=terminated`, `isDepositRefunded=false`), cột trạng thái cọc, nút "Xác nhận đã hoàn cọc" trong drawer, hiển thị người và ngày xác nhận, quyền mới `contract:refundDeposit`; SV thấy "Đã nhận lại cọc ngày …" hoặc "Chưa nhận, đến văn phòng KTX".
+- **AI:** màn Hợp đồng theo model mới, thanh lý chặn khi còn nợ (BR-04), hướng dẫn trả phòng theo D1, `MyResidencePage` và `ResidentHome`, `NoResidenceHome` thu gọn còn lịch sử + link đăng ký lại. Sửa lỗi có từ v1: `ResidentHome` tràn ngang ở màn 390px (cột `display: grid` bị bảng hóa đơn `scroll.x=600` kéo rộng, cần `gridTemplateColumns: 'minmax(0, 1fr)'`). Hoàn cọc: tab "Chờ hoàn cọc" (`status=terminated`, `isDepositRefunded=false`), cột trạng thái cọc, nút "Xác nhận đã hoàn cọc" trong drawer, hiển thị người và ngày xác nhận, quyền mới `contract:refundDeposit`; SV thấy "Đã nhận lại cọc ngày …" hoặc "Chưa nhận, đến văn phòng KTX".
 - **Thử:** SV còn nợ → thanh lý bị chặn và nêu lý do; hết nợ → giường trống lại, hợp đồng `terminated`, xuất hiện ở tab Chờ hoàn cọc. Bấm xác nhận → rời khỏi tab, không bấm lại được; đăng nhập SV đó thấy đã nhận cọc. Hợp đồng chưa thanh lý không có nút này.
 
 ### M6. Chốt điện nước theo phòng · Vừa · `feature/v2-utility-billing`
-- **AI:** model chỉ số mới, ô đơn giá (D4), Chốt & Phát hành theo tòa + tháng, khóa sau khi chốt, bỏ phòng không có người, lịch sử theo phòng, xoá Danh mục loại phí.
+- **AI:** model chỉ số mới, ô đơn giá (D4), Chốt & Phát hành theo tòa + tháng, khóa sau khi chốt, bỏ phòng không có người, lịch sử theo phòng, xoá Danh mục loại phí. **Kéo từ M7 lên (10/11/2026):** xoá Lập hóa đơn hàng loạt và Tạo hóa đơn lẻ, vì cả hai chạy trên model chỉ số cũ và danh mục loại phí nên gãy ngay khi đổi model. Hóa đơn điện nước mới mang thêm trường kiểu cũ (`totalAmount`, `paidAmount`, `lineItems`) để màn Hóa đơn hiện được tới M7; hóa đơn tháng kiểu cũ trong dữ liệu giả chỉ còn tiền phòng để không tính điện nước hai lần.
 - **Thử:** nhập chỉ số một tòa → Chốt → mỗi phòng đúng 1 hóa đơn, không sửa được nữa. Màn Hóa đơn có thể hiển thị chưa đẹp cho tới hết M7.
 
 ### M7. Hóa đơn và thanh toán phía cán bộ · Vừa · `feature/v2-invoices-payments`
-- **AI:** danh sách và chi tiết theo model mới, modal xác nhận thu (D5), hiển thị biên lai sau khi thu (UC-06: mã phiếu, số tiền, người thu, thời gian), màn Thanh toán rút gọn, xoá lập lẻ, lập hàng loạt, hủy, thu một phần.
+- **AI:** danh sách và chi tiết theo model mới, modal xác nhận thu (D5), hiển thị biên lai sau khi thu (UC-06: mã phiếu, số tiền, người thu, thời gian), màn Thanh toán rút gọn, xoá hủy và thu một phần (lập lẻ, lập hàng loạt đã xoá ở M6). Bỏ hẳn loại hóa đơn `monthly` trong dữ liệu giả và các trường kiểu cũ trên hóa đơn điện nước. **Đã làm (10/11/2026):** mock trả đúng model §8; cổng SV đọc qua lớp chuyển đổi tạm `toLegacyInvoice` trong `portal.api.js` và luồng VNPay thử tách riêng trong mock — **M8 xoá cả hai**. Hợp đồng trong dữ liệu giả không còn `bedCode`, `monthlyPrice`.
 - **Thử:** thu tiền mặt hóa đơn phòng, chọn người nộp → `paid`, chi tiết hiện đúng tên; xác nhận VietQR có ô mã giao dịch, được để trống (FR-54 ghi "nếu cần").
 
 ### M8. Cổng SV: hóa đơn và VietQR · Vừa · `feature/v2-portal-vietqr`
-- **AI:** 2 nhóm hóa đơn, ảnh QR đúng số tiền và nội dung FR-53, trạng thái đại diện đã nộp, chuông (D3), lịch sử thanh toán, lịch sử điện nước phòng mình, xoá VNPay.
+- **AI:** 2 nhóm hóa đơn, ảnh QR đúng số tiền và nội dung FR-53, trạng thái đại diện đã nộp, chuông (D3), lịch sử thanh toán, lịch sử điện nước phòng mình, xoá VNPay. **Đã làm (10/11/2026):** xoá lớp chuyển đổi tạm của M7 và luồng VNPay thử; `debtSummary` chỉ tính nợ cá nhân, hóa đơn phòng đọc riêng qua `scope=room`. Tài khoản nhận tiền trong mock là số mẫu (`VIETQR_ACCOUNT` trong `mockApi.js`).
 - **Bạn:** đưa mã ngân hàng, số tài khoản, tên tài khoản nếu muốn quét thử bằng app thật.
 - **Thử:** quét QR bằng app ngân hàng thấy đúng số tiền và nội dung. Không chuyển tiền thật.
 
 ### M9. Dashboard · Nhỏ · `feature/v2-dashboard`
-- **AI:** KPI FR-70, lấp đầy theo tòa, doanh thu tháng tách tiền phòng/điện nước, ẩn doanh thu với Staff.
+- **AI:** KPI FR-70, lấp đầy theo tòa, doanh thu tháng tách tiền phòng/điện nước, ẩn doanh thu với Staff. Thẻ và bảng "Hợp đồng sắp hết hạn" đang gọi `GET /contracts?expiringInDays=` — tham số này đã bỏ ở API v2 (§13): lấy số từ `/dashboard/summary`, bảng thì lọc phía FE hoặc bỏ. Từ M5 link "Xem danh sách" tạm trỏ tab Đang hiệu lực (tab này xếp theo ngày bắt đầu, chưa đưa hợp đồng sắp hết hạn lên đầu). **Đã làm (10/11/2026), theo khuyến nghị:** bỏ hẳn thẻ và bảng "sắp hết hạn" khỏi Dashboard — FR-70 không có mục này, màn Hợp đồng đã ghi "còn N ngày". Bỏ luôn thẻ "Hóa đơn quá hạn" (v2 không có trạng thái quá hạn) và khối "Cần xử lý" (trùng thẻ Đơn chờ duyệt). Staff không gọi API doanh thu; Lấp đầy theo tòa thêm bảng số.
 - **Thử:** so số trên thẻ với dữ liệu giả; đăng nhập Staff không thấy doanh thu.
 
 ### M10. Sinh viên và Excel · Vừa · `feature/v2-students-excel`
 - **AI:** bộ lọc và cột mới, drawer chi tiết (FR-11), đặt lại MK, import sinh viên có báo cáo dòng lỗi, xuất/nhập chỉ số.
 - **Thử:** tải mẫu → điền 1 dòng đúng, 1 dòng trùng MSSV → báo 1 thành công, 1 lỗi đúng dòng.
+- **Đã làm (10/11/2026):** thêm thư viện `exceljs@4.4.0`, tải động nên tách chunk riêng (~930 kB, chỉ tải khi bấm nút Excel). Nhập chỉ số từ Excel chỉ điền vào lưới, cán bộ xem rồi bấm Lưu; file mang mã tòa + tháng ở dòng 1 để chặn nạp nhầm. MSSV khi thêm/sửa/nhập phải đúng 10 chữ số. `npm audit` báo `uuid` (vừa, qua exceljs) và `follow-redirects` (cao, qua axios có từ trước) — chưa xử lý.
+
+### M10b. Làm đẹp giao diện · Vừa · `feature/v2-ui-polish`
+- **Quyết định (10/11/2026):** làm sau M10, trước M11 (phương án A) — làm đẹp khi các màn đã ổn định, khỏi làm lại.
+- **AI:** rà toàn bộ màn bằng skill cài riêng trong project (Impeccable chế độ app quản trị, TasteSkill redesign/minimalist). Giữ Ant Design và quy tắc UI của bạn: hiệu ứng đứng yên, mỗi lúc chỉ một thứ chuyển động; không thêm thư viện animation, font hay bộ icon mới. Kiểm ở 1366px và 390px.
+- **Thử:** so ảnh trước/sau từng màn; e2e M1–M10 vẫn đạt.
+- **Đợt soát tổng trước khi làm đẹp (10/11/2026):** 3 người soát độc lập + tự kiểm lại → 31 phát hiện, sửa 30 trên cùng nhánh này; bài kiểm lại bắt thêm 1 lỗi sập trang (form Sửa sinh viên — bộ lọc gợi ý Khoa), cũng đã sửa. Nổi bật khác: form sửa mang giá trị của sinh viên trước, lưu chỉ số xoá số đã gõ ở phòng nhập dở, Excel số thập phân thành số gấp 10, chuông mở sai hóa đơn, mock rơi về sv001 khi phiên không phải sinh viên, giờ thu tiền theo UTC lệch ngày.
+  **Cố ý để lại:** (1) rời màn Chỉ số điện nước bằng menu không hỏi lại khi còn số chưa lưu — cần `useBlocker`, mà app dùng `BrowserRouter`, phải chuyển cả app sang data router; (2) hàng trong bảng bấm được bằng chuột nhưng không Tab tới được (mở chi tiết vẫn có link/nút riêng ở nhiều màn).
+- **Làm đẹp — đã làm (10/11/2026), chờ commit.** Hướng **Tinh chỉnh** (bạn chọn): giữ bố cục, giữ màu xanh nhưng đậm hơn, giữ font hệ thống.
+  - Một nguồn màu `src/theme/tokens.js` + biến CSS trong `index.css`; thay mã màu viết cứng ở ~40 file. Mọi chữ màu đạt AA (≥ 4.5:1): xanh `#1263D6`, chữ phụ `#5B6474`, chữ trạng thái xanh/vàng/đỏ đậm (cả `Text type=…`, nhãn trạng thái, ô phòng trên sơ đồ).
+  - Bỏ kiểu "ô biểu tượng nền màu" lặp ở mọi thẻ: thẻ số liệu, tiêu đề thẻ, lời chào trang chủ sinh viên. Thẻ số liệu xếp 2 thẻ/hàng trên điện thoại.
+  - Trang chủ sinh viên: gộp các khung cảnh báo đỏ/vàng thành một thẻ **Việc cần làm (n)**, việc gấp lên trước.
+  - Đăng nhập: nửa trái nền xanh chuyển màu nhẹ, logo cạnh tên, ba dòng mô tả tính năng có thật thay chấm xanh phiên bản.
+  - Bảng Hợp đồng gọn cho 1366px (cột Tiền phòng cả kỳ chỉ hiện ở màn ≥1600px, có trong drawer); thanh lọc bảng và lọc sơ đồ phòng xếp lưới 2 cột trên điện thoại.
+  - Bỏ kiểu chuyển động "nảy" mặc định của antd. Bộ dò Impeccable trên `/login`, `/apply`: không còn phát hiện.
+  - **Chưa làm:** thanh Lưu/Chốt ở màn Chỉ số điện nước trên điện thoại vẫn che ~1/3 màn (nhập chỉ số là việc làm trên máy tính).
 
 ### M11. Rà soát và bàn giao BE · Nhỏ · `docs/v2-acceptance`
 - **AI:** thử trọn luồng theo 3 vai trò, xoá code và mock thừa, cập nhật `docs/15`, `16`, `17`, thêm ghi chú đầu `docs/README.md` rằng tài liệu 01–14 mô tả v1.
 - **Bạn:** nghiệm thu theo checklist.
+- **Đã làm (10/11/2026), chờ commit:**
+  - Dọn code thừa: `constants/routes.js` (còn route v1), barrel `features/students/index.js`, `splitBedCode`, `formatPeriod`, `APP_NAME` + `VITE_APP_NAME`, 2 khóa quyền không ai kiểm, prop `iconBg` của `StatCard`, trường `isExpiring` mock trả mà không ai đọc, màu xanh cũ còn sót ở 3 thẻ số liệu. Quét lại: mock không còn endpoint thừa (51/51 đều được gọi).
+  - Thử trọn luồng 3 vai trò bằng bộ e2e mới (18 bước, đạt); cả 12 bộ e2e: 377/377.
+  - `API.md` lên 2.5 (ghi các mã lỗi và quy tắc thêm ở đợt soát M10b).
+  - Viết lại `16` (bàn giao BE v2), `17` (tổng quan FE v2); `15` thêm mục 35 và sửa bảng theo dõi; ghi chú v1/v2 ở đầu `docs/README.md`; sửa `README.md`.
+  - Backend `main` (`ba70bd9`) kiểm ngày 10/11/2026: vẫn v1.2, chưa có endpoint v2 nào.
 
 ---
 
-## 6. Hợp đồng API v2 (khung, chi tiết viết ở M0)
+## 6. Hợp đồng API v2
 
-SRS chỉ nêu tên vài endpoint, phần còn lại FE đề xuất.
+Bản đầy đủ ở [`docs/API.md`](API.md) (v2.0, xong M0 ngày 09/11/2026), bảng dưới chỉ là tóm tắt. SRS chỉ nêu tên vài endpoint, phần còn lại FE đề xuất.
 
 | Nhóm | Endpoint | Ghi chú |
 |---|---|---|
@@ -217,6 +240,7 @@ SRS chỉ nêu tên vài endpoint, phần còn lại FE đề xuất.
 8. **Thêm vào Contract:** `isDepositRefunded` (Boolean, mặc định `false`), `depositRefundedAt` (Date), `depositRefundedBy` (ref `User`). SRS, schema, Quy trình 4 và UC-07 của báo cáo cần bổ sung FR-35, BR-08.
 9. SV đã được duyệt rồi bỏ không ở, chưa đóng tiền: BR-04 chặn thanh lý mà hóa đơn không hủy được, giường bị giữ mãi. Cần quy định cách xử lý.
 10. Báo cáo chương 2 kết luận "30 FR, 10 NFR" nhưng bảng thực tế có 39 FR (chưa tính FR-54b) và 11 NFR.
+11. **Ở tiếp kỳ sau:** không có gia hạn, và UC-01 3a chặn nộp đơn khi SV còn hợp đồng `active` (kể cả đã quá hạn, chưa thanh lý). Nên SV muốn ở tiếp phải trả phòng (thanh lý) rồi mới nộp đơn mới, và giường cũ có thể bị người khác đăng ký mất trong lúc đó. FE (M5) ghi đúng như vậy trong thông báo; cần giảng viên xác nhận đây là ý đồ.
 
 ---
 

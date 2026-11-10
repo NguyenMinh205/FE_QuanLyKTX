@@ -1,7 +1,56 @@
+/* Cùng giá trị với src/theme/tokens.js — style nội dòng dùng var(--…), antd dùng token */
 :root {
+  --brand: #1263D6;
+  --brand-soft: #EAF1FC;
+  --text-secondary: #4B5563;
+  --text-tertiary: #5B6474;
+  --success-text: #2F7D0B;
+  --warning-text: #9A5B00;
+  --danger-text: #CF1322;
+  --layout-bg: #F4F6F9;
+  --line: #EBEEF2;
   font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Những phần trình duyệt tự vẽ cũng theo màu của app */
+::selection { background: #CFE0FA; color: #0B2A5B; }
+/* Vòng focus rõ khi dùng bàn phím, không hiện khi bấm chuột */
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+/* Số tiền, chỉ số, mã trong bảng thẳng cột */
+.ant-table, .ant-statistic, .stat-card-value { font-variant-numeric: tabular-nums; }
+a { text-underline-offset: 3px; }
+
+/* Thẻ số liệu nhỏ lại trên điện thoại để 2 thẻ đứng cạnh nhau */
+.stat-card-value { font-size: 26px; line-height: 1.2; }
+@media (max-width: 575px) {
+  .stat-card-value { font-size: 19px; }
+  .stat-card .ant-card-body { padding: 14px !important; }
+  .stat-card-footer { font-size: 12px !important; }
+}
+
+/* Nhãn trạng thái (Tag success/warning/error): antd tô chữ bằng màu nền đậm (#FAAD14 trên nền vàng nhạt chỉ ~1.9:1).
+   Đổi riêng màu chữ sang bản đậm; nền và viền giữ. ⚠️ Cần đủ 4 class (+ body) mới thắng style của antd (0,4,0). */
+body .ant-tag.ant-tag-success:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--success-text); }
+body .ant-tag.ant-tag-warning:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--warning-text); }
+body .ant-tag.ant-tag-error:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--danger-text); }
+
+/* Thanh lọc trên bảng (DataTable). Ở điện thoại: ô tìm kiếm và khoảng ngày chiếm cả dòng, các ô chọn 2 ô một dòng.
+   ⚠️ Các ô lọc đặt width bằng style inline ở từng trang — phải !important mới đè được. */
+.table-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+@media (max-width: 575px) {
+  .table-toolbar > * { flex: 1 1 calc(50% - 4px); min-width: 0; width: auto !important; }
+  .table-toolbar > .table-toolbar-search,
+  .table-toolbar > .ant-picker-range { flex-basis: 100%; }
+  .table-toolbar > .ant-btn { flex: 0 0 auto; }
+
+  /* Bộ lọc sơ đồ phòng: cùng lưới 2 cột; nút Sơ đồ / Danh sách chiếm cả dòng */
+  .room-filters { display: grid !important; grid-template-columns: 1fr 1fr; }
+  .room-filters .ant-select { width: 100% !important; }
+  .room-filters > .room-filters-view { grid-column: 1 / -1; margin-left: 0 !important; }
+  .room-filters > .room-filters-view .ant-segmented { width: 100%; }
+  .room-filters > .room-filters-view .ant-segmented-item { flex: 1; }
 }
 
 * {
@@ -11,7 +60,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--layout-bg);
 }
 
 #root {

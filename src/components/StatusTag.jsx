@@ -1,27 +1,19 @@
 import { Tag } from 'antd';
 import {
-  APPLICATION_STATUS, CONTRACT_STATUS, RESIDENCY_STATUS, INVOICE_STATUS, INVOICE_TYPE,
-  BED_STATUS, PAYMENT_STATUS, REQUEST_STATUS, REQUEST_TYPE, SUPPLY_ORDER_STATUS, ROOM_TIER, ROOM_STATUS,
+  CONTRACT_STATUS, INVOICE_STATUS, INVOICE_TYPE, BED_STATUS, ROOM_STATUS,
 } from '../constants/statuses';
 
 const MAP = {
-  application: APPLICATION_STATUS,
   contract: CONTRACT_STATUS,
-  residency: RESIDENCY_STATUS,
   invoice: INVOICE_STATUS,
   invoiceType: INVOICE_TYPE,
   bed: BED_STATUS,
-  payment: PAYMENT_STATUS,
-  request: REQUEST_STATUS,
-  requestType: REQUEST_TYPE,
-  supplyOrder: SUPPLY_ORDER_STATUS,
-  roomTier: ROOM_TIER,
   roomStatus: ROOM_STATUS,
 };
 
 /**
  * Thẻ trạng thái thống nhất toàn hệ thống.
- * @example <StatusTag type="application" value="pending" />
+ * @example <StatusTag type="contract" value="pending" />
  * (nhận cả `status` để tương thích code cũ)
  */
 export default function StatusTag({ type, value, status }) {

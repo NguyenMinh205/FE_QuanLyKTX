@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Layout, Menu, Dropdown, Avatar, Grid, Drawer, Button, Badge, ConfigProvider, Typography } from 'antd';
 import {
-  DashboardOutlined, TeamOutlined, BankOutlined, FileTextOutlined, MailOutlined,
-  DollarOutlined, SettingOutlined, ShoppingOutlined, UserOutlined, LogoutOutlined,
+  DashboardOutlined, TeamOutlined, BankOutlined, FileTextOutlined,
+  DollarOutlined, SettingOutlined, UserOutlined, LogoutOutlined,
   MenuOutlined, LockOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -34,7 +34,6 @@ const buildMenu = (role, counts = {}) => {
       key: 'rooms', icon: <BankOutlined />, label: 'Cơ sở vật chất',
       children: [
         { key: '/admin/buildings', label: 'Tòa nhà' },
-        { key: '/admin/room-types', label: 'Loại phòng' },
         { key: '/admin/rooms', label: 'Phòng' },
       ],
     },
@@ -45,7 +44,6 @@ const buildMenu = (role, counts = {}) => {
         { key: '/admin/contracts', label: 'Hợp đồng' },
       ],
     },
-    { key: '/admin/requests', icon: <MailOutlined />, label: withBadge('Yêu cầu', counts.requests) },
     {
       key: 'fees', icon: <DollarOutlined />, label: 'Tài chính',
       children: [
@@ -54,7 +52,6 @@ const buildMenu = (role, counts = {}) => {
         { key: '/admin/payments', label: 'Thanh toán' },
       ],
     },
-    { key: '/admin/supplies', icon: <ShoppingOutlined />, label: withBadge('Nhu yếu phẩm', counts.supplies) },
   ];
 
   if (role === ROLES.ADMIN) {
@@ -62,7 +59,6 @@ const buildMenu = (role, counts = {}) => {
       key: 'system', icon: <SettingOutlined />, label: 'Hệ thống',
       children: [
         { key: '/admin/users', label: 'Tài khoản' },
-        { key: '/admin/fee-types', label: 'Danh mục loại phí' },
       ],
     });
   }
@@ -76,9 +72,9 @@ const parentKeyOf = (items, path) =>
 const MENU_THEME = {
   components: {
     Menu: {
-      itemSelectedBg: '#E6F4FF',
+      itemSelectedBg: 'var(--brand-soft)',
       subMenuItemBg: '#FFFFFF',
-      itemSelectedColor: '#1677FF',
+      itemSelectedColor: 'var(--brand)',
       activeBarWidth: 3,
       itemMarginInline: 8,
       itemBorderRadius: 6,
@@ -97,8 +93,6 @@ export default function AdminLayout() {
   const { data: summary } = useApi(() => dashboardApi.getSummary(), []);
   const menuItems = buildMenu(user?.role, {
     applications: summary?.pendingApplications,
-    requests: summary?.pendingRequests?.total,
-    supplies: summary?.supplyOrdersReady,
   });
 
   // Trang chi tiết (VD /admin/invoices/:id) vẫn sáng mục cha
@@ -134,18 +128,19 @@ export default function AdminLayout() {
       <Header style={{
         background: '#fff', height: 72, lineHeight: 'normal', padding: '0 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-        borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, zIndex: 20,
+        borderBottom: '1px solid var(--line)', position: 'sticky', top: 0, zIndex: 20,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           {isMobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} />}
           <BrandLogo size={40} />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3, whiteSpace: 'nowrap' }}>QUẢN LÝ KÝ TÚC XÁ</div>
-            {!isMobile && <Text type="secondary" style={{ fontSize: 12 }}>Hệ thống Quản lý Ký túc xá Đại học</Text>}
+            <div style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3, whiteSpace: 'nowrap' }}>KÝ TÚC XÁ HaUI</div>
+            {!isMobile && <Text type="secondary" style={{ fontSize: 12 }}>Trường Đại học Công nghiệp Hà Nội</Text>}
           </div>
         </div>
 
         <Dropdown
+          trigger={['hover', 'click']}
           menu={{
             items: [
               { key: 'password', icon: <LockOutlined />, label: 'Đổi mật khẩu', onClick: () => navigate('/admin/change-password') },
@@ -154,15 +149,15 @@ export default function AdminLayout() {
             ],
           }}
         >
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Avatar icon={<UserOutlined />} style={{ background: '#E6F4FF', color: '#1677FF' }} />
+          <button type="button" aria-label="Tài khoản" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', textAlign: 'left' }}>
+            <Avatar icon={<UserOutlined />} style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }} />
             {!isMobile && (
               <div style={{ lineHeight: 1.3 }}>
                 <div style={{ fontWeight: 500 }}>{user?.fullName}</div>
                 <Text type="secondary" style={{ fontSize: 12 }}>{ROLE_LABEL[user?.role]}</Text>
               </div>
             )}
-          </div>
+          </button>
         </Dropdown>
       </Header>
 
@@ -171,7 +166,7 @@ export default function AdminLayout() {
           <Sider
             width={240}
             theme="light"
-            style={{ borderRight: '1px solid #f0f0f0', overflow: 'auto', position: 'sticky', top: 72, height: 'calc(100vh - 72px)' }}
+            style={{ borderRight: '1px solid var(--line)', overflow: 'auto', position: 'sticky', top: 72, height: 'calc(100vh - 72px)' }}
           >
             {menu}
           </Sider>
@@ -188,7 +183,7 @@ export default function AdminLayout() {
           {menu}
         </Drawer>
 
-        <Content style={{ padding: isMobile ? 16 : 24, background: '#F5F5F5', minWidth: 0 }}>
+        <Content style={{ padding: isMobile ? 16 : 24, background: 'var(--layout-bg)', minWidth: 0 }}>
           <Outlet />
         </Content>
       </Layout>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { AuthContext } from './AuthContext';
 import { authApi } from '../lib/authApi';
 import { authStorage } from '../lib/authStorage';
@@ -25,21 +25,12 @@ export function AuthProvider({ children }) {
    * @param {boolean} remember true = giữ phiên sau khi đóng trình duyệt (localStorage)
    * @returns user vừa đăng nhập — gồm role và mustChangePassword để trang đăng nhập điều hướng
    */
-  const login = useCallback(async (email, password, remember = true) => {
-    const res = await authApi.login({ email, password });
+  const login = useCallback(async (identifier, password, remember = true) => {
+    const res = await authApi.login({ identifier, password });
     const { token, user: loggedInUser } = res.data.data;
     authStorage.save({ token, user: loggedInUser }, remember);
     setUser(loggedInUser);
     return loggedInUser;
-  }, []);
-
-  /** Đăng ký xong backend trả luôn token → vào thẳng cổng sinh viên, không bắt đăng nhập lại */
-  const register = useCallback(async (data) => {
-    const res = await authApi.register(data);
-    const { token, user: newUser } = res.data.data;
-    authStorage.save({ token, user: newUser }, true);
-    setUser(newUser);
-    return newUser;
   }, []);
 
   const logout = useCallback(async () => {
@@ -62,9 +53,17 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  // ⚠️ Tab khác đăng nhập tài khoản khác / đăng xuất (cùng localStorage): tab này phải tải lại, không thì màn hình
+  // vẫn mang tên người cũ trong khi mọi request đã đi bằng token của người mới
+  useEffect(() => {
+    const onStorage = (e) => { if (e.key === 'token' || e.key === null) window.location.reload(); };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isAuthenticated: !!user, login, register, logout, updateUser }),
-    [user, login, register, logout, updateUser],
+    () => ({ user, isAuthenticated: !!user, login, logout, updateUser }),
+    [user, login, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

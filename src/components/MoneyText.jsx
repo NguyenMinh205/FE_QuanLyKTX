@@ -7,7 +7,7 @@ import { formatCurrency } from '../utils/formatter';
 export default function MoneyText({ value, danger = false, strong = false }) {
   const isDebt = danger && Number(value) > 0;
   return (
-    <span style={{ color: isDebt ? '#FF4D4F' : undefined, fontWeight: strong || isDebt ? 600 : undefined }}>
+    <span style={{ color: isDebt ? 'var(--danger-text)' : undefined, fontWeight: strong || isDebt ? 600 : undefined }}>
       {formatCurrency(value)}
     </span>
   );

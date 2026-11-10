@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
-  Card, Select, Table, Tag, Typography, Progress, Alert, Tooltip, App, Space,
+  Card, Select, Table, Tag, Typography, Progress, Alert, Tooltip, App, Space, InputNumber, Button, Upload,
 } from 'antd';
 import {
-  ThunderboltOutlined, ExperimentOutlined, InfoCircleOutlined, CheckSquareOutlined,
+  ThunderboltOutlined, ExperimentOutlined, CheckSquareOutlined, HistoryOutlined, InfoCircleOutlined,
+  DownloadOutlined, UploadOutlined,
 } from '@ant-design/icons';
+import { exportReadingSheet, parseReadingFile } from '../utils/readingExcel';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { feeApi } from '../api/fee.api';
 import { roomApi } from '../../rooms/api/room.api';
-import { getErrorMessage } from '../../../lib/axiosClient';
-import { formatCurrency } from '../../../utils/formatter';
+import { getErrorCode, getErrorMessage } from '../../../lib/axiosClient';
 import PageHeader from '../../../components/PageHeader';
 import MeterCell from '../components/readings/MeterCell';
-import ReadingShareCell from '../components/readings/ReadingShareCell';
+import ReadingAmountCell from '../components/readings/ReadingAmountCell';
 import ReadingSaveBar from '../components/readings/ReadingSaveBar';
+import RoomUtilityHistoryDrawer from '../components/readings/RoomUtilityHistoryDrawer';
 import {
-  METER_FIELDS, READING_STATUS, buildRow, currentPeriod, itemsOf, periodLabel, periodOptions, previousPeriod,
+  METER_FIELDS, READING_STATUS, buildRow, currentPeriod, periodLabel, periodOptions,
 } from '../utils/readingSheet';
 
 const { Text } = Typography;
@@ -26,85 +27,64 @@ const { Text } = Typography;
 const ELECTRIC_BG = '#EEF4FF';
 const WATER_BG = '#EFF8F1';
 
-/** Backend hiện tại populate `buildingId` thành object và trả `occupiedBeds`/`totalBeds` — nhận cả hai dạng */
-const normalizeRoom = (r) => ({
-  ...r,
-  buildingCode: r.buildingCode ?? r.buildingId?.code,
-  occupied: r.occupied ?? r.occupiedBeds ?? 0,
-  capacity: r.capacity ?? r.totalBeds,
-});
-/** Backend hiện tại populate `roomId` thành object phòng */
-const normalizeReading = (u) => ({ ...u, roomId: u.roomId?.id ?? u.roomId?._id ?? u.roomId });
+const isPrice = (v) => Number.isInteger(v) && v > 0;
+const priceFormatter = (v) => (v === undefined || v === null || v === '' ? '' : Number(v).toLocaleString('vi-VN'));
+const priceParser = (v) => (v ? v.replace(/\D/g, '') : '');
 
-/** Phòng + chỉ số kỳ này + chỉ số kỳ trước của một tòa, gộp một lần tải */
-const loadSheet = (buildingId, period) => (buildingId
-  ? Promise.all([
-    roomApi.getRooms({ buildingId, limit: 100 }),
-    feeApi.getUtilityReadings({ buildingId, billingPeriod: period, limit: 100 }),
-    feeApi.getUtilityReadings({ buildingId, billingPeriod: previousPeriod(period), limit: 100 }),
-  ]).then(([rooms, current, previous]) => ({
-    data: {
-      data: {
-        rooms: itemsOf(rooms.data.data)
-          .filter((r) => r.status !== 'inactive')
-          .map(normalizeRoom)
-          .sort((a, b) => String(a.roomNumber).localeCompare(String(b.roomNumber), 'vi', { numeric: true })),
-        current: itemsOf(current.data.data).map(normalizeReading),
-        previous: itemsOf(previous.data.data).map(normalizeReading),
-      },
-    },
-  }))
-  : Promise.resolve({ data: { data: null } }));
-
-/** SCR-51 Nhập chỉ số điện nước — UC-03, FR-59, BR-50→53. Admin/Staff nhập, Viewer chỉ xem */
+/** SCR-51 Chỉ số điện nước — FR-40 nhập theo tòa + tháng, FR-41 chốt & phát hành, FR-42 lịch sử phòng */
 export default function UtilityReadingsPage() {
   const { user } = useAuth();
   const { modal, message } = App.useApp();
   const canEdit = can(user, 'utilityReading:record');
 
-  // Mở từ modal Lập hóa đơn hàng loạt kèm ?period=2026-10&buildingId=… ("Nhập ngay")
-  const [searchParams] = useSearchParams();
-  const [period, setPeriod] = useState(() => {
-    const p = searchParams.get('period');
-    return periodOptions(12).some((o) => o.value === p) ? p : currentPeriod();
-  });
-  const [buildingId, setBuildingId] = useState(searchParams.get('buildingId'));
-  const [drafts, setDrafts] = useState({});           // roomId → { field: value }
+  const [monthYear, setMonthYear] = useState(currentPeriod);
+  const [buildingId, setBuildingId] = useState(null);
+  const [drafts, setDrafts] = useState({});             // roomId → { field: value }
   const [serverErrors, setServerErrors] = useState({}); // roomId → thông báo lỗi lần lưu trước
+  const [priceDraft, setPriceDraft] = useState(null);   // null = dùng đơn giá mặc định của lưới (D4)
+  const [priceErrors, setPriceErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [historyRow, setHistoryRow] = useState(null);
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
-  const { data: feeTypes } = useApi(() => feeApi.getFeeTypes(), []);
   const activeBuildingId = (buildingId && buildings?.some((b) => b.id === buildingId) ? buildingId : null) ?? buildings?.[0]?.id ?? null;
   const building = buildings?.find((b) => b.id === activeBuildingId);
 
-  const { data: sheet, loading, error, refetch } = useApi(() => loadSheet(activeBuildingId, period), [activeBuildingId, period]);
+  const { data: sheet, loading, error, refetch } = useApi(
+    () => (activeBuildingId ? feeApi.getUtilitySheet({ buildingId: activeBuildingId, monthYear }) : Promise.resolve({ data: { data: null } })),
+    [activeBuildingId, monthYear],
+  );
+  const ready = sheet && sheet.buildingId === activeBuildingId && sheet.monthYear === monthYear;
 
-  const prices = useMemo(() => ({
-    electricity: feeTypes?.find((t) => t.code === 'electricity')?.defaultAmount ?? 0,
-    water: feeTypes?.find((t) => t.code === 'water')?.defaultAmount ?? 0,
-  }), [feeTypes]);
+  const defaults = ready ? sheet.defaultUnitPrices : { electricity: 0, water: 0 };
+  const prices = priceDraft ?? defaults;
+  const priceDirty = !!priceDraft && (priceDraft.electricity !== defaults.electricity || priceDraft.water !== defaults.water);
 
-  const rows = useMemo(() => (sheet?.rooms || []).map((room) => buildRow({
-    room,
-    saved: sheet.current.find((u) => u.roomId === room.id),
-    previous: sheet.previous.find((u) => u.roomId === room.id),
-    draft: drafts[room.id],
+  const rows = useMemo(() => (ready ? sheet.rows : []).map((sheetRow) => buildRow({
+    // Lưới chỉ có một tòa: ghép mã tòa để hiện "K1-101" như các màn khác
+    sheetRow: { ...sheetRow, room: { ...sheetRow.room, buildingCode: building?.code } },
+    draft: drafts[sheetRow.room.id],
     prices,
-    serverError: serverErrors[room.id],
-  })), [sheet, drafts, prices, serverErrors]);
+    priceDirty,
+    serverError: serverErrors[sheetRow.room.id],
+  })), [ready, sheet, building, drafts, prices, priceDirty, serverErrors]);
 
   const counts = useMemo(() => {
     const by = (s) => rows.filter((r) => r.status === s).length;
-    const required = rows.filter((r) => r.occupants > 0 || r.saved).length;
+    const occupiedRows = rows.filter((r) => r.occupants > 0);
     return {
-      error: by('error'), empty: by('empty'), incomplete: by('incomplete'), unsaved: by('unsaved'),
-      dirty: rows.filter((r) => r.dirty).length,
-      required,
-      recorded: rows.filter((r) => (r.occupants > 0 || r.saved) && r.saved).length,
+      error: by('error'), incomplete: by('incomplete'), unsaved: by('unsaved'),
+      empty: rows.filter((r) => r.status === 'empty' && r.occupants > 0).length,
+      dirty: rows.filter((r) => r.dirty).length + (priceDirty ? 1 : 0),
+      required: occupiedRows.length,
+      recorded: occupiedRows.filter((r) => r.reading).length,
+      billed: by('billed'),
+      publishable: rows.filter((r) => r.publishable).length,
     };
-  }, [rows]);
-  const allInvoiced = rows.some((r) => r.invoiced) && rows.every((r) => r.invoiced || (!r.saved && r.skipped));
+  }, [rows, priceDirty]);
+  const editable = rows.some((r) => !r.billed && !r.skipped);
+  const allBilled = rows.length > 0 && counts.billed > 0 && !editable;
 
   // Rời trang khi còn thay đổi chưa lưu → trình duyệt hỏi lại
   useEffect(() => {
@@ -114,14 +94,14 @@ export default function UtilityReadingsPage() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [counts.dirty]);
 
-  const resetDrafts = () => { setDrafts({}); setServerErrors({}); };
+  const resetDrafts = () => { setDrafts({}); setServerErrors({}); setPriceDraft(null); setPriceErrors({}); };
 
-  /** Đổi kỳ / tòa khi đang có bản nháp → hỏi trước khi bỏ */
+  /** Đổi tháng / tòa khi đang có bản nháp → hỏi trước khi bỏ */
   const guard = (apply) => {
-    if (!counts.dirty) { apply(); return; }
+    if (!counts.dirty) { resetDrafts(); apply(); return; }
     modal.confirm({
       title: 'Bỏ các thay đổi chưa lưu?',
-      content: `${counts.dirty} phòng đã sửa nhưng chưa lưu sẽ mất.`,
+      content: 'Chỉ số hoặc đơn giá đã sửa nhưng chưa lưu sẽ mất.',
       okText: 'Bỏ thay đổi',
       okButtonProps: { danger: true },
       cancelText: 'Ở lại',
@@ -133,35 +113,145 @@ export default function UtilityReadingsPage() {
     setDrafts((prev) => ({ ...prev, [roomId]: { ...prev[roomId], [field]: value } }));
     setServerErrors((prev) => (prev[roomId] ? { ...prev, [roomId]: undefined } : prev));
   };
-
-  const handleSave = async () => {
-    const toSave = rows.filter((r) => r.status === 'unsaved');
-    setSaving(true);
-    const failed = {};
-    const savedIds = [];
-    // Lưu lần lượt từng phòng: một phòng lỗi không chặn các phòng khác
-    for (const r of toSave) {
-      const values = Object.fromEntries(METER_FIELDS.map((f) => [f, r.values[f]]));
-      try {
-        if (r.saved) await feeApi.updateUtilityReading(r.saved.id, values);
-        else await feeApi.saveUtilityReading({ roomId: r.room.id, billingPeriod: period, ...values });
-        savedIds.push(r.room.id);
-      } catch (err) {
-        failed[r.room.id] = getErrorMessage(err);
-      }
-    }
-    setDrafts((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !savedIds.includes(id))));
-    setServerErrors(failed);
-    setSaving(false);
-    if (savedIds.length) message.success(`Đã lưu chỉ số ${savedIds.length} phòng`);
-    if (Object.keys(failed).length) message.error(`${Object.keys(failed).length} phòng chưa lưu được — xem dòng báo lỗi`);
-    refetch();
+  const setPrice = (key, value) => {
+    setPriceDraft((prev) => ({ ...(prev ?? defaults), [key]: value === null ? null : Math.trunc(value) }));
+    setPriceErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
-  const meterColumn = (field, title, bg, rowsRef) => ({
-    title, key: field, width: 116, onHeaderCell: () => ({ style: { background: bg } }),
+  // ---- FR-40 qua Excel: xuất số cũ, nhập ngược lên chỉ ĐIỀN VÀO LƯỚI — cán bộ xem lại rồi mới bấm Lưu
+  const exportExcel = () => exportReadingSheet({ buildingCode: building.code, buildingName: building.name, monthYear, rows })
+    .catch((err) => message.error(`Không tạo được file: ${err.message}`));
+
+  const importExcel = async (file) => {
+    try {
+      const parsed = await parseReadingFile(file);
+      if (parsed.buildingCode !== building.code || parsed.monthYear !== monthYear) {
+        modal.warning({
+          title: 'File không khớp tòa / tháng đang mở',
+          content: parsed.buildingCode
+            ? `File là của Tòa ${parsed.buildingCode} — ${periodLabel(parsed.monthYear)}. Chọn đúng tòa và tháng rồi nhập lại.`
+            : 'Không thấy dòng tiêu đề của file xuất từ hệ thống. Bấm "Xuất Excel" để lấy đúng file.',
+        });
+        return false;
+      }
+      const byLabel = Object.fromEntries(rows.map((r) => [r.roomLabel, r]));
+      const skipped = [];
+      const next = {};
+      parsed.entries.forEach((e) => {
+        const r = byLabel[e.label];
+        if (!r) { skipped.push(`dòng ${e.excelRow}: không có phòng ${e.label}`); return; }
+        if (r.billed || r.skipped) return; // đã ghi chú trong file, bỏ qua không cần báo
+        if (e.invalid.length) { skipped.push(`${e.label}: ô ${e.invalid.join(', ')} không phải số`); return; }
+        const changed = Object.entries(e.values).filter(([f, v]) => v !== r.values[f]);
+        if (changed.length) next[r.room.id] = { ...drafts[r.room.id], ...Object.fromEntries(changed) };
+      });
+      setDrafts((prev) => ({ ...prev, ...next }));
+      const filled = Object.keys(next).length;
+      if (skipped.length) {
+        modal.warning({
+          title: `Đã điền ${filled} phòng vào bảng, ${skipped.length} dòng bỏ qua`,
+          content: <ul style={{ paddingLeft: 18, margin: 0 }}>{skipped.slice(0, 10).map((x) => <li key={x}>{x}</li>)}</ul>,
+        });
+      } else message.success(filled ? `Đã điền ${filled} phòng vào bảng — kiểm tra rồi bấm Lưu` : 'File không có số nào khác bảng hiện tại');
+    } catch (err) {
+      message.error(`Không đọc được file: ${err.message}`);
+    }
+    return false; // không để Upload tự gửi file
+  };
+
+  const handleSave = async () => {
+    const nextPriceErrors = {};
+    if (!isPrice(prices.electricity)) nextPriceErrors.electricity = 'Nhập đơn giá điện';
+    if (!isPrice(prices.water)) nextPriceErrors.water = 'Nhập đơn giá nước';
+    if (Object.keys(nextPriceErrors).length) { setPriceErrors(nextPriceErrors); message.error('Nhập đơn giá điện nước trước khi lưu'); return; }
+
+    const toSave = rows.filter((r) => r.status === 'unsaved');
+    setSaving(true);
+    try {
+      const res = await feeApi.saveUtilityBulk({
+        buildingId: activeBuildingId, monthYear,
+        electricityUnitPrice: prices.electricity, waterUnitPrice: prices.water,
+        rows: toSave.map((r) => ({ roomId: r.room.id, ...Object.fromEntries(METER_FIELDS.map((f) => [f, r.values[f]])) })),
+      });
+      const { savedCount, errors = [] } = res.data.data;
+      const failed = Object.fromEntries(errors.map((e) => [e.roomId, e.message]));
+      // ⚠️ Chỉ bỏ bản nháp của phòng vừa lưu được. Phòng nhập dở hay đang báo lỗi không được gửi đi — xoá là mất số đã gõ
+      const savedIds = new Set(toSave.map((r) => r.room.id).filter((id) => !failed[id]));
+      setDrafts((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !savedIds.has(id))));
+      setServerErrors(failed);
+      setPriceDraft(null);
+      if (savedCount) message.success(res.data.message);
+      if (errors.length) message.error(`${errors.length} phòng chưa lưu được — xem dòng báo lỗi`);
+      refetch();
+    } catch (err) {
+      const fieldErrors = err.response?.data?.data?.errors || [];
+      const byField = Object.fromEntries(fieldErrors.map((e) => [e.field === 'electricityUnitPrice' ? 'electricity' : e.field === 'waterUnitPrice' ? 'water' : e.field, e.message]));
+      setPriceErrors({ electricity: byField.electricity, water: byField.water });
+      message.error(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doPublish = async () => {
+    setPublishing(true);
+    try {
+      const res = await feeApi.publishUtility({ buildingId: activeBuildingId, monthYear });
+      const { publishedCount, notifiedCount, skipped = [] } = res.data.data;
+      modal.success({
+        title: res.data.message,
+        content: (
+          <>
+            <p style={{ margin: '0 0 6px' }}>{publishedCount} phòng · {notifiedCount} sinh viên nhận email và thấy hóa đơn ở Cổng sinh viên. Hạn nộp 7 ngày.</p>
+            {skipped.length > 0 && <p style={{ margin: 0 }}>Bỏ qua: {skipped.map((x) => `${x.roomNumber} (${x.reason})`).join(', ')}</p>}
+          </>
+        ),
+      });
+    } catch (err) {
+      if (getErrorCode(err) === 'NOTHING_TO_PUBLISH') message.warning(getErrorMessage(err));
+      else modal.error({ title: 'Chưa phát hành được', content: getErrorMessage(err) });
+    } finally {
+      setPublishing(false);
+      refetch();
+    }
+  };
+
+  const confirmPublish = () => {
+    const ready = rows.filter((r) => r.publishable);
+    const missing = rows.filter((r) => r.occupants > 0 && !r.reading);
+    const emptyWithReading = rows.filter((r) => r.reading && !r.billed && r.occupants === 0);
+    const total = ready.reduce((t, r) => t + (r.total ?? 0), 0);
+    modal.confirm({
+      title: `Chốt & phát hành điện nước ${periodLabel(monthYear).toLowerCase()} — ${building?.name}?`,
+      width: 520,
+      content: (
+        <>
+          <p style={{ margin: '0 0 8px' }}>
+            Tạo <b>{ready.length} hóa đơn</b>, mỗi phòng một hóa đơn, tổng <b>{total.toLocaleString('vi-VN')} đ</b>, hạn nộp 7 ngày.
+            Sau khi chốt, chỉ số các phòng này bị khóa, không sửa được nữa.
+          </p>
+          {missing.length > 0 && (
+            <Alert
+              type="warning" showIcon style={{ marginBottom: 8 }}
+              title={`${missing.length} phòng có người chưa nhập chỉ số: ${missing.map((r) => r.roomLabel).join(', ')}`}
+              description="Các phòng này chưa có hóa đơn lần này. Nhập sau rồi chốt lại — phòng đã chốt không bị phát hành lần hai."
+            />
+          )}
+          {emptyWithReading.length > 0 && (
+            <Text type="secondary">Phòng không còn người ở sẽ bị bỏ qua: {emptyWithReading.map((r) => r.roomLabel).join(', ')}.</Text>
+          )}
+        </>
+      ),
+      okText: 'Chốt & phát hành',
+      cancelText: 'Hủy',
+      onOk: doPublish,
+    });
+  };
+
+  const meterColumn = (field, title, bg) => ({
+    title, key: field, width: 104, onHeaderCell: () => ({ style: { background: bg } }),
     render: (_, r, index) => {
-      const next = rowsRef[index + 1];
+      const next = rows[index + 1];
       return (
         <MeterCell
           id={`reading-${r.room.id}-${field}`}
@@ -169,25 +259,25 @@ export default function UtilityReadingsPage() {
           label={`${title} ${field.startsWith('electricity') ? 'điện' : 'nước'} phòng ${r.roomLabel}`}
           value={r.values[field]}
           onChange={(v) => setValue(r.room.id, field, v)}
-          disabled={!canEdit || r.invoiced || r.skipped || saving}
+          disabled={!canEdit || r.billed || r.skipped || saving || publishing}
           error={r.errors[field]}
           warning={r.warnings[field]}
-          prefilled={field.endsWith('Start') && !r.saved && !!r.previous}
+          prefilled={field.endsWith('OldIndex') && !r.reading && !!r.previous}
         />
       );
     },
   });
 
-  const consumptionColumn = (key, bg) => ({
+  const usageColumn = (key, bg) => ({
     title: 'Tiêu thụ', key, width: 84, align: 'right', onHeaderCell: () => ({ style: { background: bg } }),
     render: (_, r) => (r[key] === null
       ? <Text type="secondary">—</Text>
-      : <Text strong style={{ color: r.dirty ? '#1677FF' : undefined, fontVariantNumeric: 'tabular-nums' }}>{r[key].toLocaleString('vi-VN')}</Text>),
+      : <Text strong style={{ color: r.dirty ? 'var(--brand)' : undefined, fontVariantNumeric: 'tabular-nums' }}>{r[key].toLocaleString('vi-VN')}</Text>),
   });
 
   const columns = [
     {
-      title: 'Phòng', key: 'room', width: 84,
+      title: 'Phòng', key: 'room', width: 90,
       render: (_, r) => <Text strong style={{ fontSize: 15 }} type={r.skipped ? 'secondary' : undefined}>{r.roomLabel}</Text>,
     },
     {
@@ -196,32 +286,32 @@ export default function UtilityReadingsPage() {
         <Tooltip title={`${r.occupants} người đang ở / ${r.room.capacity ?? '—'} giường`}>
           <span style={{
             display: 'inline-grid', placeItems: 'center', minWidth: 30, height: 30, borderRadius: 15, padding: '0 8px',
-            background: r.occupants ? '#F0F0F0' : '#FAFAFA', color: r.occupants ? undefined : '#BFBFBF', fontWeight: 600,
+            background: r.occupants ? 'var(--line)' : '#FAFAFA', color: r.occupants ? undefined : '#BFBFBF', fontWeight: 600,
           }}>{r.occupants}</span>
         </Tooltip>
       ),
     },
     {
-      title: <Space size={6} style={{ color: '#1677FF' }}><ThunderboltOutlined />ĐIỆN (kWh)</Space>,
+      title: <Space size={6} style={{ color: 'var(--brand)' }}><ThunderboltOutlined />ĐIỆN (kWh)</Space>,
       onHeaderCell: () => ({ style: { background: ELECTRIC_BG, textAlign: 'center' } }),
       children: [
-        meterColumn('electricityStart', 'Chỉ số cũ', ELECTRIC_BG, rows),
-        meterColumn('electricityEnd', 'Chỉ số mới', ELECTRIC_BG, rows),
-        consumptionColumn('electricityConsumption', ELECTRIC_BG),
+        meterColumn('electricityOldIndex', 'Chỉ số cũ', ELECTRIC_BG),
+        meterColumn('electricityNewIndex', 'Chỉ số mới', ELECTRIC_BG),
+        usageColumn('electricityUsage', ELECTRIC_BG),
       ],
     },
     {
-      title: <Space size={6} style={{ color: '#389E0D' }}><ExperimentOutlined />NƯỚC (m³)</Space>,
+      title: <Space size={6} style={{ color: 'var(--success-text)' }}><ExperimentOutlined />NƯỚC (m³)</Space>,
       onHeaderCell: () => ({ style: { background: WATER_BG, textAlign: 'center' } }),
       children: [
-        meterColumn('waterStart', 'Chỉ số cũ', WATER_BG, rows),
-        meterColumn('waterEnd', 'Chỉ số mới', WATER_BG, rows),
-        consumptionColumn('waterConsumption', WATER_BG),
+        meterColumn('waterOldIndex', 'Chỉ số cũ', WATER_BG),
+        meterColumn('waterNewIndex', 'Chỉ số mới', WATER_BG),
+        usageColumn('waterUsage', WATER_BG),
       ],
     },
-    { title: 'Tiền mỗi người', key: 'share', width: 170, align: 'right', render: (_, r) => <ReadingShareCell row={r} /> },
+    { title: 'Tiền cả phòng', key: 'amount', width: 150, align: 'right', render: (_, r) => <ReadingAmountCell row={r} /> },
     {
-      title: 'Trạng thái', key: 'status', width: 120, align: 'center',
+      title: 'Trạng thái', key: 'status', width: 130, align: 'center',
       render: (_, r) => {
         const tag = <Tag color={READING_STATUS[r.status].color} style={{ margin: 0 }}>{READING_STATUS[r.status].label}</Tag>;
         return r.serverError
@@ -229,25 +319,57 @@ export default function UtilityReadingsPage() {
           : tag;
       },
     },
+    {
+      title: '', key: 'history', width: 52, align: 'center',
+      render: (_, r) => (
+        <Tooltip title="Lịch sử 12 tháng">
+          <Button type="text" size="small" icon={<HistoryOutlined />} aria-label={`Lịch sử điện nước phòng ${r.roomLabel}`} onClick={() => setHistoryRow(r)} />
+        </Tooltip>
+      ),
+    },
   ];
 
   const pct = counts.required ? Math.round((counts.recorded / counts.required) * 100) : 0;
+  const priceInput = (key, label, unit) => (
+    <Space size={6} align="start">
+      <Text style={{ lineHeight: '32px' }}>{label}</Text>
+      <div>
+        <InputNumber
+          aria-label={`Đơn giá ${label.toLowerCase()}`} style={{ width: 110 }} value={prices[key]} min={0} max={1000000} precision={0} controls={false}
+          formatter={priceFormatter} parser={priceParser} onChange={(v) => setPrice(key, v)}
+          disabled={!canEdit || !editable || saving || publishing} status={priceErrors[key] ? 'error' : undefined}
+        />
+        {priceErrors[key] && <Text type="danger" style={{ display: 'block', fontSize: 12 }}>{priceErrors[key]}</Text>}
+      </div>
+      <Text type="secondary" style={{ lineHeight: '32px' }}>đ/{unit}</Text>
+    </Space>
+  );
 
   return (
     <>
       <PageHeader
         breadcrumb={['Tài chính', 'Chỉ số điện nước']}
-        title="Nhập chỉ số điện nước"
-        description="Chỉ số cũ tự lấy từ kỳ trước. Tiền điện nước chia đều cho số người đang ở trong phòng."
+        title="Chỉ số điện nước"
+        description="Nhập theo tòa và tháng, chỉ số cũ tự lấy từ tháng trước. Chốt & phát hành tạo một hóa đơn cho mỗi phòng có người."
+        extra={ready && rows.length > 0 && (
+          <>
+            <Button icon={<DownloadOutlined />} onClick={exportExcel}>Xuất Excel</Button>
+            {canEdit && editable && (
+              <Upload accept=".xlsx" showUploadList={false} beforeUpload={importExcel} disabled={saving || publishing}>
+                <Button icon={<UploadOutlined />} disabled={saving || publishing}>Nhập Excel</Button>
+              </Upload>
+            )}
+          </>
+        )}
       />
 
       <Card styles={{ body: { padding: '12px 16px' } }} style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <Space>
-            <Text>Kỳ:</Text>
+            <Text>Tháng:</Text>
             <Select
-              aria-label="Kỳ" style={{ width: 160 }} value={period} options={periodOptions(12)}
-              onChange={(v) => guard(() => setPeriod(v))}
+              aria-label="Tháng" style={{ width: 160 }} value={monthYear} options={periodOptions(12)}
+              onChange={(v) => guard(() => setMonthYear(v))}
             />
           </Space>
           <Space>
@@ -259,49 +381,64 @@ export default function UtilityReadingsPage() {
             />
           </Space>
           <div style={{ flex: 1 }} />
-          <Tooltip title="Đơn giá hiện tại trong danh mục loại phí. Phòng đã lưu dùng đơn giá chốt lúc nhập (BR-52).">
-            <span style={{ background: '#F5F7FA', borderRadius: 8, padding: '6px 12px', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-              <InfoCircleOutlined style={{ color: '#1677FF' }} />
-              <Text>Đơn giá: Điện {formatCurrency(prices.electricity)}/kWh · Nước {formatCurrency(prices.water)}/m³</Text>
-            </span>
-          </Tooltip>
+          {ready && (
+            <Space size={16} wrap align="start">
+              {priceInput('electricity', 'Điện', 'kWh')}
+              {priceInput('water', 'Nước', 'm³')}
+              <Tooltip title="Không có bảng giá riêng: đơn giá tự điền theo lần nhập gần nhất của tòa. Lưu lần này thì mọi phòng chưa chốt dùng giá này; phòng đã phát hành giữ giá lúc chốt.">
+                <InfoCircleOutlined style={{ color: 'var(--brand)', lineHeight: '32px', marginTop: 9 }} aria-label="Giải thích đơn giá" />
+              </Tooltip>
+            </Space>
+          )}
         </div>
+        {priceDirty && counts.publishable + counts.unsaved > 0 && (
+          <Text type="warning" style={{ display: 'block', marginTop: 8, fontSize: 13 }}>
+            Đơn giá đã đổi — bấm Lưu để tính lại tiền cho các phòng đã nhập nhưng chưa chốt.
+          </Text>
+        )}
       </Card>
 
-      {!!rows.length && (
+      {rows.length > 0 && (
         <Card styles={{ body: { padding: '12px 16px' } }} style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <Space><CheckSquareOutlined style={{ color: '#1677FF' }} /><Text strong>Tiến độ ghi điện nước · {periodLabel(period)}</Text></Space>
-            <Text strong>Đã nhập {counts.recorded}/{counts.required} phòng <Text type="secondary">({pct}%)</Text></Text>
+            <Space><CheckSquareOutlined style={{ color: 'var(--brand)' }} /><Text strong>Tiến độ · {periodLabel(monthYear)}</Text></Space>
+            <Text strong>
+              Đã nhập {counts.recorded}/{counts.required} phòng có người <Text type="secondary">({pct}%)</Text>
+              {counts.billed > 0 && <Text type="secondary"> · đã phát hành {counts.billed}</Text>}
+            </Text>
           </div>
-          <Progress percent={pct} showInfo={false} style={{ margin: 0 }} aria-label="Tiến độ ghi điện nước" />
+          <Progress percent={pct} showInfo={false} style={{ margin: 0 }} aria-label="Tiến độ nhập chỉ số" />
         </Card>
       )}
 
-      {allInvoiced && (
+      {allBilled && (
         <Alert
           type="info" showIcon style={{ marginBottom: 16 }}
-          title={`${periodLabel(period)} của ${building?.name ?? 'tòa này'} đã lập hóa đơn`}
-          description="Chỉ số đã khóa, chỉ xem được (BR-53). Cần sửa thì hủy hóa đơn của kỳ trước."
+          title={`${periodLabel(monthYear)} của ${building?.name ?? 'tòa này'} đã chốt`}
+          description="Hóa đơn điện nước đã phát hành, chỉ số đã khóa và chỉ xem được."
         />
       )}
-      {!canEdit && !allInvoiced && <Alert type="info" showIcon style={{ marginBottom: 16 }} title="Bạn chỉ có quyền xem chỉ số điện nước" />}
       {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
 
       <Card styles={{ body: { padding: 0 } }}>
         <Table
-          rowKey="key" columns={columns} dataSource={rows} loading={loading && !sheet}
-          pagination={false} size="middle" bordered={false} scroll={{ x: 1100 }}
+          rowKey="key" columns={columns} dataSource={rows} loading={loading && !ready}
+          pagination={false} size="middle" bordered={false} scroll={{ x: 1090 }}
           rowClassName={(r) => `reading-row-${r.status}`}
           onRow={(r) => ({ style: { background: r.status === 'error' ? '#FFF6F6' : ['unsaved', 'incomplete'].includes(r.status) ? '#F5F9FF' : undefined } })}
-          locale={{ emptyText: activeBuildingId ? 'Tòa này chưa có phòng nào' : 'Chưa có tòa nhà nào đang hoạt động' }}
+          locale={{ emptyText: activeBuildingId ? 'Tòa này chưa có phòng nào đang dùng' : 'Chưa có tòa nhà nào đang hoạt động' }}
           footer={rows.length ? () => <Text type="secondary">{rows.length} phòng của {building?.name} · Enter để xuống phòng kế tiếp cùng cột</Text> : undefined}
         />
       </Card>
 
-      {canEdit && !allInvoiced && rows.length > 0 && (
-        <ReadingSaveBar counts={counts} saving={saving} onReset={resetDrafts} onSave={handleSave} />
+      {canEdit && editable && (
+        <ReadingSaveBar
+          counts={counts} saving={saving} publishing={publishing}
+          onReset={resetDrafts} onSave={handleSave} onPublish={confirmPublish}
+        />
       )}
+
+      <RoomUtilityHistoryDrawer room={historyRow?.room} roomLabel={historyRow?.roomLabel} onClose={() => setHistoryRow(null)} />
     </>
   );
 }

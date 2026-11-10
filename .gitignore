@@ -36,3 +36,12 @@ uploads/
 
 # Ảnh xuất từ Figma — tài liệu làm việc cục bộ, không đẩy lên remote
 design/
+
+# Tai lieu bao cao tham khao cuc bo
+docs/BaoCao/
+
+
+
+
+# Binary Impeccable tự tải khi chạy skill (~21 MB) — không commit
+.impeccable/bin/

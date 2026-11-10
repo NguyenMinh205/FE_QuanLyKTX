@@ -6,6 +6,20 @@
 > **Repo:** `FE_QuanLyKTX` (React + tài liệu này) · `BE_QuanLyKTX` (Node.js + Express)
 > **Phiên bản tài liệu:** v2.1 · **Cập nhật:** 13/09/2026
 
+> ## ⚠️ Bản đang dùng là v2 (HaUI tinh gọn, từ 09/11/2026)
+>
+> Đề tài đã chuyển sang **bản tinh gọn theo SRS v2.0 của HaUI**.
+> - **Thay đổi chính:** 3 vai trò, nộp đơn công khai không cần tài khoản, chọn phòng + giường, gói 6/12 tháng thu trọn gói, một hóa đơn điện nước mỗi phòng, chỉ tiền mặt + VietQR, hoàn cọc sau thanh lý.
+> - **Đã bỏ:** nhu yếu phẩm, gia hạn, loại phòng, VNPay.
+>
+> | Tài liệu | Mô tả bản nào |
+> |---|---|
+> | `API.md` (v2.5), `MO-TA-DE-TAI.md`, `16`, `17` | **v2** — dùng các tài liệu này |
+> | `15` | Mục **24–35** là v2; các mục số nhỏ hơn là v1 (bảng ở đầu tài liệu ghi rõ mục nào đã bỏ) |
+> | `01`–`14`, `PRD.md`, `ARCHITECTURE.md`, `DATA-SCHEMA.md` | **v1** — chỉ để tra lịch sử, không viết lại |
+>
+> Yêu cầu gốc của v2 nằm ở repo backend: `docs/EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS) và `docs/EDIT_DOCS_DATA_SCHEMA.md`. Bản v1 đầy đủ (code + tài liệu) giữ ở nhánh `backup/v1-full`.
+
 ---
 
 ## 1. Bản đồ tài liệu
@@ -41,9 +55,9 @@ Bộ tài liệu chia làm **hai tầng**. Tầng 1 là hợp đồng kỹ thu�
 | 12 | [Khung báo cáo đồ án](12-KHUNG-BAO-CAO.md) | Mục lục báo cáo, map tài liệu → chương, câu hỏi phản biện |
 | 13 | [Lộ trình triển khai A→Z](13-LO-TRINH-TRIEN-KHAI.md) | Timeline 12 tuần, runbook cài đặt → deploy, 26 cạm bẫy |
 | 14 | [Hướng dẫn cho người mới](14-PHIEN-BAN-DON-GIAN-HOA.md) | Lý do đơn giản hóa, lộ trình tự học, **mẫu code một module hoàn chỉnh** |
-| 15 | [Checklist nghiệm thu frontend](15-CHECKLIST-NGHIEM-THU-FE.md) | Từng màn một: cách chạy, các bước bấm thử, mẫu ghi lỗi |
-| 16 | [Yêu cầu API gửi backend](16-YEU-CAU-API-BACKEND.md) | Đối chiếu API.md với backend thật, danh sách việc backend cần sửa |
-| 17 | [Tổng quan frontend](17-TONG-QUAN-FRONTEND.md) | 31 màn hình, luồng chạy, cơ chế dùng chung, câu hỏi phản biện |
+| 15 | [Checklist nghiệm thu frontend](15-CHECKLIST-NGHIEM-THU-FE.md) | Từng màn một: cách chạy, các bước bấm thử, mẫu ghi lỗi. **v2: mục 24–35** |
+| 16 | [Yêu cầu API gửi backend](16-YEU-CAU-API-BACKEND.md) | **v2:** 51 endpoint FE gọi, phần cần gỡ của v1, bổ sung schema, thứ tự làm |
+| 17 | [Tổng quan frontend](17-TONG-QUAN-FRONTEND.md) | **v2:** 21 màn, luồng chạy, cơ chế dùng chung, quyết định đã chốt, câu hỏi phản biện |
 | — | [**Mô tả đề tài**](MO-TA-DE-TAI.md) | Bản nộp cho giảng viên: bài toán, yêu cầu, mô hình hóa, CSDL, công nghệ, kiểm thử |
 
 > **Vì sao không có tệp 04, 05, 06?** Ba tài liệu đó (Thiết kế CSDL, Kiến trúc, Đặc tả API) đã được thay thế bằng `DATA-SCHEMA.md`, `ARCHITECTURE.md`, `API.md` ở tầng 1 vào ngày 12/09/2026. Giữ số cũ cho các tài liệu còn lại để không phải sửa hàng trăm tham chiếu chéo. **Không tạo lại 04/05/06.**

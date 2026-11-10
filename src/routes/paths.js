@@ -11,5 +11,6 @@ export const changePasswordPathOf = (role) => (role === ROLES.STUDENT ? '/portal
  */
 export const safeRedirectPath = (role, from) => {
   const area = role === ROLES.STUDENT ? '/portal/' : '/admin/';
-  return typeof from === 'string' && from.startsWith(area) ? from : homePathOf(role);
+  // Không quay lại trang đổi mật khẩu bắt buộc của phiên trước
+  return typeof from === 'string' && from.startsWith(area) && !from.includes('change-password') ? from : homePathOf(role);
 };

@@ -5,7 +5,7 @@ import { USE_MOCK } from '../../../lib/env';
 /** Quản lý tài khoản — chỉ Admin (docs/07 mục 2), trừ reset mật khẩu cho phép cả Staff (FR-09) */
 export const userApi = {
   getList:       (params)   => (USE_MOCK ? mockUsers.getList(params)       : axiosClient.get('/users', { params })),
-  /** { email, fullName, role, studentId? } → { user, temporaryPassword } */
+  /** { email, fullName, role: admin|staff } → { user, temporaryPassword } */
   create:        (data)     => (USE_MOCK ? mockUsers.create(data)          : axiosClient.post('/users', data)),
   /** { email, fullName, role } */
   update:        (id, data) => (USE_MOCK ? mockUsers.update(id, data)      : axiosClient.put(`/users/${id}`, data)),

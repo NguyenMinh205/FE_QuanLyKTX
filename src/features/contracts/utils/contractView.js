@@ -1,22 +1,18 @@
 import dayjs from 'dayjs';
+import { roomLabelOf } from '../../rooms/utils/roomStatus';
 
-/** Ngưỡng "sắp hết hạn" — BR-29, khớp core/config/settings.js ở backend */
+/** Ngưỡng "sắp hết hạn" hiển thị ở danh sách và trang chủ sinh viên */
 export const EXPIRING_DAYS = 30;
 
 /** Số ngày còn lại tới ngày kết thúc (âm = đã qua) */
 export const daysLeftOf = (endDate) => dayjs(endDate).startOf('day').diff(dayjs().startOf('day'), 'day');
 
-/** Thời hạn hợp đồng tính theo tháng, làm tròn lên — "01/09/2026 → 30/06/2027" = 10 */
-export const contractMonths = (startDate, endDate) => {
-  const s = dayjs(startDate);
-  const e = dayjs(endDate);
-  if (!e.isAfter(s)) return 0;
-  return Math.ceil(e.diff(s, 'month', true) - 0.01);
-};
+/** "K1-203 · Giường 03" từ RoomRef + số giường của hợp đồng */
+export const placeTextOf = (c) => (c?.room ? `${roomLabelOf(c.room)} · Giường ${String(c.bedNumber).padStart(2, '0')}` : '—');
 
-/** "B203-03" → "B203 · Giường 03" */
-export const bedTextOf = (bedCode) => {
-  if (!bedCode) return '—';
-  const [room, bed] = bedCode.split('-');
-  return bed ? `${room} · Giường ${bed}` : room;
+/** Trạng thái tiền cọc của một hợp đồng (FR-35, BR-08) → { text, color } để hiện nhãn */
+export const depositStateOf = (c) => {
+  if (c.isDepositRefunded) return { text: 'Đã hoàn cọc', color: 'success' };
+  if (c.status === 'terminated') return { text: 'Chờ hoàn cọc', color: 'warning' };
+  return { text: 'Đang giữ cọc', color: 'default' };
 };

@@ -23,7 +23,7 @@ export default function TemporaryPasswordModal({ info, onClose }) {
   return (
     <Modal
       open={!!info}
-      title={<span><KeyOutlined style={{ color: '#1677FF' }} /> {info?.title}</span>}
+      title={<span><KeyOutlined style={{ color: 'var(--brand)' }} /> {info?.title}</span>}
       onCancel={onClose}
       footer={<Button type="primary" onClick={onClose}>Tôi đã ghi lại mật khẩu</Button>}
       mask={{ closable: false }}

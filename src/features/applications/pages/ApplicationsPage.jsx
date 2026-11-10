@@ -1,74 +1,58 @@
 import { useState } from 'react';
 import {
-  Button, Card, Input, Select, Segmented, Skeleton, Alert, Typography, Pagination, Grid, Badge,
+  Card, Input, Segmented, Skeleton, Alert, Typography, Pagination, Grid, Badge,
 } from 'antd';
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
-import { applicationApi } from '../api/application.api';
-import { roomApi } from '../../rooms/api/room.api';
+import { contractApi } from '../../contracts/api/contract.api';
 import PageHeader from '../../../components/PageHeader';
 import EmptyState from '../../../components/EmptyState';
 import ApplicationListItem from '../components/ApplicationListItem';
 import ApplicationDetail from '../components/ApplicationDetail';
-import CreateApplicationModal from '../components/CreateApplicationModal';
-import { isBlocked } from '../utils/applicationView';
 
 const { Text } = Typography;
 const { useBreakpoint } = Grid;
 const PAGE_SIZE = 20;
 
-const TAB_LABEL = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Đã từ chối' };
+const TAB_LABEL = { pending: 'Chờ duyệt', rejected: 'Đã từ chối' };
 const EMPTY_TEXT = {
   pending: 'Không có đơn nào đang chờ duyệt',
-  approved: 'Chưa có đơn nào được duyệt',
   rejected: 'Chưa có đơn nào bị từ chối',
 };
 
-/** SCR-31 Duyệt đơn đăng ký — danh sách trái + chi tiết phải (docs/08 mục 6.4) */
+/**
+ * SCR-31 Duyệt đơn đăng ký (FR-31, FR-32, FR-33) — danh sách trái + chi tiết phải.
+ * Đơn là hợp đồng trạng thái `pending`; đơn đã duyệt chuyển sang màn Hợp đồng.
+ */
 export default function ApplicationsPage() {
   const { user } = useAuth();
   const screens = useBreakpoint();
   const canReview = can(user, 'application:review');
-  const canCreate = can(user, 'application:create');
 
   const [status, setStatus] = useState('pending');
   const [keyword, setKeyword] = useState('');
-  const [roomTypeId, setRoomTypeId] = useState();
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const search = useDebounce(keyword.trim());
 
-  const { data: roomTypes } = useApi(() => roomApi.getRoomTypes(), []);
   const { data: items, meta, loading, error, refetch } = useApi(
-    () => applicationApi.getList({ status, search: search || undefined, roomTypeId, page, limit: PAGE_SIZE }),
-    [status, search, roomTypeId, page],
+    () => contractApi.getList({ status, search: search || undefined, page, limit: PAGE_SIZE }),
+    [status, search, page],
   );
 
   const list = items || [];
   const summary = meta?.summary;
   // Chưa chọn đơn nào thì mở đơn đầu tiên (đơn chờ lâu nhất)
   const activeId = selectedId ?? list[0]?.id ?? null;
-  const blockedCount = status === 'pending' ? list.filter(isBlocked).length : 0;
-
-  const resetSelection = (fn) => (value) => { fn(value); setPage(1); setSelectedId(null); };
 
   const afterProcessed = () => {
     setSelectedId(null);
-    refetch();
-  };
-
-  const afterCreated = (created) => {
-    setCreateOpen(false);
-    setStatus('pending');
-    setKeyword('');
-    setRoomTypeId(undefined);
-    setPage(1);
-    setSelectedId(created.id);
-    refetch();
+    // Xử lý đơn cuối của trang 2 trở đi: trang đó rỗng và ô phân trang biến mất → lùi một trang
+    if (list.length === 1 && page > 1) setPage((p) => p - 1);
+    else refetch();
   };
 
   const columns = screens.xl ? '400px minmax(0, 1fr)' : screens.lg ? '320px minmax(0, 1fr)' : 'minmax(0, 1fr)';
@@ -90,50 +74,36 @@ export default function ApplicationsPage() {
       <PageHeader
         breadcrumb={['Lưu trú & hợp đồng', 'Duyệt đơn đăng ký']}
         title="Duyệt đơn đăng ký"
-        description="Xếp phòng cho sinh viên — giường được hệ thống gán tự động"
-        extra={canCreate && <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>Lập đơn cho sinh viên</Button>}
+        description="Đơn sinh viên nộp trực tuyến — kiểm tra hồ sơ, xác nhận giường, cấp tài khoản và hóa đơn"
       />
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 16 }}>
         <Segmented
           value={status}
-          onChange={resetSelection(setStatus)}
-          options={['pending', 'approved', 'rejected'].map(tabOption)}
+          onChange={(v) => { setStatus(v); setPage(1); setSelectedId(null); }}
+          options={['pending', 'rejected'].map(tabOption)}
         />
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginLeft: 'auto' }}>
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="Tìm mã đơn, MSSV, họ tên, phòng..."
-            style={{ width: 280 }}
-            value={keyword}
-            onChange={(e) => { setKeyword(e.target.value); setPage(1); setSelectedId(null); }}
-          />
-          <Select
-            allowClear
-            placeholder="Tất cả loại phòng"
-            style={{ width: 200 }}
-            value={roomTypeId}
-            options={(roomTypes || []).map((t) => ({ value: t.id, label: t.name }))}
-            onChange={resetSelection(setRoomTypeId)}
-          />
-        </div>
+        <Input
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder="Tìm mã đơn, MSSV, họ tên, số phòng..."
+          style={{ width: 300, marginLeft: 'auto' }}
+          value={keyword}
+          onChange={(e) => { setKeyword(e.target.value); setPage(1); setSelectedId(null); }}
+        />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: columns, gap: 16, alignItems: 'start' }}>
         {/* ---------- Danh sách ---------- */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-            <Text strong type="secondary" style={{ fontSize: 12, letterSpacing: 0.5 }}>
-              {TAB_LABEL[status].toUpperCase()} ({meta?.total ?? 0})
-            </Text>
-            {blockedCount > 0 && <Text type="danger" style={{ fontSize: 12 }}>● {blockedCount} đơn hết chỗ</Text>}
-          </div>
+          <Text strong type="secondary" style={{ display: 'block', fontSize: 12, letterSpacing: 0.5, marginBottom: 8 }}>
+            {TAB_LABEL[status].toUpperCase()} ({meta?.total ?? 0})
+          </Text>
 
           {error && <Alert type="error" showIcon title={error} />}
           {!error && loading && !items && <Card><Skeleton active avatar paragraph={{ rows: 4 }} /></Card>}
           {!error && items && list.length === 0 && (
-            <Card><EmptyState description={search || roomTypeId ? 'Không có đơn phù hợp bộ lọc' : EMPTY_TEXT[status]} /></Card>
+            <Card><EmptyState description={search ? 'Không có đơn phù hợp từ khóa' : EMPTY_TEXT[status]} /></Card>
           )}
           {!error && list.length > 0 && (
             <div style={{ display: 'grid', gap: 8, opacity: loading ? 0.6 : 1, transition: 'opacity .15s' }}>
@@ -154,25 +124,12 @@ export default function ApplicationsPage() {
         {/* ---------- Chi tiết ---------- */}
         <div style={{ minWidth: 0 }}>
           {activeId ? (
-            <ApplicationDetail
-              key={activeId}
-              applicationId={activeId}
-              canReview={canReview}
-              onProcessed={afterProcessed}
-              onListStale={refetch}
-            />
+            <ApplicationDetail key={activeId} contractId={activeId} canReview={canReview} onProcessed={afterProcessed} />
           ) : (
             !loading && !error && <Card><EmptyState description="Chọn một đơn ở danh sách bên trái để xem chi tiết" /></Card>
           )}
         </div>
       </div>
-
-      <CreateApplicationModal
-        open={createOpen}
-        roomTypes={roomTypes}
-        onCancel={() => setCreateOpen(false)}
-        onCreated={afterCreated}
-      />
     </>
   );
 }

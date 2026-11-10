@@ -22,7 +22,6 @@ export default function BuildingFormModal({ open, building, onCancel, onSaved })
     setError(null);
     const body = {
       name: values.name.trim(),
-      address: values.address?.trim() || '',
       description: values.description?.trim() || '',
     };
     try {
@@ -58,28 +57,25 @@ export default function BuildingFormModal({ open, building, onCancel, onSaved })
       <Form
         form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 8 }}
         initialValues={isEdit
-          ? { code: building.code, name: building.name, address: building.address, description: building.description }
-          : { code: '', name: '', address: '', description: '' }}
+          ? { code: building.code, name: building.name, description: building.description }
+          : { code: '', name: '', description: '' }}
       >
         <Form.Item
           name="code" label="Mã tòa nhà"
-          extra={isEdit ? 'Mã tòa không đổi được sau khi tạo — đã in trên mã giường (VD A101-01)' : 'Dùng làm tiền tố mã phòng/giường, VD "A" → A101-01'}
+          extra={isEdit ? 'Mã tòa không đổi được sau khi tạo' : 'Dùng làm tiền tố mã phòng, VD "K5" → K5-101'}
           normalize={(v) => (v || '').toUpperCase()}
           rules={isEdit ? [] : [
             { required: true, whitespace: true, message: 'Nhập mã tòa nhà' },
             { pattern: /^[A-Za-z0-9-]{1,10}$/, message: 'Mã gồm chữ, số, dấu -, tối đa 10 ký tự' },
           ]}
         >
-          <Input placeholder="VD: D" disabled={isEdit} maxLength={10} style={{ textTransform: 'uppercase' }} />
+          <Input placeholder="VD: K5" disabled={isEdit} maxLength={10} style={{ textTransform: 'uppercase' }} />
         </Form.Item>
         <Form.Item name="name" label="Tên tòa nhà" rules={[{ required: true, whitespace: true, message: 'Nhập tên tòa nhà' }]}>
-          <Input placeholder="VD: Tòa D" maxLength={100} />
-        </Form.Item>
-        <Form.Item name="address" label="Địa chỉ / khu">
-          <Input placeholder="VD: Khu KTX số 2" maxLength={200} />
+          <Input placeholder="VD: Tòa K5" maxLength={100} />
         </Form.Item>
         <Form.Item name="description" label="Mô tả" style={{ marginBottom: 0 }}>
-          <Input.TextArea rows={3} maxLength={500} showCount placeholder="VD: 5 tầng, có thang máy, dành cho sinh viên năm nhất" />
+          <Input.TextArea rows={3} maxLength={500} showCount placeholder="VD: KTX Cơ sở 1, 5 tầng, có thang máy" />
         </Form.Item>
       </Form>
     </Modal>

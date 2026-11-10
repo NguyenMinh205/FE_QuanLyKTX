@@ -10,7 +10,8 @@ import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { roomApi } from '../api/room.api';
-import { GENDER } from '../../../constants/statuses';
+import { GENDER, GENDER_OPTIONS, ROOM_CAPACITY_OPTIONS } from '../../../constants/statuses';
+import { formatCurrency } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import EmptyState from '../../../components/EmptyState';
 import StatusTag from '../../../components/StatusTag';
@@ -27,7 +28,6 @@ const { useBreakpoint } = Grid;
 const AVAILABILITY_OPTIONS = [
   { value: 'has_slot', label: 'Còn chỗ' },
   { value: 'full', label: 'Hết chỗ' },
-  { value: 'has_maintenance', label: 'Có giường bảo trì' },
 ];
 
 /** Sơ đồ tầng cần cả tòa trong một lần gọi; 100 là mức trần backend cho phép mỗi trang */
@@ -41,26 +41,24 @@ export default function RoomsPage() {
   const screens = useBreakpoint();
   const canCreate = can(user, 'room:create');
   const canEdit = can(user, 'room:update');
-  const canManageBeds = can(user, 'bed:update');
 
   // Màn Tòa nhà mở sẵn đúng tòa qua ?buildingId=
   const [searchParams] = useSearchParams();
-  const [filters, setFilters] = useState({ buildingId: searchParams.get('buildingId') || undefined, roomTypeId: undefined, floor: undefined, availability: undefined });
+  const [filters, setFilters] = useState({ buildingId: searchParams.get('buildingId') || undefined, gender: undefined, capacity: undefined, floor: undefined, availability: undefined });
   const [view, setView] = useState('map');
   const [selectedId, setSelectedId] = useState(null);
   const [formRoom, setFormRoom] = useState(null); // null = đóng · {} = thêm · room = sửa
   const [detailVersion, setDetailVersion] = useState(0);
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
-  const { data: roomTypes } = useApi(() => roomApi.getRoomTypes(), []);
   // Tòa trong URL không còn hoạt động thì quay về tòa đầu tiên
   const buildingId = (buildings?.some((b) => b.id === filters.buildingId) ? filters.buildingId : null) ?? buildings?.[0]?.id;
 
   const { data: rooms, meta, loading, error, refetch } = useApi(
     () => (buildingId
-      ? roomApi.getRooms({ buildingId, roomTypeId: filters.roomTypeId, availability: filters.availability, limit: MAP_PAGE_SIZE })
+      ? roomApi.getRooms({ buildingId, gender: filters.gender, capacity: filters.capacity, availability: filters.availability, limit: MAP_PAGE_SIZE })
       : EMPTY_PAGE),
-    [buildingId, filters.roomTypeId, filters.availability],
+    [buildingId, filters.gender, filters.capacity, filters.availability],
   );
 
   // Lọc tầng ở phía giao diện để danh sách tầng trong ô chọn không bị thu hẹp theo chính nó
@@ -85,11 +83,9 @@ export default function RoomsPage() {
     <RoomDetailPanel
       roomId={selectedId}
       version={detailVersion}
-      canManageBeds={canManageBeds}
       canEditRoom={canEdit}
       onClose={() => setSelectedId(null)}
       onEdit={(room) => setFormRoom(room)}
-      onChanged={refetch}
       bordered={!!screens.xl}
     />
   );
@@ -97,18 +93,19 @@ export default function RoomsPage() {
   const columns = [
     { title: 'Phòng', key: 'room', width: 100, render: (_, r) => <Text strong>{roomLabelOf(r)}</Text> },
     { title: 'Tầng', dataIndex: 'floor', width: 70, align: 'center' },
-    { title: 'Loại phòng', dataIndex: 'roomTypeName', width: 190 },
+    { title: 'Sức chứa', dataIndex: 'capacity', width: 100, align: 'center', render: (n) => `${n} chỗ` },
+    { title: 'Đơn giá', dataIndex: 'pricePerMonth', width: 130, align: 'right', render: formatCurrency },
     { title: 'Giới tính', dataIndex: 'gender', width: 90, render: (g) => GENDER[g]?.label },
     { title: 'Đang ở', key: 'occ', width: 90, align: 'center', render: (_, r) => `${r.occupied}/${r.capacity}` },
     { title: 'Chỗ trống', dataIndex: 'availableSlots', width: 100, align: 'center' },
     { title: 'Bảo trì', dataIndex: 'maintenanceBeds', width: 80, align: 'center', render: (n) => (n ? <Text type="danger">{n}</Text> : 0) },
     {
       title: 'Tình trạng', key: 'fill', width: 190,
-      render: (_, r) => (r.status === 'inactive'
-        ? <StatusTag type="roomStatus" value="inactive" />
-        : <span style={{ color: FILL_LEVEL[fillLevelOf(r)].color, fontWeight: 500 }}>{slotTextOf(r)}</span>),
+      render: (_, r) => (r.status === 'maintenance'
+        ? <StatusTag type="roomStatus" value="maintenance" />
+        : <span style={{ color: FILL_LEVEL[fillLevelOf(r)].text, fontWeight: 500 }}>{slotTextOf(r)}</span>),
     },
-    { title: '', key: 'action', width: 70, fixed: 'right', render: (_, r) => <a onClick={() => setSelectedId(r.id)}>Xem</a> },
+    { title: '', key: 'action', width: 70, fixed: 'right', render: (_, r) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setSelectedId(r.id)}>Xem</Button> },
   ];
 
   return (
@@ -121,7 +118,7 @@ export default function RoomsPage() {
       />
 
       <Card styles={{ body: { padding: 16 } }} style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+        <div className="room-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
           <FilterField label="Tòa nhà">
             <Select
               style={{ width: 180 }}
@@ -131,12 +128,11 @@ export default function RoomsPage() {
               onChange={(v) => setFilter({ buildingId: v, floor: undefined })}
             />
           </FilterField>
-          <FilterField label="Loại phòng">
-            <Select
-              style={{ width: 200 }} allowClear placeholder="Tất cả loại phòng" value={filters.roomTypeId}
-              options={(roomTypes || []).map((t) => ({ value: t.id, label: t.name }))}
-              onChange={(v) => setFilter({ roomTypeId: v })}
-            />
+          <FilterField label="Giới tính">
+            <Select style={{ width: 130 }} allowClear placeholder="Tất cả" value={filters.gender} options={GENDER_OPTIONS} onChange={(v) => setFilter({ gender: v })} />
+          </FilterField>
+          <FilterField label="Sức chứa">
+            <Select style={{ width: 130 }} allowClear placeholder="Tất cả" value={filters.capacity} options={ROOM_CAPACITY_OPTIONS} onChange={(v) => setFilter({ capacity: v })} />
           </FilterField>
           <FilterField label="Tầng">
             <Select style={{ width: 140 }} allowClear placeholder="Tất cả các tầng" value={filters.floor} options={floorOptions} onChange={(v) => setFilter({ floor: v })} />
@@ -144,7 +140,7 @@ export default function RoomsPage() {
           <FilterField label="Tình trạng">
             <Select style={{ width: 180 }} allowClear placeholder="Tất cả tình trạng" value={filters.availability} options={AVAILABILITY_OPTIONS} onChange={(v) => setFilter({ availability: v })} />
           </FilterField>
-          <div style={{ marginLeft: 'auto' }}>
+          <div className="room-filters-view" style={{ marginLeft: 'auto' }}>
             <Segmented
               value={view}
               onChange={setView}
@@ -179,7 +175,7 @@ export default function RoomsPage() {
             <Alert
               type="warning" showIcon style={{ marginBottom: 12 }}
               title={`Sơ đồ đang hiện ${allRooms.length}/${meta.total} phòng của tòa này`}
-              description="Dùng bộ lọc loại phòng hoặc tình trạng để thu hẹp danh sách."
+              description="Dùng bộ lọc sức chứa hoặc tình trạng để thu hẹp danh sách."
             />
           )}
           {!error && loading && <Card><Skeleton active paragraph={{ rows: 6 }} /></Card>}
@@ -202,7 +198,7 @@ export default function RoomsPage() {
                 columns={columns}
                 dataSource={shown}
                 size="middle"
-                scroll={{ x: 980 }}
+                scroll={{ x: 1020 }}
                 pagination={{ pageSize: 20, showSizeChanger: false, showTotal: (t) => `Tổng ${t} phòng` }}
                 onRow={(r) => ({ onClick: () => setSelectedId(r.id), style: { cursor: 'pointer' } })}
                 rowClassName={(r) => (r.id === selectedId ? 'ant-table-row-selected' : '')}
@@ -224,7 +220,6 @@ export default function RoomsPage() {
         open={formRoom !== null}
         room={formRoom?.id ? formRoom : null}
         buildings={buildings || []}
-        roomTypes={roomTypes || []}
         defaultBuildingId={buildingId}
         onCancel={() => setFormRoom(null)}
         onSaved={afterRoomSaved}
@@ -236,7 +231,7 @@ export default function RoomsPage() {
 function FilterField({ label, children }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: '#8C8C8C', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4 }}>{label}</div>
       {children}
     </div>
   );

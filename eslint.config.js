@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // .claude/ (script của skill thiết kế) và docs/tools/ (bộ e2e chạy bằng Node) không phải code app
+  globalIgnores(['dist', '.claude', 'docs/tools']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

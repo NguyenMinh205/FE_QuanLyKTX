@@ -12,9 +12,6 @@ export const formatDate = (value) => (value ? dayjs(value).format('DD/MM/YYYY') 
 /** "2026-12-15T14:30:00" -> "15/12/2026 14:30" */
 export const formatDateTime = (value) => (value ? dayjs(value).format('DD/MM/YYYY HH:mm') : '—');
 
-/** (10, 2026) -> "Tháng 10/2026" */
-export const formatPeriod = (month, year) => (month && year ? `Tháng ${month}/${year}` : '—');
-
 /** "0912345678" -> "0912 345 678" */
 export const formatPhone = (phone) => {
   if (!phone) return '—';

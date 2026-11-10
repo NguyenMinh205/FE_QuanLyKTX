@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Form, Input, Button, Typography, Alert, Checkbox, Popover, Collapse, Grid, App } from 'antd';
-import { UserOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { useLocation, Navigate } from 'react-router-dom';
+import { UserOutlined, LockOutlined, InfoCircleOutlined, FormOutlined } from '@ant-design/icons';
+import { useLocation, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { getErrorCode, getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
 import { USE_MOCK } from '../../../lib/env';
@@ -17,19 +17,18 @@ const DEMO_ACCOUNTS = USE_MOCK
   ? [
     ['Quản trị', 'admin@dorm.local', 'Admin@123'],
     ['Nhân viên', 'staff@dorm.local', 'Staff@123'],
-    ['Người xem', 'viewer@dorm.local', 'Viewer@123'],
     ['SV đang ở', 'sv001@dorm.local', 'Student@123'],
     ['SV chưa có chỗ', 'sv002@dorm.local', 'Student@123'],
     ['SV sắp hết hạn hợp đồng', 'sv004@dorm.local', 'Student@123'],
     ['SV bị từ chối đơn', 'sv005@dorm.local', 'Student@123'],
     ['SV có đơn chờ duyệt', 'sv006@dorm.local', 'Student@123'],
     ['SV từng ở, có lịch sử', 'sv007@dorm.local', 'Student@123'],
+    ['SV vừa được cấp tài khoản (MSSV)', '2021600005', '2021600005'],
     ['Mật khẩu tạm (buộc đổi)', 'doimk@dorm.local', 'Tam@12345'],
   ]
   : [
     ['Quản trị', 'admin@dorm.local', 'Admin@123'],
     ['Nhân viên', 'staff1@dorm.local', 'Staff@123'],
-    ['Người xem', 'viewer@dorm.local', 'Viewer@123'],
     ['Sinh viên nam', 'student.nam@dorm.local', 'Student@123'],
     ['Sinh viên nữ', 'student.nu@dorm.local', 'Student@123'],
   ];
@@ -50,6 +49,7 @@ export default function LoginPage() {
   const screens = useBreakpoint();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   // Đã đăng nhập (kể cả ngay sau khi bấm nút) → về trang cũ nếu cùng khu vực, không thì về trang chủ theo vai trò.
   // Tài khoản mật khẩu tạm sẽ bị RoleRoute chuyển tiếp sang trang đổi mật khẩu.
@@ -57,12 +57,12 @@ export default function LoginPage() {
     return <Navigate to={safeRedirectPath(user.role, location.state?.from)} replace />;
   }
 
-  const handleSubmit = async ({ email, password, remember }) => {
+  const handleSubmit = async ({ identifier, password, remember }) => {
     setLoading(true);
     setError(null);
     try {
-      const loggedIn = await login(email.trim(), password, remember);
-      if (loggedIn.mustChangePassword) message.warning('Bạn đang dùng mật khẩu tạm, vui lòng đổi mật khẩu để tiếp tục');
+      const loggedIn = await login(identifier.trim(), password, remember);
+      if (loggedIn.mustChangePassword) message.warning('Vui lòng đổi mật khẩu để tiếp tục');
       else message.success('Đăng nhập thành công');
     } catch (err) {
       const fieldErrors = getFieldErrors(err);
@@ -82,25 +82,36 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#fff' }}>
-      {/* ---------- Nửa trái: nhận diện ---------- */}
+      {/* ---------- Nửa trái: nhận diện + những việc làm được trên hệ thống (đều là tính năng có thật) ---------- */}
       {screens.md && (
         <div style={{
-          flex: 1, background: '#1677FF', color: '#fff', position: 'relative',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, textAlign: 'center',
+          flex: 1, background: 'linear-gradient(160deg, #0E4FB0 0%, var(--brand) 70%)', color: '#fff', position: 'relative',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '48px 56px',
         }}>
-          <BrandLogo size={96} variant="glass" />
-          <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: 1, marginTop: 28, lineHeight: 1.2 }}>QUẢN LÝ KÝ TÚC XÁ</div>
-          <div style={{ fontSize: 16, opacity: 0.9, marginTop: 10 }}>Hệ thống quản lý ký túc xá sinh viên</div>
-          <div style={{
-            marginTop: 36, padding: '6px 16px', borderRadius: 999, fontSize: 13,
-            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-          }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#52C41A' }} />
-            Phiên bản {APP_VERSION} · Dành cho ban quản lý và sinh viên nội trú
+          <div style={{ maxWidth: 440 }}>
+            {/* Logo cạnh tên (không xếp ô logo trên tiêu đề). ⚠️ Chữ trên nền xanh để trắng đặc: làm mờ (opacity 0.85) chỉ còn 4.48:1, dưới AA */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <BrandLogo size={56} variant="glass" />
+              <div>
+                <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.2 }}>Ký túc xá HaUI</div>
+                <div style={{ fontSize: 15, marginTop: 4 }}>Trường Đại học Công nghiệp Hà Nội</div>
+              </div>
+            </div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: '36px 0 0', display: 'grid', gap: 16 }}>
+              {[
+                ['Sinh viên', 'Đăng ký ở ký túc xá, tra cứu đơn, xem hợp đồng và hóa đơn, nộp tiền bằng mã VietQR.'],
+                ['Cán bộ', 'Duyệt đơn và xếp giường, chốt điện nước theo phòng, thu tiền, theo dõi lấp đầy.'],
+                ['Tài khoản', 'Cấp khi đơn được duyệt. Đăng nhập lần đầu bằng mã sinh viên và đổi mật khẩu.'],
+              ].map(([head, text]) => (
+                <li key={head} style={{ display: 'grid', gridTemplateColumns: '88px 1fr', gap: 12, fontSize: 14, lineHeight: 1.55 }}>
+                  <span style={{ fontWeight: 600 }}>{head}</span>
+                  <span>{text}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <div style={{ position: 'absolute', bottom: 24, fontSize: 12, opacity: 0.7 }}>
-            © {new Date().getFullYear()} Hệ thống Ký túc xá Đại học. Tất cả quyền được bảo lưu.
+          <div style={{ position: 'absolute', bottom: 24, left: 56, right: 56, fontSize: 12 }}>
+            © {new Date().getFullYear()} Ký túc xá Đại học Công nghiệp Hà Nội · Phiên bản {APP_VERSION}
           </div>
         </div>
       )}
@@ -111,12 +122,12 @@ export default function LoginPage() {
           {!screens.md && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
               <BrandLogo size={40} />
-              <Text strong style={{ fontSize: 16 }}>QUẢN LÝ KÝ TÚC XÁ</Text>
+              <Text strong style={{ fontSize: 16 }}>KÝ TÚC XÁ HaUI</Text>
             </div>
           )}
 
           <Title level={2} style={{ marginBottom: 4 }}>Đăng nhập</Title>
-          <Text type="secondary">Sử dụng tài khoản do nhà trường cấp</Text>
+          <Text type="secondary">Sinh viên dùng mã sinh viên, cán bộ dùng email</Text>
 
           {error && (
             <Alert
@@ -139,18 +150,15 @@ export default function LoginPage() {
             style={{ marginTop: 24 }}
           >
             <Form.Item
-              name="email"
-              label="Email"
-              rules={[
-                { required: true, message: 'Vui lòng nhập email' },
-                { type: 'email', message: 'Email không đúng định dạng' },
-              ]}
+              name="identifier"
+              label="Email hoặc mã sinh viên"
+              rules={[{ required: true, whitespace: true, message: 'Vui lòng nhập email hoặc mã sinh viên' }]}
             >
-              <Input prefix={<UserOutlined style={{ color: '#8C8C8C' }} />} placeholder="email@dorm.local" autoComplete="username" autoFocus />
+              <Input prefix={<UserOutlined style={{ color: 'var(--text-tertiary)' }} />} placeholder="VD: 2021601234" autoComplete="username" autoFocus />
             </Form.Item>
 
             <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}>
-              <Input.Password prefix={<LockOutlined style={{ color: '#8C8C8C' }} />} placeholder="••••••••" autoComplete="current-password" />
+              <Input.Password prefix={<LockOutlined style={{ color: 'var(--text-tertiary)' }} />} placeholder="••••••••" autoComplete="current-password" />
             </Form.Item>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -165,15 +173,23 @@ export default function LoginPage() {
             <Button type="primary" htmlType="submit" block loading={loading}>Đăng nhập</Button>
           </Form>
 
+          {/* Sinh viên chưa có tài khoản nộp đơn ở cổng công khai (FR-30) */}
+          <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
+            <Button block icon={<FormOutlined />} onClick={() => navigate('/apply')}>Đăng ký ở ký túc xá</Button>
+            <Text type="secondary" style={{ textAlign: 'center', fontSize: 13 }}>
+              Đã nộp đơn? <Link to="/apply/status">Tra cứu tiến độ</Link>
+            </Text>
+          </div>
+
           <div style={{ textAlign: 'center', marginTop: 20 }}>
             <Text type="secondary" style={{ fontSize: 13 }}>Quên mật khẩu? Liên hệ ban quản lý ký túc xá.</Text>
           </div>
 
           <div style={{
-            marginTop: 32, padding: '12px 16px', borderRadius: 8, background: '#FAFAFA', border: '1px solid #F0F0F0',
+            marginTop: 32, padding: '12px 16px', borderRadius: 8, background: '#FAFAFA', border: '1px solid var(--line)',
             display: 'flex', gap: 10, alignItems: 'flex-start',
           }}>
-            <InfoCircleOutlined style={{ color: '#1677FF', marginTop: 3 }} />
+            <InfoCircleOutlined style={{ color: 'var(--brand)', marginTop: 3 }} />
             <SupportInfo />
           </div>
 
@@ -187,9 +203,9 @@ export default function LoginPage() {
                 label: <Text type="secondary" style={{ fontSize: 12 }}>Tài khoản thử ({USE_MOCK ? 'dữ liệu giả' : 'seed của backend'}) — chỉ hiện khi chạy dev</Text>,
                 children: (
                   <div style={{ display: 'grid', gap: 6, fontSize: 12 }}>
-                    {DEMO_ACCOUNTS.map(([label, email, password]) => (
-                      <a key={email} onClick={() => form.setFieldsValue({ email, password })}>
-                        {label}: <code>{email}</code> / <code>{password}</code>
+                    {DEMO_ACCOUNTS.map(([label, identifier, password]) => (
+                      <a key={identifier} onClick={() => form.setFieldsValue({ identifier, password })}>
+                        {label}: <code>{identifier}</code> / <code>{password}</code>
                       </a>
                     ))}
                   </div>

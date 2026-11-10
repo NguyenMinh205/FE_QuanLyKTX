@@ -44,7 +44,7 @@ export function useApi(apiFunc, deps = []) {
         // Endpoint danh sách trả { items, total, page, limit }; endpoint chi tiết trả object
         const isList = body && typeof body === 'object' && Array.isArray(body.items);
 
-        // Trường phụ cạnh phân trang (VD `summary` của danh sách đơn hàng) được giữ lại trong meta
+        // Trường phụ cạnh phân trang (VD `summary` của danh sách hóa đơn) được giữ lại trong meta
         const { items, ...listMeta } = isList ? body : {};
         setResult({
           key: requestKey,

@@ -3,26 +3,27 @@ import {
   Card, Button, Tag, Typography, Divider, Skeleton, Alert, Select, Space, App,
 } from 'antd';
 import {
-  IdcardOutlined, HomeOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  InfoCircleOutlined, WarningOutlined,
+  IdcardOutlined, HomeOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
-import { applicationApi } from '../api/application.api';
+import { contractApi } from '../../contracts/api/contract.api';
 import { roomApi } from '../../rooms/api/room.api';
+import { applyApi } from '../../apply/api/apply.api';
+import BedPicker from '../../apply/components/BedPicker';
+import { bedStateOf } from '../../apply/utils/bedState';
 import { getErrorCode, getErrorMessage } from '../../../lib/axiosClient';
-import { GENDER } from '../../../constants/statuses';
+import { CONTRACT_TERM, GENDER } from '../../../constants/statuses';
 import { formatCurrency, formatDate, formatDateTime, formatPhone } from '../../../utils/formatter';
 import StatusTag from '../../../components/StatusTag';
-import BedPreview from './BedPreview';
 import RejectApplicationModal from './RejectApplicationModal';
-import { initialsOf, roomTextOf, bedNumberOfCode } from '../utils/applicationView';
+import { initialsOf, pad2, roomTextOf } from '../utils/applicationView';
 
 const { Text } = Typography;
 
 const EMPTY_LIST = Promise.resolve({ data: { data: { items: [], total: 0, page: 1, limit: 100 } } });
 const EMPTY_ITEM = Promise.resolve({ data: { data: null } });
-/** Lỗi liên quan tới phòng — hiện ngay trên thẻ phòng, không dùng toast tự tắt (docs/08 mục 6.4) */
-const ROOM_ERRORS = ['ROOM_FULL', 'ROOM_TYPE_MISMATCH', 'GENDER_MISMATCH'];
+/** Lỗi về giường — hiện ngay trên thẻ chọn giường, không dùng toast tự tắt (UC-02 nhánh 4a) */
+const BED_ERRORS = ['BED_ALREADY_OCCUPIED', 'BED_ALREADY_REQUESTED', 'GENDER_MISMATCH'];
 
 function SectionTitle({ icon, children, extra }) {
   return (
@@ -37,7 +38,7 @@ function Field({ label, children }) {
   return (
     <div style={{ minWidth: 0 }}>
       <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{label}</Text>
-      <Text style={{ fontSize: 14 }}>{children}</Text>
+      <Text style={{ fontSize: 14 }}>{children || '—'}</Text>
     </div>
   );
 }
@@ -46,83 +47,89 @@ function MoneyRow({ label, value, strong }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0' }}>
       <Text strong={strong} style={strong ? { fontSize: 16 } : undefined}>{label}</Text>
-      <Text strong style={strong ? { fontSize: 20, color: '#1677FF' } : undefined}>{formatCurrency(value)}</Text>
+      <Text strong style={strong ? { fontSize: 20, color: 'var(--brand)' } : undefined}>{formatCurrency(value)}</Text>
     </div>
   );
 }
 
+const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '12px 16px' };
+
 /**
- * Khung chi tiết đơn bên phải SCR-31.
- * Cha truyền `key={applicationId}` để mọi lựa chọn phòng / cảnh báo tự xóa khi đổi đơn.
+ * Khung chi tiết đơn bên phải SCR-31 (FR-32, FR-33).
+ * Cha truyền `key={contractId}` để lựa chọn giường và cảnh báo tự xóa khi đổi đơn.
  */
-export default function ApplicationDetail({ applicationId, canReview, onProcessed, onListStale }) {
+export default function ApplicationDetail({ contractId, canReview, onProcessed }) {
   const { modal, notification, message } = App.useApp();
   const [reloadKey, setReloadKey] = useState(0);
-  const [chosenRoomId, setChosenRoomId] = useState(null);
-  const [roomAlert, setRoomAlert] = useState(null);   // { title, description }
+  const [target, setTarget] = useState(null); // { roomId, bedNumber } cán bộ chọn lại · null = theo đơn
+  const [bedAlert, setBedAlert] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [approving, setApproving] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
 
-  const { data: app, loading, error } = useApi(() => applicationApi.getById(applicationId), [applicationId, reloadKey]);
-  const isPending = app?.status === 'pending';
+  const { data: c, loading, error } = useApi(() => contractApi.getById(contractId), [contractId, reloadKey]);
+  const isPending = c?.status === 'pending';
+  const requestedRoomId = c?.room?.id;
+  const roomId = target?.roomId ?? requestedRoomId;
 
-  // Phòng thay thế: cùng loại, cùng giới tính, còn chỗ (BR-35)
-  const { data: availableRooms, loading: roomsLoading } = useApi(
-    () => (isPending
-      ? roomApi.getAvailableRooms({ roomTypeId: app.roomType.id, gender: app.student.gender, limit: 100 })
-      : EMPTY_LIST),
-    [isPending, app?.roomType?.id, app?.student?.gender, reloadKey],
+  // Giường của phòng đang xét lấy ở GET /rooms/:id (có cờ đơn khác đang giữ); phòng thay thế lấy ở danh sách phòng trống
+  const { data: room } = useApi(
+    () => (isPending && roomId ? roomApi.getRoomById(roomId) : EMPTY_ITEM),
+    [isPending, roomId, reloadKey],
   );
-  const candidates = (availableRooms || []).filter((r) => r.gender === app?.student?.gender && r.roomTypeId === app?.roomType?.id);
-
-  const requested = app?.requestedRoom;
-  const requestedHasSlot = requested?.availableSlots > 0;
-  const chosenStillValid = chosenRoomId && (roomsLoading || candidates.some((r) => r.id === chosenRoomId));
-  const targetRoomId = chosenStillValid ? chosenRoomId : (requestedHasSlot ? requested.id : null);
-  const targetRoom = candidates.find((r) => r.id === targetRoomId) || (targetRoomId === requested?.id ? requested : null);
-
-  const { data: roomDetail, loading: bedsLoading } = useApi(
-    () => (isPending && targetRoomId ? roomApi.getRoomById(targetRoomId) : EMPTY_ITEM),
-    [isPending, targetRoomId, reloadKey],
+  const { data: others, loading: othersLoading } = useApi(
+    () => (isPending ? applyApi.getAvailableRooms({ gender: c.student.gender, limit: 100 }) : EMPTY_LIST),
+    [isPending, c?.student?.gender, reloadKey],
   );
-  const nextBed = roomDetail?.beds?.find((b) => b.status === 'available');
+
+  const roomReady = !!room && room.id === roomId;
+  const ownBed = roomId === requestedRoomId ? c?.bedNumber : null;
+  const requestedBed = roomReady && roomId === requestedRoomId ? room.beds.find((b) => b.bedNumber === c.bedNumber) : null;
+  const requestedFree = !!requestedBed && bedStateOf(requestedBed, c.bedNumber) === 'selectable';
+  // Giường sẽ khóa khi duyệt: cán bộ đã chọn, không thì giường sinh viên chọn nếu còn trống
+  const bedNumber = target?.bedNumber ?? (roomId === requestedRoomId && requestedFree ? c.bedNumber : null);
+  const changed = !!c && (roomId !== requestedRoomId || bedNumber !== c.bedNumber);
+  const months = c ? CONTRACT_TERM[c.term]?.months : 0;
+  const price = roomReady ? room.pricePerMonth : c?.pricePerMonth;
+  const deposit = roomReady ? room.depositAmount : c?.depositAmount;
 
   const reload = () => setReloadKey((k) => k + 1);
-
-  const chooseRoom = (roomId) => {
-    setChosenRoomId(roomId);
-    setRoomAlert(null);
-    setActionError(null);
-  };
+  const clearMessages = () => { setBedAlert(null); setActionError(null); };
+  const chooseRoom = (id) => { setTarget({ roomId: id, bedNumber: null }); clearMessages(); };
+  const chooseBed = (n) => { setTarget({ roomId, bedNumber: n }); clearMessages(); };
 
   const doApprove = async () => {
     setApproving(true);
     setActionError(null);
     try {
-      // Bỏ roomId khi giữ nguyên phòng sinh viên chọn (API.md mục 5.1)
-      const body = targetRoomId !== requested.id ? { roomId: targetRoomId } : {};
-      const res = await applicationApi.approve(app.id, body);
-      const { assigned, contract, invoices = [] } = res.data.data;
+      // Giữ nguyên lựa chọn của sinh viên thì gửi body rỗng (API.md §6)
+      const res = await contractApi.approve(c.id, changed ? { roomId, bedNumber } : {});
+      const { contract, account, emailSent, invoices = [] } = res.data.data;
       notification.success({
-        title: `Đã xếp ${app.student.fullName} vào ${roomTextOf(assigned).replace('Phòng ', '')} · Giường ${bedNumberOfCode(assigned.bedCode)}`,
-        description: `Hợp đồng ${contract.contractCode} · ${invoices.length} hóa đơn: ${invoices.map((i) => formatCurrency(i.totalAmount)).join(' + ')}`,
-        duration: 8,
+        title: `Đã duyệt đơn ${contract.contractCode}`,
+        description: [
+          `${c.student.fullName} vào ${roomTextOf(contract.room)} · Giường ${pad2(contract.bedNumber)}.`,
+          account.isNew ? `Tài khoản ${account.studentCode}, mật khẩu ban đầu là mã sinh viên.` : 'Sinh viên dùng lại tài khoản cũ.',
+          emailSent ? `Đã gửi email tới ${account.email}.` : '',
+          `Hóa đơn: ${invoices.map((i) => formatCurrency(i.amount)).join(' + ')}.`,
+        ].filter(Boolean).join(' '),
+        duration: 10,
       });
+      if (!emailSent) {
+        notification.warning({
+          title: 'Chưa gửi được email cho sinh viên',
+          description: `Báo trực tiếp: đăng nhập bằng mã ${account.studentCode}, mật khẩu ban đầu là mã sinh viên.`,
+          duration: 0,
+        });
+      }
       onProcessed();
     } catch (err) {
       const code = getErrorCode(err);
-      if (ROOM_ERRORS.includes(code)) {
-        setRoomAlert({
-          title: getErrorMessage(err),
-          description: code === 'ROOM_FULL'
-            ? 'Danh sách phòng đã được tải lại. Chọn một phòng khác cùng loại rồi bấm duyệt lại.'
-            : 'Chọn lại phòng cùng loại, cùng giới tính với sinh viên.',
-        });
-        setChosenRoomId(null);
+      if (BED_ERRORS.includes(code)) {
+        setBedAlert(getErrorMessage(err));
+        setTarget((t) => (t ? { roomId: t.roomId, bedNumber: null } : null));
         reload();
-        onListStale(); // đơn khác có thể vừa được duyệt
-      } else if (code === 'APPLICATION_NOT_PENDING') {
+      } else if (code === 'CONTRACT_NOT_PENDING') {
         message.warning(getErrorMessage(err));
         onProcessed();
       } else {
@@ -134,170 +141,145 @@ export default function ApplicationDetail({ applicationId, canReview, onProcesse
   };
 
   const confirmApprove = () => modal.confirm({
-    title: `Duyệt đơn ${app.applicationCode}?`,
-    icon: <CheckCircleOutlined style={{ color: '#1677FF' }} />,
+    title: `Duyệt đơn ${c.contractCode}?`,
+    icon: <CheckCircleOutlined style={{ color: 'var(--brand)' }} />,
     content: (
       <div>
-        Xếp <b>{app.student.fullName}</b> vào <b>{roomTextOf(targetRoom)}</b>.
-        <div style={{ marginTop: 6, color: '#8C8C8C' }}>
-          Hệ thống tự gán giường trống số nhỏ nhất, tạo hợp đồng và 2 hóa đơn (tiền cọc + tiền phòng tháng đầu).
+        Xếp <b>{c.student.fullName}</b> vào <b>{roomTextOf(room)} · Giường {pad2(bedNumber)}</b>.
+        <div style={{ marginTop: 6, color: 'var(--text-tertiary)' }}>
+          Hệ thống khóa giường, cấp tài khoản gửi qua email và tạo 2 hóa đơn: tiền cọc và tiền phòng {months} tháng.
         </div>
       </div>
     ),
-    okText: 'Duyệt và xếp phòng',
+    okText: 'Duyệt đơn',
     cancelText: 'Hủy',
     onOk: doApprove,
   });
 
   if (error) return <Card><Alert type="error" showIcon title={error} /></Card>;
-  if (loading && !app) return <Card><Skeleton active avatar paragraph={{ rows: 8 }} /></Card>;
-  if (!app) return null;
+  if (loading && !c) return <Card><Skeleton active avatar paragraph={{ rows: 8 }} /></Card>;
+  if (!c) return null;
 
-  const { student } = app;
-  const roomOptions = candidates.map((r) => ({
-    value: r.id,
-    label: `${roomTextOf(r)} — ${r.buildingName}, tầng ${r.floor} — còn ${r.availableSlots} chỗ${r.id === requested.id ? ' · nguyện vọng' : ''}`,
-  }));
-  if (!requestedHasSlot) {
-    roomOptions.unshift({ value: requested.id, label: `${roomTextOf(requested)} — đã đầy · nguyện vọng`, disabled: true });
-  }
+  const { student } = c;
+  const roomOptions = [
+    { value: c.room.id, label: `${roomTextOf(c.room)} · ${c.room.buildingName} — sinh viên chọn` },
+    ...(others || []).filter((r) => r.id !== c.room.id).map((r) => ({
+      value: r.id,
+      label: `${roomTextOf(r)} · tầng ${r.floor} · ${r.capacity} chỗ · ${formatCurrency(r.pricePerMonth)} — còn ${r.availableSlots} giường`,
+    })),
+  ];
+  const emergency = student.emergencyContact;
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {/* ---------- Sinh viên ---------- */}
       <Card>
-        <SectionTitle
-          icon={<IdcardOutlined style={{ color: '#1677FF' }} />}
-          extra={student.totalDebt > 0
-            ? <Tag color="warning" style={{ margin: 0 }}>Còn nợ {formatCurrency(student.totalDebt)}</Tag>
-            : <Tag color="success" style={{ margin: 0 }}><CheckCircleOutlined /> Không có công nợ</Tag>}
-        >
+        <SectionTitle icon={<IdcardOutlined style={{ color: 'var(--brand)' }} />} extra={<StatusTag type="contract" value={c.status} />}>
           Thông tin sinh viên
         </SectionTitle>
         <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
           <div style={{
-            width: 64, height: 64, borderRadius: 12, background: '#E6F4FF', color: '#1677FF',
+            width: 64, height: 64, borderRadius: 12, background: 'var(--brand-soft)', color: 'var(--brand)',
             display: 'grid', placeItems: 'center', fontSize: 22, fontWeight: 600, flexShrink: 0,
           }}>
             {initialsOf(student.fullName)}
           </div>
-          <div style={{ flex: 1, minWidth: 240, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px 16px' }}>
+          <div style={{ flex: 1, minWidth: 240, ...GRID }}>
             <Field label="Họ và tên"><Text strong>{student.fullName}</Text></Field>
-            <Field label="Mã số sinh viên"><Text strong style={{ color: '#1677FF' }}>{student.studentCode}</Text></Field>
+            <Field label="Mã sinh viên"><Text strong style={{ color: 'var(--brand)' }}>{student.studentCode}</Text></Field>
             <Field label="Giới tính">{GENDER[student.gender]?.label}</Field>
-            <Field label="Lớp">{student.className || '—'}</Field>
+            <Field label="Ngày sinh">{student.dob ? formatDate(student.dob) : null}</Field>
+            <Field label="Khoa / Viện">{student.faculty}</Field>
+            <Field label="Lớp">{student.className}</Field>
             <Field label="Số điện thoại">{formatPhone(student.phone)}</Field>
-            <Field label="Mã đơn">{app.applicationCode}</Field>
-            <Field label="Ngày nộp">{formatDateTime(app.createdAt)}</Field>
-            <Field label="Thời gian ở">{formatDate(app.startDate)} → {formatDate(app.endDate)}</Field>
+            <Field label="Email">{student.email}</Field>
+            <Field label="Liên hệ khẩn cấp">
+              {emergency?.name ? `${emergency.name}${emergency.relationship ? ` (${emergency.relationship})` : ''} · ${formatPhone(emergency.phone)}` : null}
+            </Field>
           </div>
         </div>
-        {app.note && (
-          <div style={{ marginTop: 16, padding: '10px 12px', background: '#FAFAFA', borderRadius: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>Ghi chú của sinh viên</Text>
-            <div>{app.note}</div>
-          </div>
+      </Card>
+
+      {/* ---------- Đơn ---------- */}
+      <Card>
+        <SectionTitle icon={<FileTextOutlined style={{ color: 'var(--brand)' }} />}>Đơn đăng ký</SectionTitle>
+        <div style={{ ...GRID, marginTop: 16 }}>
+          <Field label="Mã đơn">{c.contractCode}</Field>
+          <Field label="Nộp lúc">{formatDateTime(c.createdAt)}</Field>
+          <Field label="Gói thuê">{CONTRACT_TERM[c.term]?.label} ({CONTRACT_TERM[c.term]?.hint})</Field>
+          <Field label="Sinh viên chọn">{roomTextOf(c.room)} · Giường {pad2(c.bedNumber)}</Field>
+        </div>
+        {c.status === 'rejected' && (
+          <Alert
+            style={{ marginTop: 16 }} type="error" showIcon title="Lý do từ chối"
+            description={`${c.rejectionReason || '—'} · ${formatDateTime(c.reviewedAt)}${c.approvedByName ? ` · ${c.approvedByName}` : ''}`}
+          />
         )}
       </Card>
 
-      {/* ---------- Đơn đã xử lý: chỉ xem kết quả ---------- */}
-      {!isPending && (
-        <Card>
-          <SectionTitle icon={<FileTextOutlined style={{ color: '#1677FF' }} />} extra={<StatusTag type="application" value={app.status} />}>
-            Kết quả xử lý
-          </SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px 16px', marginTop: 16 }}>
-            <Field label="Loại phòng đăng ký">{app.roomType.name}</Field>
-            <Field label="Phòng nguyện vọng">{roomTextOf(requested)} · {requested.buildingName}</Field>
-            {app.status === 'approved' && (
-              <>
-                <Field label="Phòng được xếp"><Text strong style={{ color: '#389E0D' }}>{roomTextOf(app.assigned)}</Text></Field>
-                <Field label="Giường">{app.assigned?.bedCode ? `Giường ${bedNumberOfCode(app.assigned.bedCode)}` : '—'}</Field>
-                <Field label="Hợp đồng">{app.contractCode || '—'}</Field>
-              </>
-            )}
-            <Field label="Thời điểm xử lý">{formatDateTime(app.reviewedAt)}</Field>
-          </div>
-          {app.status === 'rejected' && (
-            <Alert style={{ marginTop: 16 }} type="error" showIcon title="Lý do từ chối" description={app.reviewNote || '—'} />
-          )}
-          {app.status === 'cancelled' && (
-            <Alert style={{ marginTop: 16 }} type="info" showIcon title="Sinh viên đã tự hủy đơn" />
-          )}
-        </Card>
-      )}
-
-      {/* ---------- Đơn chờ duyệt: chọn phòng ---------- */}
+      {/* ---------- Xếp giường ---------- */}
       {isPending && (
         <Card>
-          <SectionTitle icon={<HomeOutlined style={{ color: '#1677FF' }} />}>Phòng xếp cho sinh viên</SectionTitle>
+          <SectionTitle icon={<HomeOutlined style={{ color: 'var(--brand)' }} />}>Giường sẽ khóa khi duyệt</SectionTitle>
 
-          {roomAlert && (
+          {bedAlert && (
             <Alert
-              style={{ marginTop: 16 }} type="error" showIcon closable
-              title={roomAlert.title} description={roomAlert.description}
-              onClose={() => setRoomAlert(null)}
+              style={{ marginTop: 16 }} type="error" showIcon closable title={bedAlert}
+              description="Sơ đồ giường đã được tải lại. Chọn giường khác rồi bấm duyệt lại."
+              onClose={() => setBedAlert(null)}
             />
           )}
-          {!roomAlert && !requestedHasSlot && (
+          {!bedAlert && roomReady && roomId === requestedRoomId && !requestedFree && !target?.bedNumber && (
             <Alert
               style={{ marginTop: 16 }} type="warning" showIcon
-              title={`${roomTextOf(requested)} sinh viên chọn đã hết chỗ`}
-              description={candidates.length > 0
-                ? `Còn ${candidates.length} phòng cùng loại, cùng giới tính có chỗ trống — chọn một phòng bên dưới.`
-                : 'Không còn phòng nào cùng loại có chỗ trống. Có thể từ chối đơn và đề nghị sinh viên chọn loại phòng khác.'}
+              title={`Giường ${pad2(c.bedNumber)} sinh viên chọn đã có người nhận`}
+              description="Chọn giường khác trong phòng này hoặc đổi sang phòng khác cùng giới tính."
             />
           )}
 
-          <div style={{
-            marginTop: 16, padding: '12px 14px', background: '#FAFAFA', borderRadius: 8,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-          }}>
-            <div>
-              <Text strong>Loại phòng đăng ký: {app.roomType.name}</Text>
-              <div><Text type="secondary" style={{ fontSize: 12 }}>Nguyện vọng: {roomTextOf(requested)} · {requested.buildingName}{requested.floor ? `, tầng ${requested.floor}` : ''}</Text></div>
-            </div>
-            <Text strong style={{ color: '#1677FF', fontSize: 16 }}>{formatCurrency(app.roomType.pricePerMonth)}<Text type="secondary" style={{ fontSize: 12 }}>/người/tháng</Text></Text>
-          </div>
-
           <div style={{ marginTop: 16 }}>
-            <Text style={{ display: 'block', marginBottom: 6 }}>Chọn phòng bố trí <span style={{ color: '#FF4D4F' }}>*</span></Text>
+            <Text style={{ display: 'block', marginBottom: 6 }}>Phòng</Text>
             <Select
-              aria-label="Chọn phòng bố trí"
+              aria-label="Phòng xếp cho sinh viên"
               style={{ width: '100%' }}
-              value={targetRoomId ?? requested.id}
-              status={targetRoomId ? undefined : 'error'}
-              loading={roomsLoading}
+              value={roomId}
+              loading={othersLoading}
               disabled={!canReview}
               options={roomOptions}
               onChange={chooseRoom}
-              notFoundContent="Không có phòng cùng loại còn chỗ"
             />
-            <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 4 }}>
-              Chỉ liệt kê phòng cùng loại và cùng giới tính còn giường trống — đổi sang loại khác sẽ làm thay đổi giá sinh viên đã chọn.
-            </Text>
           </div>
 
-          {targetRoomId && (
-            <div style={{ marginTop: 16 }}>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Sơ đồ giường {roomTextOf(targetRoom)}</Text>
-              {bedsLoading && !roomDetail ? <Skeleton active paragraph={{ rows: 2 }} /> : <BedPreview beds={roomDetail?.beds} />}
-            </div>
+          <div style={{ marginTop: 16 }}>
+            <Text style={{ display: 'block', marginBottom: 8 }}>Giường</Text>
+            {roomReady && !room.beds.some((b) => bedStateOf(b, ownBed) === 'selectable') && (
+              <Alert style={{ marginBottom: 8 }} type="info" showIcon title="Phòng này không còn giường nhận đơn — chọn phòng khác ở ô Phòng" />
+            )}
+            {!roomReady ? <Skeleton active paragraph={{ rows: 2 }} /> : (
+              <BedPicker
+                beds={room.beds}
+                label="Giường xếp cho sinh viên"
+                selected={bedNumber}
+                onSelect={chooseBed}
+                ownBed={ownBed}
+                markedBed={roomId === requestedRoomId ? c.bedNumber : null}
+              />
+            )}
+          </div>
+
+          {roomReady && price !== c.pricePerMonth && (
+            <Alert
+              style={{ marginTop: 16 }} type="info" showIcon
+              title={`Đơn giá phòng này ${formatCurrency(price)}/tháng, khác ${formatCurrency(c.pricePerMonth)} sinh viên đã thấy khi nộp`}
+              description="Hợp đồng chốt theo giá của phòng được xếp. Nên báo cho sinh viên trước khi duyệt."
+            />
           )}
-        </Card>
-      )}
 
-      {/* ---------- Hóa đơn sẽ tạo ---------- */}
-      {isPending && (
-        <Card>
-          <SectionTitle icon={<FileTextOutlined style={{ color: '#1677FF' }} />}>Hóa đơn sẽ tạo khi duyệt</SectionTitle>
-          <div style={{ marginTop: 12 }}>
-            <MoneyRow label="Tiền cọc (hoàn trả khi thanh lý hợp đồng)" value={app.estimatedInvoices.deposit} />
-            <MoneyRow label="Tiền phòng tháng đầu (thu đủ 1 tháng)" value={app.estimatedInvoices.firstMonth} />
-            <Divider style={{ margin: '8px 0' }} />
-            <MoneyRow label="Tổng cộng" value={app.estimatedInvoices.total} strong />
-            <Text type="secondary" style={{ fontSize: 12 }}>Tạo thành 2 hóa đơn riêng: hóa đơn cọc và hóa đơn tháng đầu.</Text>
-          </div>
+          <Divider style={{ margin: '16px 0 8px' }} />
+          <Text strong>Hóa đơn tạo khi duyệt</Text>
+          <MoneyRow label="Tiền cọc (hoàn khi trả phòng)" value={deposit} />
+          <MoneyRow label={`Tiền phòng ${months} tháng (${formatCurrency(price)} × ${months})`} value={price * months} />
+          <MoneyRow label="Tổng cộng" value={deposit + price * months} strong />
         </Card>
       )}
 
@@ -309,20 +291,20 @@ export default function ApplicationDetail({ applicationId, canReview, onProcesse
         >
           {actionError && <Alert type="error" showIcon title={actionError} closable onClose={() => setActionError(null)} style={{ marginBottom: 12 }} />}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            {targetRoomId ? (
+            {bedNumber ? (
               <Text style={{ flex: 1, minWidth: 220 }}>
-                <InfoCircleOutlined style={{ color: '#1677FF' }} /> Sẽ xếp vào <b>{roomTextOf(targetRoom)}</b>
-                {nextBed ? ` — dự kiến giường ${String(nextBed.bedNumber).padStart(2, '0')}` : ''}
+                <InfoCircleOutlined style={{ color: 'var(--brand)' }} /> Sẽ khóa <b>{roomTextOf(room)} · Giường {pad2(bedNumber)}</b>
+                {changed && <Tag color="orange" style={{ marginLeft: 8 }}>Khác lựa chọn của sinh viên</Tag>}
               </Text>
             ) : (
               <Text type="danger" style={{ flex: 1, minWidth: 220 }}>
-                <WarningOutlined /> Chưa có phòng còn chỗ. Chọn phòng để bật nút duyệt.
+                <WarningOutlined /> Chưa có giường. Chọn giường để bật nút duyệt.
               </Text>
             )}
             <Space wrap>
               <Button danger icon={<CloseCircleOutlined />} onClick={() => setRejectOpen(true)} disabled={approving}>Từ chối</Button>
-              <Button type="primary" icon={<CheckCircleOutlined />} onClick={confirmApprove} loading={approving} disabled={!targetRoomId}>
-                Duyệt và xếp phòng
+              <Button type="primary" icon={<CheckCircleOutlined />} onClick={confirmApprove} loading={approving} disabled={!bedNumber || !roomReady}>
+                Duyệt đơn
               </Button>
             </Space>
           </div>
@@ -330,7 +312,7 @@ export default function ApplicationDetail({ applicationId, canReview, onProcesse
       )}
 
       <RejectApplicationModal
-        app={app}
+        app={c}
         open={rejectOpen}
         onCancel={() => setRejectOpen(false)}
         onRejected={() => { setRejectOpen(false); onProcessed(); }}

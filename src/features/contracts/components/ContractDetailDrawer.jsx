@@ -1,28 +1,27 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
-  Drawer, Button, Tag, Typography, Skeleton, Alert, Timeline, Table, Input, Space, App, Divider,
+  Drawer, Button, Tag, Typography, Skeleton, Alert, Timeline, Table, Space, App,
 } from 'antd';
 import {
-  IdcardOutlined, HomeOutlined, HistoryOutlined, FileTextOutlined, EditOutlined, CloseCircleOutlined, CheckCircleFilled,
+  IdcardOutlined, HomeOutlined, HistoryOutlined, FileTextOutlined, CloseCircleOutlined, CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { contractApi } from '../api/contract.api';
-import { getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
+import { getErrorMessage } from '../../../lib/axiosClient';
 import { formatCurrency, formatDate, formatDateTime, formatPhone } from '../../../utils/formatter';
-import { INVOICE_TYPE, INVOICE_STATUS } from '../../../constants/statuses';
+import { CONTRACT_TERM, INVOICE_TYPE, INVOICE_STATUS } from '../../../constants/statuses';
 import StatusTag from '../../../components/StatusTag';
 import TerminateContractModal from './TerminateContractModal';
-import { EXPIRING_DAYS, bedTextOf, contractMonths, daysLeftOf } from '../utils/contractView';
+import { EXPIRING_DAYS, daysLeftOf, depositStateOf, placeTextOf } from '../utils/contractView';
 
 const { Text } = Typography;
 
-function Section({ icon, title, extra, children }) {
+function Section({ icon, title, children }) {
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #F0F0F0' }}>
+      <div style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
         <Text strong style={{ fontSize: 15 }}>{icon} {title}</Text>
-        {extra}
       </div>
       {children}
     </div>
@@ -38,15 +37,11 @@ function Row({ label, children }) {
   );
 }
 
-/** Drawer chi tiết hợp đồng — SCR-32 */
-export default function ContractDetailDrawer({ contractId, open, canUpdate, canTerminate, onClose, onChanged }) {
-  const navigate = useNavigate();
-  const { message } = App.useApp();
+/** Drawer chi tiết hợp đồng — SCR-32: thanh lý (FR-34) và xác nhận hoàn cọc (FR-35) */
+export default function ContractDetailDrawer({ contractId, open, canTerminate, canRefund, onClose, onChanged }) {
+  const { modal, message } = App.useApp();
   const [version, setVersion] = useState(0);
   const [terminateOpen, setTerminateOpen] = useState(false);
-  const [editingTerms, setEditingTerms] = useState(null); // null = không sửa · string = nội dung đang sửa
-  const [termsError, setTermsError] = useState(null);
-  const [savingTerms, setSavingTerms] = useState(false);
 
   const { data: c, error } = useApi(
     () => (contractId ? contractApi.getById(contractId) : Promise.resolve({ data: { data: null } })),
@@ -54,31 +49,34 @@ export default function ContractDetailDrawer({ contractId, open, canUpdate, canT
   );
 
   const reload = () => { setVersion((v) => v + 1); onChanged(); };
-
-  const saveTerms = async () => {
-    setSavingTerms(true);
-    setTermsError(null);
-    try {
-      const res = await contractApi.update(c.id, { terms: editingTerms });
-      message.success(res.data.message);
-      setEditingTerms(null);
-      reload();
-    } catch (err) {
-      setTermsError(getFieldErrors(err)?.[0]?.message || getErrorMessage(err));
-    } finally {
-      setSavingTerms(false);
-    }
-  };
-
   const ready = c && c.id === contractId;
-  const daysLeft = ready ? daysLeftOf(c.endDate) : null;
+  const daysLeft = ready && c.endDate ? daysLeftOf(c.endDate) : null;
   const expiring = ready && c.status === 'active' && daysLeft >= 0 && daysLeft <= EXPIRING_DAYS;
+  const deposit = ready ? depositStateOf(c) : null;
+  const canConfirmRefund = ready && canRefund && c.status === 'terminated' && !c.isDepositRefunded;
+
+  // BR-08: một chiều, mỗi hợp đồng một lần, hoàn đủ số cọc — không nhập số tiền
+  const confirmRefund = () => modal.confirm({
+    title: `Xác nhận đã hoàn cọc cho ${c.student.fullName}?`,
+    icon: <CheckCircleOutlined style={{ color: '#52C41A' }} />,
+    content: `Đã trả ${formatCurrency(c.depositAmount)} tiền cọc tại văn phòng. Thao tác này không hoàn tác được.`,
+    okText: 'Đã hoàn cọc',
+    cancelText: 'Hủy',
+    onOk: async () => {
+      try {
+        const res = await contractApi.refundDeposit(c.id);
+        message.success(res.data.message);
+      } catch (err) {
+        message.warning(getErrorMessage(err));
+      }
+      reload();
+    },
+  });
 
   const invoiceColumns = [
-    { title: 'Hóa đơn', key: 'code', render: (_, i) => <><div>{i.invoiceCode}</div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[i.type]?.label}{i.billingPeriod ? ` · ${i.billingPeriod.split('-').reverse().join('/')}` : ''}</Text></> },
-    { title: 'Số tiền', dataIndex: 'totalAmount', align: 'right', render: (v) => formatCurrency(v) },
-    { title: 'Còn nợ', dataIndex: 'remainingAmount', align: 'right', render: (v, i) => (i.status === 'cancelled' ? '—' : <Text type={v > 0 ? 'danger' : undefined}>{formatCurrency(v)}</Text>) },
-    { title: 'Trạng thái', dataIndex: 'status', render: (s) => <Tag color={INVOICE_STATUS[s]?.color} style={{ margin: 0 }}>{INVOICE_STATUS[s]?.label}</Tag> },
+    { title: 'Hóa đơn', key: 'code', render: (_, i) => <><Link to={`/admin/invoices/${i.id}`}>{i.invoiceCode}</Link><div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[i.type]?.label ?? i.type}</Text></div></> },
+    { title: 'Số tiền', dataIndex: 'amount', align: 'right', render: (v) => formatCurrency(v) },
+    { title: 'Trạng thái', dataIndex: 'status', render: (s) => <Tag color={INVOICE_STATUS[s]?.color} style={{ margin: 0 }}>{INVOICE_STATUS[s]?.label ?? s}</Tag> },
   ];
 
   return (
@@ -91,14 +89,19 @@ export default function ContractDetailDrawer({ contractId, open, canUpdate, canT
         <Space size={8} wrap>
           <span>Hợp đồng {c.contractCode}</span>
           <StatusTag type="contract" value={c.status} />
-          {expiring && <Tag color="warning" style={{ margin: 0 }}>Sắp hết hạn</Tag>}
+          {c.status === 'terminated' && <Tag color={deposit.color} style={{ margin: 0 }}>{deposit.text}</Tag>}
         </Space>
       ) : 'Chi tiết hợp đồng'}
       footer={ready && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          {canTerminate && c.status === 'active'
-            ? <Button danger icon={<CloseCircleOutlined />} onClick={() => setTerminateOpen(true)}>Chấm dứt hợp đồng</Button>
-            : <span />}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          <Space wrap>
+            {canTerminate && ['active', 'expired'].includes(c.status) && (
+              <Button danger icon={<CloseCircleOutlined />} onClick={() => setTerminateOpen(true)}>Thanh lý hợp đồng</Button>
+            )}
+            {canConfirmRefund && (
+              <Button type="primary" icon={<CheckCircleOutlined />} onClick={confirmRefund}>Xác nhận đã hoàn cọc</Button>
+            )}
+          </Space>
           <Button onClick={onClose}>Đóng</Button>
         </div>
       )}
@@ -108,117 +111,84 @@ export default function ContractDetailDrawer({ contractId, open, canUpdate, canT
 
       {!error && ready && (
         <>
-          {c.status === 'active' && c.pendingRequests?.length > 0 && (
+          {c.status === 'expired' && (
             <Alert
-              type="info" showIcon style={{ marginBottom: 20 }}
-              title={c.pendingRequests.map((r) => `${r.type === 'renewal' ? 'Yêu cầu gia hạn' : 'Yêu cầu trả phòng'} gửi ngày ${formatDate(r.createdAt)}`).join(' · ')}
-              description="Đang chờ xử lý — duyệt hoặc từ chối ở màn Yêu cầu gia hạn / trả phòng."
-              action={<Button size="small" onClick={() => navigate('/admin/requests')}>Mở Yêu cầu</Button>}
+              type="warning" showIcon style={{ marginBottom: 20 }}
+              title={`Hợp đồng đã hết hạn ${-daysLeft} ngày, sinh viên vẫn giữ giường`}
+              description="Khi sinh viên đến trả phòng, thu hết hóa đơn còn nợ rồi thanh lý để trả giường. Không có gia hạn: muốn ở kỳ sau, sinh viên nộp đơn mới sau khi thanh lý."
             />
           )}
-          {expiring && !c.pendingRequests?.some((r) => r.type === 'renewal') && (
+          {expiring && (
             <Alert
               type="warning" showIcon style={{ marginBottom: 20 }}
               title={daysLeft === 0 ? 'Hợp đồng hết hạn hôm nay' : `Hợp đồng còn ${daysLeft} ngày`}
-              description="Sinh viên chưa gửi yêu cầu gia hạn. Gia hạn được thực hiện qua yêu cầu của sinh viên ở cổng sinh viên."
+              description="Không có gia hạn: muốn ở kỳ sau, sinh viên nộp đơn mới sau khi thanh lý hợp đồng này."
+            />
+          )}
+          {canConfirmRefund && (
+            <Alert
+              type="info" showIcon style={{ marginBottom: 20 }}
+              title={`Chưa hoàn cọc ${formatCurrency(c.depositAmount)}`}
+              description="Trả tiền cọc cho sinh viên tại văn phòng, rồi bấm Xác nhận đã hoàn cọc."
             />
           )}
 
-          <Section icon={<IdcardOutlined style={{ color: '#1677FF' }} />} title="Thông tin sinh viên">
+          <Section icon={<IdcardOutlined style={{ color: 'var(--brand)' }} />} title="Sinh viên">
             <div style={{ background: '#FAFAFA', borderRadius: 8, padding: '4px 12px' }}>
-              <Row label="Họ và tên"><Text strong>{c.student?.fullName ?? c.studentName}</Text></Row>
-              <Row label="Mã sinh viên">{c.student?.studentCode ?? c.studentCode}</Row>
-              <Row label="Lớp">{c.student?.className || '—'}</Row>
-              <Row label="Số điện thoại">{formatPhone(c.student?.phone)}</Row>
+              <Row label="Họ và tên"><Text strong>{c.student.fullName}</Text></Row>
+              <Row label="Mã sinh viên">{c.student.studentCode}</Row>
+              <Row label="Lớp">{c.student.className || '—'}</Row>
+              <Row label="Số điện thoại">{formatPhone(c.student.phone)}</Row>
+              <Row label="Email">{c.student.email || '—'}</Row>
             </div>
           </Section>
 
-          <Section icon={<HomeOutlined style={{ color: '#1677FF' }} />} title="Thông tin lưu trú & hợp đồng">
-            <Row label="Vị trí chỗ ở"><Text strong>{c.buildingName} · Phòng {bedTextOf(c.bedCode)}</Text></Row>
-            <Row label="Loại phòng">{c.roomTypeName}</Row>
+          <Section icon={<HomeOutlined style={{ color: 'var(--brand)' }} />} title="Chỗ ở và hợp đồng">
+            <Row label="Chỗ ở"><Text strong>{c.room?.buildingName} · {placeTextOf(c)}</Text></Row>
+            <Row label="Gói thuê">{CONTRACT_TERM[c.term]?.label} ({CONTRACT_TERM[c.term]?.hint})</Row>
             <Row label="Thời hạn">
               <div>{formatDate(c.startDate)} → {formatDate(c.endDate)}</div>
-              <Text type={expiring ? 'warning' : 'secondary'} style={{ fontSize: 12 }}>
-                {contractMonths(c.startDate, c.endDate)} tháng{c.status === 'active' ? (daysLeft >= 0 ? ` · còn ${daysLeft} ngày` : '') : ''}
-              </Text>
+              {c.status === 'active' && daysLeft >= 0 && (
+                <Text type={expiring ? 'warning' : 'secondary'} style={{ fontSize: 12 }}>còn {daysLeft} ngày</Text>
+              )}
             </Row>
-            <Row label="Giá thuê hằng tháng">
-              <div>{formatCurrency(c.monthlyPrice)}/tháng</div>
-              <Text type="secondary" style={{ fontSize: 12 }}>giá chốt lúc duyệt đơn — không đổi khi loại phòng tăng giá</Text>
+            <Row label="Đơn giá chốt">
+              <div>{formatCurrency(c.pricePerMonth)}/tháng</div>
+              <Text type="secondary" style={{ fontSize: 12 }}>chốt lúc duyệt đơn, không đổi khi phòng đổi giá</Text>
             </Row>
+            <Row label="Tiền phòng cả kỳ">{formatCurrency(c.totalRoomFee)}</Row>
             <Row label="Tiền cọc">
-              {formatCurrency(c.depositAmount)}{' '}
-              {c.depositStatus === 'paid'
-                ? <Text style={{ color: '#389E0D' }}><CheckCircleFilled /> đã thu</Text>
-                : <Text type="warning">chưa thu đủ</Text>}
+              {formatCurrency(c.depositAmount)} <Tag color={deposit.color} style={{ margin: '0 0 0 6px' }}>{deposit.text}</Tag>
+              {c.isDepositRefunded && (
+                <div><Text type="secondary" style={{ fontSize: 12 }}>{formatDateTime(c.depositRefundedAt)}{c.depositRefundedByName ? ` · ${c.depositRefundedByName}` : ''}</Text></div>
+              )}
             </Row>
-            {c.status !== 'active' && (
-              <Row label="Đã hoàn cọc">{formatCurrency(c.depositRefunded)}</Row>
-            )}
             <Row label="Công nợ hiện tại">
               <Text strong type={c.totalDebt > 0 ? 'danger' : 'success'}>{formatCurrency(c.totalDebt)}</Text>
             </Row>
-            {c.status === 'terminated' && (
-              <Alert
-                type="error" style={{ marginTop: 8 }}
-                title={`Chấm dứt ngày ${formatDate(c.terminatedAt)}`}
-                description={`Lý do: ${c.terminationReason || '—'}`}
-              />
-            )}
+            {c.status === 'terminated' && <Row label="Thanh lý ngày">{formatDate(c.terminatedAt)}</Row>}
           </Section>
 
-          <Section
-            icon={<FileTextOutlined style={{ color: '#1677FF' }} />}
-            title="Điều khoản"
-            extra={canUpdate && c.status === 'active' && editingTerms === null && (
-              <Button type="link" size="small" icon={<EditOutlined />} onClick={() => { setEditingTerms(c.terms || ''); setTermsError(null); }}>Sửa</Button>
-            )}
-          >
-            {editingTerms === null ? (
-              <Text style={{ whiteSpace: 'pre-wrap' }}>{c.terms || '—'}</Text>
-            ) : (
-              <>
-                <Input.TextArea
-                  rows={4} maxLength={2000} showCount value={editingTerms}
-                  status={termsError ? 'error' : undefined}
-                  onChange={(e) => setEditingTerms(e.target.value)}
-                  aria-label="Điều khoản hợp đồng"
-                />
-                {termsError && <Text type="danger" style={{ display: 'block', marginTop: 4 }}>{termsError}</Text>}
-                <Space style={{ marginTop: 8 }}>
-                  <Button type="primary" size="small" loading={savingTerms} onClick={saveTerms}>Lưu điều khoản</Button>
-                  <Button size="small" onClick={() => setEditingTerms(null)} disabled={savingTerms}>Hủy</Button>
-                </Space>
-                <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 6 }}>
-                  Chỉ sửa được điều khoản. Ngày ở thay đổi qua yêu cầu gia hạn / trả phòng.
-                </Text>
-              </>
-            )}
-          </Section>
-
-          <Section icon={<FileTextOutlined style={{ color: '#1677FF' }} />} title={`Hóa đơn của hợp đồng (${c.invoices?.length ?? 0})`}>
+          <Section icon={<FileTextOutlined style={{ color: 'var(--brand)' }} />} title={`Hóa đơn của hợp đồng (${c.invoices?.length ?? 0})`}>
             <Table
               rowKey="id" size="small" pagination={false} columns={invoiceColumns} dataSource={c.invoices || []}
-              locale={{ emptyText: 'Chưa có hóa đơn' }} scroll={{ x: 460 }}
+              locale={{ emptyText: 'Chưa có hóa đơn' }} scroll={{ x: 420 }}
             />
           </Section>
 
-          <Section icon={<HistoryOutlined style={{ color: '#1677FF' }} />} title="Lịch sử hợp đồng">
-            {c.history?.length ? (
-              <Timeline
-                items={c.history.map((h) => ({
-                  color: h.type === 'terminated' ? 'red' : h.type === 'expired' ? 'gray' : 'blue',
-                  content: (
-                    <div>
-                      <Text strong>{h.title}</Text> <Text type="secondary" style={{ fontSize: 12 }}>{h.at?.length > 10 ? formatDateTime(h.at) : formatDate(h.at)}</Text>
-                      {h.description && <div><Text type="secondary">{h.description}</Text></div>}
-                    </div>
-                  ),
-                }))}
-              />
-            ) : <Text type="secondary">Chưa có lịch sử</Text>}
+          <Section icon={<HistoryOutlined style={{ color: 'var(--brand)' }} />} title="Lịch sử">
+            <Timeline
+              items={(c.history || []).map((h) => ({
+                color: h.type === 'terminated' ? 'red' : h.type === 'deposit_refunded' ? 'green' : 'blue',
+                content: (
+                  <div>
+                    <Text strong>{h.title}</Text> <Text type="secondary" style={{ fontSize: 12 }}>{h.at?.length > 10 ? formatDateTime(h.at) : formatDate(h.at)}</Text>
+                    {h.description && <div><Text type="secondary">{h.description}</Text></div>}
+                  </div>
+                ),
+              }))}
+            />
           </Section>
-          <Divider style={{ margin: 0 }} />
         </>
       )}
 

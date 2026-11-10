@@ -1,7 +1,8 @@
 import dayjs from 'dayjs';
 import { roomLabelOf } from '../../rooms/utils/roomStatus';
 
-export const METER_FIELDS = ['electricityStart', 'electricityEnd', 'waterStart', 'waterEnd'];
+/** Bốn ô nhập của một phòng — trùng tên trường trong `rows[]` của POST /utility-readings/bulk */
+export const METER_FIELDS = ['electricityOldIndex', 'electricityNewIndex', 'waterOldIndex', 'waterNewIndex'];
 
 /** "2026-10" → "Tháng 10/2026" */
 export const periodLabel = (period) => {
@@ -10,96 +11,100 @@ export const periodLabel = (period) => {
 };
 
 export const currentPeriod = () => dayjs().format('YYYY-MM');
-export const previousPeriod = (period) => dayjs(`${period}-01`).subtract(1, 'month').format('YYYY-MM');
 
-/** Kỳ hiện tại và `count − 1` kỳ trước — không nhập trước kỳ tương lai */
+/** Tháng hiện tại và `count − 1` tháng trước — không nhập trước tháng tương lai */
 export const periodOptions = (count = 12) => Array.from({ length: count }, (_, i) => {
   const value = dayjs().startOf('month').subtract(i, 'month').format('YYYY-MM');
   return { value, label: periodLabel(value) };
 });
 
-/** Danh sách có thể là mảng hoặc { items } (backend hiện trả mảng cho utility-readings) */
-export const itemsOf = (body) => (Array.isArray(body) ? body : body?.items || []);
-
-/**
- * Chia đều tiền của phòng, dư dồn cho một người (DATA-SCHEMA 3.9): base = floor(total / n), remainder = total − base × n.
- * Tổng các phần luôn bằng đúng tổng tiền phòng.
- */
-export const splitEvenly = (total, n) => {
-  if (!n) return { base: 0, remainder: 0 };
-  const base = Math.floor(total / n);
-  return { base, remainder: total - base * n };
-};
-
 const isBlank = (v) => v === null || v === undefined || v === '';
 
+/** Giá trị 4 ô đang lưu của một bản ghi */
+const valuesOf = (reading) => ({
+  electricityOldIndex: reading.electricity.oldIndex,
+  electricityNewIndex: reading.electricity.newIndex,
+  waterOldIndex: reading.water.oldIndex,
+  waterNewIndex: reading.water.newIndex,
+});
+
 /**
- * Tính trạng thái một dòng phòng từ dữ liệu đã lưu + bản nháp đang gõ.
- * @param room      phòng (occupied, capacity, roomNumber…)
- * @param saved     chỉ số kỳ này đã lưu (hoặc undefined)
- * @param previous  chỉ số kỳ trước (hoặc undefined) — chỉ số đầu kỳ tự điền từ đây (BR-51)
- * @param draft     { field: value } người dùng đã sửa
- * @param prices    đơn giá hiện tại { electricity, water } — dòng đã lưu dùng giá đã chốt (BR-52)
- * @param serverError lỗi backend trả về lần lưu trước
+ * Trạng thái một dòng phòng từ dữ liệu của lưới + bản nháp đang gõ.
+ * @param sheetRow   một phần tử `rows[]` của GET /utility-readings/sheet: { room, previous, reading }
+ * @param draft      { field: value } người dùng đã sửa
+ * @param prices     đơn giá đang hiển thị ở đầu lưới { electricity, water }
+ * @param priceDirty đơn giá vừa đổi → mọi phòng đã lưu nhưng chưa chốt phải lưu lại với giá mới
+ * @param serverError lỗi backend trả về cho dòng này ở lần lưu trước
  */
-export const buildRow = ({ room, saved, previous, draft, prices, serverError }) => {
+export const buildRow = ({ sheetRow, draft, prices, priceDirty, serverError }) => {
+  const { room, previous, reading } = sheetRow;
   const occupants = room.occupied ?? 0;
-  const base = saved
-    ? Object.fromEntries(METER_FIELDS.map((f) => [f, saved[f]]))
+  const base = reading
+    ? valuesOf(reading)
     : {
-      electricityStart: previous?.electricityEnd ?? null,
-      electricityEnd: null,
-      waterStart: previous?.waterEnd ?? null,
-      waterEnd: null,
+      electricityOldIndex: previous?.electricityNewIndex ?? null,
+      electricityNewIndex: null,
+      waterOldIndex: previous?.waterNewIndex ?? null,
+      waterNewIndex: null,
     };
   const values = { ...base, ...draft };
-  const dirty = !!draft && METER_FIELDS.some((f) => (draft[f] ?? null) !== (base[f] ?? null) && f in draft);
-  const invoiced = !!saved?.isInvoiced;
-  const skipped = !saved && occupants === 0;
+  const dirty = !!draft && METER_FIELDS.some((f) => f in draft && (draft[f] ?? null) !== (base[f] ?? null));
+  const billed = !!reading?.isBilled;
+  // Phòng trống chưa có bản ghi: không cần nhập, không bao giờ lập hóa đơn (FR-41)
+  const skipped = !reading && occupants === 0;
+  const repriced = priceDirty && !!reading && !billed;
 
-  // Ô trống khi đang nhập dở chưa phải lỗi — dòng chỉ bị giữ lại, không lưu; lỗi thật là cuối < đầu (BR-50)
+  // Ô trống khi đang nhập dở chưa phải lỗi — dòng chỉ bị giữ lại, không lưu; lỗi thật là mới < cũ
   const errors = {};
   const complete = METER_FIELDS.every((f) => !isBlank(values[f]));
   if (dirty) {
-    if (!isBlank(values.electricityEnd) && !isBlank(values.electricityStart) && values.electricityEnd < values.electricityStart) errors.electricityEnd = 'Nhỏ hơn chỉ số cũ';
-    if (!isBlank(values.waterEnd) && !isBlank(values.waterStart) && values.waterEnd < values.waterStart) errors.waterEnd = 'Nhỏ hơn chỉ số cũ';
+    if (!isBlank(values.electricityNewIndex) && !isBlank(values.electricityOldIndex) && values.electricityNewIndex < values.electricityOldIndex) errors.electricityNewIndex = 'Nhỏ hơn chỉ số cũ';
+    if (!isBlank(values.waterNewIndex) && !isBlank(values.waterOldIndex) && values.waterNewIndex < values.waterOldIndex) errors.waterNewIndex = 'Nhỏ hơn chỉ số cũ';
   }
-  const hasError = Object.keys(errors).length > 0 || (!!serverError && dirty);
+  const hasError = Object.keys(errors).length > 0 || (!!serverError && (dirty || repriced));
 
-  // BR-51: sửa chỉ số đầu kỳ khác cuối kỳ trước → chỉ cảnh báo, không chặn
+  // BR-51: chỉ số cũ khác chỉ số mới tháng trước → chỉ cảnh báo (thay công tơ, ghi nhầm tháng trước), không chặn
   const warnings = {};
-  if (previous && !isBlank(values.electricityStart) && values.electricityStart !== previous.electricityEnd) warnings.electricityStart = `Kỳ trước ${previous.electricityEnd}`;
-  if (previous && !isBlank(values.waterStart) && values.waterStart !== previous.waterEnd) warnings.waterStart = `Kỳ trước ${previous.waterEnd}`;
+  if (previous && !isBlank(values.electricityOldIndex) && values.electricityOldIndex !== previous.electricityNewIndex) warnings.electricityOldIndex = `Tháng trước ${previous.electricityNewIndex}`;
+  if (previous && !isBlank(values.waterOldIndex) && values.waterOldIndex !== previous.waterNewIndex) warnings.waterOldIndex = `Tháng trước ${previous.waterNewIndex}`;
 
-  const electricityConsumption = complete && !errors.electricityEnd ? values.electricityEnd - values.electricityStart : null;
-  const waterConsumption = complete && !errors.waterEnd ? values.waterEnd - values.waterStart : null;
-  const electricityPrice = saved?.electricityUnitPrice ?? prices.electricity;
-  const waterPrice = saved?.waterUnitPrice ?? prices.water;
-  const total = electricityConsumption !== null && waterConsumption !== null
-    ? electricityConsumption * electricityPrice + waterConsumption * waterPrice
+  const electricityUsage = complete && !errors.electricityNewIndex ? values.electricityNewIndex - values.electricityOldIndex : null;
+  const waterUsage = complete && !errors.waterNewIndex ? values.waterNewIndex - values.waterOldIndex : null;
+  // Đã chốt, hoặc đã lưu mà không sửa và không đổi giá: đúng giá trên bản ghi — đó là số sẽ phát hành.
+  // Chỉ dòng sắp lưu (sửa hoặc đổi giá) mới tính theo giá đầu lưới
+  const usesStoredPrice = billed || (!!reading && !dirty && !repriced);
+  const electricityPrice = usesStoredPrice ? reading.electricity.unitPrice : prices.electricity;
+  const waterPrice = usesStoredPrice ? reading.water.unitPrice : prices.water;
+  const total = electricityUsage !== null && waterUsage !== null
+    ? electricityUsage * electricityPrice + waterUsage * waterPrice
     : null;
+  // Chỉ để tham khảo (BR-03): cả phòng trả chung một hóa đơn. Đã chốt thì dùng số chốt lúc phát hành
+  const headcount = billed ? reading.occupantsCount : occupants;
+  const perPerson = billed ? reading.perStudentAmount : (total !== null && occupants ? Math.round(total / occupants) : null);
 
   let status = 'empty';
-  if (invoiced) status = 'invoiced';
+  if (billed) status = 'billed';
   else if (hasError) status = 'error';
   else if (dirty && !complete) status = 'incomplete';
-  else if (dirty) status = 'unsaved';
-  else if (saved) status = 'saved';
+  else if ((dirty || repriced) && complete) status = 'unsaved';
+  else if (reading) status = 'saved';
   else if (skipped) status = 'skipped';
 
   return {
-    key: room.id, room, roomLabel: roomLabelOf(room), saved, previous, values, dirty, invoiced, skipped, errors, warnings, serverError: dirty ? serverError : null,
-    complete, status, occupants, electricityConsumption, waterConsumption, electricityPrice, waterPrice, total,
-    share: total !== null ? splitEvenly(total, occupants) : null,
+    key: room.id, room, roomLabel: roomLabelOf(room), reading, previous, values, dirty, billed, skipped, errors, warnings,
+    serverError: dirty || repriced ? serverError : null,
+    complete, status, occupants, headcount, electricityUsage, waterUsage, electricityPrice, waterPrice, total, perPerson,
+    /** Đủ điều kiện vào lần Chốt & phát hành tới: đã lưu, chưa chốt, phòng có người */
+    publishable: !!reading && !billed && occupants > 0,
   };
 };
 
 export const READING_STATUS = {
-  saved:    { label: 'Đã lưu',     color: 'success' },
-  unsaved:  { label: 'Chưa lưu',   color: 'processing' },
-  error:    { label: 'Lỗi',        color: 'error' },
-  incomplete: { label: 'Nhập dở',  color: 'warning' },
-  empty:    { label: 'Chưa nhập',  color: 'warning' },
-  skipped:  { label: 'Bỏ qua',     color: 'default' },
-  invoiced: { label: 'Đã lập HĐ',  color: 'purple' },
+  saved:      { label: 'Đã lưu',        color: 'success' },
+  unsaved:    { label: 'Chưa lưu',      color: 'processing' },
+  error:      { label: 'Lỗi',           color: 'error' },
+  incomplete: { label: 'Nhập dở',       color: 'warning' },
+  empty:      { label: 'Chưa nhập',     color: 'warning' },
+  skipped:    { label: 'Phòng trống',   color: 'default' },
+  billed:     { label: 'Đã phát hành',  color: 'purple' },
 };

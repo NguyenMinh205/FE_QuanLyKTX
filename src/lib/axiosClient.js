@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from './env';
 import { authStorage } from './authStorage';
+import { changePasswordPathOf } from '../routes/paths';
 
 const axiosClient = axios.create({
   baseURL: API_BASE_URL,
@@ -24,6 +25,15 @@ axiosClient.interceptors.response.use(
       authStorage.clear();
       if (window.location.pathname !== '/login') window.location.href = '/login';
     }
+    // API.md §1.4: mật khẩu vừa bị đặt lại khi đang đăng nhập → mọi API trả 403 MUST_CHANGE_PASSWORD
+    if (error.response?.status === 403 && error.response?.data?.code === 'MUST_CHANGE_PASSWORD') {
+      const user = authStorage.getUser();
+      if (user) {
+        authStorage.updateUser({ ...user, mustChangePassword: true });
+        const target = changePasswordPathOf(user.role);
+        if (window.location.pathname !== target) window.location.href = target;
+      }
+    }
     return Promise.reject(error);
   },
 );
@@ -39,7 +49,7 @@ export const getErrorMessage = (error, fallback = 'Có lỗi xảy ra, vui lòng
   return error?.response?.data?.message || fallback;
 };
 
-/** Mã lỗi ổn định để xử lý theo từng trường hợp, VD: 'BED_NOT_AVAILABLE' */
+/** Mã lỗi ổn định để xử lý theo từng trường hợp, VD: 'BED_ALREADY_OCCUPIED' */
 export const getErrorCode = (error) => error?.response?.data?.code || null;
 
 /** Lỗi theo từng trường để đổ vào Form của antd — API.md mục 1.1 */

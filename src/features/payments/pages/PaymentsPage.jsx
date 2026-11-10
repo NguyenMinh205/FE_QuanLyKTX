@@ -1,123 +1,91 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Button, Card, Select, DatePicker, Typography, Tooltip, Row, Col, Space, App,
+  Button, Card, Select, DatePicker, Typography, Tooltip, Row, Col,
 } from 'antd';
 import {
-  CheckCircleOutlined, RollbackOutlined, SyncOutlined, CloseCircleOutlined, ReloadOutlined, EyeOutlined,
+  CheckCircleOutlined, WalletOutlined, QrcodeOutlined, ReloadOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useApi } from '../../../hooks/useApi';
-import { useAuth } from '../../../context/AuthContext';
-import { can } from '../../../utils/permission';
 import { paymentApi } from '../api/payment.api';
-import { getErrorMessage } from '../../../lib/axiosClient';
-import { INVOICE_TYPE, PAYMENT_METHOD, PAYMENT_STATUS } from '../../../constants/statuses';
+import { INVOICE_TYPE, PAYMENT_METHOD } from '../../../constants/statuses';
 import { formatCurrency, formatDateTime } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import DataTable from '../../../components/DataTable';
 import StatCard from '../../../components/StatCard';
-import StatusTag from '../../../components/StatusTag';
 import PaymentDetailDrawer from '../components/PaymentDetailDrawer';
-import { isReconcilable, normalizePayment, paymentTimeOf } from '../utils/paymentView';
+import { roomTextOf } from '../../fees/utils/invoiceView';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
-const EMPTY_FILTERS = { page: 1, limit: 20, search: '', type: undefined, method: undefined, status: undefined, from: undefined, to: undefined };
+const EMPTY_FILTERS = { page: 1, limit: 20, search: '', type: undefined, method: undefined, from: undefined, to: undefined };
+const METHOD_OPTIONS = Object.entries(PAYMENT_METHOD).map(([value, m]) => ({ value, label: m.label }));
 
-const loadPayments = (filters) => paymentApi.getList({ ...filters, search: filters.search || undefined })
-  .then((res) => {
-    const body = res.data?.data;
-    const items = Array.isArray(body) ? body : body?.items || [];
-    const list = Array.isArray(body) ? { items, total: items.length, page: 1, limit: items.length } : body;
-    return { ...res, data: { ...res.data, data: { ...list, items: items.map(normalizePayment) } } };
-  });
-
-/** SCR-56 Lịch sử thanh toán (FR-56) — tra cứu, đối soát giao dịch treo. Viewer chỉ xem */
+/** SCR-56 Phiếu thu — mỗi lần thu đủ một hóa đơn là một phiếu; tra cứu, đối chiếu, in lại biên lai */
 export default function PaymentsPage() {
   const [searchParams] = useSearchParams();
   return <PaymentsView key={searchParams.toString()} searchParams={searchParams} />;
 }
 
 function PaymentsView({ searchParams }) {
-  const { user } = useAuth();
-  const { modal, notification } = App.useApp();
-  const canReconcile = can(user, 'payment:record');
-
-  const [filters, setFilters] = useState(() => ({
-    ...EMPTY_FILTERS,
-    search: searchParams.get('search') || '',
-    status: PAYMENT_STATUS[searchParams.get('status')] ? searchParams.get('status') : undefined,
-    studentId: searchParams.get('studentId') || undefined,
-  }));
+  const [filters, setFilters] = useState(() => ({ ...EMPTY_FILTERS, search: searchParams.get('search') || '' }));
   const [tableKey, setTableKey] = useState(0);
   const [openPayment, setOpenPayment] = useState(null);
-  const [reconciling, setReconciling] = useState(false);
 
-  const { data, meta, loading, error, refetch } = useApi(() => loadPayments(filters), [filters]);
+  const { data, meta, loading, error } = useApi(
+    () => paymentApi.getList({ ...filters, search: filters.search || undefined }),
+    [filters],
+  );
   const summary = meta?.summary;
 
   const setFilter = (patch) => setFilters((f) => ({ ...f, ...patch, page: 1 }));
   const resetFilters = () => { setFilters(EMPTY_FILTERS); setTableKey((k) => k + 1); };
-  const hasFilter = filters.search || filters.type || filters.method || filters.status || filters.from;
-
-  const reconcile = async (p) => {
-    setReconciling(true);
-    try {
-      const res = await paymentApi.reconcile(p.id);
-      const updated = normalizePayment(res.data.data?.payment ?? {});
-      notification[updated.status === 'success' ? 'success' : 'info']({ title: res.data.message, duration: 6 });
-      setOpenPayment(updated.id ? updated : null);
-      refetch();
-    } catch (err) {
-      modal.warning({ title: 'Không đối soát được', content: getErrorMessage(err) });
-    } finally {
-      setReconciling(false);
-    }
-  };
+  const hasFilter = filters.search || filters.type || filters.method || filters.from;
 
   const columns = [
     {
-      title: 'Mã giao dịch', dataIndex: 'transactionRef', width: 190, fixed: 'left',
+      title: 'Mã phiếu thu', dataIndex: 'paymentCode', width: 170, fixed: 'left',
       render: (v, p) => (
         <>
-          {/* Backend hiện tại không sinh mã tham chiếu cho giao dịch tại quầy */}
-          <a onClick={() => setOpenPayment(p)} style={{ fontFamily: 'ui-monospace, Consolas, monospace' }}>{v || 'Xem giao dịch'}</a>
-          <div><Text type="secondary" style={{ fontSize: 12 }}>{formatDateTime(paymentTimeOf(p))}</Text></div>
+          <Button type="link" size="small" onClick={() => setOpenPayment(p)} style={{ padding: 0, height: 'auto', fontFamily: 'ui-monospace, Consolas, monospace' }}>{v}</Button>
+          <div><Text type="secondary" style={{ fontSize: 12 }}>{formatDateTime(p.paidAt)}</Text></div>
         </>
       ),
     },
     {
-      title: 'Sinh viên', key: 'student', width: 190,
-      render: (_, p) => <><div>{p.studentName || '—'}</div>{p.studentCode && <Text type="secondary" style={{ fontSize: 12 }}>{p.studentCode}</Text>}</>,
-    },
-    {
-      title: 'Hóa đơn', key: 'invoice', width: 185,
-      render: (_, p) => (p.invoiceId
-        ? <><Link to={`/admin/invoices/${p.invoiceId}`}>{p.invoiceCode}</Link>{p.invoiceType && <div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[p.invoiceType]?.label ?? p.invoiceType}</Text></div>}</>
-        : <Text type="secondary">—</Text>),
-    },
-    {
-      title: 'Số tiền', dataIndex: 'amount', width: 140, align: 'right',
-      render: (v, p) => (p.type === 'refund'
-        ? <Text strong style={{ color: '#1677FF' }}>−{formatCurrency(v)}</Text>
-        : <Text strong style={{ color: p.status === 'success' ? '#389E0D' : undefined }}>+{formatCurrency(v)}</Text>),
-    },
-    { title: 'Hình thức', dataIndex: 'method', width: 130, render: (v) => PAYMENT_METHOD[v]?.label ?? v },
-    { title: 'Trạng thái', dataIndex: 'status', width: 130, render: (v) => <StatusTag type="payment" value={v} /> },
-    {
-      title: 'Thao tác', key: 'actions', width: 145, fixed: 'right',
+      title: 'Hóa đơn', key: 'invoice', width: 210,
       render: (_, p) => (
-        <span style={{ display: 'inline-flex', gap: 2 }}>
-          <Button size="small" type="link" icon={<EyeOutlined />} onClick={() => setOpenPayment(p)}>Xem</Button>
-          {canReconcile && isReconcilable(p) && (
-            <Tooltip title="Hỏi lại cổng thanh toán về giao dịch đang treo">
-              <Button size="small" type="link" icon={<SyncOutlined />} loading={reconciling} onClick={() => reconcile(p)}>Đối soát</Button>
-            </Tooltip>
-          )}
-        </span>
+        <>
+          <Link to={`/admin/invoices/${p.invoiceId}`}>{p.invoiceCode}</Link>
+          <div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[p.invoiceType]?.label ?? p.invoiceType}</Text></div>
+        </>
       ),
+    },
+    {
+      title: 'Người nộp', key: 'payer', width: 200,
+      render: (_, p) => (
+        <>
+          <div>{p.payer?.fullName ?? '—'}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>{p.payer?.studentCode}{p.room ? ` · ${roomTextOf(p.room)}` : ''}</Text>
+        </>
+      ),
+    },
+    { title: 'Số tiền', dataIndex: 'amount', width: 130, align: 'right', render: (v) => <Text strong style={{ color: 'var(--success-text)' }}>+{formatCurrency(v)}</Text> },
+    {
+      title: 'Hình thức', dataIndex: 'method', width: 190,
+      render: (v, p) => (
+        <>
+          <div>{PAYMENT_METHOD[v]?.label ?? v}</div>
+          {p.transactionCode && <Text code style={{ fontSize: 12 }}>{p.transactionCode}</Text>}
+        </>
+      ),
+    },
+    { title: 'Người thu', dataIndex: 'collectedByName', width: 160, render: (v) => v || <Text type="secondary">Tự động</Text> },
+    {
+      title: '', key: 'actions', width: 80, fixed: 'right',
+      render: (_, p) => <Button size="small" type="link" icon={<EyeOutlined />} onClick={() => setOpenPayment(p)}>Xem</Button>,
     },
   ];
 
@@ -125,41 +93,30 @@ function PaymentsView({ searchParams }) {
     <>
       <PageHeader
         breadcrumb={['Tài chính', 'Thanh toán']}
-        title="Lịch sử thanh toán"
-        description="Toàn bộ giao dịch thu tiền và hoàn tiền — dùng để tra cứu và đối soát với cổng thanh toán"
+        title="Phiếu thu"
+        description="Mỗi lần thu đủ một hóa đơn là một phiếu thu — tra cứu, đối chiếu sao kê và in lại biên lai"
       />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} xl={6}>
+        <Col xs={24} md={8}>
           <StatCard
-            label="Đã thu" icon={<CheckCircleOutlined style={{ color: '#389E0D' }} />} iconBg="#F6FFED" loading={!summary && loading}
-            value={summary ? formatCurrency(summary.collectedAmount) : null} valueColor="#389E0D"
-            footer={<Text type="secondary">{summary ? `${summary.successCount} giao dịch thành công` : 'Backend chưa trả số tổng hợp'}</Text>}
+            label="Đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} loading={!summary && loading}
+            value={summary ? formatCurrency(summary.totalAmount) : null} valueColor="var(--success-text)"
+            footer={<Text type="secondary">{meta?.total ?? '—'} phiếu thu theo bộ lọc</Text>}
           />
         </Col>
-        <Col xs={24} sm={12} xl={6}>
+        <Col xs={12} md={8}>
           <StatCard
-            label="Đã hoàn trả" icon={<RollbackOutlined style={{ color: '#1677FF' }} />} iconBg="#E6F4FF" loading={!summary && loading}
-            value={summary ? formatCurrency(summary.refundedAmount) : null} valueColor="#1677FF"
-            footer={<Text type="secondary">{summary ? 'Hoàn tiền cọc khi trả phòng' : 'Backend chưa trả số tổng hợp'}</Text>}
+            label="Tiền mặt" icon={<WalletOutlined style={{ color: 'var(--brand)' }} />} loading={!summary && loading}
+            value={summary ? formatCurrency(summary.cashAmount) : null}
+            footer={<Text type="secondary">Thu tại văn phòng</Text>}
           />
         </Col>
-        <Col xs={24} sm={12} xl={6}>
+        <Col xs={12} md={8}>
           <StatCard
-            label="Đang xử lý" icon={<SyncOutlined style={{ color: '#FAAD14' }} />} iconBg="#FFFBE6" loading={!summary && loading}
-            value={summary ? <>{summary.pendingCount} <Text type="secondary" style={{ fontSize: 15, fontWeight: 400 }}>giao dịch</Text></> : null}
-            footer={summary?.pendingCount
-              ? (filters.status === 'pending'
-                ? <Text type="warning">Chờ cổng thanh toán phản hồi</Text>
-                : <a onClick={() => setFilter({ status: 'pending' })}>Xem và đối soát</a>)
-              : <Text type="secondary">{summary ? 'Không có giao dịch treo' : 'Backend chưa trả số tổng hợp'}</Text>}
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <StatCard
-            label="Thất bại / hết hạn" icon={<CloseCircleOutlined style={{ color: '#CF1322' }} />} iconBg="#FFF1F0" loading={!summary && loading}
-            value={summary ? <>{summary.failedCount} <Text type="secondary" style={{ fontSize: 15, fontWeight: 400 }}>giao dịch</Text></> : null}
-            footer={<Text type="secondary">{summary ? 'Sinh viên không bị trừ tiền' : 'Backend chưa trả số tổng hợp'}</Text>}
+            label="Chuyển khoản VietQR" icon={<QrcodeOutlined style={{ color: 'var(--brand)' }} />} loading={!summary && loading}
+            value={summary ? formatCurrency(summary.vietqrAmount) : null}
+            footer={<Text type="secondary">Cán bộ đã đối chiếu sao kê</Text>}
           />
         </Col>
       </Row>
@@ -174,26 +131,20 @@ function PaymentsView({ searchParams }) {
           error={error}
           filters={filters}
           onFiltersChange={setFilters}
-          searchPlaceholder="Tìm mã giao dịch, mã hóa đơn, tên, MSSV…"
-          unit="giao dịch"
-          scrollX={1180}
+          searchPlaceholder="Tìm mã phiếu, mã hóa đơn, mã giao dịch, tên, MSSV…"
+          unit="phiếu thu"
+          scrollX={1160}
           onRow={(p) => ({ onDoubleClick: () => setOpenPayment(p) })}
           extraFilters={(
             <>
               <Select
-                aria-label="Loại giao dịch" placeholder="Thu và hoàn" allowClear style={{ width: 150 }}
+                aria-label="Loại hóa đơn" placeholder="Mọi loại hóa đơn" allowClear style={{ width: 170 }}
                 value={filters.type} onChange={(v) => setFilter({ type: v })}
-                options={[{ value: 'payment', label: 'Thu tiền' }, { value: 'refund', label: 'Hoàn tiền' }]}
+                options={Object.entries(INVOICE_TYPE).map(([value, t]) => ({ value, label: t.label }))}
               />
               <Select
-                aria-label="Hình thức" placeholder="Mọi hình thức" allowClear style={{ width: 160 }}
-                value={filters.method} onChange={(v) => setFilter({ method: v })}
-                options={Object.entries(PAYMENT_METHOD).map(([value, m]) => ({ value, label: m.label }))}
-              />
-              <Select
-                aria-label="Trạng thái" placeholder="Mọi trạng thái" allowClear style={{ width: 160 }}
-                value={filters.status} onChange={(v) => setFilter({ status: v })}
-                options={Object.entries(PAYMENT_STATUS).map(([value, s]) => ({ value, label: s.label }))}
+                aria-label="Hình thức" placeholder="Mọi hình thức" allowClear style={{ width: 190 }}
+                value={filters.method} onChange={(v) => setFilter({ method: v })} options={METHOD_OPTIONS}
               />
               <RangePicker
                 aria-label="Khoảng thời gian" format="DD/MM/YYYY" allowClear style={{ width: 250 }}
@@ -210,20 +161,10 @@ function PaymentsView({ searchParams }) {
             </>
           )}
         />
-        <Space size={4}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Giao dịch đang xử lý chưa cộng vào hóa đơn. Ghi nhận thu tiền tại quầy ở màn Hóa đơn.
-          </Text>
-        </Space>
+        <Text type="secondary" style={{ fontSize: 12 }}>Thu tiền ở màn Hóa đơn. Phiếu thu không sửa, không xoá.</Text>
       </Card>
 
-      <PaymentDetailDrawer
-        payment={openPayment}
-        onClose={() => setOpenPayment(null)}
-        onReconcile={reconcile}
-        reconciling={reconciling}
-        canReconcile={canReconcile}
-      />
+      <PaymentDetailDrawer payment={openPayment} onClose={() => setOpenPayment(null)} />
     </>
   );
 }

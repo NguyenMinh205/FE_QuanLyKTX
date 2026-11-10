@@ -3,29 +3,29 @@ import { Card, Typography, Skeleton } from 'antd';
 const { Text } = Typography;
 
 /**
- * Thẻ chỉ số (Dashboard, Hóa đơn…): nhãn + biểu tượng · con số lớn · dòng phụ dưới vạch kẻ.
+ * Thẻ chỉ số (Dashboard, Hóa đơn, Phiếu thu…): biểu tượng nhỏ + nhãn · con số · dòng phụ dưới vạch kẻ.
+ * Biểu tượng đi cùng nhãn, không đặt trong ô nền màu — bản cũ lặp ô màu ở mọi thẻ làm trang rối, khó dò số.
+ * Cỡ số tự nhỏ lại trên điện thoại (index.css `.stat-card-value`) để xếp 2 thẻ một hàng.
  * @param value   null/undefined → hiện "—" (backend chưa trả trường này)
  */
-export default function StatCard({
-  label, icon, iconBg = '#F5F5F5', value, valueColor, badge, footer, loading, children,
-}) {
+export default function StatCard({ label, icon, value, valueColor, badge, footer, loading, children }) {
   const empty = value === null || value === undefined;
   return (
-    <Card style={{ height: '100%' }} styles={{ body: { padding: 20, height: '100%', display: 'flex', flexDirection: 'column' } }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-        <Text type="secondary">{label}</Text>
-        <span style={{ width: 36, height: 36, borderRadius: 8, background: iconBg, display: 'grid', placeItems: 'center', fontSize: 18, flexShrink: 0 }}>{icon}</span>
-      </div>
+    <Card className="stat-card" style={{ height: '100%' }} styles={{ body: { padding: 18, height: '100%', display: 'flex', flexDirection: 'column' } }}>
+      <Text type="secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+        {icon && <span aria-hidden style={{ fontSize: 14, display: 'inline-flex' }}>{icon}</span>}
+        {label}
+      </Text>
       {loading ? <Skeleton active paragraph={{ rows: 1 }} title={false} style={{ marginTop: 12 }} /> : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-            <Text strong style={{ fontSize: 30, lineHeight: 1.2, color: empty ? '#BFBFBF' : valueColor }}>{empty ? '—' : value}</Text>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+            <Text strong className="stat-card-value" style={{ color: empty ? 'var(--text-tertiary)' : valueColor }}>{empty ? '—' : value}</Text>
             {badge}
           </div>
           {children}
           {footer && (
             <div style={{ marginTop: 'auto', paddingTop: 12 }}>
-              <div style={{ borderTop: '1px solid #F0F0F0', paddingTop: 10, fontSize: 13 }}>{footer}</div>
+              <div className="stat-card-footer" style={{ borderTop: '1px solid var(--line)', paddingTop: 10, fontSize: 13 }}>{footer}</div>
             </div>
           )}
         </>

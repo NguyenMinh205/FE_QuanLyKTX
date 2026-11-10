@@ -12,11 +12,12 @@ import { GENDER } from '../../../constants/statuses';
 import { formatDate, formatPhone } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import { initialsOf } from '../../applications/utils/applicationView';
+import { placeTextOf } from '../../contracts/utils/contractView';
 
 const { Text, Title } = Typography;
 
 const Info = ({ label, icon, children }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid #F0F0F0' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
     <Text type="secondary" style={{ flexShrink: 0 }}>{icon} {label}</Text>
     <div style={{ textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>{children || <Text type="secondary">—</Text>}</div>
   </div>
@@ -27,7 +28,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: profile, loading, error } = useApi(() => portalApi.getProfile(), []);
-  const { data: residence } = useApi(() => portalApi.getMyResidence(), []);
+  const { data: residence, error: residenceError } = useApi(() => portalApi.getMyResidence(), []);
 
   const header = <PageHeader title="Hồ sơ cá nhân" description="Thông tin do ban quản lý ký túc xá lưu giữ" />;
   if (error) return <>{header}<Alert type="error" showIcon title="Không tải được hồ sơ" description={error} /></>;
@@ -51,7 +52,7 @@ export default function ProfilePage() {
           <Card style={{ height: '100%' }}>
             <div style={{ textAlign: 'center' }}>
               <span style={{
-                width: 84, height: 84, borderRadius: '50%', background: '#E6F4FF', color: '#1677FF',
+                width: 84, height: 84, borderRadius: '50%', background: 'var(--brand-soft)', color: 'var(--brand)',
                 display: 'inline-grid', placeItems: 'center', fontSize: 30, fontWeight: 600,
               }}>{initialsOf(profile?.fullName)}</span>
               <Title level={4} style={{ margin: '12px 0 4px' }}>{profile?.fullName}</Title>
@@ -62,9 +63,11 @@ export default function ProfilePage() {
             </div>
             <Divider style={{ margin: '16px 0' }} />
             <Info label="Chỗ ở hiện tại" icon={<HomeOutlined />}>
-              {contract
-                ? <>{contract.bedCode}<div><Text type="secondary" style={{ fontSize: 12 }}>{contract.buildingName}</Text></div></>
-                : <Text type="secondary">Chưa có chỗ ở</Text>}
+              {residenceError ? <Text type="danger">Không tải được</Text>
+                : !residence ? <Text type="secondary">Đang tải…</Text>
+                  : contract
+                    ? <>{placeTextOf(contract)}<div><Text type="secondary" style={{ fontSize: 12 }}>{contract.room?.buildingName}</Text></div></>
+                    : <Text type="secondary">Chưa có chỗ ở</Text>}
             </Info>
             <Info label="Tài khoản đăng nhập" icon={<MailOutlined />}>{user?.email}</Info>
             <div style={{ marginTop: 16 }}>
@@ -74,7 +77,7 @@ export default function ProfilePage() {
         </Col>
 
         <Col xs={24} lg={15}>
-          <Card title={<span><IdcardOutlined style={{ color: '#1677FF' }} /> Thông tin sinh viên</span>} style={{ marginBottom: 16 }}>
+          <Card title={<span><IdcardOutlined style={{ color: 'var(--brand)' }} /> Thông tin sinh viên</span>} style={{ marginBottom: 16 }}>
             <Info label="Họ và tên" icon={<UserOutlined />}>{profile?.fullName}</Info>
             <Info label="Mã sinh viên" icon={<IdcardOutlined />}><Text code>{profile?.studentCode}</Text></Info>
             <Info label="Ngày sinh">{profile?.dob ? formatDate(profile.dob) : null}</Info>
@@ -84,7 +87,7 @@ export default function ProfilePage() {
             <Info label="Email" icon={<MailOutlined />}>{profile?.email}</Info>
           </Card>
 
-          <Card title={<span><TeamOutlined style={{ color: '#1677FF' }} /> Liên hệ khẩn cấp</span>}>
+          <Card title={<span><TeamOutlined style={{ color: 'var(--brand)' }} /> Liên hệ khẩn cấp</span>}>
             {emergency?.name ? (
               <>
                 <Info label="Họ tên">{emergency.name}</Info>
