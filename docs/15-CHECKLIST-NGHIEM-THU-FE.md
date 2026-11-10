@@ -25,9 +25,9 @@
 | 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 | 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | ⬜ Chưa test |
 | 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
-| 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
-| 14 | Nhập chỉ số điện nước | SCR-51 | `feature/utility-readings` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
-| 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | 🚫 Bỏ ở v2 |
+| 14 | Nhập chỉ số điện nước | SCR-51 | `feature/utility-readings` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 29) |
+| 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Lập hàng loạt, lập lẻ bỏ ở M6; danh sách làm lại ở M7 |
 | 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
@@ -40,6 +40,7 @@
 | 25 | v2 · M3: tòa nhà và phòng, bỏ loại phòng | — | `feature/v2-rooms` | Dữ liệu giả | ⬜ Chưa test |
 | 26 | v2 · M4: nộp đơn công khai, tra cứu, duyệt đơn | — | `feature/v2-online-application` | Dữ liệu giả | ⬜ Chưa test |
 | 27 | v2 · M5: hợp đồng, thanh lý, hoàn cọc, chỗ ở của sinh viên | SCR-32, SCR-61, SCR-63 | `feature/v2-contracts-checkout` | Dữ liệu giả | ⬜ Chưa test |
+| 28 | v2 · M6: chỉ số điện nước, chốt & phát hành, lịch sử phòng | SCR-51 | `feature/v2-utility-billing` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1613,6 +1614,54 @@ Dữ liệu dựng sẵn: hai hợp đồng **đã quá hạn 5 ngày** chưa th
 - [ ] `sv004@dorm.local` → cảnh báo "còn 20 ngày", ghi rõ không gia hạn, muốn ở kỳ sau thì nộp đơn mới sau khi trả phòng.
 - [ ] `sv001@dorm.local` → **Hồ sơ cá nhân**: Chỗ ở hiện tại ghi `K1-101 · Giường 01`, dưới là Tòa K1.
 - [ ] Thu cửa sổ còn ~390px ở Trang chủ và Chỗ ở & hợp đồng (sv001): không cuộn ngang.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 29. v2 · M6 — Chỉ số điện nước, chốt & phát hành
+
+Chạy dữ liệu giả như mục 24. ⚠️ Dữ liệu giả **mất khi tải lại trang (F5)**: các bước 29.2 → 29.5 làm liền, chỉ bấm trong app. Mục 14, 15 phía trên không cần test nữa.
+
+Dữ liệu dựng sẵn: 2 tháng trước đã chốt (có hóa đơn điện nước). Tháng này Tòa K1 đã nhập đủ chưa chốt; Tòa K2 mới nhập 5 phòng, còn **K2-206, K2-207, K2-208** có người mà chưa nhập. Đơn giá mẫu 3.000 đ/kWh, 15.000 đ/m³.
+
+### 29.1. Màn hình (FR-40)
+
+`staff@dorm.local` / `Staff@123` → **Tài chính → Chỉ số điện nước**.
+
+- [ ] Mặc định tháng hiện tại, Tòa K1. Đầu lưới có 2 ô đơn giá **Điện 3.000 đ/kWh**, **Nước 15.000 đ/m³**.
+- [ ] Cột **Tiền cả phòng** ghi tổng của phòng và dòng nhỏ "≈ … đ/người". Rê chuột vào biểu tượng máy tính → công thức điện, nước, "một hóa đơn".
+- [ ] Phòng trống ghi "Phòng trống", ô bị khóa, cột tiền ghi "Không lập hóa đơn".
+- [ ] Ở màn 1366px thấy đủ tới cột Trạng thái và nút lịch sử, không phải cuộn ngang.
+- [ ] Menu **Hệ thống** không còn "Danh mục loại phí"; mở `/admin/fee-types` → trang 404.
+
+### 29.2. Nhập và lưu
+
+- [ ] Chọn **Tòa K2** → K2-206, 207, 208 ghi **Chưa nhập**; thanh dưới ghi "3 phòng có người chưa nhập". Ô chỉ số cũ đã tự điền (nền xám) bằng chỉ số mới tháng trước.
+- [ ] K2-206: nhập chỉ số điện mới **nhỏ hơn** chỉ số cũ → ô đỏ "Nhỏ hơn chỉ số cũ", dòng **Lỗi**.
+- [ ] Sửa thành lớn hơn, nhập chỉ số nước mới → dòng **Chưa lưu**, nút **Lưu 1 phòng**. Nút **Chốt & phát hành** bị khóa, rê chuột thấy "Lưu các thay đổi trước khi chốt".
+- [ ] Bấm **Lưu 1 phòng** → "Đã lưu 1 phòng", dòng **Đã lưu**.
+- [ ] Đổi tháng hoặc tòa khi đang sửa dở → hỏi "Bỏ các thay đổi chưa lưu?".
+
+### 29.3. Đổi đơn giá (D4)
+
+- [ ] Sửa đơn giá điện thành **3.500** → dòng vàng "Đơn giá đã đổi — bấm Lưu…", cả 6 phòng đã nhập chưa chốt chuyển **Chưa lưu**, nút **Lưu 6 phòng**.
+- [ ] Lưu → tiền cả phòng tính theo 3.500. Ô đơn giá vẫn là 3.500.
+- [ ] Xoá trống ô đơn giá nước rồi bấm Lưu → báo "Nhập đơn giá nước", không gửi gì.
+
+### 29.4. Chốt & phát hành (FR-41)
+
+- [ ] Bấm **Chốt & phát hành (6)** → hộp thoại ghi "Tạo 6 hóa đơn, mỗi phòng một hóa đơn, tổng …, hạn nộp 7 ngày", có cảnh báo vàng "2 phòng có người chưa nhập chỉ số: K2-207, K2-208".
+- [ ] Xác nhận → "Đã phát hành 6 hóa đơn điện nước", ghi số sinh viên nhận email.
+- [ ] 6 phòng chuyển **Đã phát hành**, ô chỉ số bị khóa. Thanh dưới còn "2 phòng có người chưa nhập".
+- [ ] Nhập K2-207 → Lưu → **Chốt & phát hành (1)** → chỉ phát hành thêm 1 hóa đơn, 6 phòng cũ không bị phát hành lần hai.
+- [ ] Chọn tháng trước → thông báo xanh "… đã chốt", ô chỉ số và đơn giá bị khóa, không có thanh lưu.
+
+### 29.5. Lịch sử phòng và hóa đơn
+
+- [ ] Bấm biểu tượng đồng hồ ở dòng K2-206 → drawer "Lịch sử điện nước phòng K2-206": 3 tháng, mới nhất trên cùng, mỗi tháng có chỉ số, đơn giá, tiền cả phòng, số người, trạng thái.
+- [ ] **Hóa đơn**: không còn nút "Lập hóa đơn hàng loạt", "Tạo hóa đơn lẻ".
+- [ ] Tìm `INV-UTIL-K2-206` → 1 dòng, cột Sinh viên ghi **Cả phòng**, loại **Điện nước**. Mở chi tiết không lỗi. *(Màn Hóa đơn làm lại ở M7 nên cách hiển thị còn kiểu cũ.)*
 
 **Lỗi phát hiện:** _(chưa có)_
 

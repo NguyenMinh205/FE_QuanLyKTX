@@ -59,7 +59,6 @@ const buildMenu = (role, counts = {}) => {
       key: 'system', icon: <SettingOutlined />, label: 'Hệ thống',
       children: [
         { key: '/admin/users', label: 'Tài khoản' },
-        { key: '/admin/fee-types', label: 'Danh mục loại phí' },
       ],
     });
   }

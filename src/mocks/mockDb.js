@@ -269,62 +269,71 @@ export const rivalStudentFor = (gender) => {
   return students.find((s) => s.gender === gender && !reserved.has(s.id) && !contracts.some((c) => c.studentId === s.id));
 };
 
-// ---------------------------------------------------------------- danh mục phí
-export const feeTypes = [
-  { id: 'f1', code: 'rent', name: 'Tiền phòng', unit: 'tháng', defaultAmount: 0, isRecurring: true, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
-  { id: 'f2', code: 'electricity', name: 'Tiền điện', unit: 'kWh', defaultAmount: 2500, isRecurring: true, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
-  { id: 'f3', code: 'water', name: 'Tiền nước', unit: 'm3', defaultAmount: 12000, isRecurring: true, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
-  { id: 'f4', code: 'deposit', name: 'Tiền đặt cọc', unit: 'lần', defaultAmount: 0, isRecurring: false, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
-  { id: 'f5', code: 'other', name: 'Phí khác', unit: 'lần', defaultAmount: 0, isRecurring: false, isActive: true, updatedAt: '2026-08-01T08:00:00+07:00' },
-  // loại phí tự thêm — minh họa FR-45 (1 đang dùng, 1 đã ngừng)
-  { id: 'f7', code: 'lost_key', name: 'Làm mất chìa khóa', unit: 'chiếc', defaultAmount: 50000, isRecurring: false, isActive: true, updatedAt: '2026-08-20T09:30:00+07:00' },
-  { id: 'f8', code: 'internet', name: 'Internet phòng', unit: 'tháng', defaultAmount: 30000, isRecurring: true, isActive: false, updatedAt: '2026-06-15T14:00:00+07:00' },
-];
-
-// ---------------------------------------------------------------- chỉ số điện nước
+// ---------------------------------------------------------------- chỉ số điện nước (API.md §7)
 /** Kỳ "YYYY-MM" lệch `months` tháng so với tháng hiện tại */
 export const periodPlus = (months) => {
   const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + months);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}`;
 };
 
+/** Đơn giá mẫu — không có danh mục giá (D4): đơn giá nằm trên từng bản ghi, lưới tự điền theo kỳ trước */
+export const SEED_UNIT_PRICES = { electricity: 3000, water: 15000 };
+
+/** Người đang ở phòng = hợp đồng còn giữ giường (gồm cả hợp đồng quá hạn chưa thanh lý), xếp theo MSSV */
+export const residentsOf = (roomId) => contracts
+  .filter((c) => c.roomId === roomId && c.status === 'active')
+  .sort((a, b) => a.studentCode.localeCompare(b.studentCode));
+
+/** Một khối điện hoặc nước của bản ghi: tiêu thụ và thành tiền tính từ chỉ số + đơn giá */
+export const meterOf = (oldIndex, newIndex, unitPrice) => ({
+  oldIndex, newIndex, usage: newIndex - oldIndex, unitPrice, amount: (newIndex - oldIndex) * unitPrice,
+});
+
 /**
- * Chỉ số điện nước (FR-59): kỳ trước đủ 20 phòng, đã lập hóa đơn · kỳ này Tòa K1 nhập xong,
- * Tòa K2 mới nhập 5 phòng đầu (phòng trống không cần nhập). Chỉ số đầu kỳ này = cuối kỳ trước (BR-51).
+ * Bản ghi chỉ số một phòng một tháng. `occupantsCount`, `perStudentAmount` chỉ chốt lúc phát hành (BR-03, chỉ để tham khảo).
  */
 export const utilityReadings = [];
 let readingSeq = 0;
-const pushReading = (room, billingPeriod, e, w, extra) => {
+export const newReading = (roomId, monthYear, electricity, water, extra = {}) => {
   readingSeq += 1;
-  const reading = {
-    id: `u${pad(readingSeq)}`, roomId: room.id, billingPeriod,
-    electricityStart: e[0], electricityEnd: e[1], waterStart: w[0], waterEnd: w[1],
-    electricityUnitPrice: 2500, waterUnitPrice: 12000,
-    isInvoiced: false, recordedByName: 'Lê Thị Nhân Viên', recordedAt: null, ...extra,
+  const r = {
+    id: `u${pad(readingSeq)}`, roomId, monthYear, electricity, water,
+    totalAmount: electricity.amount + water.amount, occupantsCount: null, perStudentAmount: null,
+    isBilled: false, recordedByName: 'Lê Thị Nhân Viên', recordedAt: null, ...extra,
   };
-  utilityReadings.push(reading);
-  return reading;
+  utilityReadings.push(r);
+  return r;
 };
+
+/**
+ * Chỉ số mẫu: 2 tháng trước đã chốt (có hóa đơn), tháng này Tòa K1 nhập xong, Tòa K2 mới nhập 5 phòng đầu.
+ * Chỉ phòng có người mới có bản ghi — phòng trống không ghi (FR-41 bỏ qua phòng trống).
+ * Chỉ số cũ của tháng sau = chỉ số mới của tháng trước (BR-51).
+ */
+const SEED_MONTHS = [-2, -1, 0];
 rooms.forEach((room, idx) => {
   const occ = beds.filter((b) => b.roomId === room.id && b.status === 'occupied').length;
-  const eStart = 1000 + idx * 85;
-  const wStart = 60 + idx * 7;
-  const ePrev = eStart + (occ ? occ * 20 + (idx % 4) * 5 : 0);
-  const wPrev = wStart + (occ ? occ * 3 + (idx % 3) : 0);
-  pushReading(room, periodPlus(-1), [eStart, ePrev], [wStart, wPrev], { isInvoiced: true, recordedAt: `${periodPlus(0)}-01T09:00:00+07:00` });
-  const enteredThisPeriod = room.buildingId === 'b1' || Number(room.id.slice(1)) <= 105;
-  if (occ && enteredThisPeriod) {
-    pushReading(room, periodPlus(0), [ePrev, ePrev + occ * 22 + (idx % 5) * 4], [wPrev, wPrev + occ * 3 + (idx % 2)], { recordedAt: `${todayPlus(-1)}T16:30:00+07:00` });
-  }
+  if (!occ) return;
+  let e = 1000 + idx * 85;
+  let w = 60 + idx * 7;
+  SEED_MONTHS.forEach((offset) => {
+    if (offset === 0 && !(room.buildingId === 'b1' || Number(room.id.slice(1)) <= 105)) return;
+    const eUse = occ * 20 + (idx % 4) * 5 + (offset + 2) * 3;
+    const wUse = occ * 3 + (idx % 3);
+    newReading(
+      room.id, periodPlus(offset),
+      meterOf(e, e + eUse, SEED_UNIT_PRICES.electricity), meterOf(w, w + wUse, SEED_UNIT_PRICES.water),
+      { isBilled: offset < 0, recordedAt: offset < 0 ? `${periodPlus(offset + 1)}-01T09:00:00+07:00` : `${todayPlus(-1)}T16:30:00+07:00` },
+    );
+    e += eUse;
+    w += wUse;
+  });
 });
 
 // ---------------------------------------------------------------- hóa đơn cọc + tháng
 export const invoices = [];
 let invSeq = 0;
 const nextInvoiceCode = (period) => { invSeq += 1; return { id: `i${pad(invSeq)}`, invoiceCode: `INV-${period}-${pad(invSeq, 5)}` }; };
-
-/** Số người đang ở cùng phòng — tiền điện nước chia đều cho ngần này người */
-const roommateCount = (c) => contracts.filter((x) => x.roomId === c.roomId && x.status === 'active').length || 1;
 
 contracts.filter((c) => c.status === 'active').forEach((c, i) => {
   invoices.push({
@@ -337,10 +346,9 @@ contracts.filter((c) => c.status === 'active').forEach((c, i) => {
     issueDate: '2026-08-30', dueDate: '2026-09-08', status: 'paid',
   });
 
+  // Hóa đơn tháng kiểu cũ (v1) chỉ còn tiền phòng — điện nước là hóa đơn của phòng (§7). M7 thay loại hóa đơn này
   const rent = c.monthlyPrice;
-  const elec = 150000 + (i % 4) * 12500;
-  const water = 96000 + (i % 3) * 12000;
-  const total = rent + elec + water;
+  const total = rent;
   const cycle = i % 4; // 0 chưa trả · 1 một phần · 2 đã trả · 3 quá hạn
   const paid = cycle === 1 ? Math.floor(total / 2) : cycle === 2 ? total : 0;
   const status = ['unpaid', 'partial', 'paid', 'overdue'][cycle];
@@ -352,16 +360,13 @@ contracts.filter((c) => c.status === 'active').forEach((c, i) => {
     type: 'monthly', billingPeriod: '2026-10',
     lineItems: [
       { feeTypeId: 'f1', description: 'Tiền phòng tháng 10/2026', quantity: 1, unitPrice: rent, amount: rent },
-      { feeTypeId: 'f2', description: `Tiền điện tháng 10/2026 (${elec / 2500} kWh, chia đều ${roommateCount(c)} người)`, quantity: elec / 2500, unitPrice: 2500, amount: elec },
-      { feeTypeId: 'f3', description: `Tiền nước tháng 10/2026 (${water / 12000} m³, chia đều ${roommateCount(c)} người)`, quantity: water / 12000, unitPrice: 12000, amount: water },
     ],
     totalAmount: total, paidAmount: paid,
     issueDate: '2026-11-01', dueDate: cycle === 3 ? '2026-11-05' : '2026-11-10', status,
   });
 });
 
-// Hóa đơn tháng đầu sinh lúc duyệt đơn (BR-25) — mới có tiền phòng, đã trả. Lập hàng loạt kỳ này sẽ
-// BỔ SUNG điện nước vào 3 hóa đơn này thay vì bỏ qua sinh viên (BR-48)
+// Hóa đơn tháng đầu kiểu cũ (v1) — chỉ tiền phòng, đã trả. M7 thay loại hóa đơn này
 const firstMonthPeriod = periodPlus(0);
 contracts
   .filter((c, i) => i >= 20 && c.status === 'active' && rooms.find((r) => r.id === c.roomId)?.buildingId === 'b1')
@@ -378,6 +383,61 @@ contracts
       issueDate: `${firstMonthPeriod}-01`, dueDate: `${firstMonthPeriod}-08`, status: 'paid',
     });
   });
+
+// ---------------------------------------------------------------- hóa đơn điện nước của phòng (FR-41)
+const monthText = (monthYear) => { const [y, m] = monthYear.split('-'); return `Tháng ${Number(m)}/${y}`; };
+
+/**
+ * Chốt một bản ghi: khóa, ghi số người + tiền mỗi người tại thời điểm chốt, sinh MỘT hóa đơn cho cả phòng.
+ * Mã có mã tòa để phòng cùng số ở hai tòa không trùng (API.md §7). Trả hóa đơn vừa tạo.
+ * ⚠️ Hóa đơn còn mang thêm các trường kiểu cũ (totalAmount, paidAmount, lineItems, billingPeriod) để màn Hóa đơn v1
+ * hiển thị được cho tới M7 — M7 bỏ.
+ */
+export const billReading = (reading, { issueDate = todayPlus(0), dueDate = todayPlus(7) } = {}) => {
+  const room = rooms.find((r) => r.id === reading.roomId);
+  const residents = residentsOf(room.id);
+  Object.assign(reading, {
+    isBilled: true, occupantsCount: residents.length,
+    perStudentAmount: Math.round(reading.totalAmount / residents.length),
+  });
+  const ym = reading.monthYear.replace('-', '');
+  const amount = reading.totalAmount;
+  const inv = {
+    id: `i-util-${reading.id}`, invoiceCode: `INV-UTIL-${room.buildingCode}-${room.roomNumber}-${ym}`,
+    type: 'utility', scope: 'room', amount,
+    description: `Tiền điện nước Phòng ${room.roomNumber} - ${monthText(reading.monthYear)} (${residents.length} người)`,
+    roomId: room.id, utilityReadingId: reading.id, monthYear: reading.monthYear,
+    student: null, contractId: null, payer: null, paidAt: null,
+    issueDate, dueDate, status: 'unpaid',
+    // trường kiểu cũ cho màn Hóa đơn v1 — bỏ ở M7
+    studentId: null, studentCode: null, studentName: null, billingPeriod: reading.monthYear,
+    totalAmount: amount, paidAmount: 0,
+    lineItems: [
+      { feeTypeId: 'electricity', description: `Tiền điện (${reading.electricity.usage} kWh × ${reading.electricity.unitPrice})`, quantity: reading.electricity.usage, unitPrice: reading.electricity.unitPrice, amount: reading.electricity.amount },
+      { feeTypeId: 'water', description: `Tiền nước (${reading.water.usage} m³ × ${reading.water.unitPrice})`, quantity: reading.water.usage, unitPrice: reading.water.unitPrice, amount: reading.water.amount },
+    ],
+  };
+  invoices.push(inv);
+  return inv;
+};
+
+/** Ghi nhận phòng đã trả hóa đơn điện nước — một bạn đại diện trả đủ cho cả phòng (BR-03, D5) */
+const markPaidBy = (inv, paidAt) => {
+  const payer = residentsOf(inv.roomId)[0];
+  Object.assign(inv, {
+    status: 'paid', paidAt, paidAmount: inv.amount,
+    payer: payer ? { id: payer.studentId, studentCode: payer.studentCode, fullName: payer.studentName } : null,
+  });
+};
+
+// Hai tháng trước đã chốt: tháng xa nhất trả hết, tháng gần nhất còn vài phòng chưa trả
+utilityReadings.filter((r) => r.isBilled).forEach((r, k) => {
+  const older = r.monthYear < periodPlus(-1);
+  const issued = `${older ? periodPlus(-1) : periodPlus(0)}-01`; // chốt ngày 1 của tháng kế tiếp
+  const inv = billReading(r, { issueDate: issued, dueDate: `${issued.slice(0, 8)}08` });
+  const roomIdx = rooms.findIndex((x) => x.id === r.roomId);
+  if (older || roomIdx % 4 !== 3) markPaidBy(inv, `${issued.slice(0, 8)}0${(k % 5) + 2}T10:00:00+07:00`);
+});
 
 // ---------------------------------------------------------------- công nợ
 export const debtOf = (studentId) =>

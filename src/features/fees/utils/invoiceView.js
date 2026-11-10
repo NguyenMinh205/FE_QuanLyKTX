@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import { roomLabelOf, splitBedCode } from '../../rooms/utils/roomStatus';
 
 /** "2026-10" → "10/2026"; null → "—" */
@@ -21,9 +20,6 @@ export const cancelBlockReason = (inv) => {
   if (inv.paidAmount > 0) return 'Đã có thanh toán — không hủy được (BR-46)';
   return null;
 };
-
-/** Hạn thanh toán mặc định của một kỳ: ngày 10 tháng kế tiếp */
-export const defaultDueDateOf = (period) => dayjs(`${period}-01`).add(1, 'month').date(10);
 
 /** "Tiền điện tháng 9/2026 (56 kWh, chia đều 2 người)" → { main: "Tiền điện tháng 9/2026", sub: "56 kWh, chia đều 2 người" } */
 export const splitLineDescription = (text) => {

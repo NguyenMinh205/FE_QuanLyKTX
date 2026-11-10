@@ -30,6 +30,7 @@ export const INVOICE_STATUS = {
 export const INVOICE_TYPE = {
   deposit:    { label: 'Tiền cọc',     color: 'blue' },
   room_semester: { label: 'Tiền phòng cả kỳ', color: 'geekblue' },
+  utility:    { label: 'Điện nước',    color: 'cyan' },
   monthly:    { label: 'Hàng tháng',   color: 'default' },
   other:      { label: 'Khác',         color: 'default' },
 };

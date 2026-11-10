@@ -21,13 +21,11 @@ const PERMISSIONS = {
   'contract:terminate': OPS,        // thanh lý khi trả phòng
   'contract:refundDeposit': OPS,    // xác nhận đã hoàn cọc
 
-  'utilityReading:record': OPS,
-  'invoice:create': OPS,
+  'utilityReading:record': OPS,    // nhập và chốt & phát hành
   'invoice:cancel': OPS,
   'payment:record': OPS,
 
   'user:manage': [ADMIN],
-  'feeType:manage': [ADMIN],
 };
 
 export const can = (user, action) => {

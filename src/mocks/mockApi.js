@@ -6,7 +6,7 @@ import { delay, ok, paginate, fail, search } from './mockHelpers';
 import { authStorage } from '../lib/authStorage';
 import {
   DEMO_STUDENT_INDEX, buildings, rooms, beds, students, contracts,
-  feeTypes, utilityReadings, invoices, payments, TERM_MONTHS,
+  utilityReadings, invoices, payments, TERM_MONTHS, residentsOf, meterOf, newReading, billReading,
   bedsOf, availableSlots, generateBeds, newApplication, approveContract, pendingOn, selectableBeds,
   occupancyStats, debtOf, demoRaceRoomIds, rivalStudentFor, todayPlus, periodPlus,
 } from './mockDb';
@@ -728,229 +728,134 @@ export const mockContracts = {
 };
 
 // ---------------------------------------------------------------- fees
-/** Hóa đơn lẻ không dùng các loại phí có nguồn tiền riêng (hợp đồng) */
-const MANUAL_BLOCKED_FEE_CODES = ['rent', 'deposit'];
-const feeIdOf = (code) => feeTypes.find((t) => t.code === code)?.id;
-const UTILITY_FEE_IDS = ['f2', 'f3'];
-let manualInvoiceSeq = 0;
-const nextManualInvoiceCode = () => {
-  manualInvoiceSeq += 1;
-  const ym = todayPlus(0).slice(0, 7).replace('-', '');
-  return { id: `i-new${manualInvoiceSeq}`, invoiceCode: `INV-${ym}-${String(90000 + manualInvoiceSeq).padStart(5, '0')}` };
-};
-/** Hóa đơn + phòng, tòa (suy từ hợp đồng) + còn lại */
+/** Hóa đơn + phòng, tòa (hóa đơn phòng có `roomId`, hóa đơn cá nhân suy từ hợp đồng) + còn lại */
 const invoiceView = (inv) => {
   const c = contracts.find((x) => x.id === inv.contractId);
-  const room = c && rooms.find((r) => r.id === c.roomId);
+  const room = rooms.find((r) => r.id === (inv.roomId ?? c?.roomId));
   return {
     ...withRemaining(inv),
     roomNumber: room?.roomNumber ?? null, buildingId: room?.buildingId ?? null,
     buildingCode: room?.buildingCode ?? null, buildingName: room?.buildingName ?? null,
+    ...(inv.scope === 'room' ? { room: roomRef(room) } : {}),
   };
 };
-/** Kỳ lập hóa đơn hợp lệ và không ở tương lai */
-const checkGenerationPeriod = (value) => {
-  const period = String(value || '');
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'billingPeriod', message: 'Chọn kỳ' }] });
-  if (period > periodPlus(0)) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'billingPeriod', message: 'Chưa tới kỳ này' }] });
-  return period;
-};
-const periodText = (period) => { const [y, m] = period.split('-'); return `tháng ${Number(m)}/${y}`; };
-/**
- * Lập hóa đơn kỳ (UC-04): mỗi phòng có người ở + đã nhập chỉ số → chia đều điện, nước (floor, dư cho mã SV nhỏ nhất);
- * sinh viên chưa có hóa đơn tháng → tạo mới (tiền phòng + điện + nước); đã có → bổ sung dòng còn thiếu (BR-48).
- */
-const runInvoiceGeneration = (period, buildingIds, dueDate, dryRun) => {
-  const targetBuildings = buildings.filter((b) => b.isActive && (!buildingIds.length || buildingIds.includes(b.id)));
-  const result = { created: 0, updated: 0, totalAmount: 0, eligibleStudents: 0, readyRooms: 0, skipped: [] };
-  let seq = 0;
-  targetBuildings.forEach((b) => {
-    rooms.filter((r) => r.buildingId === b.id && r.status !== 'inactive').forEach((room) => {
-      const residents = contracts.filter((c) => c.roomId === room.id && c.status === 'active')
-        .sort((x, y) => x.studentCode.localeCompare(y.studentCode));
-      const skip = (code, reason) => result.skipped.push({ roomId: room.id, roomNumber: room.roomNumber, buildingCode: room.buildingCode, code, reason });
-      if (!residents.length) { skip('NO_RESIDENT', 'Không có sinh viên đang ở'); return; }
-      const reading = utilityReadings.find((u) => u.roomId === room.id && u.billingPeriod === period);
-      if (!reading) { skip('NO_READING', 'Chưa nhập chỉ số điện nước'); return; }
-      if (reading.isInvoiced) { skip('ALREADY_INVOICED', 'Kỳ này đã lập hóa đơn'); return; }
-      result.readyRooms += 1;
-      const n = residents.length;
-      const eUse = reading.electricityEnd - reading.electricityStart;
-      const wUse = reading.waterEnd - reading.waterStart;
-      const eTotal = eUse * reading.electricityUnitPrice;
-      const wTotal = wUse * reading.waterUnitPrice;
-      const share = (total, idx) => Math.floor(total / n) + (idx === 0 ? total - Math.floor(total / n) * n : 0);
-      residents.forEach((c, idx) => {
-        result.eligibleStudents += 1;
-        const utilityLines = [
-          { feeTypeId: feeIdOf('electricity'), description: `Tiền điện ${periodText(period)} (${eUse} kWh, chia đều ${n} người)`, quantity: 1, unitPrice: share(eTotal, idx), amount: share(eTotal, idx) },
-          { feeTypeId: feeIdOf('water'), description: `Tiền nước ${periodText(period)} (${wUse} m³, chia đều ${n} người)`, quantity: 1, unitPrice: share(wTotal, idx), amount: share(wTotal, idx) },
-        ];
-        const existing = invoices.find((i) => i.studentId === c.studentId && i.type === 'monthly' && i.billingPeriod === period && i.status !== 'cancelled');
-        if (existing) {
-          const missing = utilityLines.filter((l) => !existing.lineItems.some((x) => x.feeTypeId === l.feeTypeId));
-          if (!missing.length) return;
-          const added = missing.reduce((t, l) => t + l.amount, 0);
-          result.updated += 1;
-          result.totalAmount += added;
-          if (!dryRun) {
-            existing.lineItems.push(...missing);
-            existing.totalAmount += added;
-            existing.status = existing.paidAmount >= existing.totalAmount ? 'paid' : existing.paidAmount > 0 ? 'partial' : 'unpaid';
-          }
-          return;
-        }
-        const lineItems = [{ feeTypeId: feeIdOf('rent'), description: `Tiền phòng ${periodText(period)}`, quantity: 1, unitPrice: c.monthlyPrice, amount: c.monthlyPrice }, ...utilityLines];
-        const total = lineItems.reduce((t, l) => t + l.amount, 0);
-        result.created += 1;
-        result.totalAmount += total;
-        if (!dryRun) {
-          seq += 1;
-          invoices.push({
-            id: `i-gen-${period}-${c.id}`, invoiceCode: `INV-${period.replace('-', '')}-${String(50000 + invoices.length + seq).padStart(5, '0')}`,
-            studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
-            contractId: c.id, bedCode: c.bedCode, type: 'monthly', billingPeriod: period, lineItems,
-            totalAmount: total, paidAmount: 0, issueDate: todayPlus(0), dueDate, status: 'unpaid',
-          });
-        }
-      });
-      if (!dryRun) reading.isInvoiced = true;
-    });
-  });
-  return result;
-};
 
-let readingIdSeq = 0;
-/** Cán bộ đang đăng nhập (mock) — ghi người nhập chỉ số */
-const currentUser = () => authStorage.getUser();
-const readingView = (u) => {
-  const room = rooms.find((r) => r.id === u.roomId);
-  const electricityConsumption = u.electricityEnd - u.electricityStart;
-  const waterConsumption = u.waterEnd - u.waterStart;
-  return {
-    ...u,
-    roomNumber: room?.roomNumber, buildingId: room?.buildingId, buildingName: room?.buildingName,
-    electricityConsumption, electricityAmount: electricityConsumption * u.electricityUnitPrice,
-    waterConsumption, waterAmount: waterConsumption * u.waterUnitPrice,
-  };
+// ---------------------------------------------------------------- chỉ số điện nước (API.md §7, FR-40→42)
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+/** Tháng hợp lệ và không ở tương lai */
+const checkMonth = (value, field = 'monthYear') => {
+  const monthYear = String(value || '');
+  if (!MONTH_RE.test(monthYear)) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field, message: 'Chọn tháng' }] });
+  if (monthYear > periodPlus(0)) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field, message: 'Chưa tới tháng này, không nhập trước được' }] });
+  return monthYear;
 };
-/** 4 chỉ số là số nguyên không âm; cuối ≥ đầu (BR-50) */
-const meterValues = (body) => {
-  const fields = ['electricityStart', 'electricityEnd', 'waterStart', 'waterEnd'];
-  const errors = fields
-    .filter((f) => body[f] === '' || body[f] === null || body[f] === undefined || !Number.isInteger(Number(body[f])) || Number(body[f]) < 0)
-    .map((f) => ({ field: f, message: 'Chỉ số là số nguyên không âm' }));
-  if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
-  const v = Object.fromEntries(fields.map((f) => [f, Number(body[f])]));
-  if (v.electricityEnd < v.electricityStart || v.waterEnd < v.waterStart) {
-    fail(422, 'INVALID_METER_READING', 'Chỉ số cuối kỳ phải lớn hơn hoặc bằng chỉ số đầu kỳ');
-  }
-  return v;
-};
-
-/** Loại phí hệ thống — lập hóa đơn cần tới, không ngừng dùng được (DATA-SCHEMA 3.8) */
-const SYSTEM_FEE_CODES = ['rent', 'electricity', 'water', 'deposit', 'other'];
-/** Chỉ điện, nước dùng defaultAmount làm đơn giá — bắt buộc > 0 */
-const PRICED_FEE_CODES = ['electricity', 'water'];
-const feeTypeErrors = (body, code = String(body.code || '').trim().toLowerCase()) => {
-  const errors = [];
-  if (!String(body.name || '').trim()) errors.push({ field: 'name', message: 'Nhập tên loại phí' });
-  if (!String(body.unit || '').trim()) errors.push({ field: 'unit', message: 'Nhập đơn vị tính' });
-  const amount = Number(body.defaultAmount);
-  if (body.defaultAmount === '' || body.defaultAmount === null || body.defaultAmount === undefined
-    || Number.isNaN(amount) || amount < 0 || !Number.isInteger(amount)) {
-    errors.push({ field: 'defaultAmount', message: 'Đơn giá là số nguyên không âm' });
-  } else if (PRICED_FEE_CODES.includes(code) && amount <= 0) {
-    errors.push({ field: 'defaultAmount', message: 'Đơn giá điện, nước phải lớn hơn 0' });
-  }
-  return errors;
-};
+/** Phòng đang dùng của một tòa, xếp theo tầng rồi số phòng (BR-07) */
+const activeRoomsOf = (buildingId) => rooms
+  .filter((r) => r.buildingId === buildingId && r.status === 'active')
+  .sort((a, b) => a.floor - b.floor || a.roomNumber.localeCompare(b.roomNumber, 'vi', { numeric: true }));
+const readingOf = (roomId, monthYear) => utilityReadings.find((u) => u.roomId === roomId && u.monthYear === monthYear);
+/** Bản ghi gần nhất TRƯỚC tháng này của phòng — chỉ số cũ tự điền từ đây (BR-51) */
+const previousReadingOf = (roomId, monthYear) => utilityReadings
+  .filter((u) => u.roomId === roomId && u.monthYear < monthYear)
+  .sort((a, b) => b.monthYear.localeCompare(a.monthYear))[0];
+const isIndex = (v) => v !== '' && v !== null && v !== undefined && Number.isInteger(Number(v)) && Number(v) >= 0;
+const isPrice = (v) => Number.isInteger(Number(v)) && Number(v) > 0;
 
 export const mockFees = {
-  /** Mảng sắp theo thứ tự hệ thống rồi mã; mặc định chỉ loại đang dùng, `includeInactive` lấy cả loại đã ngừng */
-  getFeeTypes: async (q = {}) => {
+  /** GET /utility-readings/sheet?buildingId=&monthYear= — một lưới cho một tòa một tháng (FR-40) */
+  getUtilitySheet: async (q = {}) => {
     await delay();
-    const order = (t) => { const i = SYSTEM_FEE_CODES.indexOf(t.code); return i === -1 ? 99 : i; };
-    const rows = feeTypes
-      .filter((t) => String(q.includeInactive) === 'true' || t.isActive)
-      .map((t) => ({ ...t, isSystem: SYSTEM_FEE_CODES.includes(t.code) }))
-      .sort((a, b) => order(a) - order(b) || a.code.localeCompare(b.code));
-    return ok(rows);
+    const building = buildings.find((b) => b.id === q.buildingId);
+    if (!building) fail(404, 'NOT_FOUND', 'Không tìm thấy tòa nhà');
+    const monthYear = checkMonth(q.monthYear);
+    const roomList = activeRoomsOf(building.id);
+    // Đơn giá mặc định: bản ghi gần nhất của tòa (tháng này nếu đã lưu), không có thì 0 (D4)
+    const latest = utilityReadings
+      .filter((u) => u.monthYear <= monthYear && roomList.some((r) => r.id === u.roomId))
+      .sort((a, b) => b.monthYear.localeCompare(a.monthYear) || String(b.recordedAt).localeCompare(String(a.recordedAt)))[0];
+    return ok({
+      buildingId: building.id, monthYear,
+      defaultUnitPrices: { electricity: latest?.electricity.unitPrice ?? 0, water: latest?.water.unitPrice ?? 0 },
+      rows: roomList.map((r) => {
+        const prev = previousReadingOf(r.id, monthYear);
+        return {
+          room: { id: r.id, roomNumber: r.roomNumber, floor: r.floor, capacity: r.capacity, occupied: residentsOf(r.id).length },
+          previous: prev ? { electricityNewIndex: prev.electricity.newIndex, waterNewIndex: prev.water.newIndex } : null,
+          reading: readingOf(r.id, monthYear) ?? null,
+        };
+      }),
+    });
   },
-  /** { code, name, unit, defaultAmount, isRecurring } — mã chữ thường, duy nhất */
-  createFeeType: async (body = {}) => {
-    await delay();
-    const code = String(body.code || '').trim().toLowerCase();
-    const errors = feeTypeErrors(body);
-    if (!code) errors.push({ field: 'code', message: 'Nhập mã loại phí' });
-    else if (!/^[a-z][a-z0-9_]{1,29}$/.test(code)) errors.push({ field: 'code', message: 'Mã bắt đầu bằng chữ, gồm chữ thường, số, dấu _, 2–30 ký tự' });
-    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
-    if (feeTypes.some((t) => t.code === code)) fail(409, 'DUPLICATE_ENTRY', `Mã loại phí ${code} đã tồn tại`, { errors: [{ field: 'code', message: `Mã loại phí ${code} đã tồn tại` }] });
-    const t = {
-      id: `f-${Date.now()}`, code, name: String(body.name).trim(), unit: String(body.unit).trim(),
-      defaultAmount: Number(body.defaultAmount) || 0, isRecurring: !!body.isRecurring, isActive: true,
-      updatedAt: new Date().toISOString(),
-    };
-    feeTypes.push(t);
-    return ok({ ...t, isSystem: false }, `Đã thêm loại phí ${t.name}`);
+  /**
+   * POST /utility-readings/bulk — { buildingId, monthYear, electricityUnitPrice, waterUnitPrice, rows[] }.
+   * Lưu từng dòng: dòng hợp lệ vẫn lưu khi dòng khác lỗi. Đơn giá chung cho cả lần lưu, ghi vào từng bản ghi.
+   */
+  saveUtilityBulk: async (body = {}) => {
+    await delay(500);
+    const building = buildings.find((b) => b.id === body.buildingId);
+    if (!building) fail(404, 'NOT_FOUND', 'Không tìm thấy tòa nhà');
+    const monthYear = checkMonth(body.monthYear);
+    const priceErrors = [];
+    if (!isPrice(body.electricityUnitPrice)) priceErrors.push({ field: 'electricityUnitPrice', message: 'Đơn giá điện phải là số nguyên lớn hơn 0' });
+    if (!isPrice(body.waterUnitPrice)) priceErrors.push({ field: 'waterUnitPrice', message: 'Đơn giá nước phải là số nguyên lớn hơn 0' });
+    if (priceErrors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: priceErrors });
+    const roomList = activeRoomsOf(building.id);
+    const errors = [];
+    let savedCount = 0;
+    (Array.isArray(body.rows) ? body.rows : []).forEach((row) => {
+      const room = roomList.find((r) => r.id === row.roomId);
+      const err = (message) => errors.push({ roomId: row.roomId, message });
+      if (!room) { err('Phòng không thuộc tòa này hoặc đang bảo trì'); return; }
+      const fields = ['electricityOldIndex', 'electricityNewIndex', 'waterOldIndex', 'waterNewIndex'];
+      if (!fields.every((f) => isIndex(row[f]))) { err('Nhập đủ 4 chỉ số, là số nguyên không âm'); return; }
+      const v = Object.fromEntries(fields.map((f) => [f, Number(row[f])]));
+      if (v.electricityNewIndex < v.electricityOldIndex || v.waterNewIndex < v.waterOldIndex) { err('Chỉ số mới không được nhỏ hơn chỉ số cũ'); return; }
+      const existing = readingOf(room.id, monthYear);
+      if (existing?.isBilled) { err('Tháng này đã chốt, không sửa được chỉ số'); return; }
+      const electricity = meterOf(v.electricityOldIndex, v.electricityNewIndex, Number(body.electricityUnitPrice));
+      const water = meterOf(v.waterOldIndex, v.waterNewIndex, Number(body.waterUnitPrice));
+      const stamp = { recordedByName: authStorage.getUser()?.fullName ?? null, recordedAt: new Date().toISOString() };
+      if (existing) Object.assign(existing, { electricity, water, totalAmount: electricity.amount + water.amount, ...stamp });
+      else newReading(room.id, monthYear, electricity, water, stamp);
+      savedCount += 1;
+    });
+    const message = errors.length ? `Đã lưu ${savedCount} phòng, ${errors.length} phòng lỗi` : `Đã lưu ${savedCount} phòng`;
+    return ok({ savedCount, errors }, message);
   },
-  /** { name, unit, defaultAmount, isRecurring, isActive } — không đổi mã; loại hệ thống không ngừng dùng được, giữ nguyên isRecurring */
-  updateFeeType: async (id, body = {}) => {
-    await delay();
-    const t = feeTypes.find((x) => x.id === id);
-    if (!t) fail(404, 'NOT_FOUND', 'Không tìm thấy loại phí');
-    const isSystem = SYSTEM_FEE_CODES.includes(t.code);
-    const errors = feeTypeErrors({ ...t, ...body }, t.code);
-    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
-    if (isSystem && body.isActive === false) fail(422, 'FEE_TYPE_REQUIRED', `${t.name} là loại phí hệ thống dùng khi lập hóa đơn, không thể ngừng sử dụng`);
-    ['name', 'unit'].forEach((k) => { if (body[k] !== undefined) t[k] = String(body[k]).trim(); });
-    if (body.defaultAmount !== undefined) t.defaultAmount = Number(body.defaultAmount) || 0;
-    if (!isSystem && typeof body.isRecurring === 'boolean') t.isRecurring = body.isRecurring;
-    if (typeof body.isActive === 'boolean') t.isActive = body.isActive;
-    t.updatedAt = new Date().toISOString();
-    const message = body.isActive === false ? 'Đã ngừng sử dụng loại phí'
-      : body.isActive === true && Object.keys(body).length === 1 ? 'Đã dùng lại loại phí' : 'Cập nhật loại phí thành công';
-    return ok({ ...t, isSystem }, message);
+  /**
+   * POST /utility-readings/publish — { buildingId, monthYear } (FR-41). Mỗi bản ghi chưa chốt của phòng có người →
+   * một hóa đơn phòng hạn 7 ngày, khóa bản ghi. Phòng không có người bị bỏ qua, không bao giờ lập hóa đơn.
+   */
+  publishUtility: async (body = {}) => {
+    await delay(700);
+    const building = buildings.find((b) => b.id === body.buildingId);
+    if (!building) fail(404, 'NOT_FOUND', 'Không tìm thấy tòa nhà');
+    const monthYear = checkMonth(body.monthYear);
+    const pending = activeRoomsOf(building.id)
+      .map((room) => ({ room, reading: readingOf(room.id, monthYear) }))
+      .filter((x) => x.reading && !x.reading.isBilled);
+    const skipped = [];
+    let publishedCount = 0;
+    let notifiedCount = 0;
+    pending.forEach(({ room, reading }) => {
+      const residents = residentsOf(room.id);
+      if (!residents.length) { skipped.push({ roomId: room.id, roomNumber: room.roomNumber, reason: 'Phòng không có người ở' }); return; }
+      billReading(reading);
+      publishedCount += 1;
+      notifiedCount += residents.length;
+    });
+    if (!publishedCount) fail(422, 'NOTHING_TO_PUBLISH', 'Không có phòng nào sẵn sàng phát hành: chưa nhập chỉ số, đã chốt hết, hoặc phòng không có người ở', { skipped });
+    return ok({ publishedCount, notifiedCount, skipped }, `Đã phát hành ${publishedCount} hóa đơn điện nước`);
   },
-  /** ?billingPeriod=&buildingId=&roomId= — đơn giá đã chốt trên từng bản ghi (BR-52) */
-  getUtilityReadings: async (q = {}) => {
+  /** GET /utility-readings/history?roomId=&limit=12 — mới nhất lên đầu (FR-42) */
+  getUtilityHistory: async (q = {}) => {
     await delay();
-    let rows = utilityReadings;
-    if (q.billingPeriod) rows = rows.filter((u) => u.billingPeriod === q.billingPeriod);
-    if (q.roomId) rows = rows.filter((u) => u.roomId === q.roomId);
-    if (q.buildingId) rows = rows.filter((u) => rooms.find((r) => r.id === u.roomId)?.buildingId === q.buildingId);
-    return paginate(rows.map(readingView), { limit: 100, ...q });
-  },
-  /** POST — { roomId, billingPeriod, electricityStart, electricityEnd, waterStart, waterEnd }; đơn giá lấy từ danh mục phí lúc nhập */
-  saveUtilityReading: async (body = {}) => {
-    await delay();
-    const room = rooms.find((r) => r.id === body.roomId);
-    if (!room) fail(404, 'NOT_FOUND', 'Không tìm thấy phòng');
-    const period = String(body.billingPeriod || '');
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'billingPeriod', message: 'Kỳ không hợp lệ' }] });
-    if (period > periodPlus(0)) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'billingPeriod', message: 'Chưa tới kỳ này, không nhập trước được' }] });
-    const values = meterValues(body);
-    if (utilityReadings.some((u) => u.roomId === room.id && u.billingPeriod === period)) {
-      fail(409, 'DUPLICATE_ENTRY', `Phòng ${room.roomNumber} đã có chỉ số kỳ ${period}`, { errors: [{ field: 'roomId', message: 'Phòng đã có chỉ số kỳ này' }] });
-    }
-    const price = (code) => feeTypes.find((t) => t.code === code)?.defaultAmount ?? 0;
-    readingIdSeq += 1;
-    const u = {
-      id: `u-new${readingIdSeq}`, roomId: room.id, billingPeriod: period, ...values,
-      electricityUnitPrice: price('electricity'), waterUnitPrice: price('water'),
-      isInvoiced: false, recordedByName: currentUser()?.fullName ?? null, recordedAt: new Date().toISOString(),
-    };
-    utilityReadings.push(u);
-    return ok(readingView(u), 'Lưu chỉ số thành công');
-  },
-  /** PUT — sửa 4 chỉ số, giữ đơn giá đã chốt; khóa sau khi lập hóa đơn (BR-53) */
-  updateUtilityReading: async (id, body = {}) => {
-    await delay();
-    const u = utilityReadings.find((x) => x.id === id);
-    if (!u) fail(404, 'NOT_FOUND', 'Không tìm thấy chỉ số');
-    if (u.isInvoiced) fail(422, 'READING_ALREADY_INVOICED', 'Kỳ này đã lập hóa đơn, không thể sửa chỉ số');
-    Object.assign(u, meterValues(body), { recordedByName: currentUser()?.fullName ?? u.recordedByName, recordedAt: new Date().toISOString() });
-    return ok(readingView(u), 'Cập nhật chỉ số thành công');
+    if (!rooms.some((r) => r.id === q.roomId)) fail(404, 'NOT_FOUND', 'Không tìm thấy phòng');
+    const limit = Math.min(Number(q.limit) || 12, 24);
+    return ok(utilityReadings
+      .filter((u) => u.roomId === q.roomId)
+      .sort((a, b) => b.monthYear.localeCompare(a.monthYear))
+      .slice(0, limit));
   },
   /** ?search=&status=&type=&billingPeriod=&buildingId=&studentId= — kèm summary của cả tập đã lọc (bỏ hóa đơn đã hủy) */
   getInvoices: async (q = {}) => {
@@ -961,7 +866,7 @@ export const mockFees = {
     if (q.billingPeriod) rows = rows.filter((i) => i.billingPeriod === q.billingPeriod);
     if (q.studentId) rows = rows.filter((i) => i.studentId === q.studentId);
     if (q.buildingId) rows = rows.filter((i) => i.buildingId === q.buildingId);
-    rows = search(rows, q.search, ['invoiceCode', 'studentCode', 'studentName', 'bedCode'])
+    rows = search(rows, q.search, ['invoiceCode', 'studentCode', 'studentName', 'bedCode', 'roomNumber'])
       .sort((a, b) => String(b.issueDate).localeCompare(String(a.issueDate)) || b.invoiceCode.localeCompare(a.invoiceCode));
     const billable = rows.filter((i) => i.status !== 'cancelled');
     const sum = (list, f) => list.reduce((t, i) => t + f(i), 0);
@@ -988,58 +893,6 @@ export const mockFees = {
       payments: payments.filter((p) => p.invoiceId === id).sort((a, b) => String(a.paidAt).localeCompare(String(b.paidAt))),
     });
   },
-  /**
-   * POST /invoices — hóa đơn lẻ loại `other` cho sinh viên đang có hợp đồng (FR-46).
-   * { contractId, dueDate, note?, lineItems: [{ feeTypeId, description, quantity, unitPrice }] } — amount, totalAmount do server tính (BR-41, BR-42)
-   */
-  createInvoice: async (body = {}) => {
-    await delay();
-    const c = contracts.find((x) => x.id === body.contractId);
-    if (!c) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'contractId', message: 'Chọn sinh viên' }] });
-    if (c.status !== 'active') fail(422, 'CONTRACT_NOT_ACTIVE', `Hợp đồng ${c.contractCode} không còn hiệu lực`);
-    const errors = [];
-    if (!body.dueDate) errors.push({ field: 'dueDate', message: 'Chọn hạn thanh toán' });
-    else if (body.dueDate < todayPlus(0)) errors.push({ field: 'dueDate', message: 'Hạn thanh toán không được trước hôm nay' });
-    const lines = Array.isArray(body.lineItems) ? body.lineItems : [];
-    if (!lines.length) errors.push({ field: 'lineItems', message: 'Thêm ít nhất một khoản phí' });
-    const lineItems = lines.map((l, idx) => {
-      const ft = feeTypes.find((t) => t.id === l.feeTypeId);
-      if (!ft || !ft.isActive || MANUAL_BLOCKED_FEE_CODES.includes(ft.code)) errors.push({ field: `lineItems.${idx}.feeTypeId`, message: 'Loại phí không dùng được cho hóa đơn lẻ' });
-      if (!String(l.description || '').trim()) errors.push({ field: `lineItems.${idx}.description`, message: 'Nhập nội dung' });
-      if (!(Number(l.quantity) > 0)) errors.push({ field: `lineItems.${idx}.quantity`, message: 'Số lượng phải lớn hơn 0' });
-      if (!Number.isInteger(Number(l.unitPrice)) || Number(l.unitPrice) <= 0) errors.push({ field: `lineItems.${idx}.unitPrice`, message: 'Đơn giá phải lớn hơn 0' });
-      const quantity = Number(l.quantity);
-      const unitPrice = Number(l.unitPrice);
-      return { feeTypeId: l.feeTypeId, description: String(l.description || '').trim(), quantity, unitPrice, amount: Math.round(quantity * unitPrice) };
-    });
-    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
-    const now = new Date();
-    const inv = {
-      ...nextManualInvoiceCode(),
-      studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
-      contractId: c.id, bedCode: c.bedCode, type: 'other', billingPeriod: null, lineItems,
-      totalAmount: lineItems.reduce((t, l) => t + l.amount, 0), paidAmount: 0,
-      issueDate: todayPlus(0), dueDate: body.dueDate, status: 'unpaid', note: String(body.note || '').trim() || null,
-      createdAt: now.toISOString(),
-    };
-    invoices.push(inv);
-    return ok(invoiceView(inv), `Đã tạo hóa đơn ${inv.invoiceCode}`);
-  },
-  /** GET /invoices/generation-preview?billingPeriod=&buildingIds= — tính trước kết quả lập hàng loạt, không ghi gì */
-  previewInvoiceGeneration: async (q = {}) => {
-    await delay(300);
-    const period = checkGenerationPeriod(q.billingPeriod);
-    return ok(runInvoiceGeneration(period, q.buildingIds || [], null, true), 'Xem trước kết quả lập hóa đơn');
-  },
-  /** POST /invoices/generate — { billingPeriod, buildingIds?, dueDate } (FR-47, UC-04) */
-  generateInvoices: async (body = {}) => {
-    await delay(700);
-    if (!body.dueDate) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'dueDate', message: 'Chọn hạn thanh toán' }] });
-    const period = checkGenerationPeriod(body.billingPeriod);
-    const result = runInvoiceGeneration(period, body.buildingIds || [], body.dueDate, false);
-    const [y, m] = period.split('-');
-    return ok(result, `Đã lập ${result.created} hóa đơn${result.updated ? `, bổ sung ${result.updated} hóa đơn` : ''} cho kỳ ${Number(m)}/${y}`);
-  },
   /** PATCH /invoices/:id/cancel — chỉ khi chưa có thanh toán thành công (BR-46) */
   cancelInvoice: async (id) => {
     await delay();
@@ -1047,15 +900,8 @@ export const mockFees = {
     if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
     if (inv.status === 'cancelled') fail(422, 'INVOICE_NOT_CANCELLABLE', 'Hóa đơn đã hủy trước đó');
     if (inv.paidAmount > 0) fail(422, 'INVOICE_HAS_PAYMENT', 'Hóa đơn đã phát sinh thanh toán, không thể hủy');
+    if (inv.type === 'utility') fail(422, 'INVOICE_NOT_CANCELLABLE', 'Hóa đơn điện nước đã chốt, không hủy được');
     inv.status = 'cancelled';
-    // Hủy hết hóa đơn tháng có tiền điện nước của một phòng → mở khóa chỉ số kỳ đó để sửa (BR-53)
-    if (inv.type === 'monthly' && inv.billingPeriod) {
-      const roomId = contracts.find((c) => c.id === inv.contractId)?.roomId;
-      const stillBilled = invoices.some((x) => x.type === 'monthly' && x.billingPeriod === inv.billingPeriod && x.status !== 'cancelled'
-        && contracts.find((c) => c.id === x.contractId)?.roomId === roomId && x.lineItems.some((l) => UTILITY_FEE_IDS.includes(l.feeTypeId)));
-      const reading = utilityReadings.find((u) => u.roomId === roomId && u.billingPeriod === inv.billingPeriod);
-      if (reading && !stillBilled) reading.isInvoiced = false;
-    }
     return ok(invoiceView(inv), `Đã hủy hóa đơn ${inv.invoiceCode}`);
   },
 };

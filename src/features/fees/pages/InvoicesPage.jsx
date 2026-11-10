@@ -4,7 +4,7 @@ import {
   Button, Card, Select, Tag, Typography, Tooltip, Row, Col, App,
 } from 'antd';
 import {
-  FileAddOutlined, FileDoneOutlined, WalletOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
+  WalletOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
   WarningOutlined, ReloadOutlined, StopOutlined, DollarOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
@@ -19,8 +19,6 @@ import PageHeader from '../../../components/PageHeader';
 import DataTable from '../../../components/DataTable';
 import StatCard from '../../../components/StatCard';
 import StatusTag from '../../../components/StatusTag';
-import GenerateInvoicesModal from '../components/invoices/GenerateInvoicesModal';
-import CreateInvoiceModal from '../components/invoices/CreateInvoiceModal';
 import RecordPaymentModal from '../components/invoices/RecordPaymentModal';
 import { periodOptions } from '../utils/readingSheet';
 import { cancelBlockReason, invoiceRoomOf, isOpenInvoice, periodShort } from '../utils/invoiceView';
@@ -29,7 +27,7 @@ const { Text } = Typography;
 
 const EMPTY_FILTERS = { page: 1, limit: 10, search: '', billingPeriod: undefined, type: undefined, status: undefined, buildingId: undefined };
 
-/** SCR-52 Danh sách hóa đơn (FR-46, FR-49, FR-58) + mở SCR-53 lập hàng loạt */
+/** SCR-52 Danh sách hóa đơn. Hóa đơn chỉ sinh từ duyệt đơn và chốt điện nước — không lập tay (API.md §8) */
 export default function InvoicesPage() {
   // Đổi query trên URL (VD bấm menu Hóa đơn khi đang ở ?status=overdue) → dựng lại bộ lọc từ đầu
   const [searchParams] = useSearchParams();
@@ -40,7 +38,6 @@ function InvoicesView({ searchParams }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { modal, message, notification } = App.useApp();
-  const canCreate = can(user, 'invoice:create');
   const canCancel = can(user, 'invoice:cancel');
   const canRecord = can(user, 'payment:record');
 
@@ -52,8 +49,6 @@ function InvoicesView({ searchParams }) {
     billingPeriod: searchParams.get('billingPeriod') || undefined,
   }));
   const [tableKey, setTableKey] = useState(0); // đổi key để ô tìm kiếm của DataTable về rỗng khi đặt lại
-  const [generateOpen, setGenerateOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
   const [payInvoice, setPayInvoice] = useState(null); // hóa đơn đang thu tiền (SCR-55)
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
@@ -92,26 +87,9 @@ function InvoicesView({ searchParams }) {
     });
   };
 
-  const handleGenerated = (res) => {
-    setGenerateOpen(false);
-    const d = res.data;
-    notification.success({
-      title: res.message,
-      description: `Tổng ${formatCurrency(d.totalAmount)}${d.skipped?.length ? ` · bỏ qua ${d.skipped.length} phòng` : ''}`,
-      duration: 6,
-    });
-    refetch();
-  };
-
   const handleRecorded = (res) => {
     setPayInvoice(null);
     if (res) notification.success({ title: res.message });
-    refetch();
-  };
-
-  const handleCreated = (res) => {
-    setCreateOpen(false);
-    message.success(res.message);
     refetch();
   };
 
@@ -124,8 +102,9 @@ function InvoicesView({ searchParams }) {
       title: 'Sinh viên · Phòng', key: 'student', width: 210,
       render: (_, inv) => (
         <>
-          <div>{inv.studentName}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>{inv.studentCode}</Text>
+          {/* Hóa đơn điện nước thuộc cả phòng, không gắn một sinh viên (FR-41) */}
+          <div>{inv.scope === 'room' ? 'Cả phòng' : inv.studentName}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>{inv.scope === 'room' ? (inv.payer ? `Đã nộp: ${inv.payer.fullName}` : '') : inv.studentCode}</Text>
           {invoiceRoomOf(inv) !== '—' && <Tag style={{ margin: '0 0 0 6px', fontSize: 11, lineHeight: '16px', paddingInline: 4 }}>{invoiceRoomOf(inv)}</Tag>}
         </>
       ),
@@ -178,13 +157,7 @@ function InvoicesView({ searchParams }) {
       <PageHeader
         breadcrumb={['Tài chính', 'Hóa đơn']}
         title="Quản lý hóa đơn"
-        description="Theo dõi, phát hành và thu tiền các khoản phí ký túc xá"
-        extra={canCreate && (
-          <>
-            <Button icon={<FileAddOutlined />} onClick={() => setCreateOpen(true)}>Tạo hóa đơn lẻ</Button>
-            <Button type="primary" icon={<FileDoneOutlined />} onClick={() => setGenerateOpen(true)}>Lập hóa đơn hàng loạt</Button>
-          </>
-        )}
+        description="Hóa đơn sinh khi duyệt đơn (cọc, tiền phòng) và khi chốt điện nước — theo dõi và thu tiền"
       />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -233,7 +206,7 @@ function InvoicesView({ searchParams }) {
           error={error}
           filters={filters}
           onFiltersChange={setFilters}
-          searchPlaceholder="Tìm mã hóa đơn, MSSV, họ tên, mã giường…"
+          searchPlaceholder="Tìm mã hóa đơn, MSSV, họ tên, số phòng…"
           unit="hóa đơn"
           scrollX={1325}
           onRow={(inv) => ({ style: inv.status === 'cancelled' ? { opacity: 0.6 } : undefined, onDoubleClick: () => navigate(`/admin/invoices/${inv.id}`) })}
@@ -269,12 +242,6 @@ function InvoicesView({ searchParams }) {
 
       {canRecord && (
         <RecordPaymentModal key={payInvoice?.id ?? 'closed'} open={!!payInvoice} invoice={payInvoice} onCancel={() => setPayInvoice(null)} onRecorded={handleRecorded} />
-      )}
-      {canCreate && (
-        <>
-          <GenerateInvoicesModal open={generateOpen} buildings={buildings} onCancel={() => setGenerateOpen(false)} onDone={handleGenerated} />
-          <CreateInvoiceModal open={createOpen} onCancel={() => setCreateOpen(false)} onCreated={handleCreated} />
-        </>
       )}
     </>
   );

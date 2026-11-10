@@ -1,6 +1,6 @@
 # KẾ HOẠCH CHỈNH SỬA FRONTEND THEO PHIÊN BẢN TINH GỌN HaUI (v2.0)
 
-**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M5 (M5 chờ commit, 10/11/2026)
+**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M6 (M6 chờ commit, 10/11/2026)
 **Nguồn yêu cầu:** `D:\BE_QLKTX\docs\EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS v2.0) và `EDIT_DOCS_DATA_SCHEMA.md`. Khác với tài liệu cũ trong `docs/` thì theo hai file này. Chỗ SRS bỏ ngỏ thì theo luồng use case trong `BAO_CAO_CHUONG_2.md`.
 **Bổ sung ngoài SRS:** xác nhận hoàn cọc (FR-35, BR-08), theo yêu cầu ngày 09/11/2026.
 **File này phục vụ một việc:** làm xong v2 thì xoá.
@@ -158,11 +158,11 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 - **Thử:** SV còn nợ → thanh lý bị chặn và nêu lý do; hết nợ → giường trống lại, hợp đồng `terminated`, xuất hiện ở tab Chờ hoàn cọc. Bấm xác nhận → rời khỏi tab, không bấm lại được; đăng nhập SV đó thấy đã nhận cọc. Hợp đồng chưa thanh lý không có nút này.
 
 ### M6. Chốt điện nước theo phòng · Vừa · `feature/v2-utility-billing`
-- **AI:** model chỉ số mới, ô đơn giá (D4), Chốt & Phát hành theo tòa + tháng, khóa sau khi chốt, bỏ phòng không có người, lịch sử theo phòng, xoá Danh mục loại phí.
+- **AI:** model chỉ số mới, ô đơn giá (D4), Chốt & Phát hành theo tòa + tháng, khóa sau khi chốt, bỏ phòng không có người, lịch sử theo phòng, xoá Danh mục loại phí. **Kéo từ M7 lên (10/11/2026):** xoá Lập hóa đơn hàng loạt và Tạo hóa đơn lẻ, vì cả hai chạy trên model chỉ số cũ và danh mục loại phí nên gãy ngay khi đổi model. Hóa đơn điện nước mới mang thêm trường kiểu cũ (`totalAmount`, `paidAmount`, `lineItems`) để màn Hóa đơn hiện được tới M7; hóa đơn tháng kiểu cũ trong dữ liệu giả chỉ còn tiền phòng để không tính điện nước hai lần.
 - **Thử:** nhập chỉ số một tòa → Chốt → mỗi phòng đúng 1 hóa đơn, không sửa được nữa. Màn Hóa đơn có thể hiển thị chưa đẹp cho tới hết M7.
 
 ### M7. Hóa đơn và thanh toán phía cán bộ · Vừa · `feature/v2-invoices-payments`
-- **AI:** danh sách và chi tiết theo model mới, modal xác nhận thu (D5), hiển thị biên lai sau khi thu (UC-06: mã phiếu, số tiền, người thu, thời gian), màn Thanh toán rút gọn, xoá lập lẻ, lập hàng loạt, hủy, thu một phần.
+- **AI:** danh sách và chi tiết theo model mới, modal xác nhận thu (D5), hiển thị biên lai sau khi thu (UC-06: mã phiếu, số tiền, người thu, thời gian), màn Thanh toán rút gọn, xoá hủy và thu một phần (lập lẻ, lập hàng loạt đã xoá ở M6). Bỏ hẳn loại hóa đơn `monthly` trong dữ liệu giả và các trường kiểu cũ trên hóa đơn điện nước.
 - **Thử:** thu tiền mặt hóa đơn phòng, chọn người nộp → `paid`, chi tiết hiện đúng tên; xác nhận VietQR có ô mã giao dịch, được để trống (FR-54 ghi "nếu cần").
 
 ### M8. Cổng SV: hóa đơn và VietQR · Vừa · `feature/v2-portal-vietqr`

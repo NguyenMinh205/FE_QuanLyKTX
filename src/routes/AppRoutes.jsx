@@ -17,7 +17,6 @@ import ApplicationStatusPage from '../features/apply/pages/ApplicationStatusPage
 import UsersPage from '../features/users/pages/UsersPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import BuildingsPage from '../features/rooms/pages/BuildingsPage';
-import FeeTypesPage from '../features/fees/pages/FeeTypesPage';
 import UtilityReadingsPage from '../features/fees/pages/UtilityReadingsPage';
 import InvoicesPage from '../features/fees/pages/InvoicesPage';
 import InvoiceDetailPage from '../features/fees/pages/InvoiceDetailPage';
@@ -68,7 +67,6 @@ export default function AppRoutes() {
       {/* ---------- Chỉ admin ---------- */}
       <Route element={<RoleRoute allowed={[ADMIN]}><AdminLayout /></RoleRoute>}>
         <Route path="/admin/users" element={<UsersPage />} />
-        <Route path="/admin/fee-types" element={<FeeTypesPage />} />
       </Route>
 
       {/* ---------- Cổng sinh viên: chỉ student ---------- */}
