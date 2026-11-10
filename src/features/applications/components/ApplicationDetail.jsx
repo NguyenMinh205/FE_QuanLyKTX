@@ -47,7 +47,7 @@ function MoneyRow({ label, value, strong }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0' }}>
       <Text strong={strong} style={strong ? { fontSize: 16 } : undefined}>{label}</Text>
-      <Text strong style={strong ? { fontSize: 20, color: '#1677FF' } : undefined}>{formatCurrency(value)}</Text>
+      <Text strong style={strong ? { fontSize: 20, color: 'var(--brand)' } : undefined}>{formatCurrency(value)}</Text>
     </div>
   );
 }
@@ -142,11 +142,11 @@ export default function ApplicationDetail({ contractId, canReview, onProcessed }
 
   const confirmApprove = () => modal.confirm({
     title: `Duyệt đơn ${c.contractCode}?`,
-    icon: <CheckCircleOutlined style={{ color: '#1677FF' }} />,
+    icon: <CheckCircleOutlined style={{ color: 'var(--brand)' }} />,
     content: (
       <div>
         Xếp <b>{c.student.fullName}</b> vào <b>{roomTextOf(room)} · Giường {pad2(bedNumber)}</b>.
-        <div style={{ marginTop: 6, color: '#8C8C8C' }}>
+        <div style={{ marginTop: 6, color: 'var(--text-tertiary)' }}>
           Hệ thống khóa giường, cấp tài khoản gửi qua email và tạo 2 hóa đơn: tiền cọc và tiền phòng {months} tháng.
         </div>
       </div>
@@ -174,19 +174,19 @@ export default function ApplicationDetail({ contractId, canReview, onProcessed }
     <div style={{ display: 'grid', gap: 16 }}>
       {/* ---------- Sinh viên ---------- */}
       <Card>
-        <SectionTitle icon={<IdcardOutlined style={{ color: '#1677FF' }} />} extra={<StatusTag type="contract" value={c.status} />}>
+        <SectionTitle icon={<IdcardOutlined style={{ color: 'var(--brand)' }} />} extra={<StatusTag type="contract" value={c.status} />}>
           Thông tin sinh viên
         </SectionTitle>
         <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
           <div style={{
-            width: 64, height: 64, borderRadius: 12, background: '#E6F4FF', color: '#1677FF',
+            width: 64, height: 64, borderRadius: 12, background: 'var(--brand-soft)', color: 'var(--brand)',
             display: 'grid', placeItems: 'center', fontSize: 22, fontWeight: 600, flexShrink: 0,
           }}>
             {initialsOf(student.fullName)}
           </div>
           <div style={{ flex: 1, minWidth: 240, ...GRID }}>
             <Field label="Họ và tên"><Text strong>{student.fullName}</Text></Field>
-            <Field label="Mã sinh viên"><Text strong style={{ color: '#1677FF' }}>{student.studentCode}</Text></Field>
+            <Field label="Mã sinh viên"><Text strong style={{ color: 'var(--brand)' }}>{student.studentCode}</Text></Field>
             <Field label="Giới tính">{GENDER[student.gender]?.label}</Field>
             <Field label="Ngày sinh">{student.dob ? formatDate(student.dob) : null}</Field>
             <Field label="Khoa / Viện">{student.faculty}</Field>
@@ -202,7 +202,7 @@ export default function ApplicationDetail({ contractId, canReview, onProcessed }
 
       {/* ---------- Đơn ---------- */}
       <Card>
-        <SectionTitle icon={<FileTextOutlined style={{ color: '#1677FF' }} />}>Đơn đăng ký</SectionTitle>
+        <SectionTitle icon={<FileTextOutlined style={{ color: 'var(--brand)' }} />}>Đơn đăng ký</SectionTitle>
         <div style={{ ...GRID, marginTop: 16 }}>
           <Field label="Mã đơn">{c.contractCode}</Field>
           <Field label="Nộp lúc">{formatDateTime(c.createdAt)}</Field>
@@ -220,7 +220,7 @@ export default function ApplicationDetail({ contractId, canReview, onProcessed }
       {/* ---------- Xếp giường ---------- */}
       {isPending && (
         <Card>
-          <SectionTitle icon={<HomeOutlined style={{ color: '#1677FF' }} />}>Giường sẽ khóa khi duyệt</SectionTitle>
+          <SectionTitle icon={<HomeOutlined style={{ color: 'var(--brand)' }} />}>Giường sẽ khóa khi duyệt</SectionTitle>
 
           {bedAlert && (
             <Alert
@@ -293,7 +293,7 @@ export default function ApplicationDetail({ contractId, canReview, onProcessed }
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             {bedNumber ? (
               <Text style={{ flex: 1, minWidth: 220 }}>
-                <InfoCircleOutlined style={{ color: '#1677FF' }} /> Sẽ khóa <b>{roomTextOf(room)} · Giường {pad2(bedNumber)}</b>
+                <InfoCircleOutlined style={{ color: 'var(--brand)' }} /> Sẽ khóa <b>{roomTextOf(room)} · Giường {pad2(bedNumber)}</b>
                 {changed && <Tag color="orange" style={{ marginLeft: 8 }}>Khác lựa chọn của sinh viên</Tag>}
               </Text>
             ) : (

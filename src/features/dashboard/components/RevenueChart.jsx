@@ -10,6 +10,7 @@ import {
 import { useApi } from '../../../hooks/useApi';
 import { dashboardApi } from '../api/dashboard.api';
 import { formatCurrency } from '../../../utils/formatter';
+import { BRAND, TEXT_TERTIARY } from '../../../theme/tokens';
 
 const { Text } = Typography;
 
@@ -19,7 +20,7 @@ const { Text } = Typography;
  * với nền nên BẮT BUỘC có bảng số bên dưới biểu đồ.
  */
 const SERIES = [
-  { key: 'roomRevenue', label: 'Tiền phòng trọn gói', color: '#1677FF' },
+  { key: 'roomRevenue', label: 'Tiền phòng trọn gói', color: BRAND },
   { key: 'utilityRevenue', label: 'Tiền điện nước', color: '#13C2C2' },
 ];
 
@@ -42,7 +43,7 @@ function RevenueTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const r = payload[0].payload;
   return (
-    <div style={{ background: '#fff', border: '1px solid #F0F0F0', borderRadius: 8, padding: '8px 12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: 13 }}>
+    <div style={{ background: '#fff', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: 13 }}>
       <Text strong>Tháng {r.month.split('-').reverse().join('/')}</Text>
       {SERIES.map((s) => (
         <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
@@ -50,7 +51,7 @@ function RevenueTooltip({ active, payload }) {
           <b>{formatCurrency(r[s.key])}</b>
         </div>
       ))}
-      <div style={{ borderTop: '1px solid #F0F0F0', marginTop: 4, paddingTop: 4 }}>Tổng: <b>{formatCurrency(r.total)}</b></div>
+      <div style={{ borderTop: '1px solid var(--line)', marginTop: 4, paddingTop: 4 }}>Tổng: <b>{formatCurrency(r.total)}</b></div>
     </div>
   );
 }
@@ -73,7 +74,7 @@ export default function RevenueChart() {
     <Card
       title={(
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 36, height: 36, borderRadius: 8, background: '#E6F4FF', display: 'grid', placeItems: 'center' }}><RiseOutlined style={{ color: '#1677FF' }} /></span>
+          <RiseOutlined style={{ color: 'var(--brand)', fontSize: 18 }} />
           <span>
             <div>Doanh thu theo tháng</div>
             <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>Theo ngày thu tiền · không tính tiền cọc</Text>
@@ -88,9 +89,10 @@ export default function RevenueChart() {
       )}
     >
       {error && <Alert type="error" showIcon title={error} />}
-      {!error && loading && !data && <Skeleton active paragraph={{ rows: 5 }} />}
-      {!error && data && rows.length === 0 && <Text type="secondary">Năm {year} chưa thu được khoản nào.</Text>}
-      {!error && rows.length > 0 && (
+      {/* useApi giữ dữ liệu cũ khi tải lại — đổi năm thì ẩn hẳn để không hiện số năm trước dưới nhãn năm mới */}
+      {!error && loading && <Skeleton active paragraph={{ rows: 5 }} />}
+      {!error && !loading && data && rows.length === 0 && <Text type="secondary">Năm {year} chưa thu được khoản nào.</Text>}
+      {!error && !loading && rows.length > 0 && (
         <>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 8 }}>
             {SERIES.map((s) => (
@@ -105,8 +107,8 @@ export default function RevenueChart() {
             <ResponsiveContainer>
               <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="28%">
                 <CartesianGrid vertical={false} stroke="#F0F0F0" />
-                <XAxis dataKey="month" tickFormatter={monthShort} tick={{ fontSize: 12, fill: '#8C8C8C' }} axisLine={{ stroke: '#D9D9D9' }} tickLine={false} />
-                <YAxis tickFormatter={millions} tick={{ fontSize: 12, fill: '#8C8C8C' }} axisLine={false} tickLine={false} width={48} />
+                <XAxis dataKey="month" tickFormatter={monthShort} tick={{ fontSize: 12, fill: TEXT_TERTIARY }} axisLine={{ stroke: '#D9D9D9' }} tickLine={false} />
+                <YAxis tickFormatter={millions} tick={{ fontSize: 12, fill: TEXT_TERTIARY }} axisLine={false} tickLine={false} width={48} />
                 <Tooltip content={<RevenueTooltip />} cursor={{ fill: 'rgba(22,119,255,0.04)' }} />
                 {/* Viền trắng 2px = khe giữa hai đoạn chồng. Bo cả hai: tháng chỉ có tiền phòng thì đoạn dưới là đầu cột */}
                 <Bar dataKey="roomRevenue" stackId="rev" fill={SERIES[0].color} stroke="#fff" strokeWidth={2} radius={[4, 4, 0, 0]} isAnimationActive={false} />

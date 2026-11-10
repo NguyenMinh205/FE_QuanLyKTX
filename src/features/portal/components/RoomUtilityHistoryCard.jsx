@@ -26,7 +26,7 @@ export default function RoomUtilityHistoryCard() {
 
   return (
     <Card
-      title={<span><ThunderboltOutlined style={{ color: '#1677FF' }} /> Điện nước của phòng</span>}
+      title={<span><ThunderboltOutlined style={{ color: 'var(--brand)' }} /> Điện nước của phòng</span>}
       style={{ marginTop: 16 }} styles={{ body: { padding: 0 } }}
     >
       {error

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { AuthContext } from './AuthContext';
 import { authApi } from '../lib/authApi';
 import { authStorage } from '../lib/authStorage';
@@ -51,6 +51,14 @@ export function AuthProvider({ children }) {
       authStorage.updateUser(next);
       return next;
     });
+  }, []);
+
+  // ⚠️ Tab khác đăng nhập tài khoản khác / đăng xuất (cùng localStorage): tab này phải tải lại, không thì màn hình
+  // vẫn mang tên người cũ trong khi mọi request đã đi bằng token của người mới
+  useEffect(() => {
+    const onStorage = (e) => { if (e.key === 'token' || e.key === null) window.location.reload(); };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const value = useMemo(

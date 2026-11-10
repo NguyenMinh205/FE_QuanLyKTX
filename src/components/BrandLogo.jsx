@@ -6,7 +6,7 @@
 export default function BrandLogo({ size = 40, variant = 'solid' }) {
   const box = variant === 'glass'
     ? { background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.28)' }
-    : { background: '#1677FF' };
+    : { background: 'var(--brand)' };
 
   return (
     <div style={{

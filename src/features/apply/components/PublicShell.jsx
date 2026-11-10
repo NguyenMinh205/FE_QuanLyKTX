@@ -11,9 +11,9 @@ export default function PublicShell({ children }) {
   const screens = useBreakpoint();
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F5F5F5' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--layout-bg)' }}>
       <header style={{
-        background: '#fff', borderBottom: '1px solid #F0F0F0', height: 64, padding: '0 16px',
+        background: '#fff', borderBottom: '1px solid var(--line)', height: 64, padding: '0 16px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, position: 'sticky', top: 0, zIndex: 10,
       }}>
         <Link to="/apply" style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'inherit', minWidth: 0 }}>

@@ -65,7 +65,7 @@ export default function CollectPaymentModal({ invoiceId, open, onClose }) {
       if (fieldErrors) form.setFields(fieldErrors.map((e) => ({ name: e.field, errors: [e.message] })));
       else if (code === 'INVOICE_ALREADY_PAID') {
         // Người khác vừa thu — đóng và tải lại để thấy trạng thái mới
-        modal.warning({ title: 'Hóa đơn đã được thu', content: getErrorMessage(err), onOk: () => onClose(true) });
+        modal.warning({ title: 'Hóa đơn đã được thu', content: getErrorMessage(err), onOk: () => { setError(null); form.resetFields(); onClose(true); } });
       } else setError(getErrorMessage(err));
     } finally {
       setSaving(false);

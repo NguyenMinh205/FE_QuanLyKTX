@@ -18,7 +18,7 @@ const { Text } = Typography;
 function Section({ icon, title, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
-      <div style={{ marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid #F0F0F0' }}>
+      <div style={{ marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid var(--line)' }}>
         <Text strong style={{ fontSize: 15 }}>{icon} {title}</Text>
       </div>
       {children}
@@ -84,7 +84,7 @@ export default function StudentDetailDrawer({
       {!error && !ready && <Skeleton active paragraph={{ rows: 10 }} />}
       {!error && ready && (
         <>
-          <Section icon={<IdcardOutlined style={{ color: '#1677FF' }} />} title="Hồ sơ">
+          <Section icon={<IdcardOutlined style={{ color: 'var(--brand)' }} />} title="Hồ sơ">
             <Row label="Mã sinh viên"><Text strong>{s.studentCode}</Text></Row>
             <Row label="Giới tính">{GENDER[s.gender]?.label}</Row>
             <Row label="Ngày sinh">{s.dob ? formatDate(s.dob) : null}</Row>
@@ -98,7 +98,7 @@ export default function StudentDetailDrawer({
             </Row>
           </Section>
 
-          <Section icon={<HomeOutlined style={{ color: '#1677FF' }} />} title="Chỗ ở hiện tại">
+          <Section icon={<HomeOutlined style={{ color: 'var(--brand)' }} />} title="Chỗ ở hiện tại">
             {c ? (
               <>
                 <Row label="Chỗ ở"><Text strong>{c.room?.buildingName} · {residenceTextOf(s.residence) ?? placeTextOf(c)}</Text></Row>
@@ -110,9 +110,9 @@ export default function StudentDetailDrawer({
             ) : <Text type="secondary">Không ở ký túc xá</Text>}
           </Section>
 
-          <Section icon={<FileTextOutlined style={{ color: '#1677FF' }} />} title={`Hóa đơn chưa trả · ${formatCurrency(s.totalDebt)}`}>
+          <Section icon={<FileTextOutlined style={{ color: 'var(--brand)' }} />} title={`Hóa đơn chưa trả · ${formatCurrency(s.totalDebt)}`}>
             {s.unpaidInvoices.length === 0 ? <Text type="secondary">Không còn hóa đơn cá nhân nào chưa trả</Text> : s.unpaidInvoices.map((i) => (
-              <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}>
+              <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
                 <div style={{ minWidth: 0 }}>
                   <Link to={`/admin/invoices/${i.id}`}>{i.invoiceCode}</Link>
                   <div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[i.type]?.label} · hạn {formatDate(i.dueDate)}</Text></div>
@@ -123,9 +123,9 @@ export default function StudentDetailDrawer({
             <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 6 }}>Hóa đơn điện nước thuộc cả phòng, xem ở màn Hóa đơn.</Text>
           </Section>
 
-          <Section icon={<HistoryOutlined style={{ color: '#1677FF' }} />} title={`Lịch sử đơn và hợp đồng (${s.contracts.length})`}>
+          <Section icon={<HistoryOutlined style={{ color: 'var(--brand)' }} />} title={`Lịch sử đơn và hợp đồng (${s.contracts.length})`}>
             {s.contracts.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa nộp đơn lần nào" /> : s.contracts.map((x) => (
-              <div key={x.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}>
+              <div key={x.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
                 <div style={{ minWidth: 0 }}>
                   <Text strong>{x.contractCode}</Text> <Text type="secondary">· {placeTextOf(x)}</Text>
                   <div><Text type="secondary" style={{ fontSize: 12 }}>{x.startDate ? `${formatDate(x.startDate)} → ${formatDate(x.endDate)}` : `Nộp ${formatDate(x.createdAt)}`}</Text></div>

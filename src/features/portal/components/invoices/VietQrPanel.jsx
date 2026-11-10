@@ -15,7 +15,7 @@ const qrImageUrl = (q) => `https://img.vietqr.io/image/${q.bankBin}-${q.accountN
   + `?amount=${q.amount}&addInfo=${encodeURIComponent(q.transferContent)}&accountName=${encodeURIComponent(q.accountName)}`;
 
 const Line = ({ label, children }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
     <Text type="secondary" style={{ flexShrink: 0 }}>{label}</Text>
     <div style={{ textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>{children}</div>
   </div>
@@ -28,8 +28,8 @@ export default function VietQrPanel({ invoice }) {
   const ready = qr && qr.amount === invoice.amount;
 
   return (
-    <div style={{ border: '1px solid #F0F0F0', borderRadius: 10, padding: 16 }}>
-      <Text strong><QrcodeOutlined style={{ color: '#1677FF' }} /> Chuyển khoản bằng mã VietQR</Text>
+    <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 16 }}>
+      <Text strong><QrcodeOutlined style={{ color: 'var(--brand)' }} /> Chuyển khoản bằng mã VietQR</Text>
       {error && <Alert type="error" showIcon title={error} style={{ marginTop: 12 }} />}
       {!error && !ready && <Skeleton active paragraph={{ rows: 4 }} style={{ marginTop: 12 }} />}
       {!error && ready && (

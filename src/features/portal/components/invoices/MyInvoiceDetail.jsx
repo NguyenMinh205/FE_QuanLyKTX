@@ -18,7 +18,7 @@ const { Text, Title } = Typography;
 const num = (v) => Number(v).toLocaleString('vi-VN');
 
 const Line = ({ label, children }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid #F5F5F5' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
     <Text type="secondary" style={{ flexShrink: 0 }}>{label}</Text>
     <div style={{ textAlign: 'right', minWidth: 0 }}>{children}</div>
   </div>

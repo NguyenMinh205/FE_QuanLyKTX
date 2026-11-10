@@ -183,6 +183,16 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 - **Quyết định (10/11/2026):** làm sau M10, trước M11 (phương án A) — làm đẹp khi các màn đã ổn định, khỏi làm lại.
 - **AI:** rà toàn bộ màn bằng skill cài riêng trong project (Impeccable chế độ app quản trị, TasteSkill redesign/minimalist). Giữ Ant Design và quy tắc UI của bạn: hiệu ứng đứng yên, mỗi lúc chỉ một thứ chuyển động; không thêm thư viện animation, font hay bộ icon mới. Kiểm ở 1366px và 390px.
 - **Thử:** so ảnh trước/sau từng màn; e2e M1–M10 vẫn đạt.
+- **Đợt soát tổng trước khi làm đẹp (10/11/2026):** 3 người soát độc lập + tự kiểm lại → 31 phát hiện, sửa 30 trên cùng nhánh này; bài kiểm lại bắt thêm 1 lỗi sập trang (form Sửa sinh viên — bộ lọc gợi ý Khoa), cũng đã sửa. Nổi bật khác: form sửa mang giá trị của sinh viên trước, lưu chỉ số xoá số đã gõ ở phòng nhập dở, Excel số thập phân thành số gấp 10, chuông mở sai hóa đơn, mock rơi về sv001 khi phiên không phải sinh viên, giờ thu tiền theo UTC lệch ngày.
+  **Cố ý để lại:** (1) rời màn Chỉ số điện nước bằng menu không hỏi lại khi còn số chưa lưu — cần `useBlocker`, mà app dùng `BrowserRouter`, phải chuyển cả app sang data router; (2) hàng trong bảng bấm được bằng chuột nhưng không Tab tới được (mở chi tiết vẫn có link/nút riêng ở nhiều màn).
+- **Làm đẹp — đã làm (10/11/2026), chờ commit.** Hướng **Tinh chỉnh** (bạn chọn): giữ bố cục, giữ màu xanh nhưng đậm hơn, giữ font hệ thống.
+  - Một nguồn màu `src/theme/tokens.js` + biến CSS trong `index.css`; thay mã màu viết cứng ở ~40 file. Mọi chữ màu đạt AA (≥ 4.5:1): xanh `#1263D6`, chữ phụ `#5B6474`, chữ trạng thái xanh/vàng/đỏ đậm (cả `Text type=…`, nhãn trạng thái, ô phòng trên sơ đồ).
+  - Bỏ kiểu "ô biểu tượng nền màu" lặp ở mọi thẻ: thẻ số liệu, tiêu đề thẻ, lời chào trang chủ sinh viên. Thẻ số liệu xếp 2 thẻ/hàng trên điện thoại.
+  - Trang chủ sinh viên: gộp các khung cảnh báo đỏ/vàng thành một thẻ **Việc cần làm (n)**, việc gấp lên trước.
+  - Đăng nhập: nửa trái nền xanh chuyển màu nhẹ, logo cạnh tên, ba dòng mô tả tính năng có thật thay chấm xanh phiên bản.
+  - Bảng Hợp đồng gọn cho 1366px (cột Tiền phòng cả kỳ chỉ hiện ở màn ≥1600px, có trong drawer); thanh lọc bảng và lọc sơ đồ phòng xếp lưới 2 cột trên điện thoại.
+  - Bỏ kiểu chuyển động "nảy" mặc định của antd. Bộ dò Impeccable trên `/login`, `/apply`: không còn phát hiện.
+  - **Chưa làm:** thanh Lưu/Chốt ở màn Chỉ số điện nước trên điện thoại vẫn che ~1/3 màn (nhập chỉ số là việc làm trên máy tính).
 
 ### M11. Rà soát và bàn giao BE · Nhỏ · `docs/v2-acceptance`
 - **AI:** thử trọn luồng theo 3 vai trò, xoá code và mock thừa, cập nhật `docs/15`, `16`, `17`, thêm ghi chú đầu `docs/README.md` rằng tài liệu 01–14 mô tả v1.

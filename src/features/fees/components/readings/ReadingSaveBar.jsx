@@ -23,7 +23,7 @@ export default function ReadingSaveBar({ counts, saving, publishing, onReset, on
       style={{
         position: 'sticky', bottom: 16, zIndex: 20, marginTop: 16,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-        background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, padding: '12px 16px',
+        background: '#fff', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 16px',
         boxShadow: '0 6px 24px rgba(0,0,0,0.10)',
       }}
     >

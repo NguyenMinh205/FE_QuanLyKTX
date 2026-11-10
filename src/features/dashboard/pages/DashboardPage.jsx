@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Row, Col, Progress, Alert, Button, Typography, Tooltip,
 } from 'antd';
@@ -21,7 +21,6 @@ const { Text } = Typography;
 
 /** SCR-10 Dashboard: KPI (FR-70), lấp đầy theo tòa (FR-71), doanh thu theo tháng — chỉ Admin (FR-72) */
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === ROLES.ADMIN;
 
@@ -36,7 +35,7 @@ export default function DashboardPage() {
   const consistent = !o || o.total === o.occupied + o.available + o.maintenance;
   const refreshAll = () => { summaryApi.refetch(); occupancyApi.refetch(); };
 
-  const actionLink = (label, to) => <a onClick={() => navigate(to)}>{label} <ArrowRightOutlined /></a>;
+  const actionLink = (label, to) => <Link to={to}>{label} <ArrowRightOutlined /></Link>;
 
   return (
     <>
@@ -63,25 +62,25 @@ export default function DashboardPage() {
 
       {/* ---------- FR-70: giường ---------- */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} xl={6}>
+        <Col xs={12} xl={6}>
           <StatCard label="Tổng số giường" icon={<HomeOutlined />} value={o?.total} loading={loading}
             footer={<Text type="secondary">Trong đó <b>{o?.maintenance ?? 0}</b> giường đang bảo trì</Text>} />
         </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <StatCard label="Đang có người ở" icon={<UserOutlined style={{ color: '#1677FF' }} />} iconBg="#E6F4FF" value={o?.occupied} valueColor="#1677FF" loading={loading}
+        <Col xs={12} xl={6}>
+          <StatCard label="Đang có người ở" icon={<UserOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" value={o?.occupied} valueColor="#1677FF" loading={loading}
             footer={<Text type="secondary">Giường đã xếp cho sinh viên</Text>} />
         </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <StatCard label="Còn trống" icon={<CheckCircleOutlined style={{ color: '#389E0D' }} />} iconBg="#F6FFED" value={o?.available} valueColor="#389E0D" loading={loading}
+        <Col xs={12} xl={6}>
+          <StatCard label="Còn trống" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} iconBg="#F6FFED" value={o?.available} valueColor="#389E0D" loading={loading}
             footer={<Text type="secondary">Sẵn sàng xếp khi duyệt đơn</Text>} />
         </Col>
-        <Col xs={24} sm={12} xl={6}>
+        <Col xs={12} xl={6}>
           <StatCard
-            label="Tỷ lệ lấp đầy" icon={<PieChartOutlined style={{ color: '#1677FF' }} />} iconBg="#E6F4FF" loading={loading}
+            label="Tỷ lệ lấp đầy" icon={<PieChartOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" loading={loading}
             value={rate === null ? null : formatPercent(rate * 100)}
             badge={(
               <Tooltip title="Đã có người / (tổng giường − giường bảo trì)">
-                <InfoCircleOutlined style={{ color: '#8C8C8C' }} aria-label="Cách tính tỷ lệ lấp đầy" />
+                <InfoCircleOutlined style={{ color: 'var(--text-tertiary)' }} aria-label="Cách tính tỷ lệ lấp đầy" />
               </Tooltip>
             )}
           >
@@ -91,16 +90,16 @@ export default function DashboardPage() {
         </Col>
 
         {/* ---------- FR-70: sinh viên, đơn chờ, công nợ ---------- */}
-        <Col xs={24} md={8}>
+        <Col xs={12} md={8}>
           <StatCard
             label="Sinh viên đang nội trú" icon={<TeamOutlined />} value={s?.activeStudents} loading={loading}
             footer={<Text type="secondary">Kể cả hợp đồng đã hết hạn mà chưa trả phòng</Text>}
           />
         </Col>
-        <Col xs={24} md={8}>
+        <Col xs={12} md={8}>
           <StatCard
-            label="Đơn đăng ký chờ duyệt" icon={<FileSearchOutlined style={{ color: '#D48806' }} />} iconBg="#FFFBE6"
-            value={s?.pendingApplications} valueColor={s?.pendingApplications ? '#D48806' : undefined} loading={loading}
+            label="Đơn đăng ký chờ duyệt" icon={<FileSearchOutlined style={{ color: 'var(--warning-text)' }} />} iconBg="#FFFBE6"
+            value={s?.pendingApplications} valueColor={s?.pendingApplications ? 'var(--warning-text)' : undefined} loading={loading}
             footer={s?.pendingApplications ? actionLink('Duyệt đơn', '/admin/applications') : <Text type="secondary">Không có đơn nào đang chờ</Text>}
           />
         </Col>

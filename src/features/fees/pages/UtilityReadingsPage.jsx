@@ -175,8 +175,9 @@ export default function UtilityReadingsPage() {
       });
       const { savedCount, errors = [] } = res.data.data;
       const failed = Object.fromEntries(errors.map((e) => [e.roomId, e.message]));
-      // Phòng đã lưu bỏ bản nháp; phòng lỗi giữ bản nháp để sửa tiếp
-      setDrafts((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => failed[id])));
+      // ⚠️ Chỉ bỏ bản nháp của phòng vừa lưu được. Phòng nhập dở hay đang báo lỗi không được gửi đi — xoá là mất số đã gõ
+      const savedIds = new Set(toSave.map((r) => r.room.id).filter((id) => !failed[id]));
+      setDrafts((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !savedIds.has(id))));
       setServerErrors(failed);
       setPriceDraft(null);
       if (savedCount) message.success(res.data.message);
@@ -271,7 +272,7 @@ export default function UtilityReadingsPage() {
     title: 'Tiêu thụ', key, width: 84, align: 'right', onHeaderCell: () => ({ style: { background: bg } }),
     render: (_, r) => (r[key] === null
       ? <Text type="secondary">—</Text>
-      : <Text strong style={{ color: r.dirty ? '#1677FF' : undefined, fontVariantNumeric: 'tabular-nums' }}>{r[key].toLocaleString('vi-VN')}</Text>),
+      : <Text strong style={{ color: r.dirty ? 'var(--brand)' : undefined, fontVariantNumeric: 'tabular-nums' }}>{r[key].toLocaleString('vi-VN')}</Text>),
   });
 
   const columns = [
@@ -285,13 +286,13 @@ export default function UtilityReadingsPage() {
         <Tooltip title={`${r.occupants} người đang ở / ${r.room.capacity ?? '—'} giường`}>
           <span style={{
             display: 'inline-grid', placeItems: 'center', minWidth: 30, height: 30, borderRadius: 15, padding: '0 8px',
-            background: r.occupants ? '#F0F0F0' : '#FAFAFA', color: r.occupants ? undefined : '#BFBFBF', fontWeight: 600,
+            background: r.occupants ? 'var(--line)' : '#FAFAFA', color: r.occupants ? undefined : '#BFBFBF', fontWeight: 600,
           }}>{r.occupants}</span>
         </Tooltip>
       ),
     },
     {
-      title: <Space size={6} style={{ color: '#1677FF' }}><ThunderboltOutlined />ĐIỆN (kWh)</Space>,
+      title: <Space size={6} style={{ color: 'var(--brand)' }}><ThunderboltOutlined />ĐIỆN (kWh)</Space>,
       onHeaderCell: () => ({ style: { background: ELECTRIC_BG, textAlign: 'center' } }),
       children: [
         meterColumn('electricityOldIndex', 'Chỉ số cũ', ELECTRIC_BG),
@@ -300,7 +301,7 @@ export default function UtilityReadingsPage() {
       ],
     },
     {
-      title: <Space size={6} style={{ color: '#389E0D' }}><ExperimentOutlined />NƯỚC (m³)</Space>,
+      title: <Space size={6} style={{ color: 'var(--success-text)' }}><ExperimentOutlined />NƯỚC (m³)</Space>,
       onHeaderCell: () => ({ style: { background: WATER_BG, textAlign: 'center' } }),
       children: [
         meterColumn('waterOldIndex', 'Chỉ số cũ', WATER_BG),
@@ -385,7 +386,7 @@ export default function UtilityReadingsPage() {
               {priceInput('electricity', 'Điện', 'kWh')}
               {priceInput('water', 'Nước', 'm³')}
               <Tooltip title="Không có bảng giá riêng: đơn giá tự điền theo lần nhập gần nhất của tòa. Lưu lần này thì mọi phòng chưa chốt dùng giá này; phòng đã phát hành giữ giá lúc chốt.">
-                <InfoCircleOutlined style={{ color: '#1677FF', lineHeight: '32px', marginTop: 9 }} aria-label="Giải thích đơn giá" />
+                <InfoCircleOutlined style={{ color: 'var(--brand)', lineHeight: '32px', marginTop: 9 }} aria-label="Giải thích đơn giá" />
               </Tooltip>
             </Space>
           )}
@@ -400,7 +401,7 @@ export default function UtilityReadingsPage() {
       {rows.length > 0 && (
         <Card styles={{ body: { padding: '12px 16px' } }} style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <Space><CheckSquareOutlined style={{ color: '#1677FF' }} /><Text strong>Tiến độ · {periodLabel(monthYear)}</Text></Space>
+            <Space><CheckSquareOutlined style={{ color: 'var(--brand)' }} /><Text strong>Tiến độ · {periodLabel(monthYear)}</Text></Space>
             <Text strong>
               Đã nhập {counts.recorded}/{counts.required} phòng có người <Text type="secondary">({pct}%)</Text>
               {counts.billed > 0 && <Text type="secondary"> · đã phát hành {counts.billed}</Text>}

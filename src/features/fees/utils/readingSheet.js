@@ -70,9 +70,11 @@ export const buildRow = ({ sheetRow, draft, prices, priceDirty, serverError }) =
 
   const electricityUsage = complete && !errors.electricityNewIndex ? values.electricityNewIndex - values.electricityOldIndex : null;
   const waterUsage = complete && !errors.waterNewIndex ? values.waterNewIndex - values.waterOldIndex : null;
-  // Đã chốt: giữ đơn giá trên bản ghi. Chưa chốt: lần lưu tới dùng đơn giá đầu lưới
-  const electricityPrice = billed ? reading.electricity.unitPrice : prices.electricity;
-  const waterPrice = billed ? reading.water.unitPrice : prices.water;
+  // Đã chốt, hoặc đã lưu mà không sửa và không đổi giá: đúng giá trên bản ghi — đó là số sẽ phát hành.
+  // Chỉ dòng sắp lưu (sửa hoặc đổi giá) mới tính theo giá đầu lưới
+  const usesStoredPrice = billed || (!!reading && !dirty && !repriced);
+  const electricityPrice = usesStoredPrice ? reading.electricity.unitPrice : prices.electricity;
+  const waterPrice = usesStoredPrice ? reading.water.unitPrice : prices.water;
   const total = electricityUsage !== null && waterUsage !== null
     ? electricityUsage * electricityPrice + waterUsage * waterPrice
     : null;

@@ -20,7 +20,7 @@ const { Text } = Typography;
 function Section({ icon, title, children }) {
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #F0F0F0' }}>
+      <div style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
         <Text strong style={{ fontSize: 15 }}>{icon} {title}</Text>
       </div>
       {children}
@@ -133,7 +133,7 @@ export default function ContractDetailDrawer({ contractId, open, canTerminate, c
             />
           )}
 
-          <Section icon={<IdcardOutlined style={{ color: '#1677FF' }} />} title="Sinh viên">
+          <Section icon={<IdcardOutlined style={{ color: 'var(--brand)' }} />} title="Sinh viên">
             <div style={{ background: '#FAFAFA', borderRadius: 8, padding: '4px 12px' }}>
               <Row label="Họ và tên"><Text strong>{c.student.fullName}</Text></Row>
               <Row label="Mã sinh viên">{c.student.studentCode}</Row>
@@ -143,7 +143,7 @@ export default function ContractDetailDrawer({ contractId, open, canTerminate, c
             </div>
           </Section>
 
-          <Section icon={<HomeOutlined style={{ color: '#1677FF' }} />} title="Chỗ ở và hợp đồng">
+          <Section icon={<HomeOutlined style={{ color: 'var(--brand)' }} />} title="Chỗ ở và hợp đồng">
             <Row label="Chỗ ở"><Text strong>{c.room?.buildingName} · {placeTextOf(c)}</Text></Row>
             <Row label="Gói thuê">{CONTRACT_TERM[c.term]?.label} ({CONTRACT_TERM[c.term]?.hint})</Row>
             <Row label="Thời hạn">
@@ -169,14 +169,14 @@ export default function ContractDetailDrawer({ contractId, open, canTerminate, c
             {c.status === 'terminated' && <Row label="Thanh lý ngày">{formatDate(c.terminatedAt)}</Row>}
           </Section>
 
-          <Section icon={<FileTextOutlined style={{ color: '#1677FF' }} />} title={`Hóa đơn của hợp đồng (${c.invoices?.length ?? 0})`}>
+          <Section icon={<FileTextOutlined style={{ color: 'var(--brand)' }} />} title={`Hóa đơn của hợp đồng (${c.invoices?.length ?? 0})`}>
             <Table
               rowKey="id" size="small" pagination={false} columns={invoiceColumns} dataSource={c.invoices || []}
               locale={{ emptyText: 'Chưa có hóa đơn' }} scroll={{ x: 420 }}
             />
           </Section>
 
-          <Section icon={<HistoryOutlined style={{ color: '#1677FF' }} />} title="Lịch sử">
+          <Section icon={<HistoryOutlined style={{ color: 'var(--brand)' }} />} title="Lịch sử">
             <Timeline
               items={(c.history || []).map((h) => ({
                 color: h.type === 'terminated' ? 'red' : h.type === 'deposit_refunded' ? 'green' : 'blue',

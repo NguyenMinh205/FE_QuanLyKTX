@@ -12,7 +12,7 @@ import { bedLabelOf, roomLabelOf } from '../utils/roomStatus';
 const { Text } = Typography;
 
 const BED_STYLE = {
-  occupied:    { bg: '#FAFAFA', border: '#F0F0F0', badgeBg: '#F0F0F0', badgeColor: '#595959' },
+  occupied:    { bg: '#FAFAFA', border: 'var(--line)', badgeBg: 'var(--line)', badgeColor: '#595959' },
   available:   { bg: '#F6FFED', border: '#B7EB8F', badgeBg: '#52C41A', badgeColor: '#fff' },
   maintenance: { bg: '#FFF1F0', border: '#FFA39E', badgeBg: '#FF4D4F', badgeColor: '#fff' },
 };
@@ -41,7 +41,7 @@ function BedRow({ bed }) {
             </Text>
           </>
         )}
-        {bed.status === 'available' && <Text strong style={{ color: '#389E0D' }}>Trống</Text>}
+        {bed.status === 'available' && <Text strong style={{ color: 'var(--success-text)' }}>Trống</Text>}
         {bed.status === 'maintenance' && <Text strong style={{ color: '#CF1322' }}><ToolOutlined /> Bảo trì</Text>}
       </div>
     </div>
@@ -52,7 +52,7 @@ function PriceRow({ label, children }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0' }}>
       <Text type="secondary">{label}</Text>
-      <Text strong style={{ color: '#1677FF', fontSize: 16 }}>{children}</Text>
+      <Text strong style={{ color: 'var(--brand)', fontSize: 16 }}>{children}</Text>
     </div>
   );
 }

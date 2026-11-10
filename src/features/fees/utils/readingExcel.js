@@ -50,7 +50,8 @@ export const parseReadingFile = async (file) => {
     const values = {};
     const invalid = [];
     Object.entries(FIELD_COLS).forEach(([field, col]) => {
-      const text = cellText(row.getCell(col)).replace(/[.,\s]/g, '');
+      // ⚠️ Không bỏ dấu . hay , — 312.5 (hoặc 312,5 kiểu Việt) sẽ thành 3125, tiền gấp 10 lần
+      const text = cellText(row.getCell(col)).replace(/\s/g, '');
       if (text === '') return;
       if (/^\d+$/.test(text)) values[field] = Number(text);
       else invalid.push(HEADERS[col - 1]);

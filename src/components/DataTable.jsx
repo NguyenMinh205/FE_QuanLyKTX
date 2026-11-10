@@ -1,4 +1,4 @@
-import { Table, Input, Alert, Space } from 'antd';
+import { Table, Input, Alert } from 'antd';
 
 /**
  * Bảng danh sách dùng chung cho MỌI màn hình danh sách.
@@ -49,18 +49,20 @@ export default function DataTable({
   return (
     <>
       {(showSearch || extraFilters) && (
-        <Space wrap style={{ marginBottom: 16 }}>
+        // Thanh lọc: ở điện thoại xếp lưới 2 cột (index.css `.table-toolbar`) — Space wrap cũ đẩy mỗi ô một dòng, rất dài
+        <div className="table-toolbar">
           {showSearch && (
             <Input.Search
+              className="table-toolbar-search"
               placeholder={searchPlaceholder}
               allowClear
-              style={{ width: 320 }}
+              style={{ width: 280, maxWidth: '100%' }}
               defaultValue={filters?.search}
               onSearch={(value) => changeFilter({ search: value })}
             />
           )}
           {extraFilters}
-        </Space>
+        </div>
       )}
 
       <Table

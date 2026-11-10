@@ -45,6 +45,7 @@
 | 30 | v2 · M8: cổng SV — hóa đơn 2 nhóm, VietQR, chuông, lịch sử nộp tiền, điện nước phòng | SCR-61, 63, 64 | `feature/v2-portal-vietqr` | Dữ liệu giả | ⬜ Chưa test |
 | 31 | v2 · M9: Dashboard — KPI, lấp đầy theo tòa, doanh thu (chỉ Admin) | SCR-10 | `feature/v2-dashboard` | Dữ liệu giả | ⬜ Chưa test |
 | 32 | v2 · M10: Sinh viên (lọc, chi tiết, đặt lại MK), nhập Excel sinh viên, Excel chỉ số điện nước | SCR-11, SCR-51 | `feature/v2-students-excel` | Dữ liệu giả | ⬜ Chưa test |
+| 33 | v2 · M10b: sửa lỗi đợt soát tổng + làm đẹp giao diện | Mọi màn | `feature/v2-ui-polish` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1820,6 +1821,36 @@ Chạy dữ liệu giả như mục 24. Cần Microsoft Excel (hoặc LibreOffic
 - [ ] Điền số mới cho K2-206, gõ chữ `abc` vào ô Điện mới của K2-207 → lưu → **Nhập Excel** → "Đã điền 1 phòng vào bảng, 1 dòng bỏ qua" kèm lý do K2-207.
 - [ ] K2-206 trong lưới hiện số mới, trạng thái **Chưa lưu** — chưa gửi gì lên; bấm **Lưu 1 phòng** mới lưu.
 - [ ] Nhập file của tòa khác hoặc tháng khác → báo "File không khớp tòa / tháng đang mở", lưới không đổi.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 34. v2 · M10b — Sửa lỗi đợt soát tổng + làm đẹp giao diện
+
+Chạy dữ liệu giả như mục 24. Thử ở cửa sổ rộng 1366px và ở chế độ điện thoại (DevTools → 390px).
+
+### 34.1. Các lỗi đã sửa
+
+- [ ] **Sửa sinh viên**: mở Sửa bạn A, đóng, mở Sửa bạn B → form là dữ liệu của B, không lẫn của A. Gõ vào ô Khoa → gợi ý hiện, trang không trắng.
+- [ ] **Chỉ số điện nước**: phòng X nhập đủ, phòng Y chỉ nhập số điện → **Lưu** → số đã gõ ở Y vẫn còn.
+- [ ] Excel chỉ số: gõ `1234.5` vào ô số mới → dòng đó bị bỏ qua kèm lý do (không thành 12345).
+- [ ] Cổng sinh viên `sv001`: bấm chuông → chọn một hóa đơn → chuông đóng, mở đúng hóa đơn đó; bấm hóa đơn khác trong chuông → đổi đúng.
+- [ ] Thu tiền một hóa đơn → phiếu thu ghi đúng **giờ và ngày trên máy** (bản cũ ghi giờ UTC, thu trước 7:00 sáng bị lùi một ngày).
+- [ ] Đổi mật khẩu xong → về màn Đăng nhập; đăng nhập lại bằng mật khẩu mới được.
+- [ ] Đăng nhập ở 2 tab, đăng xuất ở tab 1 → tab 2 tự về màn Đăng nhập.
+- [ ] Đổi tên tòa → ô chọn tòa ở màn Phòng và drawer hợp đồng hiện tên mới. Phòng bảo trì → Duyệt đơn vào phòng đó bị chặn với thông báo rõ.
+
+### 34.2. Giao diện
+
+- [ ] **Đăng nhập** (≥768px): nửa trái xanh, logo cạnh tên "Ký túc xá HaUI", ba dòng Sinh viên / Cán bộ / Tài khoản, chân trang ghi phiên bản. Không có chấm xanh nhấp nháy.
+- [ ] Chữ xanh (link, menu đang chọn) đậm hơn bản cũ; nhãn trạng thái vàng ("Chưa thanh toán", "Chờ duyệt") đọc rõ, không bị nhạt.
+- [ ] **Thẻ số liệu** (Dashboard, Hóa đơn, Phiếu thu): biểu tượng nhỏ cạnh nhãn, không còn ô vuông nền màu. Ở 390px thẻ xếp 2 thẻ một hàng, số không tràn.
+- [ ] **Trang chủ sinh viên** `sv009`: thẻ **Việc cần làm (3)** — công nợ, điện nước của phòng, hợp đồng hết hạn; việc gấp (đỏ) lên trước, nút đầu tiên màu xanh đặc. `sv003` (không nợ, phòng đã nộp điện nước, hợp đồng còn hạn) → một dòng xanh "Bạn không có khoản nào cần nộp…".
+- [ ] **Hợp đồng** ở 1366px: thấy đủ cột tới Trạng thái, không cuộn ngang; cột Chỗ ở hai dòng (`K1-101` / `Giường 01`), thời hạn một dòng, dưới là gói thuê + "còn N ngày".
+- [ ] **Hóa đơn** ở 390px: ô tìm kiếm cả dòng, các ô lọc 2 ô một hàng. Cột Trạng thái: tên người nộp và ngày nộp nằm hai dòng riêng.
+- [ ] **Phòng** ở 390px: bộ lọc 2 cột thẳng hàng, nút Sơ đồ / Danh sách chiếm cả dòng. Chữ "Còn N chỗ" trên ô phòng xanh đậm, đọc rõ.
+- [ ] Mở/đóng menu, drawer, modal: chuyển động mượt, không "nảy".
 
 **Lỗi phát hiện:** _(chưa có)_
 

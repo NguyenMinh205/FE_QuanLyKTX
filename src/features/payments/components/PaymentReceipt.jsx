@@ -30,7 +30,7 @@ export default function PaymentReceipt({ payment: p, invoice }) {
       <style>{PRINT_CSS}</style>
       <div style={{ textAlign: 'center' }}>
         <Text type="secondary" style={{ letterSpacing: 1, fontSize: 12 }}>KÝ TÚC XÁ HaUI · PHIẾU THU</Text>
-        <Title level={3} style={{ margin: '4px 0 0', color: '#389E0D' }}>
+        <Title level={3} style={{ margin: '4px 0 0', color: 'var(--success-text)' }}>
           <CheckCircleFilled /> {formatCurrency(p.amount)}
         </Title>
         <Text code style={{ fontSize: 13 }}>{p.paymentCode}</Text>

@@ -7,7 +7,7 @@ import { authStorage } from '../lib/authStorage';
 import {
   DEMO_STUDENT_INDEX, buildings, rooms, beds, students, contracts,
   utilityReadings, invoices, payments, TERM_MONTHS, residentsOf, meterOf, newReading, billReading,
-  issuePersonalInvoice, collectInvoice,
+  issuePersonalInvoice, collectInvoice, nowLocalIso,
   bedsOf, availableSlots, generateBeds, newApplication, approveContract, pendingOn, selectableBeds,
   debtOf, demoRaceRoomIds, rivalStudentFor, todayPlus, periodPlus,
 } from './mockDb';
@@ -35,7 +35,10 @@ const roomView = (r) => {
 /** Sinh viên đang đăng nhập (chỉ dùng cho mock — backend thật lấy từ JWT) */
 const me = () => {
   const user = authStorage.getUser();
-  return students.find((s) => s.id === user?.studentId) || students[DEMO_STUDENT_INDEX.sv001];
+  const st = students.find((s) => s.id === user?.studentId);
+  // ⚠️ Không rơi về một sinh viên mặc định: phiên của tab khác đã đổi / đăng xuất thì phải báo lỗi, không lộ dữ liệu người khác
+  if (!st) fail(401, 'UNAUTHORIZED', 'Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại');
+  return st;
 };
 
 // ---------------------------------------------------------------- auth
@@ -224,7 +227,7 @@ export const mockUsers = {
     await delay();
     const a = findAccount(id);
     const me = currentAccount();
-    if (me?.role === 'staff' && a.role === 'admin') fail(403, 'FORBIDDEN', 'Nhân viên không được đặt lại mật khẩu tài khoản quản trị');
+    if (me?.role === 'staff' && a.role !== 'student') fail(403, 'FORBIDDEN', 'Cán bộ chỉ đặt lại được mật khẩu tài khoản sinh viên');
     if (me?.id === a.id) fail(422, 'CANNOT_MODIFY_SELF', 'Dùng chức năng Đổi mật khẩu cho tài khoản của chính mình');
     const temporaryPassword = genTempPassword();
     Object.assign(a, { password: temporaryPassword, mustChangePassword: true });
@@ -431,6 +434,11 @@ export const mockRooms = {
     }
     ['name', 'description'].forEach((k) => { if (body[k] !== undefined) b[k] = String(body[k]).trim(); });
     if (typeof body.isActive === 'boolean') b.isActive = body.isActive;
+    // Phòng, hợp đồng lưu bản sao tên tòa (RoomRef) — đổi tên thì đổi theo, kẻo các màn hiện tên cũ
+    rooms.filter((r) => r.buildingId === id).forEach((r) => {
+      r.buildingName = b.name;
+      contracts.filter((c) => c.roomId === r.id).forEach((c) => { c.buildingName = b.name; });
+    });
     const message = body.isActive === false ? 'Đã ngừng hoạt động tòa nhà' : body.isActive === true && Object.keys(body).length === 1 ? 'Đã kích hoạt lại tòa nhà' : 'Cập nhật tòa nhà thành công';
     return ok(b, message);
   },
@@ -492,9 +500,17 @@ export const mockRooms = {
     }
     if (body.roomNumber && body.roomNumber !== r.roomNumber) assertRoomNumberFree(r.buildingId, body.roomNumber);
     if (capacityChanged) {
-      for (let i = beds.length - 1; i >= 0; i -= 1) if (beds[i].roomId === id) beds.splice(i, 1);
+      const orphan = contracts.find((c) => c.status === 'pending' && c.roomId === id && c.bedNumber > capacity);
+      if (orphan) fail(422, 'ROOM_HAS_PENDING_APPLICATIONS', `Đơn ${orphan.contractCode} đang chọn giường ${String(orphan.bedNumber).padStart(2, '0')}, không giảm sức chứa xuống ${capacity} được`);
+      // Giữ giường cũ (trạng thái bảo trì, ghi chú) — chỉ bớt giường số lớn hoặc thêm giường mới
+      for (let i = beds.length - 1; i >= 0; i -= 1) if (beds[i].roomId === id && beds[i].bedNumber > capacity) beds.splice(i, 1);
+      const have = new Set(bedsOf(id).map((x) => x.bedNumber));
       r.capacity = capacity;
-      generateBeds(r);
+      for (let n = 1; n <= capacity; n += 1) {
+        if (!have.has(n)) {
+          beds.push({ id: `${id}-bed${n}`, roomId: id, bedNumber: n, bedCode: `${r.buildingCode}-${r.roomNumber}-${String(n).padStart(2, '0')}`, status: 'available', note: null });
+        }
+      }
     }
     Object.assign(r, {
       roomNumber: body.roomNumber ?? r.roomNumber,
@@ -551,7 +567,7 @@ export const mockPublic = {
     if (st && contracts.some((c) => c.studentId === st.id && ['pending', 'active'].includes(c.status))) {
       fail(409, 'APPLICATION_OR_CONTRACT_EXISTS', 'Mã sinh viên này đã có đơn đăng ký hoặc đang lưu trú tại ký túc xá');
     }
-    const room = rooms.find((r) => r.id === body.roomId && r.status === 'active');
+    const room = rooms.find((r) => r.id === body.roomId && r.status === 'active' && buildings.find((b) => b.id === r.buildingId)?.isActive);
     if (!room) fail(404, 'NOT_FOUND', 'Phòng không còn nhận đơn, vui lòng chọn phòng khác');
     if (room.gender !== body.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
     const bedNumber = Number(body.bedNumber);
@@ -588,7 +604,7 @@ export const mockPublic = {
     const c = st && contracts.filter((x) => x.studentId === st.id).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
     if (!c) fail(404, 'APPLICATION_NOT_FOUND', 'Không tìm thấy đơn đăng ký khớp mã sinh viên và email này');
     return ok({
-      contractCode: c.contractCode, status: c.status, submittedAt: c.createdAt, room: roomRef(rooms.find((r) => r.id === c.roomId)),
+      contractCode: c.contractCode, status: statusOf(c), submittedAt: c.createdAt, room: roomRef(rooms.find((r) => r.id === c.roomId)),
       bedNumber: c.bedNumber, term: c.term, startDate: c.startDate, endDate: c.endDate, rejectionReason: c.rejectionReason,
       pricePerMonth: c.pricePerMonth, totalRoomFee: c.totalRoomFee, depositAmount: c.depositAmount,
     });
@@ -685,6 +701,9 @@ export const mockContracts = {
     const st = students.find((s) => s.id === c.studentId);
     const room = rooms.find((r) => r.id === (roomId || c.roomId));
     if (!room) fail(404, 'NOT_FOUND', 'Không tìm thấy phòng');
+    if (room.status !== 'active' || !buildings.find((b) => b.id === room.buildingId)?.isActive) {
+      fail(422, 'ROOM_NOT_AVAILABLE', `Phòng ${room.buildingCode}-${room.roomNumber} đang bảo trì hoặc tòa ngừng hoạt động — chọn phòng khác`);
+    }
     const bedNo = Number(bedNumber ?? c.bedNumber);
     if (room.gender !== st.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
     if (activeContractOf(st.id)) fail(409, 'APPLICATION_OR_CONTRACT_EXISTS', 'Sinh viên đã có hợp đồng đang hiệu lực');
@@ -879,7 +898,7 @@ export const mockFees = {
       if (existing?.isBilled) { err('Tháng này đã chốt, không sửa được chỉ số'); return; }
       const electricity = meterOf(v.electricityOldIndex, v.electricityNewIndex, Number(body.electricityUnitPrice));
       const water = meterOf(v.waterOldIndex, v.waterNewIndex, Number(body.waterUnitPrice));
-      const stamp = { recordedByName: authStorage.getUser()?.fullName ?? null, recordedAt: new Date().toISOString() };
+      const stamp = { recordedByName: authStorage.getUser()?.fullName ?? null, recordedAt: nowLocalIso() };
       if (existing) Object.assign(existing, { electricity, water, totalAmount: electricity.amount + water.amount, ...stamp });
       else newReading(room.id, monthYear, electricity, water, stamp);
       savedCount += 1;
@@ -1023,11 +1042,21 @@ export const mockPayments = {
 };
 
 // ---------------------------------------------------------------- dashboard (API.md §10)
+/** Trạng thái giường khi thống kê: phòng bảo trì thì giường trống trong đó cũng không xếp được (FR-25) */
+const bedStatForStats = (x) => {
+  if (x.status === 'occupied') return 'occupied';
+  return rooms.find((r) => r.id === x.roomId)?.status === 'maintenance' ? 'maintenance' : x.status;
+};
 const countBeds = (list) => ({
-  occupied: list.filter((x) => x.status === 'occupied').length,
-  available: list.filter((x) => x.status === 'available').length,
-  maintenance: list.filter((x) => x.status === 'maintenance').length,
+  occupied: list.filter((x) => bedStatForStats(x) === 'occupied').length,
+  available: list.filter((x) => bedStatForStats(x) === 'available').length,
+  maintenance: list.filter((x) => bedStatForStats(x) === 'maintenance').length,
 });
+/** Giường của tòa đang hoạt động — tòa ngừng hoạt động không có giường dùng được (API.md §10) */
+const activeBeds = () => {
+  const roomIds = new Set(rooms.filter((r) => buildings.find((b) => b.id === r.buildingId)?.isActive).map((r) => r.id));
+  return beds.filter((x) => roomIds.has(x.roomId));
+};
 
 export const mockDashboard = {
   /** GET /dashboard/summary — KPI FR-70. total = occupied + available + maintenance; nợ không tính tiền cọc */
@@ -1037,7 +1066,7 @@ export const mockDashboard = {
     const roomDebt = unpaid('room_semester');
     const utilityDebt = unpaid('utility');
     return ok({
-      occupancy: { total: beds.length, ...countBeds(beds) },
+      occupancy: { total: activeBeds().length, ...countBeds(activeBeds()) },
       // Đang nội trú = hợp đồng còn giữ giường (gồm cả quá hạn chưa thanh lý)
       activeStudents: contracts.filter((c) => c.status === 'active').length,
       pendingApplications: contracts.filter((c) => c.status === 'pending').length,

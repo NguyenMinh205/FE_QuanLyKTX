@@ -2,13 +2,14 @@
  * Mức lấp đầy của một phòng trên sơ đồ tầng — docs/08 mục 6.3.
  * Chỗ trống luôn là số giường `available` (BR-05), không phải capacity − số người ở.
  * Thứ tự ưu tiên: phòng đang bảo trì > có giường bảo trì > đã đầy > còn 1 chỗ > còn chỗ.
+ * `color` cho thanh / chấm chú thích; `text` cho chữ — màu nhạt (#52C41A, #FAAD14) không đủ tương phản để làm chữ.
  */
 export const FILL_LEVEL = {
-  available:   { label: 'Còn chỗ',           hint: 'còn từ 2 chỗ',  color: '#52C41A', bg: '#F6FFED', border: '#D9F7BE' },
-  almost:      { label: 'Sắp đầy',           hint: 'còn 1 chỗ',     color: '#FAAD14', bg: '#FFFBE6', border: '#FFE58F' },
-  full:        { label: 'Đã đầy',            hint: 'hết chỗ',       color: '#8C8C8C', bg: '#FAFAFA', border: '#F0F0F0' },
-  maintenance: { label: 'Có giường bảo trì', hint: 'cần xử lý',     color: '#FF4D4F', bg: '#FFF1F0', border: '#FFCCC7' },
-  closed:      { label: 'Đang bảo trì',      hint: '',              color: '#BFBFBF', bg: '#F5F5F5', border: '#E8E8E8' },
+  available:   { label: 'Còn chỗ',           hint: 'còn từ 2 chỗ',  color: '#52C41A', text: 'var(--success-text)', bg: '#F6FFED', border: '#D9F7BE' },
+  almost:      { label: 'Sắp đầy',           hint: 'còn 1 chỗ',     color: '#FAAD14', text: 'var(--warning-text)', bg: '#FFFBE6', border: '#FFE58F' },
+  full:        { label: 'Đã đầy',            hint: 'hết chỗ',       color: 'var(--text-tertiary)', text: 'var(--text-tertiary)', bg: '#FAFAFA', border: 'var(--line)' },
+  maintenance: { label: 'Có giường bảo trì', hint: 'cần xử lý',     color: '#FF4D4F', text: 'var(--danger-text)', bg: '#FFF1F0', border: '#FFCCC7' },
+  closed:      { label: 'Đang bảo trì',      hint: '',              color: '#BFBFBF', text: 'var(--text-tertiary)', bg: 'var(--layout-bg)', border: '#E8E8E8' },
 };
 
 export const LEGEND_LEVELS = ['available', 'almost', 'full', 'maintenance'];

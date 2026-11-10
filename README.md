@@ -9,7 +9,7 @@ Giao diện người dùng của đồ án **Hệ thống quản lý ký túc x�
 
 ## 1. Chạy dự án trên máy mình
 
-Cần **Node.js 20 trở lên**.
+Cần **Node.js 20.19 trở lên** (hoặc 22.12 trở lên) — yêu cầu của Vite 8.
 
 ```bash
 git clone <đường-dẫn-repo>
@@ -21,18 +21,10 @@ npm run dev
 
 Mở http://localhost:5173
 
-> ✅ **Chạy được ngay, không cần backend.** Dự án có sẵn lớp dữ liệu giả (`src/mocks/`) mô phỏng đầy đủ 10 module theo mô hình **đăng ký theo phòng** (loại phòng, đơn đăng ký tự gán giường, nhu yếu phẩm). Khi backend xong, đặt `VITE_USE_MOCK=false` trong `.env` là chuyển sang gọi API thật, **không phải sửa một dòng code màn hình nào**.
+> ✅ **Chạy được ngay, không cần backend.** Dự án có sẵn lớp dữ liệu giả (`src/mocks/`). Khi backend xong, đặt
+> `VITE_USE_MOCK=false` trong `.env` là chuyển sang gọi API thật, không phải sửa code màn hình.
 
-### Tài khoản đăng nhập thử
-
-| Vai trò | Email | Mật khẩu | Thấy được gì |
-|---------|-------|----------|--------------|
-| Quản trị | `admin@dorm.local` | `Admin@123` | Toàn bộ, kể cả quản lý tài khoản và danh mục phí |
-| Nhân viên | `staff@dorm.local` | `Staff@123` | Nghiệp vụ hằng ngày, không vào được phần hệ thống |
-| Người xem | `viewer@dorm.local` | `Viewer@123` | Chỉ xem — **mọi nút Thêm/Sửa/Xóa đều bị ẩn** |
-| Sinh viên đang ở | `sv001@dorm.local` | `Student@123` | Cổng sinh viên: phòng Tiêu chuẩn, có công nợ, có đơn nhu yếu phẩm |
-| Sinh viên chưa có chỗ | `sv002@dorm.local` | `Student@123` | Trang chủ mời đăng ký chỗ ở |
-| Sinh viên phòng CLC | `sv004@dorm.local` | `Student@123` | Phòng Chất lượng cao — cửa hàng ẩn "Đệm mút" vì đã cấp sẵn |
+Ở màn Đăng nhập, bấm "Tài khoản thử" rồi bấm một tài khoản là tự điền.
 
 ---
 

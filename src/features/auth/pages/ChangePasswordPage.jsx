@@ -121,7 +121,7 @@ export default function ChangePasswordPage() {
           <div style={{ display: 'flex', gap: 8 }}>
             <Button type="primary" htmlType="submit" loading={saving}>Đổi mật khẩu</Button>
             {forced
-              ? <Button onClick={logout}>Đăng xuất</Button>
+              ? <Button onClick={async () => { await logout(); navigate('/login', { replace: true }); }}>Đăng xuất</Button>
               : <Button onClick={() => navigate(-1)}>Hủy</Button>}
           </div>
         </Form>

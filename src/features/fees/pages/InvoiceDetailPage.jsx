@@ -32,7 +32,7 @@ const PRINT_CSS = `@media print {
 }`;
 
 const InfoRow = ({ label, children }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid #F0F0F0' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
     <Text type="secondary" style={{ flexShrink: 0 }}>{label}</Text>
     <div style={{ textAlign: 'right', minWidth: 0 }}>{children}</div>
   </div>
@@ -98,11 +98,11 @@ export default function InvoiceDetailPage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
-          <Card title={<span><ProfileOutlined style={{ color: '#1677FF' }} /> Thông tin hóa đơn</span>} style={{ marginBottom: 16 }}>
+          <Card title={<span><ProfileOutlined style={{ color: 'var(--brand)' }} /> Thông tin hóa đơn</span>} style={{ marginBottom: 16 }}>
             <InfoRow label="Người phải trả"><Text strong>{subject.name}</Text>{subject.sub && <div><Text type="secondary" style={{ fontSize: 12 }}>{subject.sub}</Text></div>}</InfoRow>
             <InfoRow label="Phòng">{inv.room ? `${inv.room.buildingName} · ${roomTextOf(inv.room)}` : '—'}</InfoRow>
             <InfoRow label="Nội dung">{inv.description}</InfoRow>
-            <InfoRow label="Số tiền"><Text strong style={{ fontSize: 20, color: paid ? '#389E0D' : '#CF1322' }}>{formatCurrency(inv.amount)}</Text></InfoRow>
+            <InfoRow label="Số tiền"><Text strong style={{ fontSize: 20, color: paid ? 'var(--success-text)' : '#CF1322' }}>{formatCurrency(inv.amount)}</Text></InfoRow>
             <InfoRow label="Ngày tạo">{formatDateTime(inv.createdAt)}</InfoRow>
             <InfoRow label="Hạn nộp">
               <Text type={isPastDue(inv) ? 'danger' : undefined}>{formatDate(inv.dueDate)}</Text>
@@ -118,23 +118,23 @@ export default function InvoiceDetailPage() {
           {inv.type === 'utility' && (
             <>
               <Card
-                title={<span><ThunderboltOutlined style={{ color: '#1677FF' }} /> Chỉ số điện nước {inv.monthYear ? `· ${periodLabel(inv.monthYear)}` : ''}</span>}
+                title={<span><ThunderboltOutlined style={{ color: 'var(--brand)' }} /> Chỉ số điện nước {inv.monthYear ? `· ${periodLabel(inv.monthYear)}` : ''}</span>}
                 styles={{ body: { padding: 0 } }} style={{ marginBottom: 16 }}
               >
                 {reading ? (
                   <>
                     <Table rowKey="key" size="small" columns={meterColumns} dataSource={meterRows} pagination={false} scroll={{ x: 480 }} />
-                    <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', borderTop: '1px solid #F0F0F0' }}>
+                    <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', borderTop: '1px solid var(--line)' }}>
                       <Text type="secondary">Chốt lúc phát hành: {reading.occupantsCount} người · ≈ {formatCurrency(reading.perStudentAmount)}/người (tham khảo)</Text>
                       <Text strong>Cả phòng: {formatCurrency(reading.totalAmount)}</Text>
                     </div>
                   </>
                 ) : <div style={{ padding: 16 }}><Text type="secondary">Không tìm thấy bản ghi chỉ số</Text></div>}
               </Card>
-              <Card title={<span><TeamOutlined style={{ color: '#1677FF' }} /> Đang ở phòng ({inv.members?.length ?? 0})</span>}>
+              <Card title={<span><TeamOutlined style={{ color: 'var(--brand)' }} /> Đang ở phòng ({inv.members?.length ?? 0})</span>}>
                 {(inv.members || []).length
                   ? (inv.members.map((m) => (
-                    <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}>
+                    <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
                       <Text>{m.fullName}</Text><Text type="secondary">{m.studentCode}</Text>
                     </div>
                   )))
@@ -147,7 +147,7 @@ export default function InvoiceDetailPage() {
 
         <Col xs={24} lg={10}>
           <Card
-            title={<span><FileDoneOutlined style={{ color: '#1677FF' }} /> Thanh toán</span>}
+            title={<span><FileDoneOutlined style={{ color: 'var(--brand)' }} /> Thanh toán</span>}
             extra={paid && inv.payments?.length > 0 && (
               <Button size="small" icon={<PrinterOutlined />} onClick={printReceipt} className="invoice-no-print">In biên lai</Button>
             )}

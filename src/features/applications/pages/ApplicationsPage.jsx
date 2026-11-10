@@ -50,7 +50,9 @@ export default function ApplicationsPage() {
 
   const afterProcessed = () => {
     setSelectedId(null);
-    refetch();
+    // Xử lý đơn cuối của trang 2 trở đi: trang đó rỗng và ô phân trang biến mất → lùi một trang
+    if (list.length === 1 && page > 1) setPage((p) => p - 1);
+    else refetch();
   };
 
   const columns = screens.xl ? '400px minmax(0, 1fr)' : screens.lg ? '320px minmax(0, 1fr)' : 'minmax(0, 1fr)';

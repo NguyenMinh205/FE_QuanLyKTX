@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Typography, Tag, Button, Table, Alert, Skeleton, Divider, Space, Empty,
 } from 'antd';
@@ -20,7 +20,7 @@ import RoomUtilityHistoryCard from '../components/RoomUtilityHistoryCard';
 const { Text, Title } = Typography;
 
 const Info = ({ label, children }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid #F0F0F0' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
     <Text type="secondary" style={{ flexShrink: 0 }}>{label}</Text>
     <div style={{ textAlign: 'right', minWidth: 0 }}>{children}</div>
   </div>
@@ -30,7 +30,7 @@ const Info = ({ label, children }) => (
 export default function MyResidencePage() {
   const navigate = useNavigate();
   const { data: residence, loading, error } = useApi(() => portalApi.getMyResidence(), []);
-  const { data: contracts, loading: histLoading } = useApi(() => portalApi.getMyContracts(), []);
+  const { data: contracts, loading: histLoading, error: histError } = useApi(() => portalApi.getMyContracts(), []);
 
   const header = <PageHeader title="Chỗ ở & hợp đồng" description="Thông tin phòng, giường và hợp đồng lưu trú của bạn" />;
   if (error) return <>{header}<Alert type="error" showIcon title="Không tải được thông tin chỗ ở" description={error} /></>;
@@ -55,7 +55,7 @@ export default function MyResidencePage() {
             <Button type="primary" onClick={() => navigate('/apply')}>Nộp đơn đăng ký</Button>
           </Empty>
         </Card>
-        {history.length > 0 && <ResidenceHistory history={history} loading={histLoading} />}
+        {history.length > 0 && <ResidenceHistory history={history} loading={histLoading && !contracts} error={histError} />}
       </>
     );
   }
@@ -87,7 +87,7 @@ export default function MyResidencePage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
-          <Card title={<span><HomeOutlined style={{ color: '#1677FF' }} /> Chỗ ở của tôi</span>} style={{ height: '100%' }}>
+          <Card title={<span><HomeOutlined style={{ color: 'var(--brand)' }} /> Chỗ ở của tôi</span>} style={{ height: '100%' }}>
             <div style={{ textAlign: 'center', marginBottom: 12 }}>
               <Title level={2} style={{ margin: 0 }}>{roomLabelOf(contract.room)}</Title>
               <Text type="secondary">{contract.room?.buildingName} · Giường {String(contract.bedNumber).padStart(2, '0')}</Text>
@@ -105,7 +105,7 @@ export default function MyResidencePage() {
 
         <Col xs={24} lg={12}>
           <Card
-            title={<span><FileTextOutlined style={{ color: '#1677FF' }} /> Hợp đồng lưu trú</span>}
+            title={<span><FileTextOutlined style={{ color: 'var(--brand)' }} /> Hợp đồng lưu trú</span>}
             extra={<StatusTag type="contract" value={contract.status} />}
             style={{ height: '100%' }}
           >
@@ -136,8 +136,8 @@ export default function MyResidencePage() {
 
         <Col xs={24}>
           <Card
-            title={<span><DollarOutlined style={{ color: '#1677FF' }} /> Công nợ của bạn</span>}
-            extra={<a onClick={() => navigate('/portal/my-invoices')}>Xem hóa đơn <ArrowRightOutlined /></a>}
+            title={<span><DollarOutlined style={{ color: 'var(--brand)' }} /> Công nợ của bạn</span>}
+            extra={<Link to="/portal/my-invoices">Xem hóa đơn <ArrowRightOutlined /></Link>}
           >
             {debtSummary.totalDebt > 0 ? (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -155,13 +155,13 @@ export default function MyResidencePage() {
       </Row>
 
       <RoomUtilityHistoryCard />
-      <ResidenceHistory history={history} loading={histLoading} />
+      <ResidenceHistory history={history} loading={histLoading && !contracts} error={histError} />
     </>
   );
 }
 
 /** Lịch sử lưu trú (FR-39) — hợp đồng đã thanh lý, kèm trạng thái nhận lại cọc (FR-35) */
-function ResidenceHistory({ history, loading }) {
+function ResidenceHistory({ history, loading, error }) {
   const columns = [
     { title: 'Mã hợp đồng', dataIndex: 'contractCode', width: 150, render: (v) => <Text code>{v}</Text> },
     { title: 'Chỗ ở', key: 'place', width: 200, render: (_, c) => `${c.room?.buildingName ?? ''} · ${placeTextOf(c)}` },
@@ -189,13 +189,16 @@ function ResidenceHistory({ history, loading }) {
 
   return (
     <Card
-      title={<span><HistoryOutlined style={{ color: '#1677FF' }} /> Lịch sử lưu trú</span>}
+      title={<span><HistoryOutlined style={{ color: 'var(--brand)' }} /> Lịch sử lưu trú</span>}
       style={{ marginTop: 16 }}
-      styles={{ body: { padding: history.length ? 0 : 24 } }}
+      styles={{ body: { padding: history.length && !loading && !error ? 0 : 24 } }}
     >
-      {history.length
-        ? <Table rowKey="id" columns={columns} dataSource={history} loading={loading} pagination={false} scroll={{ x: 800 }} size="middle" />
-        : <Text type="secondary">Đây là lần đầu bạn ở ký túc xá — chưa có hợp đồng cũ nào.</Text>}
+      {/* Đang tải / lỗi không được hiện như "chưa có hợp đồng cũ" — dễ che mất khoản cọc chưa hoàn */}
+      {error && <Alert type="error" showIcon title="Không tải được lịch sử lưu trú" description={error} />}
+      {!error && loading && <Skeleton active paragraph={{ rows: 2 }} />}
+      {!error && !loading && (history.length
+        ? <Table rowKey="id" columns={columns} dataSource={history} pagination={false} scroll={{ x: 800 }} size="middle" />
+        : <Text type="secondary">Đây là lần đầu bạn ở ký túc xá — chưa có hợp đồng cũ nào.</Text>)}
     </Card>
   );
 }

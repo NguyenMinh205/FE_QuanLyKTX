@@ -20,8 +20,9 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
 
   useEffect(() => {
     if (!open) return;
+    // ⚠️ Luôn xoá form trước: form sống lâu hơn modal, sinh viên thiếu trường (nhập Excel) sẽ mang giá trị của người sửa trước
+    form.resetFields();
     if (isEdit) form.setFieldsValue({ ...student, dob: student.dob ? dayjs(student.dob) : null });
-    else form.resetFields();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, student]);
 
@@ -31,8 +32,9 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
       const ec = values.emergencyContact || {};
       const payload = {
         ...values,
-        dob: values.dob ? values.dob.format('YYYY-MM-DD') : undefined,
-        emergencyContact: ec.name || ec.phone ? ec : undefined,
+        // null (không phải undefined) để xoá được giá trị cũ — undefined bị bỏ khi gửi JSON nên giữ nguyên số cũ
+        dob: values.dob ? values.dob.format('YYYY-MM-DD') : null,
+        emergencyContact: ec.name || ec.phone ? ec : null,
       };
       const res = isEdit ? await studentApi.update(student.id, payload) : await studentApi.create(payload);
       message.success(res.data.message);
@@ -102,7 +104,8 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
           <Col xs={24} sm={14}>
             <Form.Item name="faculty" label="Khoa">
               <AutoComplete options={FACULTY_OPTIONS.map((f) => ({ value: f }))} placeholder="VD: Công nghệ thông tin"
-                filterOption={(input, o) => o.value.toLowerCase().includes(input.toLowerCase())} />
+                // ⚠️ antd v6 có lúc truyền value không phải chuỗi — gọi thẳng .toLowerCase() làm sập cả trang
+                filterOption={(input, o) => String(o?.value ?? '').toLowerCase().includes(String(input).toLowerCase())} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={10}>

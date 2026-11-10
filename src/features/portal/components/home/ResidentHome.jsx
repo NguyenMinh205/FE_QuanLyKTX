@@ -1,10 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
-  Card, Button, Typography, Tag, Row, Col, Table, Skeleton, Alert, Divider, Tooltip,
+  Card, Button, Typography, Row, Col, Table, Skeleton, Alert, Divider, Tooltip,
 } from 'antd';
 import {
-  WarningFilled, CreditCardOutlined, HomeOutlined, FileTextOutlined,
-  ArrowRightOutlined, ReloadOutlined, CalendarOutlined, TeamOutlined,
+  HomeOutlined, FileTextOutlined, ArrowRightOutlined, ReloadOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../../hooks/useApi';
 import { portalApi } from '../../api/portal.api';
@@ -12,6 +11,7 @@ import { formatCurrency, formatDate } from '../../../../utils/formatter';
 import { CONTRACT_TERM, INVOICE_TYPE } from '../../../../constants/statuses';
 import StatusTag from '../../../../components/StatusTag';
 import SupportCard from '../SupportCard';
+import TodoCard from './TodoCard';
 import {
   EXPIRING_DAYS, daysUntil,
 } from '../../utils/homeView';
@@ -24,9 +24,9 @@ const RECENT_COUNT = 3;
 function CardTitle({ icon, title, extra }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 36, height: 36, borderRadius: 8, background: '#E6F4FF', display: 'grid', placeItems: 'center' }}>{icon}</span>
-        <Text strong style={{ fontSize: 16 }}>{title}</Text>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        {icon}
+        <Text strong style={{ fontSize: 15 }}>{title}</Text>
       </span>
       {extra}
     </div>
@@ -44,7 +44,6 @@ function Row2({ label, children }) {
 
 /** Trang chủ khi đang lưu trú — hợp đồng `active`, hoặc `expired` mà chưa thanh lý (vẫn giữ giường) */
 export default function ResidentHome({ residence }) {
-  const navigate = useNavigate();
   const { contract, roommates = [], debtSummary = {} } = residence;
 
   const { data: invoices, meta: invoiceMeta, loading: invLoading, error: invError, refetch: refetchInvoices } = useApi(
@@ -55,14 +54,45 @@ export default function ResidentHome({ residence }) {
   const openInvoices = (invoices || []).filter((i) => i.status === 'unpaid');
   const roomOpen = openInvoices.filter((i) => i.scope === 'room');
   const roomDebt = roomOpen.reduce((t, i) => t + i.amount, 0);
-  const nearestDue = openInvoices.map((i) => i.dueDate).sort()[0];
+  const personalOpen = openInvoices.filter((i) => i.scope === 'personal');
+  const nearestDue = personalOpen.map((i) => i.dueDate).sort()[0];
   const dueIn = daysUntil(nearestDue);
+  const roomDue = daysUntil(roomOpen.map((i) => i.dueDate).sort()[0]);
   const totalDebt = debtSummary.totalDebt ?? 0;
 
   // ---- hợp đồng sắp hết hạn (BR-29)
   const daysLeft = daysUntil(contract.endDate);
   const expired = contract.status === 'expired';
   const expiring = !expired && daysLeft !== null && daysLeft >= 0 && daysLeft <= EXPIRING_DAYS;
+
+  // ---- việc cần làm: nguy cấp (quá hạn, hết hợp đồng) lên trước
+  const dueText = (d) => (d === null ? '' : d < 0 ? ` (quá hạn ${-d} ngày)` : d === 0 ? ' (hôm nay)' : ` (còn ${d} ngày)`);
+  const todos = [
+    totalDebt > 0 && {
+      key: 'debt', tone: dueIn !== null && dueIn < 0 ? 'danger' : 'warning',
+      title: `Công nợ cần thanh toán: ${formatCurrency(totalDebt)}`,
+      detail: `${debtSummary.unpaidInvoiceCount ?? personalOpen.length} hóa đơn của bạn${nearestDue ? ` · hạn gần nhất ${formatDate(nearestDue)}${dueText(dueIn)}` : ''}`,
+      action: { label: 'Thanh toán ngay', to: '/portal/my-invoices' },
+    },
+    roomDebt > 0 && {
+      key: 'room', tone: roomDue !== null && roomDue < 0 ? 'danger' : 'warning',
+      title: `Điện nước của phòng: ${formatCurrency(roomDebt)}`,
+      detail: `Phòng còn ${formatCurrency(roomDebt)} tiền điện nước — một bạn nộp đủ cho cả phòng${dueText(roomDue)}`,
+      action: { label: 'Xem hóa đơn phòng', to: '/portal/my-invoices?tab=room' },
+    },
+    expired && {
+      key: 'expired', tone: 'danger',
+      title: `Hợp đồng đã hết hạn ngày ${formatDate(contract.endDate)}`,
+      detail: 'Đến văn phòng KTX làm thủ tục trả phòng. Nộp hết hóa đơn còn nợ trước; tiền cọc được hoàn tại văn phòng sau khi trả phòng.',
+      action: { label: 'Xem hợp đồng', to: '/portal/my-residence' },
+    },
+    expiring && {
+      key: 'expiring', tone: 'warning',
+      title: `Hợp đồng còn ${daysLeft} ngày`,
+      detail: `Hết hạn ${formatDate(contract.endDate)}, không gia hạn. Hết hạn thì đến văn phòng KTX trả phòng; muốn ở kỳ sau, nộp đơn mới sau khi đã trả phòng.`,
+      action: { label: 'Xem hợp đồng', to: '/portal/my-residence' },
+    },
+  ].filter(Boolean).sort((a, b) => (a.tone === b.tone ? 0 : a.tone === 'danger' ? -1 : 1));
 
   // ---- hóa đơn gần đây: mới tạo lên đầu
   const recent = [...(invoices || [])]
@@ -84,7 +114,7 @@ export default function ResidentHome({ residence }) {
     { title: 'Trạng thái', dataIndex: 'status', width: 170, render: (s) => <StatusTag type="invoice" value={s} /> },
     {
       title: '', key: 'action', width: 90, align: 'right',
-      render: (_, i) => <a onClick={() => navigate(`/portal/my-invoices?invoice=${i.id}`)}>Chi tiết</a>,
+      render: (_, i) => <Link to={`/portal/my-invoices?invoice=${i.id}`}>Chi tiết</Link>,
     },
   ];
 
@@ -92,80 +122,28 @@ export default function ResidentHome({ residence }) {
     <Row gutter={[16, 16]}>
       <Col xs={24} lg={16}>
         <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-          {/* ---------- Công nợ ---------- */}
-          {(totalDebt > 0 || roomDebt > 0) && (
-            <Card style={{ background: '#FFF1F0', borderColor: '#FFCCC7' }}>
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ width: 52, height: 52, borderRadius: 12, background: '#FFCCC7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                  <WarningFilled style={{ fontSize: 24, color: '#CF1322' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 220 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <Text strong>Công nợ cần thanh toán</Text>
-                    {dueIn !== null && dueIn < 0 && <Tag color="error" style={{ margin: 0 }}>ĐÃ QUA HẠN</Tag>}
-                  </div>
-                  <div>
-                    <Text type="secondary">Bạn đang nợ: </Text>
-                    <Text strong style={{ fontSize: 28, color: '#CF1322' }}>{formatCurrency(totalDebt)}</Text>
-                  </div>
-                  <Text type="secondary">
-                    {debtSummary.unpaidInvoiceCount ?? 0} hóa đơn của bạn
-                    {roomDebt > 0 && <> · phòng còn <Text strong>{formatCurrency(roomDebt)}</Text> tiền điện nước</>}
-                    {nearestDue && (
-                      <>
-                        {' · '}<CalendarOutlined /> Hạn gần nhất: {formatDate(nearestDue)}{' '}
-                        <Text type={dueIn < 0 ? 'danger' : dueIn <= 3 ? 'warning' : 'secondary'}>
-                          ({dueIn < 0 ? `quá hạn ${-dueIn} ngày` : dueIn === 0 ? 'hôm nay' : `còn ${dueIn} ngày`})
-                        </Text>
-                      </>
-                    )}
-                  </Text>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Button type="primary" size="large" icon={<CreditCardOutlined />} onClick={() => navigate(totalDebt > 0 ? '/portal/my-invoices' : '/portal/my-invoices?tab=room')}>
-                    Thanh toán ngay
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* ---------- Hợp đồng sắp hết hạn / đã hết hạn — không có gia hạn, ở tiếp thì nộp đơn mới ---------- */}
-          {expiring && (
-            <Alert
-              type="warning" showIcon
-              title={`Hợp đồng còn ${daysLeft} ngày`}
-              description={`Hợp đồng ${contract.contractCode} hết hạn ngày ${formatDate(contract.endDate)} và không gia hạn. Hết hạn, bạn đến văn phòng KTX làm thủ tục trả phòng. Muốn ở kỳ sau, bạn nộp đơn mới sau khi đã trả phòng.`}
-            />
-          )}
-          {expired && (
-            <Alert
-              type="error" showIcon
-              title={`Hợp đồng đã hết hạn ngày ${formatDate(contract.endDate)}`}
-              description="Bạn đến văn phòng KTX làm thủ tục trả phòng. Cần thanh toán hết hóa đơn còn nợ trước khi trả phòng; tiền cọc được hoàn tại văn phòng sau khi trả phòng."
-            />
-          )}
+          <TodoCard items={todos} />
 
           {/* ---------- Chỗ ở + hợp đồng ---------- */}
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
-              <Card style={{ height: '100%' }} title={<CardTitle icon={<HomeOutlined style={{ color: '#1677FF' }} />} title="Chỗ ở của tôi" />}>
+              <Card style={{ height: '100%' }} title={<CardTitle icon={<HomeOutlined style={{ color: 'var(--brand)' }} />} title="Chỗ ở của tôi" />}>
                 <Row2 label="Vị trí"><Text strong>{contract.room?.buildingName} · Phòng {placeTextOf(contract)}</Text></Row2>
                 <Row2 label="Phòng"><Text>{contract.room?.capacity} chỗ · Tầng {contract.room?.floor}</Text></Row2>
-                <Row2 label="Đơn giá"><Text strong style={{ color: '#1677FF' }}>{formatCurrency(contract.pricePerMonth)}</Text><Text type="secondary">/tháng</Text></Row2>
+                <Row2 label="Đơn giá"><Text strong style={{ color: 'var(--brand)' }}>{formatCurrency(contract.pricePerMonth)}</Text><Text type="secondary">/tháng</Text></Row2>
                 <Divider style={{ margin: '12px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                   <Tooltip title={roommates.length ? roommates.map((m) => `${m.fullName} (${m.studentCode})`).join(', ') : 'Chưa có bạn cùng phòng'}>
                     <Text type="secondary"><TeamOutlined /> Bạn cùng phòng: {roommates.length} người</Text>
                   </Tooltip>
-                  <a onClick={() => navigate('/portal/my-residence')}>Xem chi tiết <ArrowRightOutlined /></a>
+                  <Link to="/portal/my-residence">Xem chi tiết <ArrowRightOutlined /></Link>
                 </div>
               </Card>
             </Col>
             <Col xs={24} md={12}>
               <Card
                 style={{ height: '100%' }}
-                title={<CardTitle icon={<FileTextOutlined style={{ color: '#1677FF' }} />} title="Hợp đồng của tôi" extra={<StatusTag type="contract" value={contract.status} />} />}
+                title={<CardTitle icon={<FileTextOutlined style={{ color: 'var(--brand)' }} />} title="Hợp đồng của tôi" extra={<StatusTag type="contract" value={contract.status} />} />}
               >
                 <Row2 label="Số hợp đồng"><Text strong style={{ fontFamily: 'monospace' }}>{contract.contractCode}</Text></Row2>
                 <Row2 label="Gói thuê">
@@ -180,7 +158,7 @@ export default function ResidentHome({ residence }) {
                     {expired ? <Text type="danger">Quá hạn {-daysLeft} ngày</Text>
                       : expiring ? <Text type="warning">Còn {daysLeft} ngày</Text> : `Hết hạn ${formatDate(contract.endDate)}`}
                   </Text>
-                  <a onClick={() => navigate('/portal/my-residence')}>Xem chi tiết <ArrowRightOutlined /></a>
+                  <Link to="/portal/my-residence">Xem chi tiết <ArrowRightOutlined /></Link>
                 </div>
               </Card>
             </Col>
@@ -188,7 +166,7 @@ export default function ResidentHome({ residence }) {
 
           {/* ---------- Hóa đơn gần đây ---------- */}
           <Card
-            title={<CardTitle icon={<FileTextOutlined style={{ color: '#1677FF' }} />} title="Hóa đơn gần đây"
+            title={<CardTitle icon={<FileTextOutlined style={{ color: 'var(--brand)' }} />} title="Hóa đơn gần đây"
               extra={<Button type="text" icon={<ReloadOutlined />} onClick={refetchInvoices} aria-label="Tải lại hóa đơn" />} />}
             styles={{ body: { padding: 0 } }}
           >
@@ -200,9 +178,9 @@ export default function ResidentHome({ residence }) {
                 scroll={{ x: 600 }} locale={{ emptyText: 'Chưa có hóa đơn nào' }}
               />
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #F0F0F0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--line)' }}>
               <Text type="secondary">Hiển thị {recent.length} hóa đơn gần nhất</Text>
-              <a onClick={() => navigate('/portal/my-invoices')}>Xem tất cả hóa đơn{invoiceMeta?.total ? ` (${invoiceMeta.total})` : ''} <ArrowRightOutlined /></a>
+              <Link to="/portal/my-invoices">Xem tất cả hóa đơn{invoiceMeta?.total ? ` (${invoiceMeta.total})` : ''} <ArrowRightOutlined /></Link>
             </div>
           </Card>
         </div>

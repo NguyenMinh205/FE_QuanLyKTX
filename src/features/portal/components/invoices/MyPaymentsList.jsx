@@ -21,7 +21,7 @@ export default function MyPaymentsList() {
       title: 'Hóa đơn', key: 'inv', width: 220,
       render: (_, p) => <><div>{p.invoiceCode}</div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[p.invoiceType]?.label ?? p.invoiceType}</Text></>,
     },
-    { title: 'Số tiền', dataIndex: 'amount', width: 130, align: 'right', render: (v) => <Text strong style={{ color: '#389E0D' }}>{formatCurrency(v)}</Text> },
+    { title: 'Số tiền', dataIndex: 'amount', width: 130, align: 'right', render: (v) => <Text strong style={{ color: 'var(--success-text)' }}>{formatCurrency(v)}</Text> },
     { title: 'Hình thức', dataIndex: 'method', width: 170, render: (v) => PAYMENT_METHOD[v]?.label ?? v },
     { title: 'Người nộp', key: 'payer', width: 170, render: (_, p) => p.payer?.fullName ?? '—' },
   ];

@@ -67,7 +67,7 @@ export default function BuildingsPage() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <span style={{
             width: 40, height: 40, borderRadius: 8, display: 'grid', placeItems: 'center', fontWeight: 700, flexShrink: 0,
-            background: b.isActive ? '#E6F4FF' : '#F5F5F5', color: b.isActive ? '#1677FF' : '#8C8C8C',
+            background: b.isActive ? 'var(--brand-soft)' : 'var(--layout-bg)', color: b.isActive ? 'var(--brand)' : 'var(--text-tertiary)',
           }}>{b.code}</span>
           <div style={{ minWidth: 0 }}>
             <Text strong>{b.name}</Text>

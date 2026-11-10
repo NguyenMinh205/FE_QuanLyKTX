@@ -82,7 +82,7 @@ function InvoicesView({ searchParams }) {
       render: (v, inv) => (
         <>
           <StatusTag type="invoice" value={v} />
-          {inv.payer && <div><Text type="secondary" style={{ fontSize: 12 }}>{inv.payer.fullName} · {formatDate(inv.paidAt)}</Text></div>}
+          {inv.payer && <div style={{ lineHeight: 1.4, marginTop: 2 }}><Text type="secondary" ellipsis style={{ display: 'block', fontSize: 12 }}>{inv.payer.fullName}</Text><Text type="secondary" style={{ fontSize: 12 }}>{formatDate(inv.paidAt)}</Text></div>}
         </>
       ),
     },
@@ -108,26 +108,26 @@ function InvoicesView({ searchParams }) {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={8}>
           <StatCard
-            label="Phải thu" icon={<WalletOutlined style={{ color: '#1677FF' }} />} iconBg="#E6F4FF" loading={!summary && loading}
+            label="Phải thu" icon={<WalletOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" loading={!summary && loading}
             value={total !== null ? formatCurrency(total) : null}
             footer={<Text type="secondary">Theo bộ lọc đang chọn</Text>}
           />
         </Col>
-        <Col xs={24} md={8}>
+        <Col xs={12} md={8}>
           <StatCard
-            label="Đã thu" icon={<CheckCircleOutlined style={{ color: '#389E0D' }} />} iconBg="#F6FFED" loading={!summary && loading}
+            label="Đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} iconBg="#F6FFED" loading={!summary && loading}
             value={summary ? formatCurrency(summary.paidAmount) : null} valueColor="#389E0D"
             footer={<Text type="secondary">Tỷ lệ đã thu: <Text strong>{summary ? pctOf(summary.paidAmount) : '—'}</Text></Text>}
           />
         </Col>
-        <Col xs={24} md={8}>
+        <Col xs={12} md={8}>
           <StatCard
             label="Chưa thu" icon={<ExclamationCircleOutlined style={{ color: '#CF1322' }} />} iconBg="#FFF1F0" loading={!summary && loading}
             value={summary ? formatCurrency(summary.unpaidAmount) : null} valueColor="#CF1322"
             footer={summary?.unpaidCount
               ? (filters.status === 'unpaid'
                 ? <Text type="danger">{summary.unpaidCount} hóa đơn</Text>
-                : <a onClick={() => setFilter({ status: 'unpaid' })}>{summary.unpaidCount} hóa đơn — xem ngay</a>)
+                : <Button type="link" size="small" style={{ padding: 0, height: 'auto' }} onClick={() => setFilter({ status: 'unpaid' })}>{summary.unpaidCount} hóa đơn — xem ngay</Button>)
               : <Text type="secondary">{summary ? 'Không còn hóa đơn chưa thu' : ''}</Text>}
           />
         </Col>

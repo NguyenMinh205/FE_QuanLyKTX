@@ -72,9 +72,9 @@ const parentKeyOf = (items, path) =>
 const MENU_THEME = {
   components: {
     Menu: {
-      itemSelectedBg: '#E6F4FF',
+      itemSelectedBg: 'var(--brand-soft)',
       subMenuItemBg: '#FFFFFF',
-      itemSelectedColor: '#1677FF',
+      itemSelectedColor: 'var(--brand)',
       activeBarWidth: 3,
       itemMarginInline: 8,
       itemBorderRadius: 6,
@@ -128,7 +128,7 @@ export default function AdminLayout() {
       <Header style={{
         background: '#fff', height: 72, lineHeight: 'normal', padding: '0 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-        borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, zIndex: 20,
+        borderBottom: '1px solid var(--line)', position: 'sticky', top: 0, zIndex: 20,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           {isMobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} />}
@@ -140,6 +140,7 @@ export default function AdminLayout() {
         </div>
 
         <Dropdown
+          trigger={['hover', 'click']}
           menu={{
             items: [
               { key: 'password', icon: <LockOutlined />, label: 'Đổi mật khẩu', onClick: () => navigate('/admin/change-password') },
@@ -148,15 +149,15 @@ export default function AdminLayout() {
             ],
           }}
         >
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Avatar icon={<UserOutlined />} style={{ background: '#E6F4FF', color: '#1677FF' }} />
+          <button type="button" aria-label="Tài khoản" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', textAlign: 'left' }}>
+            <Avatar icon={<UserOutlined />} style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }} />
             {!isMobile && (
               <div style={{ lineHeight: 1.3 }}>
                 <div style={{ fontWeight: 500 }}>{user?.fullName}</div>
                 <Text type="secondary" style={{ fontSize: 12 }}>{ROLE_LABEL[user?.role]}</Text>
               </div>
             )}
-          </div>
+          </button>
         </Dropdown>
       </Header>
 
@@ -165,7 +166,7 @@ export default function AdminLayout() {
           <Sider
             width={240}
             theme="light"
-            style={{ borderRight: '1px solid #f0f0f0', overflow: 'auto', position: 'sticky', top: 72, height: 'calc(100vh - 72px)' }}
+            style={{ borderRight: '1px solid var(--line)', overflow: 'auto', position: 'sticky', top: 72, height: 'calc(100vh - 72px)' }}
           >
             {menu}
           </Sider>
@@ -182,7 +183,7 @@ export default function AdminLayout() {
           {menu}
         </Drawer>
 
-        <Content style={{ padding: isMobile ? 16 : 24, background: '#F5F5F5', minWidth: 0 }}>
+        <Content style={{ padding: isMobile ? 16 : 24, background: 'var(--layout-bg)', minWidth: 0 }}>
           <Outlet />
         </Content>
       </Layout>

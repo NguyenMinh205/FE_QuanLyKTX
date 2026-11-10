@@ -32,7 +32,7 @@ export default function ReadingAmountCell({ row }) {
       <span style={{ cursor: 'help', display: 'inline-block', textAlign: 'right' }}>
         <span style={{ whiteSpace: 'nowrap' }}>
           <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(row.total)}</Text>
-          {' '}<CalculatorOutlined style={{ color: '#1677FF' }} aria-label={`Cách tính tiền phòng ${row.roomLabel}`} />
+          {' '}<CalculatorOutlined style={{ color: 'var(--brand)' }} aria-label={`Cách tính tiền phòng ${row.roomLabel}`} />
         </span>
         {row.perPerson !== null && (
           <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>≈ {formatCurrency(row.perPerson)}/người</Text>

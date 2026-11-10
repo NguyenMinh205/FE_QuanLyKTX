@@ -33,7 +33,8 @@ export default function ApplicationStatusPage() {
     ? { studentCode: params.get('studentCode'), email: params.get('email') }
     : null;
   const [query, setQuery] = useState(fromUrl);
-  const { data: app, loading, error } = useApi(() => (query ? applyApi.getStatus(query) : NOTHING), [query]);
+  const [round, setRound] = useState(0); // bấm Tra cứu lại với cùng thông tin vẫn hỏi lại (đơn vừa được duyệt, lỗi mạng)
+  const { data: app, loading, error } = useApi(() => (query ? applyApi.getStatus(query) : NOTHING), [query, round]);
 
   const approved = ['active', 'expired', 'terminated'].includes(app?.status);
 
@@ -48,7 +49,7 @@ export default function ApplicationStatusPage() {
         <Card>
           <Form
             layout="vertical" initialValues={fromUrl || {}} autoComplete="off"
-            onFinish={(v) => setQuery({ studentCode: v.studentCode.trim().toUpperCase(), email: v.email.trim() })}
+            onFinish={(v) => { setQuery({ studentCode: v.studentCode.trim().toUpperCase(), email: v.email.trim() }); setRound((r) => r + 1); }}
           >
             <Row gutter={16}>
               <Col xs={24} md={10}>

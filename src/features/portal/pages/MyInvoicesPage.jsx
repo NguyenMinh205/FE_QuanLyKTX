@@ -33,14 +33,14 @@ function InvoiceRow({ invoice, active, onSelect }) {
       onClick={() => onSelect(invoice.id)}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(invoice.id); }}
       style={{
-        border: `1px solid ${active ? '#1677FF' : '#F0F0F0'}`, background: active ? '#F5F9FF' : '#fff',
+        border: `1px solid ${active ? 'var(--brand)' : 'var(--line)'}`, background: active ? '#F5F9FF' : '#fff',
         borderRadius: 10, padding: 12, marginBottom: 10, cursor: 'pointer',
       }}
     >
       <div style={{ display: 'flex', gap: 10 }}>
         <span style={{
           width: 34, height: 34, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center',
-          background: room ? '#E6FFFB' : '#E6F4FF', color: room ? '#08979C' : '#1677FF',
+          background: room ? '#E6FFFB' : 'var(--brand-soft)', color: room ? '#08979C' : 'var(--brand)',
         }}>{room ? <ThunderboltOutlined /> : <FileTextOutlined />}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -64,7 +64,12 @@ const countUnpaid = (list) => list.filter((i) => i.status === 'unpaid').length;
 
 /** SCR-64 Hóa đơn & thanh toán (FR-62, FR-53, FR-63): hóa đơn của tôi, của phòng, lịch sử nộp tiền */
 export default function MyInvoicesPage() {
+  // ⚠️ Chuông / trang chủ đổi ?invoice= khi trang đang mở — dựng lại để lựa chọn theo đúng hóa đơn vừa bấm
   const [searchParams] = useSearchParams();
+  return <MyInvoicesView key={searchParams.toString()} searchParams={searchParams} />;
+}
+
+function MyInvoicesView({ searchParams }) {
   const paramInvoice = searchParams.get('invoice');
   const [userTab, setUserTab] = useState(null); // null = tự chọn theo ?invoice= / ?tab=
   const [selectedId, setSelectedId] = useState(paramInvoice || null);
@@ -80,7 +85,7 @@ export default function MyInvoicesPage() {
   const shown = tab === 'room' ? room : personal;
   const activeId = tab === 'history' ? null : ((selectedId && shown.some((i) => i.id === selectedId) ? selectedId : shown[0]?.id) ?? null);
 
-  const { data: detail, loading: detailLoading } = useApi(
+  const { data: detail, loading: detailLoading, error: detailError } = useApi(
     () => (activeId ? portalApi.getMyInvoiceById(activeId) : Promise.resolve({ data: { data: null } })),
     [activeId],
   );
@@ -99,14 +104,14 @@ export default function MyInvoicesPage() {
         <Col xs={24} sm={12}>
           <Card styles={{ body: { padding: '16px 20px' } }}>
             <Text type="secondary">Bạn cần nộp</Text>
-            <Title level={3} style={{ margin: '4px 0 0', color: sumUnpaid(personal) ? '#CF1322' : '#389E0D' }}>{formatCurrency(sumUnpaid(personal))}</Title>
+            <Title level={3} style={{ margin: '4px 0 0', color: sumUnpaid(personal) ? '#CF1322' : 'var(--success-text)' }}>{formatCurrency(sumUnpaid(personal))}</Title>
             <Text type="secondary" style={{ fontSize: 12 }}>{countUnpaid(personal) ? `${countUnpaid(personal)} hóa đơn cá nhân` : 'Không còn khoản nào'}</Text>
           </Card>
         </Col>
         <Col xs={24} sm={12}>
           <Card styles={{ body: { padding: '16px 20px' } }}>
             <Text type="secondary">Phòng cần nộp (một bạn đại diện)</Text>
-            <Title level={3} style={{ margin: '4px 0 0', color: sumUnpaid(room) ? '#CF1322' : '#389E0D' }}>{formatCurrency(sumUnpaid(room))}</Title>
+            <Title level={3} style={{ margin: '4px 0 0', color: sumUnpaid(room) ? '#CF1322' : 'var(--success-text)' }}>{formatCurrency(sumUnpaid(room))}</Title>
             <Text type="secondary" style={{ fontSize: 12 }}>{countUnpaid(room) ? `${countUnpaid(room)} hóa đơn điện nước` : 'Phòng không còn khoản nào'}</Text>
           </Card>
         </Col>
@@ -130,7 +135,9 @@ export default function MyInvoicesPage() {
                 : shown.map((inv) => <InvoiceRow key={inv.id} invoice={inv} active={inv.id === activeId} onSelect={setSelectedId} />)}
             </Col>
             <Col xs={24} lg={15}>
-              <MyInvoiceDetail invoice={detail && detail.id === activeId ? detail : null} loading={detailLoading || (!!activeId && detail?.id !== activeId)} />
+              {detailError
+                ? <Alert type="error" showIcon title="Không tải được hóa đơn" description={detailError} />
+                : <MyInvoiceDetail invoice={detail && detail.id === activeId ? detail : null} loading={detailLoading || (!!activeId && detail?.id !== activeId)} />}
             </Col>
           </Row>
         )}

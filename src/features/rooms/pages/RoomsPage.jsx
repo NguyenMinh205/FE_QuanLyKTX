@@ -103,9 +103,9 @@ export default function RoomsPage() {
       title: 'Tình trạng', key: 'fill', width: 190,
       render: (_, r) => (r.status === 'maintenance'
         ? <StatusTag type="roomStatus" value="maintenance" />
-        : <span style={{ color: FILL_LEVEL[fillLevelOf(r)].color, fontWeight: 500 }}>{slotTextOf(r)}</span>),
+        : <span style={{ color: FILL_LEVEL[fillLevelOf(r)].text, fontWeight: 500 }}>{slotTextOf(r)}</span>),
     },
-    { title: '', key: 'action', width: 70, fixed: 'right', render: (_, r) => <a onClick={() => setSelectedId(r.id)}>Xem</a> },
+    { title: '', key: 'action', width: 70, fixed: 'right', render: (_, r) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setSelectedId(r.id)}>Xem</Button> },
   ];
 
   return (
@@ -118,7 +118,7 @@ export default function RoomsPage() {
       />
 
       <Card styles={{ body: { padding: 16 } }} style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+        <div className="room-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
           <FilterField label="Tòa nhà">
             <Select
               style={{ width: 180 }}
@@ -140,7 +140,7 @@ export default function RoomsPage() {
           <FilterField label="Tình trạng">
             <Select style={{ width: 180 }} allowClear placeholder="Tất cả tình trạng" value={filters.availability} options={AVAILABILITY_OPTIONS} onChange={(v) => setFilter({ availability: v })} />
           </FilterField>
-          <div style={{ marginLeft: 'auto' }}>
+          <div className="room-filters-view" style={{ marginLeft: 'auto' }}>
             <Segmented
               value={view}
               onChange={setView}
@@ -231,7 +231,7 @@ export default function RoomsPage() {
 function FilterField({ label, children }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: '#8C8C8C', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4 }}>{label}</div>
       {children}
     </div>
   );

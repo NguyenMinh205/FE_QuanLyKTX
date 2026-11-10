@@ -26,7 +26,8 @@ export default function ImportStudentsModal({ open, onClose }) {
   const [result, setResult] = useState(null);
 
   const reset = () => { setFile(null); setParsed(null); setError(null); setResult(null); };
-  const close = () => { const changed = !!result?.successCount; reset(); onClose(changed); };
+  // Đang gửi thì không cho đóng: đóng giữa chừng thì dữ liệu đã lưu mà danh sách không tải lại, lần mở sau kẹt ở kết quả cũ
+  const close = () => { if (busy) return; const changed = !!result?.successCount; reset(); onClose(changed); };
 
   const pick = async (f) => {
     reset();
@@ -76,14 +77,15 @@ export default function ImportStudentsModal({ open, onClose }) {
   return (
     <Modal
       open={open}
-      title={<span><FileExcelOutlined style={{ color: '#389E0D' }} /> Nhập sinh viên từ Excel</span>}
+      title={<span><FileExcelOutlined style={{ color: 'var(--success-text)' }} /> Nhập sinh viên từ Excel</span>}
       onCancel={close}
       width={760}
       destroyOnHidden
       mask={{ closable: false }}
+      closable={!busy}
       footer={result ? <Button type="primary" onClick={close}>Xong</Button> : (
         <Space>
-          <Button onClick={close}>Hủy</Button>
+          <Button onClick={close} disabled={busy}>Hủy</Button>
           <Button type="primary" disabled={!canSubmit} loading={busy && !!parsed} onClick={submit}>
             {parsed?.rows.length ? `Nhập ${parsed.rows.length} dòng` : 'Nhập'}
           </Button>

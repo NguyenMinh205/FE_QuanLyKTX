@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Alert, AutoComplete, Button, Card, Checkbox, Col, DatePicker, Divider, Form, Input, Radio, Result, Row, Select,
   Skeleton, Steps, Tag, Typography, App,
@@ -16,6 +16,7 @@ import { roomLabelOf } from '../../rooms/utils/roomStatus';
 import EmptyState from '../../../components/EmptyState';
 import PublicShell from '../components/PublicShell';
 import BedPicker from '../components/BedPicker';
+import { bedStateOf } from '../utils/bedState';
 
 const { Title, Text } = Typography;
 const EMPTY_LIST = Promise.resolve({ data: { data: { items: [], total: 0, page: 1, limit: 100 } } });
@@ -27,7 +28,7 @@ function Line({ label, children, strong }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '6px 0' }}>
       <Text type="secondary">{label}</Text>
-      <Text strong={strong} style={{ textAlign: 'right', ...(strong ? { fontSize: 18, color: '#1677FF' } : {}) }}>{children}</Text>
+      <Text strong={strong} style={{ textAlign: 'right', ...(strong ? { fontSize: 18, color: 'var(--brand)' } : {}) }}>{children}</Text>
     </div>
   );
 }
@@ -60,7 +61,10 @@ export default function PublicApplyPage() {
   const shown = buildingId === 'all' ? list : list.filter((r) => r.buildingId === buildingId);
   // Đỉnh ngăn xếp: tầng thấp nhất, số phòng nhỏ nhất còn giường (BR-07) — chỉ gợi ý, không ép
   const suggestedId = list[0]?.id;
-  const room = list.find((r) => r.id === choice?.roomId) || null;
+  // Tải lại danh sách mà giường đã chọn vừa có người đăng ký → coi như chưa chọn, tránh "Đã chọn" một giường không còn nhận đơn
+  const chosenRoom = list.find((r) => r.id === choice?.roomId);
+  const chosenBed = chosenRoom?.beds?.find((b) => b.bedNumber === choice?.bedNumber);
+  const room = chosenBed && bedStateOf(chosenBed) === 'selectable' ? chosenRoom : null;
   const months = CONTRACT_TERM[term].months;
   const roomFee = room ? room.pricePerMonth * months : 0;
 
@@ -76,7 +80,7 @@ export default function PublicApplyPage() {
     } catch {
       return;
     }
-    if (info && info.gender !== values.gender) setChoice(null);
+    if (info && info.gender !== values.gender) { setChoice(null); setBuildingId('all'); } // tòa của giới tính cũ không còn trong danh sách
     setInfo(values);
     setExistsAlert(false);
     setReloadKey((k) => k + 1); // vào bước chọn giường là lấy số giường mới nhất
@@ -194,7 +198,7 @@ export default function PublicApplyPage() {
           <Alert
             type="warning" showIcon style={{ marginBottom: 16 }}
             title="Mã sinh viên này đã có đơn đăng ký hoặc đang ở ký túc xá"
-            description={<span>Xem tiến độ ở mục <a onClick={() => navigate('/apply/status')}>Tra cứu đơn</a>.</span>}
+            description={<span>Xem tiến độ ở mục <Link to="/apply/status">Tra cứu đơn</Link>.</span>}
           />
         )}
         <Form form={form} layout="vertical" autoComplete="off" initialValues={{ gender: undefined }}>
@@ -251,7 +255,7 @@ export default function PublicApplyPage() {
             </Col>
             <Col xs={24} md={12}>
               <Form.Item name="faculty" label="Khoa / Viện">
-                <AutoComplete options={FACULTY_OPTIONS} placeholder="VD: Công nghệ thông tin" filterOption={(input, o) => o.value.toLowerCase().includes(input.toLowerCase())} />
+                <AutoComplete options={FACULTY_OPTIONS.map((f) => ({ value: f }))} placeholder="VD: Công nghệ thông tin" filterOption={(input, o) => String(o?.value ?? '').toLowerCase().includes(String(input).toLowerCase())} />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -307,7 +311,7 @@ export default function PublicApplyPage() {
             {shown.map((r) => (
               <Card
                 key={r.id} size="small" data-room={roomLabelOf(r)}
-                style={{ borderColor: choice?.roomId === r.id ? '#1677FF' : undefined }}
+                style={{ borderColor: choice?.roomId === r.id ? 'var(--brand)' : undefined }}
                 title={(
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span>Phòng {roomLabelOf(r)}</span>
@@ -332,7 +336,7 @@ export default function PublicApplyPage() {
 
           <div style={{ marginTop: 16, padding: '10px 12px', background: '#F0F7FF', borderRadius: 8 }}>
             <Text>
-              <InfoCircleOutlined style={{ color: '#1677FF' }} /> Phòng gắn nhãn <b>Gợi ý</b> là phòng được ưu tiên xếp trước; bạn vẫn chọn phòng khác được.
+              <InfoCircleOutlined style={{ color: 'var(--brand)' }} /> Phòng gắn nhãn <b>Gợi ý</b> là phòng được ưu tiên xếp trước; bạn vẫn chọn phòng khác được.
               Giường "Đã có người đăng ký" đang chờ duyệt cho người khác nên không chọn được.
             </Text>
           </div>
@@ -354,7 +358,7 @@ export default function PublicApplyPage() {
             <Card title="Gói thuê">
               <Radio.Group value={term} onChange={(e) => setTerm(e.target.value)} style={{ display: 'grid', gap: 12 }}>
                 {Object.entries(CONTRACT_TERM).map(([value, t]) => (
-                  <Radio key={value} value={value} style={{ padding: '12px 14px', border: `1px solid ${term === value ? '#1677FF' : '#F0F0F0'}`, borderRadius: 8 }}>
+                  <Radio key={value} value={value} style={{ padding: '12px 14px', border: `1px solid ${term === value ? 'var(--brand)' : 'var(--line)'}`, borderRadius: 8 }}>
                     <Text strong>{t.label}</Text> <Text type="secondary">({t.hint})</Text>
                     <div><Text>Tiền phòng cả kỳ: <b>{formatCurrency(room.pricePerMonth * t.months)}</b></Text></div>
                   </Radio>
@@ -368,7 +372,7 @@ export default function PublicApplyPage() {
             </Card>
           </Col>
           <Col xs={24} lg={10}>
-            <Card title={<span><FileDoneOutlined style={{ color: '#1677FF' }} /> Xác nhận đơn</span>}>
+            <Card title={<span><FileDoneOutlined style={{ color: 'var(--brand)' }} /> Xác nhận đơn</span>}>
               <Line label="Họ và tên">{info.fullName}</Line>
               <Line label="Mã sinh viên">{info.studentCode}</Line>
               <Line label="Email">{info.email}</Line>

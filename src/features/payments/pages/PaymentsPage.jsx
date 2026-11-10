@@ -49,7 +49,7 @@ function PaymentsView({ searchParams }) {
       title: 'Mã phiếu thu', dataIndex: 'paymentCode', width: 170, fixed: 'left',
       render: (v, p) => (
         <>
-          <a onClick={() => setOpenPayment(p)} style={{ fontFamily: 'ui-monospace, Consolas, monospace' }}>{v}</a>
+          <Button type="link" size="small" onClick={() => setOpenPayment(p)} style={{ padding: 0, height: 'auto', fontFamily: 'ui-monospace, Consolas, monospace' }}>{v}</Button>
           <div><Text type="secondary" style={{ fontSize: 12 }}>{formatDateTime(p.paidAt)}</Text></div>
         </>
       ),
@@ -72,7 +72,7 @@ function PaymentsView({ searchParams }) {
         </>
       ),
     },
-    { title: 'Số tiền', dataIndex: 'amount', width: 130, align: 'right', render: (v) => <Text strong style={{ color: '#389E0D' }}>+{formatCurrency(v)}</Text> },
+    { title: 'Số tiền', dataIndex: 'amount', width: 130, align: 'right', render: (v) => <Text strong style={{ color: 'var(--success-text)' }}>+{formatCurrency(v)}</Text> },
     {
       title: 'Hình thức', dataIndex: 'method', width: 190,
       render: (v, p) => (
@@ -100,21 +100,21 @@ function PaymentsView({ searchParams }) {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={8}>
           <StatCard
-            label="Đã thu" icon={<CheckCircleOutlined style={{ color: '#389E0D' }} />} iconBg="#F6FFED" loading={!summary && loading}
+            label="Đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} iconBg="#F6FFED" loading={!summary && loading}
             value={summary ? formatCurrency(summary.totalAmount) : null} valueColor="#389E0D"
             footer={<Text type="secondary">{meta?.total ?? '—'} phiếu thu theo bộ lọc</Text>}
           />
         </Col>
-        <Col xs={24} md={8}>
+        <Col xs={12} md={8}>
           <StatCard
-            label="Tiền mặt" icon={<WalletOutlined style={{ color: '#1677FF' }} />} iconBg="#E6F4FF" loading={!summary && loading}
+            label="Tiền mặt" icon={<WalletOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" loading={!summary && loading}
             value={summary ? formatCurrency(summary.cashAmount) : null}
             footer={<Text type="secondary">Thu tại văn phòng</Text>}
           />
         </Col>
-        <Col xs={24} md={8}>
+        <Col xs={12} md={8}>
           <StatCard
-            label="Chuyển khoản VietQR" icon={<QrcodeOutlined style={{ color: '#1677FF' }} />} iconBg="#E6F4FF" loading={!summary && loading}
+            label="Chuyển khoản VietQR" icon={<QrcodeOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" loading={!summary && loading}
             value={summary ? formatCurrency(summary.vietqrAmount) : null}
             footer={<Text type="secondary">Cán bộ đã đối chiếu sao kê</Text>}
           />

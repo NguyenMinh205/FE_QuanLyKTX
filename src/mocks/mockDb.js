@@ -132,6 +132,18 @@ export const plusDays = (date, days) => {
   return `${t.getFullYear()}-${pad(t.getMonth() + 1, 2)}-${pad(t.getDate(), 2)}`;
 };
 
+/**
+ * Bây giờ dạng ISO theo giờ máy kèm múi giờ, VD "2026-11-10T06:00:00+07:00".
+ * ⚠️ Không dùng toISOString() cho ngày nghiệp vụ: nó ra giờ UTC, mà bộ lọc ngày / doanh thu theo tháng cắt
+ * chuỗi lấy 10 / 7 ký tự đầu → thu tiền lúc 06:00 ngày 10 thành ngày 09.
+ */
+export const nowLocalIso = () => {
+  const d = new Date();
+  const off = -d.getTimezoneOffset();
+  const local = new Date(d.getTime() + off * 60000).toISOString().slice(0, 19);
+  return `${local}${off >= 0 ? '+' : '-'}${pad(Math.floor(Math.abs(off) / 60), 2)}:${pad(Math.abs(off) % 60, 2)}`;
+};
+
 export const plusMonths = (date, months) => {
   const [y, m, d] = date.split('-').map(Number);
   const t = new Date(y, m - 1 + months, d);
@@ -350,7 +362,7 @@ let paySeq = 0;
 const STAFF_NAME = 'Lê Thị Nhân Viên';
 
 /** Hai hóa đơn cá nhân lúc duyệt đơn (FR-32): `deposit` và `room_semester`, hạn 7 ngày */
-export const issuePersonalInvoice = (c, type, { issuedAt = new Date().toISOString(), dueDate = todayPlus(7) } = {}) => {
+export const issuePersonalInvoice = (c, type, { issuedAt = nowLocalIso(), dueDate = todayPlus(7) } = {}) => {
   invSeq += 1;
   const room = rooms.find((r) => r.id === c.roomId);
   const amount = type === 'deposit' ? c.depositAmount : c.totalRoomFee;
@@ -372,7 +384,7 @@ export const issuePersonalInvoice = (c, type, { issuedAt = new Date().toISOStrin
  * Hóa đơn phòng: `payerStudentId` là bạn đại diện nộp cho cả phòng (BR-03, D5).
  */
 export const collectInvoice = (inv, {
-  payerStudentId, method = 'cash', transactionCode = null, note = '', paidAt = new Date().toISOString(), collectedByName = STAFF_NAME,
+  payerStudentId, method = 'cash', transactionCode = null, note = '', paidAt = nowLocalIso(), collectedByName = STAFF_NAME,
 }) => {
   paySeq += 1;
   const payment = {
@@ -411,7 +423,7 @@ const monthText = (monthYear) => { const [y, m] = monthYear.split('-'); return `
  * Chốt một bản ghi: khóa, ghi số người + tiền mỗi người tại thời điểm chốt, sinh MỘT hóa đơn cho cả phòng.
  * Mã có mã tòa để phòng cùng số ở hai tòa không trùng (API.md §7). Trả hóa đơn vừa tạo.
  */
-export const billReading = (reading, { issuedAt = new Date().toISOString(), dueDate = todayPlus(7) } = {}) => {
+export const billReading = (reading, { issuedAt = nowLocalIso(), dueDate = todayPlus(7) } = {}) => {
   const room = rooms.find((r) => r.id === reading.roomId);
   const residents = residentsOf(room.id);
   Object.assign(reading, {
@@ -439,7 +451,8 @@ utilityReadings.filter((r) => r.isBilled).forEach((r, k) => {
   const inv = billReading(r, { issuedAt: `${issued}T08:00:00+07:00`, dueDate: `${issued.slice(0, 8)}08` });
   const roomIdx = rooms.findIndex((x) => x.id === r.roomId);
   if (older || (roomIdx % 4 !== 3 && r.roomId !== demoUnpaidRoomId)) {
-    seedPay(inv, residentsOf(r.roomId)[0].studentId, k, `${issued.slice(0, 8)}0${(k % 5) + 2}T10:00:00+07:00`);
+    const day = `${issued.slice(0, 8)}0${(k % 5) + 2}`;
+    seedPay(inv, residentsOf(r.roomId)[0].studentId, k, `${day > todayPlus(0) ? todayPlus(0) : day}T10:00:00+07:00`);
   }
 });
 

@@ -3,9 +3,9 @@ import { bedStateOf } from '../utils/bedState';
 const pad2 = (n) => String(n).padStart(2, '0');
 
 const LOOK = {
-  selectable:  { bg: '#F6FFED', border: '#B7EB8F', color: '#389E0D', text: 'Trống' },
-  selected:    { bg: '#1677FF', border: '#1677FF', color: '#fff', text: 'Đang chọn' },
-  occupied:    { bg: '#FAFAFA', border: '#F0F0F0', color: '#8C8C8C', text: 'Đã có người' },
+  selectable:  { bg: '#F6FFED', border: '#B7EB8F', color: 'var(--success-text)', text: 'Trống' },
+  selected:    { bg: 'var(--brand)', border: 'var(--brand)', color: '#fff', text: 'Đang chọn' },
+  occupied:    { bg: '#FAFAFA', border: 'var(--line)', color: 'var(--text-tertiary)', text: 'Đã có người' },
   requested:   { bg: '#FFF7E6', border: '#FFD591', color: '#D46B08', text: 'Đã có người đăng ký' },
   maintenance: { bg: '#FFF1F0', border: '#FFCCC7', color: '#CF1322', text: 'Bảo trì' },
 };
@@ -39,7 +39,7 @@ export default function BedPicker({ beds = [], selected, onSelect, ownBed = null
             <div style={{ fontWeight: 600, color: isSelected ? '#fff' : '#262626' }}>Giường {pad2(bed.bedNumber)}</div>
             <div style={{ fontSize: 12, color: look.color }}>{look.text}</div>
             {markedBed === bed.bedNumber && (
-              <div style={{ fontSize: 11, color: isSelected ? '#fff' : '#1677FF' }}>Sinh viên chọn</div>
+              <div style={{ fontSize: 11, color: isSelected ? '#fff' : 'var(--brand)' }}>Sinh viên chọn</div>
             )}
           </button>
         );
