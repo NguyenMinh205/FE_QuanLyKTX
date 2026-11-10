@@ -230,7 +230,7 @@ Beds are embedded in the room. There is no bed endpoint and no room type endpoin
   "occupied": 4, "availableSlots": 2, "maintenanceBeds": 0 }
 ```
 
-**GET `/rooms/:id`** adds `beds`:
+**GET `/rooms/:id`** adds `beds`. Each bed also carries `hasPendingApplication`, so staff see beds held by other applications:
 ```json
 "beds": [ { "bedNumber": 1, "status": "occupied", "occupant": { "studentCode": "2021601234", "fullName": "Nguyễn Văn An", "className": "KTPM01-K16" } },
           { "bedNumber": 2, "status": "available", "occupant": null } ]
@@ -323,12 +323,14 @@ A contract carries the application and the stay in one document.
   "startDate": "2026-11-09", "endDate": "2027-05-09",
   "pricePerMonth": 320000, "totalRoomFee": 1920000, "depositAmount": 500000,
   "student": { }, "room": { }, "bedNumber": 3,
-  "rejectionReason": null, "approvedByName": "Lê Thị Nhân Viên", "terminatedAt": null,
+  "rejectionReason": null, "approvedByName": "Lê Thị Nhân Viên", "reviewedAt": "2026-11-09T09:00:00Z", "terminatedAt": null,
   "isDepositRefunded": false, "depositRefundedAt": null, "depositRefundedByName": null,
   "createdAt": "2026-11-09T08:00:00Z" }
 ```
 
 - `student` is `StudentRef`, `room` is `RoomRef`.
+- `reviewedAt` is when the application was approved or rejected, `approvedByName` the staff who did it.
+- `status` accepts one value or a comma-separated list, e.g. `?status=active,expired,terminated` for every contract that is not an application.
 - `status` is `expired` when an `active` contract is past `endDate`. There is no scheduled job, so the server derives it when reading. The bed stays occupied until checkout.
 - `GET /contracts` adds `summary: { pending, active, expired, terminated, rejected, awaitingDepositRefund }`. `awaitingDepositRefund` counts `terminated` contracts with `isDepositRefunded: false`.
 - `GET /contracts/:id` adds `student` with the full profile (phone, email, dob, faculty, className, emergencyContact), and `invoices: Invoice[]`.
@@ -354,6 +356,8 @@ Prices come from the final room when `roomId` is sent. A failed email does not r
 |---|---|---|
 | `CONTRACT_NOT_PENDING` | 409 | Already processed |
 | `BED_ALREADY_OCCUPIED` | 409 | Lost the race for this bed (UC-02 4a). The screen reloads and staff pick another bed |
+| `BED_ALREADY_REQUESTED` | 409 | The replacement bed is held by another pending application |
+| `APPLICATION_OR_CONTRACT_EXISTS` | 409 | The student already has an `active` contract |
 | `GENDER_MISMATCH` | 422 | The replacement room has the wrong gender |
 | `EMAIL_ALREADY_USED` | 409 | The application email belongs to another account |
 
@@ -602,6 +606,7 @@ These are required by this contract and are not yet in `EDIT_DOCS_DATA_SCHEMA.md
 | `contracts` | Add `rejected` to `status` | FR-33, keeps rejected applications out of `terminated` |
 | `contracts` | `startDate`, `endDate` optional while `pending` | Set at approval |
 | `contracts` | `terminatedAt` (Date) | Shown in history and the deposit tab |
+| `contracts` | `reviewedAt` (Date) | When the application was approved or rejected |
 | `users` | `studentCode` (String, unique, sparse) | FR-01 login, FR-32 |
 | `invoices` | Store the payer of a utility invoice, in `studentId` as the schema suggests or a dedicated `payerStudentId` | FR-41, FR-62 |
 
@@ -637,4 +642,5 @@ Optional later: a SePay or Casso webhook for FR-54b would call the same logic as
 
 | Version | Date | Change |
 |---|---|---|
+| 2.1 | 10/11/2026 | Online application (M4): `GET /rooms/:id` beds carry `hasPendingApplication`; contract `reviewedAt`; `status` filter accepts a list; approve adds `BED_ALREADY_REQUESTED`, `APPLICATION_OR_CONTRACT_EXISTS`. |
 | **2.0** | **09/11/2026** | Rewritten for the streamlined HaUI edition. Three roles, public application portal, one contract document, embedded beds, 6 or 12 month terms, one utility invoice per room, cash and VietQR only, deposit refund confirmation. The v1.2 change history is on branch `backup/v1-full`. |

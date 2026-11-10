@@ -8,7 +8,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { contractApi } from '../api/contract.api';
 import { roomApi } from '../../rooms/api/room.api';
-import { ROOM_TIER } from '../../../constants/statuses';
+import { CONTRACT_TERM } from '../../../constants/statuses';
 import { formatCurrency, formatDate } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import DataTable from '../../../components/DataTable';
@@ -20,7 +20,7 @@ const { Text } = Typography;
 
 /** Tab → tham số API. "Sắp hết hạn" dùng expiringInDays (BR-29) */
 const TABS = [
-  { key: 'all',        label: 'Tất cả',        params: {} },
+  { key: 'all',        label: 'Tất cả',        params: { status: 'active,expired,terminated' } },
   { key: 'active',     label: 'Đang hiệu lực', params: { status: 'active' } },
   { key: 'expiring',   label: 'Sắp hết hạn',   params: { expiringInDays: EXPIRING_DAYS }, badge: 'warning' },
   { key: 'expired',    label: 'Hết hạn',       params: { status: 'expired' } },
@@ -38,11 +38,10 @@ export default function ContractsPage() {
   const initialSearch = searchParams.get('search') || '';
   const tabParam = searchParams.get('tab');
   const [tab, setTab] = useState(TABS.some((t) => t.key === tabParam) ? tabParam : (initialSearch ? 'all' : 'active'));
-  const [filters, setFilters] = useState({ page: 1, limit: 20, search: initialSearch, buildingId: undefined, roomTypeId: undefined });
+  const [filters, setFilters] = useState({ page: 1, limit: 20, search: initialSearch, buildingId: undefined });
   const [openId, setOpenId] = useState(null);
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
-  const { data: roomTypes } = useApi(() => roomApi.getRoomTypes(), []);
   const tabParams = TABS.find((t) => t.key === tab).params;
   const { data, meta, loading, error, refetch } = useApi(
     () => contractApi.getList({ ...filters, ...tabParams, search: filters.search || undefined }),
@@ -66,8 +65,8 @@ export default function ContractsPage() {
     },
     { title: 'Chỗ ở', key: 'bed', width: 150, render: (_, c) => bedTextOf(c.bedCode) },
     {
-      title: 'Loại phòng', key: 'type', width: 170,
-      render: (_, c) => <Tag color={ROOM_TIER[c.tier]?.color === 'default' ? undefined : ROOM_TIER[c.tier]?.color} style={{ margin: 0 }}>{c.roomTypeName}</Tag>,
+      title: 'Gói thuê', key: 'term', width: 110,
+      render: (_, c) => <Tag style={{ margin: 0 }}>{CONTRACT_TERM[c.term]?.label ?? '—'}</Tag>,
     },
     {
       title: 'Thời hạn', key: 'period', width: 200,
@@ -139,12 +138,6 @@ export default function ContractsPage() {
                 value={filters.buildingId}
                 options={(buildings || []).map((b) => ({ value: b.id, label: b.name }))}
                 onChange={(v) => setFilters((f) => ({ ...f, buildingId: v, page: 1 }))}
-              />
-              <Select
-                allowClear placeholder="Tất cả loại phòng" style={{ width: 200 }}
-                value={filters.roomTypeId}
-                options={(roomTypes || []).map((t) => ({ value: t.id, label: t.name }))}
-                onChange={(v) => setFilters((f) => ({ ...f, roomTypeId: v, page: 1 }))}
               />
             </>
           )}

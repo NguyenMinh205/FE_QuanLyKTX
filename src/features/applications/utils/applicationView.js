@@ -9,11 +9,8 @@ export const initialsOf = (fullName = '') => {
   return `${first}${last}`.toUpperCase();
 };
 
-/** Phòng nguyện vọng đã hết giường trống — đơn "nghẽn chỗ" (BR-34: nộp đơn không giữ chỗ) */
-export const isBlocked = (app) => app.status === 'pending' && app.requestedRoom?.availableSlots === 0;
-
-/** "B205-04" → "04" */
-export const bedNumberOfCode = (bedCode) => (bedCode ? bedCode.split('-').pop() : null);
-
-/** "Phòng B203" */
+/** "Phòng K1-203" */
 export const roomTextOf = (room) => (room ? `Phòng ${roomLabelOf(room)}` : '—');
+
+/** 3 → "03" */
+export const pad2 = (n) => String(n).padStart(2, '0');

@@ -4,6 +4,10 @@
  */
 export const APP_VERSION = 'v2.0';
 
+/** Khoa/Viện gợi ý ở form nộp đơn — dữ liệu minh họa theo SRS, vẫn gõ tên khác được */
+export const FACULTY_OPTIONS = ['Công nghệ thông tin', 'Cơ khí', 'Điện', 'Điện tử', 'Du lịch', 'Ngoại ngữ', 'Kinh tế']
+  .map((value) => ({ value }));
+
 export const SUPPORT_CONTACT = {
   office: 'Phòng Quản sinh KTX (P.101 Tòa K1)',
   hotline: '1900 6868',

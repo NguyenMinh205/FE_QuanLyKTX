@@ -4,14 +4,13 @@ import {
 } from 'antd';
 import {
   ReloadOutlined, HomeOutlined, UserOutlined, CheckCircleOutlined, PieChartOutlined, TeamOutlined,
-  ClockCircleOutlined, CreditCardOutlined, WarningOutlined, ArrowRightOutlined, InboxOutlined,
+  ClockCircleOutlined, CreditCardOutlined, WarningOutlined, ArrowRightOutlined,
   FileSearchOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useApi } from '../../../hooks/useApi';
 import { dashboardApi } from '../api/dashboard.api';
 import { contractApi } from '../../contracts/api/contract.api';
-import { roomApi } from '../../rooms/api/room.api';
 import PageHeader from '../../../components/PageHeader';
 import { formatCurrency, formatDate, formatPercent } from '../../../utils/formatter';
 import StatCard from '../../../components/StatCard';
@@ -28,12 +27,11 @@ export default function DashboardPage() {
   const summaryApi = useApi(() => dashboardApi.getSummary(), []);
   const occupancyApi = useApi(() => dashboardApi.getOccupancy(), []);
   const expiringApi = useApi(() => contractApi.getList({ expiringInDays: EXPIRING_DAYS, limit: 5 }), []);
-  const typesApi = useApi(() => roomApi.getRoomTypes({ withAvailability: true }), []);
 
   const s = summaryApi.data;
   const loading = summaryApi.loading && !s;
   const o = s?.occupancy;
-  const refreshAll = () => { summaryApi.refetch(); occupancyApi.refetch(); expiringApi.refetch(); typesApi.refetch(); };
+  const refreshAll = () => { summaryApi.refetch(); occupancyApi.refetch(); expiringApi.refetch(); };
 
   const actionLink = (label, to, danger) => (
     <a onClick={() => navigate(to)} style={danger ? { color: '#CF1322' } : undefined}>{label} <ArrowRightOutlined /></a>
@@ -44,7 +42,6 @@ export default function DashboardPage() {
   ];
   const queueTotal = queue.reduce((sum, q) => sum + (q.value ?? 0), 0);
   const expiring = expiringApi.data || [];
-  const types = (typesApi.data || []).filter((t) => t.isActive !== false);
 
   return (
     <>
@@ -138,37 +135,10 @@ export default function DashboardPage() {
         </Col>
       </Row>
 
-      {/* ---------- Biểu đồ + chỗ trống theo loại ---------- */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24} xl={16}>
-          <OccupancyChart data={occupancyApi.data} loading={occupancyApi.loading} error={occupancyApi.error} />
-        </Col>
-        <Col xs={24} xl={8}>
-          <Card
-            title={<span><InboxOutlined style={{ color: '#1677FF' }} /> Chỗ trống theo loại phòng</span>}
-            style={{ height: '100%' }}
-          >
-            {typesApi.error && <Alert type="warning" showIcon title="Chưa lấy được số chỗ theo loại phòng" description={typesApi.error} />}
-            {!typesApi.error && typesApi.loading && !typesApi.data && <Skeleton active paragraph={{ rows: 5 }} />}
-            {!typesApi.error && typesApi.data && (
-              <div>
-                {types.length === 0 && <Text type="secondary">Chưa có loại phòng</Text>}
-                {types.map((t) => (
-                  <div key={t.id} data-row="room-type" style={ROW_STYLE}>
-                    <div style={{ minWidth: 0 }}>
-                      <Text>{t.name}</Text>
-                      <div><Text type="secondary" style={{ fontSize: 12 }}>{t.roomCount ?? '—'} phòng</Text></div>
-                    </div>
-                    {t.availableSlots > 0
-                      ? <Tag color="success" style={{ margin: 0 }}>Còn {t.availableSlots} chỗ</Tag>
-                      : <Tag color="error" style={{ margin: 0 }}>Hết chỗ</Tag>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
+      {/* ---------- Lấp đầy theo tòa ---------- */}
+      <div style={{ marginTop: 16 }}>
+        <OccupancyChart data={occupancyApi.data} loading={occupancyApi.loading} error={occupancyApi.error} />
+      </div>
 
       {/* ---------- Hợp đồng sắp hết hạn (FR-73) ---------- */}
       <Card

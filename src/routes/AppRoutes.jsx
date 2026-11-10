@@ -12,7 +12,8 @@ import ChangePasswordPage from '../features/auth/pages/ChangePasswordPage';
 import DashboardPage from '../features/dashboard/pages/DashboardPage';
 import StudentsPage from '../features/students/pages/StudentsPage';
 import PortalHomePage from '../features/portal/pages/PortalHomePage';
-import ApplyPage from '../features/portal/pages/ApplyPage';
+import PublicApplyPage from '../features/apply/pages/PublicApplyPage';
+import ApplicationStatusPage from '../features/apply/pages/ApplicationStatusPage';
 import UsersPage from '../features/users/pages/UsersPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import BuildingsPage from '../features/rooms/pages/BuildingsPage';
@@ -43,6 +44,9 @@ export default function AppRoutes() {
       {/* ---------- Công khai ---------- */}
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
+      {/* Nộp đơn và tra cứu không cần tài khoản (FR-30, FR-33) */}
+      <Route path="/apply" element={<PublicApplyPage />} />
+      <Route path="/apply/status" element={<ApplicationStatusPage />} />
       <Route path="/403" element={<ForbiddenPage />} />
 
       {/* ---------- Khu quản trị: admin / staff ---------- */}
@@ -71,7 +75,6 @@ export default function AppRoutes() {
       <Route element={<RoleRoute allowed={[STUDENT]}><PortalLayout /></RoleRoute>}>
         <Route path="/portal/home" element={<PortalHomePage />} />
         <Route path="/portal/change-password" element={<ChangePasswordPage />} />
-        <Route path="/portal/apply" element={<ApplyPage />} />
         <Route path="/portal/my-residence" element={<MyResidencePage />} />
         <Route path="/portal/my-invoices" element={<MyInvoicesPage />} />
         <Route path="/portal/payment-result" element={<PaymentResultPage />} />

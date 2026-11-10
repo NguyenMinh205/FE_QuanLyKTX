@@ -5,10 +5,10 @@
 import { delay, ok, paginate, fail, search } from './mockHelpers';
 import { authStorage } from '../lib/authStorage';
 import {
-  DEMO_STUDENT_INDEX, roomTypes, buildings, rooms, beds, students, applications, residencies, contracts,
-  feeTypes, utilityReadings, invoices, payments,
-  roomTypeOf, bedsOf, availableSlots, generateBeds, approveApplication,
-  occupancyStats, debtOf, demoRaceRoomIds, simulateRivalApproval, todayPlus, periodPlus,
+  DEMO_STUDENT_INDEX, buildings, rooms, beds, students, contracts,
+  feeTypes, utilityReadings, invoices, payments, ROOM_AMENITIES, TERM_MONTHS,
+  bedsOf, availableSlots, generateBeds, newApplication, approveContract, pendingOn, selectableBeds,
+  occupancyStats, debtOf, demoRaceRoomIds, rivalStudentFor, todayPlus, periodPlus,
 } from './mockDb';
 
 // ---------------------------------------------------------------- tiện ích
@@ -17,11 +17,8 @@ const withRemaining = (inv) => ({ ...inv, remainingAmount: inv.totalAmount - inv
 
 const roomView = (r) => {
   const bs = bedsOf(r.id);
-  const rt = roomTypeOf(r.id);
   return {
     ...r,
-    // Hai trường này chỉ còn cho màn Đăng ký và Duyệt đơn cũ, xoá ở M4
-    roomTypeName: rt.name, tier: rt.tier,
     occupied: bs.filter((b) => b.status === 'occupied').length,
     availableSlots: availableSlots(r.id),
     maintenanceBeds: bs.filter((b) => b.status === 'maintenance').length,
@@ -270,7 +267,7 @@ export const mockStudents = {
   },
   deactivate: async (id) => {
     await delay();
-    if (activeContractOf(id) || applications.some((a) => a.studentId === id && a.status === 'pending')) {
+    if (activeContractOf(id) || contracts.some((c) => c.studentId === id && c.status === 'pending')) {
       fail(422, 'STUDENT_HAS_ACTIVE_CONTRACT', 'Sinh viên đang có hợp đồng hiệu lực hoặc đơn đăng ký chờ duyệt, không thể vô hiệu hóa');
     }
     if (debtOf(id) > 0) fail(422, 'STUDENT_HAS_DEBT', 'Sinh viên còn công nợ chưa thanh toán');
@@ -358,20 +355,6 @@ export const mockRooms = {
     return ok(b, message);
   },
 
-  getRoomTypes: async (q = {}) => {
-    await delay();
-    let rows = roomTypes;
-    if (q.tier) rows = rows.filter((t) => t.tier === q.tier);
-    if (q.isActive !== undefined) rows = rows.filter((t) => String(t.isActive) === String(q.isActive));
-    const items = rows.map((t) => {
-      const base = { ...t, includedSupplies: [] };
-      if (String(q.withAvailability) !== 'true') return base;
-      // student: chỉ đếm phòng khớp giới tính của chính mình
-      const ofType = rooms.filter((r) => r.roomTypeId === t.id && r.status === 'active' && (!q.forGender || r.gender === q.forGender));
-      return { ...base, roomCount: ofType.length, availableSlots: ofType.reduce((s, r) => s + availableSlots(r.id), 0) };
-    });
-    return paginate(items, { page: 1, limit: 100, ...q });
-  },
   getRooms: async (q = {}) => {
     await delay();
     let rows = rooms.map(roomView);
@@ -384,16 +367,6 @@ export const mockRooms = {
     if (q.availability === 'full') rows = rows.filter((r) => r.availableSlots === 0);
     return paginate(search(rows, q.search, ['roomNumber', 'buildingName']), { limit: 100, ...q });
   },
-  /** GET /rooms/available — với student, gender lấy từ hồ sơ; tham số gender client gửi bị bỏ qua */
-  getAvailableRooms: async (q = {}, { asStudent = false } = {}) => {
-    await delay();
-    const gender = asStudent ? me().gender : q.gender;
-    let rows = rooms.filter((r) => r.status === 'active' && availableSlots(r.id) > 0).map(roomView);
-    if (gender) rows = rows.filter((r) => r.gender === gender);
-    if (q.roomTypeId) rows = rows.filter((r) => r.roomTypeId === q.roomTypeId);
-    if (q.buildingId) rows = rows.filter((r) => r.buildingId === q.buildingId);
-    return paginate(rows, { limit: 100, ...q });
-  },
   getRoomById: async (id) => {
     await delay();
     const r = rooms.find((x) => x.id === id);
@@ -401,7 +374,10 @@ export const mockRooms = {
     const bedList = bedsOf(id).map((b) => {
       const c = contracts.find((x) => x.bedId === b.id && x.status === 'active');
       const st = c && students.find((s) => s.id === c.studentId);
-      return { ...b, occupant: c ? { studentCode: c.studentCode, fullName: c.studentName, className: st?.className ?? null } : null };
+      return {
+        ...b, hasPendingApplication: pendingOn(id, b.bedNumber),
+        occupant: c ? { studentCode: c.studentCode, fullName: c.studentName, className: st?.className ?? null } : null,
+      };
     });
     return ok({ ...roomView(r), beds: bedList });
   },
@@ -415,7 +391,7 @@ export const mockRooms = {
     const capacity = Number(body.capacity);
     const room = {
       id: `r-new-${Date.now()}`, buildingId: b.id, buildingCode: b.code, buildingName: b.name,
-      roomTypeId: `cap${capacity}`, roomNumber: body.roomNumber, floor: Number(body.floor), gender: body.gender, capacity,
+      roomNumber: body.roomNumber, floor: Number(body.floor), gender: body.gender, capacity,
       pricePerMonth: Number(body.pricePerMonth), depositAmount: Number(body.depositAmount), status: 'active',
     };
     rooms.push(room);
@@ -437,7 +413,7 @@ export const mockRooms = {
     if (body.roomNumber && body.roomNumber !== r.roomNumber) assertRoomNumberFree(r.buildingId, body.roomNumber);
     if (capacityChanged) {
       for (let i = beds.length - 1; i >= 0; i -= 1) if (beds[i].roomId === id) beds.splice(i, 1);
-      Object.assign(r, { capacity, roomTypeId: `cap${capacity}` });
+      r.capacity = capacity;
       generateBeds(r);
     }
     Object.assign(r, {
@@ -452,190 +428,153 @@ export const mockRooms = {
   },
 };
 
-// ---------------------------------------------------------------- applications (đơn đăng ký)
-const applicationView = (a) => {
-  const st = students.find((s) => s.id === a.studentId);
-  const rt = roomTypes.find((t) => t.id === a.roomTypeId);
-  const room = rooms.find((r) => r.id === a.requestedRoomId);
-  const assignedRoom = a.assignedRoomId && rooms.find((r) => r.id === a.assignedRoomId);
-  const contract = a.contractId && contracts.find((c) => c.id === a.contractId);
-  const { demoRaceWith, ...fields } = a; // eslint-disable-line no-unused-vars -- cờ nội bộ của mock, không trả ra
-  return {
-    ...fields,
-    student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender, className: st.className, phone: st.phone, totalDebt: debtOf(st.id) },
-    roomType: { id: rt.id, name: rt.name, tier: rt.tier, capacity: rt.capacity, pricePerMonth: rt.pricePerMonth, depositAmount: rt.depositAmount },
-    requestedRoom: {
-      id: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName, buildingCode: room.buildingCode,
-      floor: room.floor, availableSlots: availableSlots(room.id),
-    },
-    // Chỉ có khi đơn đã duyệt
-    assigned: assignedRoom ? {
-      roomId: assignedRoom.id, roomNumber: assignedRoom.roomNumber, buildingName: assignedRoom.buildingName,
-      buildingCode: assignedRoom.buildingCode, bedCode: contract?.bedCode ?? null,
-    } : null,
-    contractCode: contract?.contractCode ?? null,
-    estimatedInvoices: { deposit: rt.depositAmount, firstMonth: rt.pricePerMonth, total: rt.depositAmount + rt.pricePerMonth },
-  };
-};
+// ---------------------------------------------------------------- công khai: nộp đơn, tra cứu (không cần đăng nhập)
+const roomRef = (room) => (room ? {
+  id: room.id, buildingId: room.buildingId, buildingCode: room.buildingCode, buildingName: room.buildingName,
+  roomNumber: room.roomNumber, floor: room.floor, gender: room.gender, capacity: room.capacity,
+} : null);
+const bedText = (room, bedNumber) => `giường ${String(bedNumber).padStart(2, '0')} phòng ${room.buildingCode}-${room.roomNumber}`;
+const EMAIL_RE_PUBLIC = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Kiểm tra dùng chung khi nộp đơn (sinh viên hoặc staff lập hộ) */
-const validateNewApplication = (st, room) => {
-  if (!st || !room) fail(404, 'NOT_FOUND', 'Không tìm thấy sinh viên hoặc phòng');
-  if (activeContractOf(st.id)) fail(422, 'STUDENT_HAS_ACTIVE_CONTRACT', 'Sinh viên đã có hợp đồng đang hiệu lực');
-  if (applications.some((a) => a.studentId === st.id && a.status === 'pending')) {
-    fail(409, 'DUPLICATE_PENDING_APPLICATION', 'Sinh viên đã có một đơn đăng ký đang chờ duyệt');
-  }
-  if (room.gender !== st.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
-  if (availableSlots(room.id) === 0) fail(409, 'ROOM_FULL', `Phòng ${room.buildingCode}-${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác`);
-};
-
-const submitApplication = (st, { roomId, startDate, endDate, note }) => {
-  const room = rooms.find((r) => r.id === roomId);
-  validateNewApplication(st, room);
-  const a = {
-    id: `ap${applications.length + 1}-${Date.now()}`,
-    applicationCode: `DK-2026-${String(applications.length + 1).padStart(5, '0')}`,
-    studentId: st.id, roomTypeId: room.roomTypeId, requestedRoomId: room.id,
-    startDate: startDate || '2026-12-01', endDate: endDate || '2027-06-30', note: note || '',
-    status: 'pending', assignedRoomId: null, assignedBedId: null, contractId: null, reviewNote: null,
-    createdAt: new Date().toISOString(),
-  };
-  applications.push(a); // KHÔNG giữ chỗ (BR-34)
-  return a;
-};
-
-export const mockApplications = {
-  getList: async (q = {}) => {
+export const mockPublic = {
+  /** GET /public/rooms/available?gender= — sắp theo ngăn xếp: tầng thấp → số phòng nhỏ (BR-07), không lộ tên người ở */
+  getAvailableRooms: async (q = {}) => {
     await delay();
-    let rows = applications;
-    if (q.status) rows = rows.filter((a) => a.status === q.status);
-    if (q.roomTypeId) rows = rows.filter((a) => a.roomTypeId === q.roomTypeId);
-    // Hàng chờ: đơn cũ nhất lên đầu. Đơn đã xử lý: xử lý gần nhất lên đầu
-    const sorted = q.status && q.status !== 'pending'
-      ? [...rows].sort((a, b) => (b.reviewedAt || b.createdAt).localeCompare(a.reviewedAt || a.createdAt))
-      : [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    const items = sorted.map(applicationView).map((x) => ({
-      ...x, studentCode: x.student.studentCode, studentName: x.student.fullName, requestedRoomNumber: x.requestedRoom.roomNumber,
-    }));
-    const res = paginate(search(items, q.search, ['applicationCode', 'studentCode', 'studentName', 'requestedRoomNumber']), q);
-    // Số đơn theo trạng thái cho các tab — không phụ thuộc bộ lọc status
-    const count = (st) => applications.filter((a) => a.status === st).length;
-    res.data.data.summary = { pending: count('pending'), approved: count('approved'), rejected: count('rejected') };
-    return res;
+    if (!['male', 'female'].includes(q.gender)) fail(400, 'VALIDATION_ERROR', 'Chọn giới tính để xem phòng trống');
+    const open = new Set(buildings.filter((b) => b.isActive).map((b) => b.id));
+    const rows = rooms
+      .filter((r) => r.status === 'active' && open.has(r.buildingId) && r.gender === q.gender && (!q.buildingId || r.buildingId === q.buildingId))
+      .map((r) => ({
+        ...roomRef(r), pricePerMonth: r.pricePerMonth, depositAmount: r.depositAmount,
+        availableSlots: selectableBeds(r.id).length,
+        beds: bedsOf(r.id).map((b) => ({ bedNumber: b.bedNumber, status: b.status, hasPendingApplication: pendingOn(r.id, b.bedNumber) })),
+      }))
+      .filter((r) => r.availableSlots > 0)
+      .sort((a, b) => a.floor - b.floor || a.roomNumber.localeCompare(b.roomNumber, 'vi', { numeric: true }));
+    return paginate(rows, { page: 1, limit: 100, ...q });
   },
-  getById: async (id) => {
-    await delay();
-    const a = applications.find((x) => x.id === id);
-    if (!a) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn đăng ký');
-    const room = rooms.find((r) => r.id === a.requestedRoomId);
-    const bedList = bedsOf(room.id).map((b) => {
-      const c = contracts.find((x) => x.bedId === b.id && x.status === 'active');
-      return { bedNumber: b.bedNumber, status: b.status, occupantName: c?.studentName || null };
-    });
-    const view = applicationView(a);
-    return ok({ ...view, requestedRoom: { ...view.requestedRoom, beds: bedList } });
-  },
-  create: async (body) => {
-    await delay();
-    const st = students.find((s) => s.id === body.studentId);
-    return ok(applicationView(submitApplication(st, body)), 'Đã lập đơn đăng ký');
-  },
-  approve: async (id, { roomId } = {}) => {
-    await delay();
-    const a = applications.find((x) => x.id === id);
-    if (!a) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn đăng ký');
-    if (a.status !== 'pending') fail(422, 'APPLICATION_NOT_PENDING', 'Đơn đăng ký đã được xử lý');
-    const st = students.find((s) => s.id === a.studentId);
-    if (activeContractOf(st.id)) fail(422, 'STUDENT_HAS_ACTIVE_CONTRACT', 'Sinh viên đã có hợp đồng đang hiệu lực');
+  /** POST /contracts/register-online (FR-30) — giá lấy từ phòng, không khóa giường */
+  registerOnline: async (body = {}) => {
+    await delay(500);
+    const code = String(body.studentCode || '').trim().toUpperCase();
+    const email = String(body.email || '').trim().toLowerCase();
+    const errors = [];
+    if (!/^[A-Z0-9]{6,20}$/.test(code)) errors.push({ field: 'studentCode', message: 'Mã sinh viên gồm 6–20 ký tự chữ và số' });
+    if (!String(body.fullName || '').trim()) errors.push({ field: 'fullName', message: 'Nhập họ và tên' });
+    if (!['male', 'female'].includes(body.gender)) errors.push({ field: 'gender', message: 'Chọn giới tính' });
+    if (!/^0\d{9}$/.test(String(body.phone || ''))) errors.push({ field: 'phone', message: 'Số điện thoại gồm 10 số, bắt đầu bằng 0' });
+    if (!EMAIL_RE_PUBLIC.test(email)) errors.push({ field: 'email', message: 'Email không đúng định dạng' });
+    if (!TERM_MONTHS[body.term]) errors.push({ field: 'term', message: 'Chọn gói thuê 6 hoặc 12 tháng' });
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
 
-    const room = rooms.find((r) => r.id === (roomId || a.requestedRoomId));
-    if (!room) fail(404, 'NOT_FOUND', 'Không tìm thấy phòng');
-    if (room.roomTypeId !== a.roomTypeId) fail(422, 'ROOM_TYPE_MISMATCH', 'Chỉ được đổi sang phòng cùng loại với đơn đăng ký');
-    if (room.gender !== st.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
-
-    // Giả lập duyệt đồng thời: cán bộ khác vừa duyệt đơn cùng nhắm giường cuối (chỉ có trong dữ liệu giả)
-    const racer = a.demoRaceWith && applications.find((x) => x.id === a.demoRaceWith && x.status === 'pending');
-    if (racer && racer.requestedRoomId === room.id) approveApplication(racer, room);
-
-    const result = approveApplication(a, room, { startDate: a.startDate });
-    if (!result) fail(409, 'ROOM_FULL', `Phòng ${room.buildingCode}-${room.roomNumber} vừa hết chỗ. Vui lòng chọn phòng khác cùng loại`);
-    const { bed, contract } = result;
-    a.reviewedAt = new Date().toISOString();
-
-    const due = '2026-12-08';
-    const mk = (type, amount, description) => {
-      const inv = {
-        id: `i-${type}-${contract.id}`, invoiceCode: `INV-202612-${contract.id.toUpperCase()}${type === 'deposit' ? 'D' : 'M'}`,
-        studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
-        contractId: contract.id, bedCode: bed.bedCode,
-        type, billingPeriod: type === 'monthly' ? '2026-12' : null,
-        lineItems: [{ feeTypeId: type === 'deposit' ? 'f4' : 'f1', description, quantity: 1, unitPrice: amount, amount }],
-        totalAmount: amount, paidAmount: 0, issueDate: '2026-12-01', dueDate: due, status: 'unpaid',
-      };
-      invoices.push(inv);
-      return inv;
-    };
-    const created = [
-      mk('deposit', contract.depositAmount, 'Tiền đặt cọc'),
-      mk('monthly', contract.monthlyPrice, 'Tiền phòng tháng 12/2026'),
-    ];
-    return ok({
-      application: { id: a.id, status: a.status },
-      assigned: { roomNumber: room.roomNumber, buildingName: room.buildingName, buildingCode: room.buildingCode, bedCode: bed.bedCode },
-      contract,
-      invoices: created,
-    }, 'Đã duyệt và xếp phòng');
-  },
-  reject: async (id, { reviewNote } = {}) => {
-    await delay();
-    if (!reviewNote || reviewNote.trim().length < 10) {
-      fail(400, 'VALIDATION_ERROR', 'Lý do từ chối tối thiểu 10 ký tự',
-        { errors: [{ field: 'reviewNote', message: 'Lý do từ chối tối thiểu 10 ký tự' }] });
+    let st = students.find((s) => s.studentCode === code);
+    if (st && contracts.some((c) => c.studentId === st.id && ['pending', 'active'].includes(c.status))) {
+      fail(409, 'APPLICATION_OR_CONTRACT_EXISTS', 'Mã sinh viên này đã có đơn đăng ký hoặc đang lưu trú tại ký túc xá');
     }
-    const a = applications.find((x) => x.id === id);
-    if (a.status !== 'pending') fail(422, 'APPLICATION_NOT_PENDING', 'Đơn đăng ký đã được xử lý');
-    Object.assign(a, { status: 'rejected', reviewNote: reviewNote.trim(), reviewedAt: new Date().toISOString() });
-    return ok(a, 'Đã từ chối đơn đăng ký');
+    const room = rooms.find((r) => r.id === body.roomId && r.status === 'active');
+    if (!room) fail(404, 'NOT_FOUND', 'Phòng không còn nhận đơn, vui lòng chọn phòng khác');
+    if (room.gender !== body.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
+    const bedNumber = Number(body.bedNumber);
+    const bed = bedsOf(room.id).find((b) => b.bedNumber === bedNumber);
+    if (!bed || bed.status !== 'available') fail(409, 'BED_ALREADY_OCCUPIED', `${bedText(room, bedNumber)} không còn trống, vui lòng chọn giường khác`);
+    // Giả lập một sinh viên khác vừa nộp trước vào đúng giường cuối (chỉ có trong dữ liệu giả)
+    if (demoRaceRoomIds.has(room.id) && selectableBeds(room.id).length === 1) {
+      const rival = rivalStudentFor(room.gender);
+      if (rival) newApplication(rival, room, bedNumber, { createdAt: new Date().toISOString() });
+    }
+    if (pendingOn(room.id, bedNumber)) fail(409, 'BED_ALREADY_REQUESTED', `${bedText(room, bedNumber)} vừa có người khác đăng ký, vui lòng chọn giường khác`);
+
+    const profile = {
+      studentCode: code, fullName: String(body.fullName).trim(), gender: body.gender, phone: String(body.phone), email,
+      dob: body.dob || null, faculty: body.faculty || '', className: body.className || '',
+      emergencyContact: body.emergencyContact || null, status: 'active',
+    };
+    // MSSV đã có hồ sơ (sinh viên cũ quay lại) → dùng lại hồ sơ, cập nhật theo form
+    if (st) Object.assign(st, profile);
+    else { st = { id: `s-new-${Date.now()}`, ...profile }; students.push(st); }
+    const c = newApplication(st, room, bedNumber, { term: body.term, createdAt: new Date().toISOString() });
+    return ok({
+      contractCode: c.contractCode, status: c.status, room: roomRef(room), bedNumber, term: c.term,
+      pricePerMonth: c.pricePerMonth, totalRoomFee: c.totalRoomFee, depositAmount: c.depositAmount,
+    }, 'Đã gửi đơn đăng ký. Vui lòng theo dõi email để nhận kết quả xét duyệt');
+  },
+  /** GET /public/applications/status?studentCode=&email= (FR-33) — sai mã hay sai email đều báo như nhau */
+  getApplicationStatus: async ({ studentCode, email } = {}) => {
+    await delay();
+    const code = String(studentCode || '').trim().toUpperCase();
+    const mail = String(email || '').trim().toLowerCase();
+    if (!code || !mail) fail(400, 'VALIDATION_ERROR', 'Nhập mã sinh viên và email đã khai trong đơn');
+    const st = students.find((s) => s.studentCode === code && String(s.email || '').toLowerCase() === mail);
+    const c = st && contracts.filter((x) => x.studentId === st.id).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+    if (!c) fail(404, 'APPLICATION_NOT_FOUND', 'Không tìm thấy đơn đăng ký khớp mã sinh viên và email này');
+    return ok({
+      contractCode: c.contractCode, status: c.status, submittedAt: c.createdAt, room: roomRef(rooms.find((r) => r.id === c.roomId)),
+      bedNumber: c.bedNumber, term: c.term, startDate: c.startDate, endDate: c.endDate, rejectionReason: c.rejectionReason,
+      pricePerMonth: c.pricePerMonth, totalRoomFee: c.totalRoomFee, depositAmount: c.depositAmount,
+    });
   },
 };
 
-// ---------------------------------------------------------------- contracts
+// ---------------------------------------------------------------- contracts (gồm cả đơn chờ duyệt)
 /** Hợp đồng còn hiệu lực và hết hạn trong N ngày tới (BR-29) */
 const isExpiring = (c, days = 30) => c.status === 'active' && c.endDate >= todayPlus(0) && c.endDate <= todayPlus(days);
+const countBy = (st) => contracts.filter((c) => c.status === st).length;
 
 const contractView = (c) => {
   const room = rooms.find((r) => r.id === c.roomId);
+  const st = students.find((s) => s.id === c.studentId);
+  const { demoRace, ...fields } = c; // eslint-disable-line no-unused-vars -- cờ nội bộ của mock, không trả ra
   return {
-    ...c,
+    ...fields,
+    student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender },
+    room: roomRef(room),
     buildingId: room?.buildingId,
     buildingCode: room?.buildingCode,
-    tier: roomTypes.find((t) => t.id === c.roomTypeId)?.tier,
     isExpiring: isExpiring(c),
     totalDebt: debtOf(c.studentId),
   };
 };
 
+let issuedSeq = 0;
+/** Hai hóa đơn lúc duyệt (FR-32): tiền cọc + tiền phòng trọn gói, hạn 7 ngày */
+const issueContractInvoice = (c, st, type, amount, description) => {
+  issuedSeq += 1;
+  const inv = {
+    id: `i-${type}-${c.id}`, invoiceCode: `INV-2026-${String(9000 + issuedSeq).padStart(4, '0')}`,
+    studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
+    contractId: c.id, bedCode: c.bedCode, type, billingPeriod: null,
+    lineItems: [{ feeTypeId: type === 'deposit' ? 'f4' : 'f1', description, quantity: 1, unitPrice: amount, amount }],
+    amount, totalAmount: amount, paidAmount: 0, issueDate: todayPlus(0), dueDate: todayPlus(7), status: 'unpaid',
+  };
+  invoices.push(inv);
+  return inv;
+};
+
 export const mockContracts = {
+  /** ?status= nhận một hoặc nhiều trạng thái cách nhau dấu phẩy */
   getList: async (q = {}) => {
     await delay();
+    const statuses = q.status ? String(q.status).split(',') : null;
     let rows = contracts.map(contractView);
-    if (q.status) rows = rows.filter((c) => c.status === q.status);
+    if (statuses) rows = rows.filter((c) => statuses.includes(c.status));
     if (q.expiringInDays) rows = rows.filter((c) => isExpiring(c, Number(q.expiringInDays)));
     if (q.buildingId) rows = rows.filter((c) => c.buildingId === q.buildingId);
-    if (q.roomTypeId) rows = rows.filter((c) => c.roomTypeId === q.roomTypeId);
-    rows = search(rows, q.search, ['contractCode', 'studentCode', 'studentName', 'bedCode']);
-    // Sắp hết hạn: gần hết hạn nhất lên đầu · còn lại: bắt đầu gần nhất lên đầu
-    rows = q.expiringInDays
-      ? rows.sort((a, b) => a.endDate.localeCompare(b.endDate))
-      : rows.sort((a, b) => b.startDate.localeCompare(a.startDate) || a.contractCode.localeCompare(b.contractCode));
+    if (q.term) rows = rows.filter((c) => c.term === q.term);
+    if (q.isDepositRefunded !== undefined) rows = rows.filter((c) => String(c.isDepositRefunded) === String(q.isDepositRefunded));
+    rows = search(rows, q.search, ['contractCode', 'studentCode', 'studentName', 'roomNumber', 'bedCode']);
+    // Đơn chờ duyệt: nộp sớm lên đầu · đơn bị từ chối: xử lý gần nhất · sắp hết hạn: gần hết hạn nhất · còn lại: bắt đầu gần nhất
+    const sortKey = (c) => String(c.startDate || c.reviewedAt || c.createdAt);
+    if (statuses?.length === 1 && statuses[0] === 'pending') rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    else if (q.expiringInDays) rows.sort((a, b) => a.endDate.localeCompare(b.endDate));
+    else rows.sort((a, b) => sortKey(b).localeCompare(sortKey(a)) || a.contractCode.localeCompare(b.contractCode));
     const res = paginate(rows, q);
-    // Số hợp đồng theo tab — không phụ thuộc bộ lọc
+    // Số theo tab — không phụ thuộc bộ lọc. `all`, `expiring` là của màn Hợp đồng hiện tại, sửa ở M5
     res.data.data.summary = {
-      all: contracts.length,
-      active: contracts.filter((c) => c.status === 'active').length,
+      pending: countBy('pending'), active: countBy('active'), expired: countBy('expired'),
+      terminated: countBy('terminated'), rejected: countBy('rejected'),
+      awaitingDepositRefund: contracts.filter((c) => c.status === 'terminated' && !c.isDepositRefunded).length,
+      all: countBy('active') + countBy('expired') + countBy('terminated'),
       expiring: contracts.filter((c) => isExpiring(c)).length,
-      expired: contracts.filter((c) => c.status === 'expired').length,
-      terminated: contracts.filter((c) => c.status === 'terminated').length,
     };
     return res;
   },
@@ -644,29 +583,96 @@ export const mockContracts = {
     const c = contracts.find((x) => x.id === id);
     if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy hợp đồng');
     const st = students.find((s) => s.id === c.studentId);
-    const app = applications.find((a) => a.id === c.applicationId);
     const contractInvoices = invoices.filter((i) => i.contractId === id).map(withRemaining)
       .sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''));
     const depositInvoice = contractInvoices.find((i) => i.type === 'deposit');
 
     // Lịch sử hợp đồng — mới nhất lên đầu
     const history = [
-      app && { at: app.createdAt, type: 'application_submitted', title: 'Nộp đơn đăng ký', description: `Đơn ${app.applicationCode}` },
-      app?.reviewedAt && {
-        at: app.reviewedAt, type: 'application_approved', title: 'Duyệt đơn, tạo hợp đồng',
-        description: `Xếp giường ${c.bedCode} · tạo hóa đơn tiền cọc và tiền phòng tháng đầu`,
+      { at: c.createdAt, type: 'application_submitted', title: 'Nộp đơn đăng ký', description: `Mã ${c.contractCode}` },
+      c.reviewedAt && c.status !== 'rejected' && {
+        at: c.reviewedAt, type: 'application_approved', title: 'Duyệt đơn, khóa giường',
+        description: `Giường ${c.bedCode} · tạo hóa đơn tiền cọc và tiền phòng cả kỳ`,
       },
+      c.status === 'rejected' && { at: c.reviewedAt, type: 'rejected', title: 'Từ chối đơn', description: c.rejectionReason },
       c.status === 'terminated' && { at: c.terminatedAt, type: 'terminated', title: 'Chấm dứt hợp đồng', description: c.terminationReason },
-      c.status === 'expired' && { at: c.endDate, type: 'expired', title: 'Hết hạn hợp đồng', description: 'Hệ thống tự chuyển trạng thái và trả giường' },
+      c.status === 'expired' && { at: c.endDate, type: 'expired', title: 'Hết hạn hợp đồng', description: 'Hết thời hạn thuê' },
     ].filter(Boolean).sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
     return ok({
       ...contractView(c),
-      student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender, className: st.className, phone: st.phone },
+      student: {
+        id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender, phone: st.phone, email: st.email,
+        dob: st.dob, faculty: st.faculty, className: st.className, emergencyContact: st.emergencyContact,
+      },
       depositStatus: depositInvoice?.status ?? null,
       invoices: contractInvoices,
       history,
     });
+  },
+  /** PATCH /contracts/:id/approve — { roomId?, bedNumber? }: bỏ trống là giữ giường sinh viên đã chọn (FR-32) */
+  approve: async (id, { roomId, bedNumber } = {}) => {
+    await delay(500);
+    const c = contracts.find((x) => x.id === id);
+    if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn đăng ký');
+    if (c.status !== 'pending') fail(409, 'CONTRACT_NOT_PENDING', 'Đơn đăng ký đã được xử lý');
+    const st = students.find((s) => s.id === c.studentId);
+    const room = rooms.find((r) => r.id === (roomId || c.roomId));
+    if (!room) fail(404, 'NOT_FOUND', 'Không tìm thấy phòng');
+    const bedNo = Number(bedNumber ?? c.bedNumber);
+    if (room.gender !== st.gender) fail(422, 'GENDER_MISMATCH', `Phòng này chỉ dành cho sinh viên ${room.gender === 'male' ? 'nam' : 'nữ'}`);
+    if (activeContractOf(st.id)) fail(409, 'APPLICATION_OR_CONTRACT_EXISTS', 'Sinh viên đã có hợp đồng đang hiệu lực');
+    if (pendingOn(room.id, bedNo, c.id)) fail(409, 'BED_ALREADY_REQUESTED', `${bedText(room, bedNo)} đang được giữ cho một đơn khác`);
+    let account = ACCOUNTS.find((a) => a.studentId === st.id);
+    if (!account && ACCOUNTS.some((a) => a.email === String(st.email).toLowerCase())) {
+      fail(409, 'EMAIL_ALREADY_USED', `Email ${st.email} đã thuộc tài khoản khác. Liên hệ sinh viên để đổi email trong đơn`);
+    }
+
+    // Giả lập một cán bộ khác vừa xếp người vào đúng giường này (chỉ có trong dữ liệu giả, chạy một lần)
+    if (c.demoRace) {
+      delete c.demoRace;
+      const rival = rivalStudentFor(room.gender);
+      if (rival) approveContract(newApplication(rival, room, bedNo, { createdAt: new Date().toISOString() }));
+    }
+    const result = approveContract(c, { roomId: room.id, bedNumber: bedNo, approvedByName: authStorage.getUser()?.fullName ?? null });
+    if (!result) fail(409, 'BED_ALREADY_OCCUPIED', `${bedText(room, bedNo)} vừa có người nhận. Vui lòng chọn giường khác`);
+
+    // FR-02, BR-06: tài khoản = mật khẩu = MSSV, buộc đổi ở lần đăng nhập đầu
+    const isNew = !account;
+    if (isNew) {
+      account = {
+        id: `u-${st.id}`, email: String(st.email).toLowerCase(), password: st.studentCode, role: 'student', fullName: st.fullName,
+        studentId: st.id, studentCode: st.studentCode, mustChangePassword: true, isActive: true,
+        lastLoginAt: null, createdAt: new Date().toISOString(),
+      };
+      ACCOUNTS.push(account);
+    }
+    const months = TERM_MONTHS[c.term];
+    const created = [
+      issueContractInvoice(c, st, 'deposit', c.depositAmount, 'Tiền đặt cọc'),
+      issueContractInvoice(c, st, 'room_semester', c.totalRoomFee, `Tiền phòng ${room.buildingCode}-${room.roomNumber} (${months} tháng)`),
+    ];
+    return ok({
+      contract: contractView(c),
+      account: { studentCode: st.studentCode, email: account.email, isNew },
+      emailSent: true,
+      invoices: created.map((i) => ({ id: i.id, invoiceCode: i.invoiceCode, type: i.type, amount: i.amount, dueDate: i.dueDate })),
+    }, 'Đã duyệt đơn');
+  },
+  /** PATCH /contracts/:id/reject — { reason } bắt buộc (FR-33), không đụng giường */
+  reject: async (id, { reason } = {}) => {
+    await delay();
+    if (!String(reason || '').trim()) {
+      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'reason', message: 'Nhập lý do từ chối' }] });
+    }
+    const c = contracts.find((x) => x.id === id);
+    if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy đơn đăng ký');
+    if (c.status !== 'pending') fail(409, 'CONTRACT_NOT_PENDING', 'Đơn đăng ký đã được xử lý');
+    Object.assign(c, {
+      status: 'rejected', rejectionReason: String(reason).trim(), reviewedAt: new Date().toISOString(),
+      approvedByName: authStorage.getUser()?.fullName ?? null,
+    });
+    return ok(contractView(c), 'Đã từ chối đơn đăng ký');
   },
   update: async (id, { terms } = {}) => {
     await delay();
@@ -699,8 +705,6 @@ export const mockContracts = {
     });
     const bed = beds.find((b) => b.id === c.bedId);
     if (bed) bed.status = 'available';
-    const residency = residencies.find((r) => r.id === c.residencyId);
-    if (residency) Object.assign(residency, { status: 'closed', endDate: date });
 
     return ok({
       contract: { id: c.id, contractCode: c.contractCode, status: c.status, terminatedAt: date },
@@ -1240,7 +1244,7 @@ export const mockDashboard = {
         overdueInvoiceCount: overdue.length,
         overdueAmount: overdue.reduce((s, i) => s + (i.totalAmount - i.paidAmount), 0),
       },
-      pendingApplications: applications.filter((a) => a.status === 'pending').length,
+      pendingApplications: contracts.filter((c) => c.status === 'pending').length,
     });
   },
 };
@@ -1253,15 +1257,14 @@ export const mockPortal = {
     const st = me();
     const c = activeContractOf(st.id);
     if (!c) return ok({ hasResidence: false });
-    const rt = roomTypes.find((t) => t.id === c.roomTypeId);
     const roommates = contracts
       .filter((x) => x.roomId === c.roomId && x.status === 'active' && x.studentId !== st.id)
       .map((x) => ({ studentCode: x.studentCode, fullName: x.studentName })); // chỉ họ tên + MSSV
     return ok({
       hasResidence: true,
       contract: c,
-      roomType: { id: rt.id, name: rt.name, tier: rt.tier, pricePerMonth: rt.pricePerMonth },
-      includedInRoom: rt.amenities,
+      roomType: { name: c.roomTypeName, pricePerMonth: c.monthlyPrice },
+      includedInRoom: ROOM_AMENITIES,
       roommates,
       debtSummary: {
         totalDebt: debtOf(st.id),
@@ -1269,7 +1272,12 @@ export const mockPortal = {
       },
     });
   },
-  getMyContracts: async () => { await delay(); return ok(contracts.filter((c) => c.studentId === me().id)); },
+  /** Mọi hợp đồng và đơn của chính sinh viên, mới nhất lên đầu */
+  getMyContracts: async () => {
+    await delay();
+    return ok(contracts.filter((c) => c.studentId === me().id).map(contractView)
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
+  },
   getMyInvoices: async (q = {}) => mockFees.getInvoices({ ...q, studentId: me().id }),
   getMyInvoiceById: async (id) => {
     const inv = invoices.find((x) => x.id === id);
@@ -1285,28 +1293,4 @@ export const mockPortal = {
     return ok(rows.map((p) => ({ ...p, invoice: invoices.find((i) => i.id === p.invoiceId) ? withRemaining(invoices.find((i) => i.id === p.invoiceId)) : null })));
   },
 
-  // ---- đơn đăng ký
-  getRoomTypes: async (q = {}) => mockRooms.getRoomTypes({ ...q, isActive: true, withAvailability: true, forGender: me().gender }),
-  getAvailableRooms: async (q = {}) => mockRooms.getAvailableRooms(q, { asStudent: true }),
-  getMyApplications: async () => {
-    await delay();
-    return ok(applications.filter((a) => a.studentId === me().id).map(applicationView).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-  },
-  createApplication: async (body) => {
-    await delay();
-    const target = rooms.find((r) => r.id === body.roomId);
-    if (target && demoRaceRoomIds.has(target.id) && availableSlots(target.id) === 1) simulateRivalApproval(target);
-    const a = submitApplication(me(), body); // studentId lấy từ phiên, không từ body
-    const v = applicationView(a);
-    return ok({ id: a.id, applicationCode: a.applicationCode, status: a.status, estimatedInvoices: v.estimatedInvoices },
-      'Nộp đơn thành công. Ban quản lý sẽ duyệt trong 1–2 ngày làm việc');
-  },
-  cancelApplication: async (id) => {
-    await delay();
-    const a = applications.find((x) => x.id === id);
-    if (!a || a.studentId !== me().id) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này');
-    if (a.status !== 'pending') fail(422, 'APPLICATION_NOT_PENDING', 'Đơn đăng ký đã được xử lý');
-    a.status = 'cancelled';
-    return ok(a, 'Đã hủy đơn đăng ký');
-  },
 };

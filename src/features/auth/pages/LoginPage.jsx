@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Form, Input, Button, Typography, Alert, Checkbox, Popover, Collapse, Grid, App } from 'antd';
-import { UserOutlined, LockOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { useLocation, Navigate } from 'react-router-dom';
+import { UserOutlined, LockOutlined, InfoCircleOutlined, FormOutlined } from '@ant-design/icons';
+import { useLocation, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { getErrorCode, getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
 import { USE_MOCK } from '../../../lib/env';
@@ -49,6 +49,7 @@ export default function LoginPage() {
   const screens = useBreakpoint();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   // Đã đăng nhập (kể cả ngay sau khi bấm nút) → về trang cũ nếu cùng khu vực, không thì về trang chủ theo vai trò.
   // Tài khoản mật khẩu tạm sẽ bị RoleRoute chuyển tiếp sang trang đổi mật khẩu.
@@ -160,6 +161,14 @@ export default function LoginPage() {
 
             <Button type="primary" htmlType="submit" block loading={loading}>Đăng nhập</Button>
           </Form>
+
+          {/* Sinh viên chưa có tài khoản nộp đơn ở cổng công khai (FR-30) */}
+          <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
+            <Button block icon={<FormOutlined />} onClick={() => navigate('/apply')}>Đăng ký ở ký túc xá</Button>
+            <Text type="secondary" style={{ textAlign: 'center', fontSize: 13 }}>
+              Đã nộp đơn? <Link to="/apply/status">Tra cứu tiến độ</Link>
+            </Text>
+          </div>
 
           <div style={{ textAlign: 'center', marginTop: 20 }}>
             <Text type="secondary" style={{ fontSize: 13 }}>Quên mật khẩu? Liên hệ ban quản lý ký túc xá.</Text>

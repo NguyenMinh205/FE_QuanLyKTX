@@ -16,8 +16,8 @@
 | 1 | Đăng nhập · Đổi mật khẩu · Không có quyền | SCR-01, 03, 04 | `feature/login-and-room-types` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 | 2 | Loại phòng | SCR-22 | `feature/login-and-room-types` | Dữ liệu giả | 🚫 Bỏ ở v2 |
 | 3 | Quản lý phòng — sơ đồ tầng | SCR-23 | `feature/room-management` | Dữ liệu giả | ⬜ Chưa test |
-| 4 | Duyệt đơn đăng ký | SCR-31 | `feature/application-review` | Dữ liệu giả | ⬜ Chưa test |
-| 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | ⬜ Chưa test |
+| 4 | Duyệt đơn đăng ký | SCR-31 | `feature/application-review` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 27) |
+| 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 27) |
 | 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | ⬜ Chưa test |
 | 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | ⬜ Chưa test |
 | 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | 🚫 Bỏ ở v2 |
@@ -38,6 +38,7 @@
 | 23 | v2 · M1: cắt Viewer, tự đăng ký, Nhu yếu phẩm, Yêu cầu, Gia hạn | — | `feature/v2-trim-scope` | Dữ liệu giả | ⬜ Chưa test |
 | 24 | v2 · M2: đăng nhập Email/MSSV, tài khoản cán bộ, nhận diện HaUI | — | `feature/v2-auth-accounts` | Dữ liệu giả | ⬜ Chưa test |
 | 25 | v2 · M3: tòa nhà và phòng, bỏ loại phòng | — | `feature/v2-rooms` | Dữ liệu giả | ⬜ Chưa test |
+| 26 | v2 · M4: nộp đơn công khai, tra cứu, duyệt đơn | — | `feature/v2-online-application` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1513,6 +1514,56 @@ Chạy dữ liệu giả như mục 24, đăng nhập `staff@dorm.local` / `Staf
 ### 26.5. Màn cũ vẫn chạy
 
 - [ ] `2021600086` / `Student@123` (sv002, chưa có chỗ) → **Đăng ký chỗ ở** vẫn chọn được, loại phòng hiện "Phòng 6 chỗ". Màn này được viết lại ở M4.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 27. v2 · M4 — Nộp đơn công khai, tra cứu, duyệt đơn
+
+Chạy dữ liệu giả như mục 24. ⚠️ Dữ liệu giả **mất khi tải lại trang (F5)**: các bước 27.2 → 27.4 phải làm liền, chỉ bấm trong app, không gõ địa chỉ mới lên thanh trình duyệt. Mục 4, 5 phía trên không cần test nữa.
+
+### 27.1. Lối vào
+
+- [ ] Màn đăng nhập có nút **Đăng ký ở ký túc xá** và link **Tra cứu tiến độ**. Bấm nút → mở `/apply`, không bắt đăng nhập.
+- [ ] Mở `/portal/apply` → trang 404.
+
+### 27.2. Nộp đơn (FR-30, UC-01)
+
+- [ ] Bấm **Tiếp tục chọn phòng** khi chưa nhập gì → báo thiếu mã sinh viên, họ tên, giới tính, số điện thoại, email.
+- [ ] Nhập MSSV `2021609999`, họ tên `Phạm Thị Thu`, giới tính **Nữ**, SĐT `0912345678`, email `thu.pham@gmail.com` → sang bước 2.
+- [ ] Chỉ thấy phòng nữ (tòa K2), xếp tầng thấp trước. Phòng đầu tiên (K2-102) gắn nhãn **Gợi ý**.
+- [ ] Giường "Đã có người" và "Đã có người đăng ký" (vd K2-205 giường 03) không bấm được.
+- [ ] Chọn **K2-205 giường 04** (giường nhận đơn cuối của phòng) → Tiếp tục → tích xác nhận → **Gửi đơn đăng ký** → báo giường vừa có người khác đăng ký, quay lại bước 2, giường 04 đổi sang "Đã có người đăng ký". *(Dữ liệu giả cố ý tạo người tranh chỗ ở phòng này.)*
+- [ ] Chọn K2-102 giường 06 → Tiếp tục → chọn **6 tháng**: tổng = 320.000 × 6 + 500.000 = **2.420.000 đ**. Chưa tích xác nhận thì nút gửi bị khóa.
+- [ ] Tích xác nhận → gửi → thấy mã đơn, trạng thái **Chờ duyệt**. Bấm **Tra cứu tiến độ đơn** → "Đơn đang chờ cán bộ duyệt".
+- [ ] Bấm logo để về `/apply`, nộp lại với MSSV `2021609999` → báo đã có đơn, quay về bước 1, lỗi dưới ô Mã sinh viên.
+- [ ] Thu cửa sổ còn ~390px: form không cuộn ngang.
+
+### 27.3. Duyệt đơn (FR-31, FR-32, FR-33, UC-02)
+
+Từ màn đăng nhập (bấm **Đăng nhập** ở góc phải), vào `staff@dorm.local` / `Staff@123` → **Duyệt đơn đăng ký**.
+
+- [ ] Hàng chờ có đơn của Phạm Thị Thu. Không còn nút "Lập đơn cho sinh viên", không còn lọc loại phòng.
+- [ ] Đơn **Phạm Phương Linh** (2021600076): cảnh báo giường 01 đã có người nhận, nút **Duyệt đơn** bị khóa. Phòng K2-101 hết giường → đổi phòng ở ô Phòng, chọn giường → có nhãn "Khác lựa chọn của sinh viên" → duyệt → thông báo thành công.
+- [ ] Đơn **Vũ Minh Châu** (2021600078): bấm duyệt → báo giường vừa có người nhận, nút duyệt khóa lại. Chọn giường khác (đổi phòng nếu được nhắc) → duyệt được. *(Dữ liệu giả cố ý tạo tranh chỗ lúc duyệt.)*
+- [ ] Một đơn bất kỳ → **Từ chối**, lý do dưới 10 ký tự bị chặn; lý do đủ → đơn sang tab **Đã từ chối**, hiện lý do.
+- [ ] Đơn Phạm Thị Thu → duyệt → thông báo có **Tài khoản 2021609999**, email `thu.pham@gmail.com`, 2 hóa đơn (500.000 đ + 1.920.000 đ).
+- [ ] **Hợp đồng** tab Tất cả: không có đơn chờ hay bị từ chối; có cột Gói thuê, không còn Loại phòng.
+- [ ] **Dashboard**: không còn thẻ "Chỗ trống theo loại phòng"; số đơn chờ trên menu giảm sau mỗi lần xử lý.
+
+### 27.4. Sinh viên vừa được duyệt
+
+- [ ] Đăng xuất, đăng nhập `thu.pham@gmail.com` / `2021609999` → bị chuyển sang Đổi mật khẩu.
+
+### 27.5. Tra cứu và cổng sinh viên chưa có chỗ
+
+- [ ] `/apply/status`, MSSV `2021600074`, email `sv2021600074@sv.edu.vn` → **Đơn bị từ chối** kèm lý do, nút Nộp đơn mới.
+- [ ] Cùng MSSV, email sai → "Không tìm thấy đơn đăng ký…".
+- [ ] MSSV `2021600001`, email `sv2021600001@sv.edu.vn` → **Đơn đã được duyệt**, có thời hạn, nút Đăng nhập.
+- [ ] `sv006@dorm.local` / `Student@123` → Trang chủ: thẻ "Đơn đăng ký đang chờ duyệt", không có nút hủy.
+- [ ] `sv005@dorm.local` → thẻ bị từ chối kèm lý do, nút **Nộp đơn mới** mở `/apply`.
+- [ ] `sv007@dorm.local` → "Bạn chưa có chỗ ở", ghi hợp đồng cũ đã kết thúc ngày nào.
 
 **Lỗi phát hiện:** _(chưa có)_
 

@@ -17,7 +17,6 @@ const PERMISSIONS = {
   'room:create': OPS,
   'room:update': OPS,
 
-  'application:create': OPS,        // lập đơn hộ sinh viên đến trực tiếp
   'application:review': OPS,        // duyệt / từ chối
   'contract:update': OPS,
   'contract:terminate': OPS,

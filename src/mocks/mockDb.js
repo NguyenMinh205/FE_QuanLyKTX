@@ -6,7 +6,7 @@
  *
  * Tài khoản thử (xem mockApi.js): sv001 đang ở phòng Tiêu chuẩn, có nợ · sv002 chưa có chỗ ·
  * sv003 dùng test IDOR · sv004 hợp đồng còn 20 ngày ·
- * sv005 có đơn gần nhất bị từ chối · sv006 có đơn chờ duyệt (phòng nguyện vọng đã đầy) ·
+ * sv005 có đơn gần nhất bị từ chối · sv006 có đơn chờ duyệt (giường đã chọn vừa có người nhận) ·
  * sv008 vừa được cấp tài khoản, mật khẩu là MSSV, phải đổi ở lần đăng nhập đầu.
  *
  * ⚠️ Chỉ dùng khi chế độ dữ liệu giả bật (src/lib/env.js).
@@ -33,11 +33,8 @@ const PRICE_BY_CAPACITY = { 8: 250000, 6: 320000, 4: 450000 };
 const DEPOSIT_AMOUNT = 500000;
 const BASIC = ['Giường tầng', 'Bàn học chung', 'Tủ cá nhân', 'WC riêng', 'Bình nóng lạnh', 'Quạt trần'];
 
-/** ⚠️ Tạm thời: giá thật nằm trên phòng. Mảng này chỉ còn để màn Đăng ký và Duyệt đơn cũ chạy, xoá ở M4 */
-export const roomTypes = [8, 6, 4].map((capacity) => ({
-  id: `cap${capacity}`, tier: 'standard', capacity, name: `Phòng ${capacity} chỗ`,
-  pricePerMonth: PRICE_BY_CAPACITY[capacity], depositAmount: DEPOSIT_AMOUNT, amenities: BASIC, description: '', isActive: true,
-}));
+/** Đồ cố định có trong mọi phòng — cổng sinh viên còn hiển thị tới M5 */
+export const ROOM_AMENITIES = BASIC;
 
 // ---------------------------------------------------------------- tòa nhà
 export const buildings = [
@@ -46,8 +43,8 @@ export const buildings = [
 ];
 
 // ---------------------------------------------------------------- phòng (10 mỗi tòa) + giường tự sinh
-// Hai chỗ lặp là cố ý: cap6 cho kịch bản "phòng nguyện vọng đã đầy", cap4 cho kịch bản "tranh chỗ" ở màn Duyệt đơn.
-const ROOM_TYPE_PATTERN = ['cap6', 'cap6', 'cap4', 'cap8', 'cap4', 'cap8', 'cap6', 'cap4', 'cap6', 'cap4'];
+// Hai chỗ lặp là cố ý: phòng 6 chỗ cho kịch bản "giường đã có người", phòng 4 chỗ cho kịch bản "tranh chỗ" ở màn Duyệt đơn.
+const CAPACITY_PATTERN = [6, 6, 4, 8, 4, 8, 6, 4, 6, 4];
 
 export const rooms = [];
 export const beds = [];
@@ -70,19 +67,18 @@ export const generateBeds = (room) => {
 buildings.slice(0, 2).forEach((b, bi) => {
   for (let i = 1; i <= 10; i++) {
     const floor = Math.ceil(i / 4);
-    const rt = roomTypes.find((t) => t.id === ROOM_TYPE_PATTERN[i - 1]);
+    const capacity = CAPACITY_PATTERN[i - 1];
     const room = {
       id: `r${bi}${pad(i, 2)}`,
       buildingId: b.id,
       buildingCode: b.code,
       buildingName: b.name,
-      roomTypeId: rt.id,
       roomNumber: `${floor}${pad(i, 2)}`,
       floor,
       gender: bi === 0 ? 'male' : 'female', // Tòa K1 nam, tòa K2 nữ
-      capacity: rt.capacity,
-      pricePerMonth: rt.pricePerMonth,
-      depositAmount: rt.depositAmount,
+      capacity,
+      pricePerMonth: PRICE_BY_CAPACITY[capacity],
+      depositAmount: DEPOSIT_AMOUNT,
       status: 'active',
     };
     rooms.push(room);
@@ -97,18 +93,9 @@ buildings.push({
 });
 
 // ---------------------------------------------------------------- tiện ích tra cứu
-export const roomTypeOf = (roomId) => roomTypes.find((t) => t.id === rooms.find((r) => r.id === roomId)?.roomTypeId);
 export const bedsOf = (roomId) => beds.filter((b) => b.roomId === roomId).sort((a, b) => a.bedNumber - b.bedNumber);
 /** Chỗ trống = số giường available — KHÔNG tính bằng capacity − số người ở (BR-05) */
 export const availableSlots = (roomId) => bedsOf(roomId).filter((b) => b.status === 'available').length;
-
-/** Giống bedService.claimBedInRoom: lấy giường trống số nhỏ nhất, "nguyên tử" trong một bước JS đồng bộ */
-export const claimBedInRoom = (roomId) => {
-  const bed = bedsOf(roomId).find((b) => b.status === 'available');
-  if (!bed) return null;
-  bed.status = 'occupied';
-  return bed;
-};
 
 // ---------------------------------------------------------------- sinh viên (90)
 export const students = Array.from({ length: 90 }, (_, i) => {
@@ -128,74 +115,75 @@ export const students = Array.from({ length: 90 }, (_, i) => {
   };
 });
 
-// ---------------------------------------------------------------- đơn đăng ký → lưu trú → hợp đồng
-export const applications = [];
-export const residencies = [];
+// ---------------------------------------------------------------- đơn đăng ký = hợp đồng `pending` (FR-30, FR-31)
 export const contracts = [];
-
-let appSeq = 0;
 let contractSeq = 0;
 
-const newApplication = (st, room, extra = {}) => {
-  appSeq += 1;
-  const app = {
-    id: `ap${pad(appSeq)}`,
-    applicationCode: `DK-2026-${pad(appSeq, 5)}`,
-    studentId: st.id,
-    roomTypeId: room.roomTypeId,
-    requestedRoomId: room.id,
-    startDate: '2026-09-01',
-    endDate: '2027-06-30',
-    note: '',
-    status: 'pending',
-    assignedRoomId: null,
-    assignedBedId: null,
-    contractId: null,
-    reviewNote: null,
-    createdAt: `2026-08-${pad((appSeq % 27) + 1, 2)}T09:00:00+07:00`,
-    ...extra,
-  };
-  applications.push(app);
-  return app;
+export const TERM_MONTHS = { '6_months': 6, '12_months': 12 };
+
+/** "YYYY-MM-DD" của hôm nay + N ngày (theo giờ máy) — để dữ liệu "sắp hết hạn" luôn đúng dù chạy ngày nào */
+export const todayPlus = (days) => {
+  const d = new Date(); d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}`;
 };
 
-/** Giống applicationService.approve: gán giường → Residency → Contract. Trả null nếu phòng hết chỗ */
-export const approveApplication = (app, room, { startDate = app.startDate } = {}) => {
-  const bed = claimBedInRoom(room.id);
-  if (!bed) return null;
-  const st = students.find((s) => s.id === app.studentId);
-  const rt = roomTypes.find((t) => t.id === room.roomTypeId);
+/** "2026-09-01" + 6 tháng → "2027-03-01" */
+export const plusMonths = (date, months) => {
+  const [y, m, d] = date.split('-').map(Number);
+  const t = new Date(y, m - 1 + months, d);
+  return `${t.getFullYear()}-${pad(t.getMonth() + 1, 2)}-${pad(t.getDate(), 2)}`;
+};
 
+/** Giường đang có một đơn chờ duyệt khác giữ (UC-01 nhánh 6a) */
+export const pendingOn = (roomId, bedNumber, exceptId = null) => contracts.some((c) => c.status === 'pending'
+  && c.roomId === roomId && c.bedNumber === bedNumber && c.id !== exceptId);
+/** Giường còn nhận đơn: trống và chưa bị đơn nào giữ */
+export const selectableBeds = (roomId) => bedsOf(roomId).filter((b) => b.status === 'available' && !pendingOn(roomId, b.bedNumber));
+const firstSelectable = (room) => selectableBeds(room.id)[0]?.bedNumber;
+
+/** Nộp đơn: hợp đồng `pending`, CHƯA khóa giường, chưa có ngày ở (BR-05: khóa lúc duyệt) */
+export const newApplication = (st, room, bedNumber, extra = {}) => {
   contractSeq += 1;
-  const residency = {
-    id: `res${pad(contractSeq)}`, studentId: st.id, bedId: bed.id, applicationId: app.id,
-    startDate, endDate: null, status: 'active',
-  };
-  residencies.push(residency);
-
-  const contract = {
+  const c = {
     id: `c${pad(contractSeq)}`,
-    contractCode: `HD-2026-${pad(contractSeq, 5)}`,
-    applicationId: app.id,
-    residencyId: residency.id,
+    contractCode: `HD-2026-${pad(contractSeq, 4)}`,
     studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
-    bedId: bed.id, bedCode: bed.bedCode,
-    roomId: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName,
-    roomTypeId: rt.id, roomTypeName: rt.name,
-    startDate, endDate: app.endDate,
-    monthlyPrice: room.pricePerMonth,   // chốt giá lúc duyệt (BR-27)
-    depositAmount: room.depositAmount,
-    depositRefunded: 0,
-    status: 'active',
-    terms: 'Sinh viên tuân thủ nội quy ký túc xá.',
+    roomId: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName, bedNumber,
+    term: '12_months', status: 'pending',
+    pricePerMonth: room.pricePerMonth, depositAmount: room.depositAmount, totalRoomFee: 0,
+    startDate: null, endDate: null,
+    rejectionReason: null, approvedByName: null, reviewedAt: null, terminatedAt: null,
+    isDepositRefunded: false, depositRefundedAt: null, depositRefundedByName: null,
+    createdAt: `2026-08-${pad((contractSeq % 27) + 1, 2)}T09:00:00+07:00`,
+    ...extra,
   };
-  contracts.push(contract);
+  c.totalRoomFee = c.pricePerMonth * TERM_MONTHS[c.term];
+  contracts.push(c);
+  return c;
+};
 
-  Object.assign(app, {
-    status: 'approved', assignedRoomId: room.id, assignedBedId: bed.id, contractId: contract.id,
-    reviewedAt: '2026-08-30T10:00:00+07:00',
+/**
+ * Giống contractService.approve: khóa ĐÚNG giường đã chọn trong một bước kiểm-tra-và-ghi (BR-05),
+ * chốt giá theo phòng, tính ngày theo gói thuê. Trả null nếu giường không còn trống.
+ */
+export const approveContract = (c, {
+  roomId = c.roomId, bedNumber = c.bedNumber, startDate = todayPlus(0),
+  reviewedAt = new Date().toISOString(), approvedByName = 'Lê Thị Nhân Viên',
+} = {}) => {
+  const room = rooms.find((r) => r.id === roomId);
+  const bed = room && bedsOf(room.id).find((b) => b.bedNumber === bedNumber);
+  if (!bed || bed.status !== 'available') return null;
+  bed.status = 'occupied';
+  const months = TERM_MONTHS[c.term];
+  Object.assign(c, {
+    status: 'active', roomId: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName, bedNumber,
+    pricePerMonth: room.pricePerMonth, depositAmount: room.depositAmount, totalRoomFee: room.pricePerMonth * months,
+    startDate, endDate: plusMonths(startDate, months), reviewedAt, approvedByName,
+    // Trường của các màn chưa chuyển sang v2 (hợp đồng, hóa đơn, cổng SV) — bỏ dần ở M5–M8
+    bedId: bed.id, bedCode: bed.bedCode, monthlyPrice: room.pricePerMonth, roomTypeName: `Phòng ${room.capacity} chỗ`,
+    depositRefunded: 0, terms: 'Sinh viên tuân thủ nội quy ký túc xá.',
   });
-  return { bed, residency, contract };
+  return { bed, contract: c };
 };
 
 // Số chỗ để trống của từng phòng theo thứ tự trong tòa — để sơ đồ tầng có đủ mức: đầy, còn 1, còn nhiều, trống hẳn
@@ -206,21 +194,15 @@ const targetOf = Object.fromEntries(rooms.map((r) => {
 }));
 const occupiedCount = (roomId) => bedsOf(roomId).filter((b) => b.status === 'occupied').length;
 
-// 70 sinh viên đầu được xếp phòng (35 nam tòa K1, 35 nữ tòa K2)
+// 70 sinh viên đầu đã được duyệt (35 nam tòa K1, 35 nữ tòa K2), một phần ba thuê gói 6 tháng
 const PLACED = 70;
-students.slice(0, PLACED).forEach((st) => {
+students.slice(0, PLACED).forEach((st, i) => {
   const fits = (r) => r.gender === st.gender && occupiedCount(r.id) < targetOf[r.id];
   const room = rooms.find(fits)
     || rooms.find((r) => r.gender === st.gender && availableSlots(r.id) > 0);
-  const app = newApplication(st, room);
-  approveApplication(app, room);
+  const c = newApplication(st, room, firstSelectable(room), { term: i % 3 === 0 ? '6_months' : '12_months' });
+  approveContract(c, { startDate: '2026-09-01', reviewedAt: '2026-08-30T10:00:00+07:00' });
 });
-
-/** "YYYY-MM-DD" của hôm nay + N ngày (theo giờ máy) — để dữ liệu "sắp hết hạn" luôn đúng dù chạy ngày nào */
-export const todayPlus = (days) => {
-  const d = new Date(); d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}`;
-};
 
 // Hợp đồng sắp hết hạn (BR-29): 10 hợp đồng còn 3 → 30 ngày tính từ lúc chạy
 contracts.filter((_, i) => i % 7 === 6).forEach((c, k) => { c.endDate = todayPlus(3 + ((k * 3) % 28)); });
@@ -236,50 +218,53 @@ contracts.filter((_, i) => i % 7 === 6).forEach((c, k) => { c.endDate = todayPlu
   if (bed) { bed.status = 'maintenance'; bed.note = 'Hỏng khung giường, chờ sửa'; }
 });
 
-// Đơn chờ duyệt, bị từ chối, đã hủy — sv002 (index 85) KHÔNG có đơn nào để test trang chủ "chưa có chỗ"
-const roomFor = (st, typeId) => rooms.find((r) => r.gender === st.gender && r.roomTypeId === typeId && availableSlots(r.id) > 0)
-  || rooms.find((r) => r.gender === st.gender && availableSlots(r.id) > 0);
+// ---- Đơn chờ duyệt, bị từ chối — sv002 (index 85) KHÔNG có đơn nào để test trang chủ "chưa có chỗ"
+const roomFor = (st, capacity) => rooms.find((r) => r.gender === st.gender && r.capacity === capacity && selectableBeds(r.id).length > 0)
+  || rooms.find((r) => r.gender === st.gender && selectableBeds(r.id).length > 0);
 [70, 71, 72].forEach((idx, k) => {
-  newApplication(students[idx], roomFor(students[idx], ['cap6', 'cap4', 'cap4'][k]), {
-    note: k === 0 ? 'Em muốn ở gần bạn cùng lớp' : '',
-    createdAt: `2026-11-0${k + 1}T14:0${k}:00+07:00`,
+  const room = roomFor(students[idx], [6, 4, 4][k]);
+  newApplication(students[idx], room, firstSelectable(room), {
+    term: k === 1 ? '6_months' : '12_months', createdAt: `2026-11-0${k + 1}T14:0${k}:00+07:00`,
   });
 });
-// Hai tình huống xung đột chỗ cho màn Duyệt đơn (SCR-31) — đều là sinh viên nữ, tòa K2, đơn nộp sớm nên nằm đầu hàng đợi
-const femaleRooms = rooms.filter((r) => r.gender === 'female' && r.status === 'active');
-const hasAlternative = (room) => femaleRooms.some((r) => r.id !== room.id && r.roomTypeId === room.roomTypeId && availableSlots(r.id) > 0);
-// (1) Phòng nguyện vọng đã đầy từ trước (BR-34: nộp đơn không giữ chỗ) → màn hình cảnh báo ngay khi mở đơn
-const fullRoom = femaleRooms.find((r) => availableSlots(r.id) === 0 && hasAlternative(r));
-if (fullRoom) {
-  newApplication(students[75], fullRoom, { note: 'Em muốn ở cùng phòng với chị khóa trên', createdAt: '2026-10-28T08:15:00+07:00' });
+{ // sv005: đơn gần nhất bị từ chối
+  const room = roomFor(students[73], 8);
+  newApplication(students[73], room, firstSelectable(room), {
+    status: 'rejected', rejectionReason: 'Hồ sơ còn thiếu giấy xác nhận sinh viên',
+    createdAt: '2026-09-01T08:00:00+07:00', reviewedAt: '2026-09-02T09:30:00+07:00', approvedByName: 'Lê Thị Nhân Viên',
+  });
 }
-// (2) Phòng còn đúng 1 chỗ, có 2 đơn cùng nhắm. Đơn của students[77] mang cờ `demoRaceWith`: lúc bấm duyệt, mock
-//     giả lập một cán bộ khác vừa duyệt đơn students[79] trước → giường cuối bị lấy → trả 409 ROOM_FULL.
-//     Chọn phòng có loại còn một phòng khác dư chỗ (để duyệt lại được), xếp thêm sinh viên cho tới khi còn 1 chỗ
-const raceRoom = femaleRooms.find((r) => availableSlots(r.id) >= 2
-  && femaleRooms.some((o) => o.id !== r.id && o.roomTypeId === r.roomTypeId && availableSlots(o.id) >= 2));
+
+// Hai tình huống xung đột giường cho màn Duyệt đơn (SCR-31) — đều là sinh viên nữ, tòa K2, đơn nộp sớm nên nằm đầu hàng đợi
+const femaleRooms = rooms.filter((r) => r.gender === 'female' && r.status === 'active');
+// (1) sv006: giường đã chọn có người nhận sau khi nộp đơn → mở đơn thấy cảnh báo ngay, cán bộ chọn giường khác
+const fullRoom = femaleRooms.find((r) => availableSlots(r.id) === 0);
+if (fullRoom) {
+  newApplication(students[75], fullRoom, bedsOf(fullRoom.id)[0].bedNumber, { createdAt: '2026-10-28T08:15:00+07:00' });
+}
+// (2) Đơn của students[77] mang cờ `demoRace`: lúc bấm duyệt, mock giả lập một cán bộ khác vừa xếp người vào đúng
+//     giường đó → 409 BED_ALREADY_OCCUPIED (UC-02 nhánh 4a). Xếp thêm người cho tới khi phòng còn 2 giường nhận đơn,
+//     đơn này giữ một giường → phòng còn đúng 1 giường cho kịch bản tranh chỗ ở form công khai.
+const raceRoom = femaleRooms.find((r) => selectableBeds(r.id).length >= 3);
 if (raceRoom) {
   [81, 83, 87].forEach((idx) => {
-    if (availableSlots(raceRoom.id) > 1) approveApplication(newApplication(students[idx], raceRoom), raceRoom);
+    if (selectableBeds(raceRoom.id).length > 2) {
+      approveContract(newApplication(students[idx], raceRoom, firstSelectable(raceRoom)), { startDate: '2026-09-01', reviewedAt: '2026-08-30T10:00:00+07:00' });
+    }
   });
-  const racer = newApplication(students[79], raceRoom, { createdAt: '2026-10-30T16:40:00+07:00' });
-  newApplication(students[77], raceRoom, { createdAt: '2026-10-29T10:05:00+07:00', demoRaceWith: racer.id });
+  newApplication(students[77], raceRoom, firstSelectable(raceRoom), { createdAt: '2026-10-29T10:05:00+07:00', demoRace: true });
 }
 
 /**
- * Tranh chỗ ở cổng sinh viên (SCR-62): khi sinh viên nộp đơn vào phòng thuộc tập này mà phòng chỉ còn 1 chỗ,
- * mock giả lập một sinh viên khác vừa được duyệt vào đúng giường cuối → trả 409 ROOM_FULL. Chỉ có trong dữ liệu giả.
+ * Tranh chỗ ở form công khai: nộp đơn vào giường nhận đơn CUỐI CÙNG của phòng thuộc tập này thì mock giả lập
+ * một sinh viên khác vừa nộp trước vào đúng giường đó → 409 BED_ALREADY_REQUESTED. Chỉ có trong dữ liệu giả.
  */
 export const demoRaceRoomIds = new Set(raceRoom ? [raceRoom.id] : []);
-export const simulateRivalApproval = (room) => {
+/** Một sinh viên chưa có hợp đồng nào, không thuộc tài khoản thử — làm "người tranh chỗ" */
+export const rivalStudentFor = (gender) => {
   const reserved = new Set(Object.values(DEMO_STUDENT_INDEX).map((i) => students[i].id));
-  const rival = students.find((s) => s.gender === room.gender && !reserved.has(s.id)
-    && !applications.some((a) => a.studentId === s.id));
-  if (rival) approveApplication(newApplication(rival, room, { createdAt: new Date().toISOString() }), room);
+  return students.find((s) => s.gender === gender && !reserved.has(s.id) && !contracts.some((c) => c.studentId === s.id));
 };
-
-newApplication(students[73], roomFor(students[73], 'rt1'), { status: 'rejected', reviewNote: 'Hồ sơ còn thiếu giấy xác nhận sinh viên', reviewedAt: '2026-09-02T09:30:00+07:00' });
-newApplication(students[74], roomFor(students[74], 'rt2'), { status: 'cancelled' });
 
 // ---------------------------------------------------------------- danh mục phí
 export const feeTypes = [
@@ -338,7 +323,7 @@ const nextInvoiceCode = (period) => { invSeq += 1; return { id: `i${pad(invSeq)}
 /** Số người đang ở cùng phòng — tiền điện nước chia đều cho ngần này người */
 const roommateCount = (c) => contracts.filter((x) => x.roomId === c.roomId && x.status === 'active').length || 1;
 
-contracts.forEach((c, i) => {
+contracts.filter((c) => c.status === 'active').forEach((c, i) => {
   invoices.push({
     ...nextInvoiceCode('202609'),
     studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
@@ -442,46 +427,29 @@ invoices.filter((inv) => ['unpaid', 'overdue'].includes(inv.status)).slice(0, 3)
 });
 
 // ---------------------------------------------------------------- hợp đồng năm trước (đã hết hạn / đã chấm dứt)
-// Sinh viên 80, 82, 84 (nam) từng ở tòa A năm học 2025-2026 — hiện không còn chỗ ở. Giường của họ đã được trả lại.
+// Sinh viên 80, 82, 84 (nam) từng ở tòa K1 năm học 2025-2026 — hiện không còn chỗ ở. Giường của họ đã được trả lại.
 let pastSeq = 0;
 const seedPastContract = (st, room, { startDate, endDate, status, terminatedAt = null, terminationReason = null }) => {
-  const rt = roomTypes.find((t) => t.id === room.roomTypeId);
   const bed = bedsOf(room.id)[pastSeq % room.capacity];
   pastSeq += 1;
-  const app = newApplication(st, room, {
-    applicationCode: `DK-${startDate.slice(0, 4)}-${pad(pastSeq, 5)}`,
-    startDate, endDate, status: 'approved', assignedRoomId: room.id, assignedBedId: bed.id,
-    createdAt: `${startDate.slice(0, 4)}-08-10T09:00:00+07:00`, reviewedAt: `${startDate.slice(0, 4)}-08-15T10:00:00+07:00`,
+  const c = newApplication(st, room, bed.bedNumber, {
+    contractCode: `HD-2025-${pad(pastSeq, 4)}`, createdAt: `${startDate.slice(0, 4)}-08-10T09:00:00+07:00`,
   });
-  const closedAt = terminatedAt || endDate;
-  const residency = {
-    id: `res-old${pad(pastSeq)}`, studentId: st.id, bedId: bed.id, applicationId: app.id,
-    startDate, endDate: closedAt, status: 'closed',
-  };
-  residencies.push(residency);
-  const contract = {
-    id: `c-old${pad(pastSeq)}`,
-    contractCode: `HD-2025-${pad(pastSeq, 5)}`,
-    applicationId: app.id, residencyId: residency.id,
-    studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
-    bedId: bed.id, bedCode: bed.bedCode,
-    roomId: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName,
-    roomTypeId: rt.id, roomTypeName: rt.name,
-    startDate, endDate,
-    monthlyPrice: rt.pricePerMonth - 20000, // giá năm trước — chứng minh giá đã chốt không đổi theo loại phòng (BR-27)
-    depositAmount: rt.depositAmount, depositRefunded: rt.depositAmount,
-    status, terminatedAt, terminationReason,
-    terms: 'Sinh viên tuân thủ nội quy ký túc xá.',
-  };
-  contracts.push(contract);
-  Object.assign(app, { contractId: contract.id });
+  Object.assign(c, {
+    status, startDate, endDate, terminatedAt, terminationReason,
+    reviewedAt: `${startDate.slice(0, 4)}-08-15T10:00:00+07:00`, approvedByName: 'Lê Thị Nhân Viên',
+    pricePerMonth: room.pricePerMonth - 20000, // giá năm trước — hợp đồng giữ giá đã chốt (BR-27)
+    bedId: bed.id, bedCode: bed.bedCode, roomTypeName: `Phòng ${room.capacity} chỗ`,
+    depositRefunded: room.depositAmount, terms: 'Sinh viên tuân thủ nội quy ký túc xá.',
+  });
+  Object.assign(c, { monthlyPrice: c.pricePerMonth, totalRoomFee: c.pricePerMonth * TERM_MONTHS[c.term] });
   invoices.push({
     ...nextInvoiceCode('202508'),
     studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
-    contractId: contract.id, bedCode: bed.bedCode,
+    contractId: c.id, bedCode: bed.bedCode,
     type: 'deposit', billingPeriod: null,
-    lineItems: [{ feeTypeId: 'f4', description: 'Tiền đặt cọc', quantity: 1, unitPrice: rt.depositAmount, amount: rt.depositAmount }],
-    totalAmount: rt.depositAmount, paidAmount: rt.depositAmount,
+    lineItems: [{ feeTypeId: 'f4', description: 'Tiền đặt cọc', quantity: 1, unitPrice: c.depositAmount, amount: c.depositAmount }],
+    totalAmount: c.depositAmount, paidAmount: c.depositAmount,
     issueDate: `${startDate.slice(0, 4)}-08-15`, dueDate: `${startDate.slice(0, 4)}-08-22`, status: 'paid',
   });
 };

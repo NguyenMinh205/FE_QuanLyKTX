@@ -32,7 +32,7 @@ export default function MyResidencePage() {
   if (error) return <>{header}<Alert type="error" showIcon title="Không tải được thông tin chỗ ở" description={error} /></>;
   if (loading && !residence) return <>{header}<Card><Skeleton active paragraph={{ rows: 8 }} /></Card></>;
 
-  const history = (contracts || []).filter((c) => c.status !== 'active');
+  const history = (contracts || []).filter((c) => ['expired', 'terminated'].includes(c.status));
 
   if (!residence?.hasResidence) {
     return (
@@ -47,7 +47,7 @@ export default function MyResidencePage() {
               </div>
             )}
           >
-            <Button type="primary" onClick={() => navigate('/portal/apply')}>Đăng ký chỗ ở</Button>
+            <Button type="primary" onClick={() => navigate('/apply')}>Nộp đơn đăng ký</Button>
           </Empty>
         </Card>
         {history.length > 0 && <ResidenceHistory history={history} loading={histLoading} />}
