@@ -22,7 +22,7 @@
 | 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 28) |
 | 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | 🚫 Bỏ ở v2 |
 | 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | 🚫 Bỏ ở v2 |
-| 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | 🔁 Làm lại ở v2 (mục 32) |
 | 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | ⬜ Chưa test |
 | 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | 🚫 Bỏ ở v2 |
@@ -43,6 +43,7 @@
 | 28 | v2 · M6: chỉ số điện nước, chốt & phát hành, lịch sử phòng | SCR-51 | `feature/v2-utility-billing` | Dữ liệu giả | ⬜ Chưa test |
 | 29 | v2 · M7: hóa đơn, thu tiền mặt / xác nhận VietQR, biên lai, phiếu thu | SCR-52, 54, 55, 56 | `feature/v2-invoices-payments` | Dữ liệu giả | ⬜ Chưa test |
 | 30 | v2 · M8: cổng SV — hóa đơn 2 nhóm, VietQR, chuông, lịch sử nộp tiền, điện nước phòng | SCR-61, 63, 64 | `feature/v2-portal-vietqr` | Dữ liệu giả | ⬜ Chưa test |
+| 31 | v2 · M9: Dashboard — KPI, lấp đầy theo tòa, doanh thu (chỉ Admin) | SCR-10 | `feature/v2-dashboard` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1587,7 +1588,7 @@ Dữ liệu dựng sẵn: hai hợp đồng **đã quá hạn 5 ngày** chưa th
 - [ ] Cột: Mã hợp đồng, Sinh viên, Chỗ ở (`K1-101 · Giường 01`), Gói thuê, Thời hạn, Tiền phòng cả kỳ, Tiền cọc (kèm nhãn **Đang giữ cọc**), Công nợ, Trạng thái.
 - [ ] Hợp đồng còn ≤ 30 ngày ghi "còn N ngày" màu vàng (vd `HD-2026-0004` còn 20 ngày).
 - [ ] Lọc **Mọi gói thuê** → 6 tháng: chỉ còn hợp đồng 6 tháng. Lọc tòa, tìm theo mã hợp đồng hoạt động.
-- [ ] Từ **Dashboard** bấm "Xem danh sách" ở thẻ hợp đồng → mở màn Hợp đồng, tab Đang hiệu lực.
+- [ ] Mở `/admin/contracts?tab=refund` → vào thẳng tab Chờ hoàn cọc. *(Link từ Dashboard sang đây đã bỏ ở M9.)*
 
 ### 28.2. Thanh lý bị chặn vì còn nợ (FR-34, BR-04)
 
@@ -1749,6 +1750,36 @@ Dữ liệu dựng sẵn: `sv009@dorm.local` / `Student@123` (phòng K2-101) cò
 - [ ] **Chỗ ở & hợp đồng** → thẻ **Điện nước của phòng**: các tháng đã chốt, mới nhất trên cùng, điện, nước, tiền cả phòng, tham khảo mỗi người.
 - [ ] Đăng xuất, vào `staff@dorm.local` → Hóa đơn → thu hóa đơn điện nước K2-101 (VietQR, chọn người nộp). Đăng xuất, vào lại sv009 → chuông mất số, hóa đơn chuyển Đã thanh toán, ghi đúng người đại diện.
 - [ ] Thu cửa sổ còn ~390px ở màn Hóa đơn: không cuộn ngang, ảnh QR vừa màn.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 32. v2 · M9 — Dashboard
+
+Chạy dữ liệu giả như mục 24. Mục 11 phía trên không cần test nữa.
+
+### 32.1. Staff (FR-70, FR-71)
+
+`staff@dorm.local` / `Staff@123` → **Dashboard**.
+
+- [ ] 7 thẻ: Tổng số giường (kèm số bảo trì), Đang có người ở, Còn trống, Tỷ lệ lấp đầy (thanh tiến độ, rê vào biểu tượng ⓘ thấy cách tính), Sinh viên đang nội trú, Đơn đăng ký chờ duyệt, Công nợ chưa thu.
+- [ ] Tổng số giường = Đang có người ở + Còn trống + số bảo trì (dữ liệu mẫu: 112 = 71 + 39 + 2).
+- [ ] Thẻ Công nợ chưa thu ghi tách "Tiền phòng … · điện nước …"; bấm **Xem hóa đơn** → màn Hóa đơn lọc Chưa thanh toán.
+- [ ] Thẻ Đơn chờ duyệt có link **Duyệt đơn**.
+- [ ] **Lấp đầy theo tòa**: biểu đồ thanh chồng (đã có người / còn trống / bảo trì, rê chuột thấy số từng loại) và bảng Tòa · Phòng · Giường · Đã có người · Còn trống · Bảo trì · Lấp đầy. Chỉ có Tòa K1, K2 (K3, K4 ngừng hoạt động).
+- [ ] **Không** có khối Doanh thu. Không còn thẻ "Hợp đồng sắp hết hạn", "Hóa đơn quá hạn", khối "Cần xử lý".
+
+### 32.2. Admin (FR-72)
+
+`admin@dorm.local` / `Admin@123` → **Dashboard**.
+
+- [ ] Có thêm khối **Doanh thu theo tháng**: cột chồng xanh dương (tiền phòng trọn gói) và xanh ngọc (điện nước); rê chuột vào cột thấy từng khoản và tổng.
+- [ ] Dòng chú giải ghi tổng cả năm của từng nhóm; bảng bên dưới có từng tháng và dòng **Cả năm**. Tháng không thu gì vẫn có dòng 0 đ.
+- [ ] Không tính tiền cọc: tổng doanh thu nhỏ hơn tổng các phiếu thu ở màn Phiếu thu (phần chênh là tiền cọc).
+- [ ] Chọn **Năm 2025** → biểu đồ đổi sang năm 2025 (chỉ có tháng 8).
+- [ ] Thu một hóa đơn ở màn Hóa đơn rồi quay lại Dashboard → **Làm mới dữ liệu** → tháng hiện tại tăng đúng số vừa thu (trừ khi là tiền cọc), công nợ giảm.
+- [ ] Thu cửa sổ còn ~390px: không cuộn ngang.
 
 **Lỗi phát hiện:** _(chưa có)_
 

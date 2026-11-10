@@ -1,6 +1,6 @@
 # KẾ HOẠCH CHỈNH SỬA FRONTEND THEO PHIÊN BẢN TINH GỌN HaUI (v2.0)
 
-**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M8 (M8 chờ commit, 10/11/2026)
+**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M9 (M9 chờ commit, 10/11/2026)
 **Nguồn yêu cầu:** `D:\BE_QLKTX\docs\EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS v2.0) và `EDIT_DOCS_DATA_SCHEMA.md`. Khác với tài liệu cũ trong `docs/` thì theo hai file này. Chỗ SRS bỏ ngỏ thì theo luồng use case trong `BAO_CAO_CHUONG_2.md`.
 **Bổ sung ngoài SRS:** xác nhận hoàn cọc (FR-35, BR-08), theo yêu cầu ngày 09/11/2026.
 **File này phục vụ một việc:** làm xong v2 thì xoá.
@@ -171,7 +171,7 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 - **Thử:** quét QR bằng app ngân hàng thấy đúng số tiền và nội dung. Không chuyển tiền thật.
 
 ### M9. Dashboard · Nhỏ · `feature/v2-dashboard`
-- **AI:** KPI FR-70, lấp đầy theo tòa, doanh thu tháng tách tiền phòng/điện nước, ẩn doanh thu với Staff. Thẻ và bảng "Hợp đồng sắp hết hạn" đang gọi `GET /contracts?expiringInDays=` — tham số này đã bỏ ở API v2 (§13): lấy số từ `/dashboard/summary`, bảng thì lọc phía FE hoặc bỏ. Từ M5 link "Xem danh sách" tạm trỏ tab Đang hiệu lực (tab này xếp theo ngày bắt đầu, chưa đưa hợp đồng sắp hết hạn lên đầu).
+- **AI:** KPI FR-70, lấp đầy theo tòa, doanh thu tháng tách tiền phòng/điện nước, ẩn doanh thu với Staff. Thẻ và bảng "Hợp đồng sắp hết hạn" đang gọi `GET /contracts?expiringInDays=` — tham số này đã bỏ ở API v2 (§13): lấy số từ `/dashboard/summary`, bảng thì lọc phía FE hoặc bỏ. Từ M5 link "Xem danh sách" tạm trỏ tab Đang hiệu lực (tab này xếp theo ngày bắt đầu, chưa đưa hợp đồng sắp hết hạn lên đầu). **Đã làm (10/11/2026), theo khuyến nghị:** bỏ hẳn thẻ và bảng "sắp hết hạn" khỏi Dashboard — FR-70 không có mục này, màn Hợp đồng đã ghi "còn N ngày". Bỏ luôn thẻ "Hóa đơn quá hạn" (v2 không có trạng thái quá hạn) và khối "Cần xử lý" (trùng thẻ Đơn chờ duyệt). Staff không gọi API doanh thu; Lấp đầy theo tòa thêm bảng số.
 - **Thử:** so số trên thẻ với dữ liệu giả; đăng nhập Staff không thấy doanh thu.
 
 ### M10. Sinh viên và Excel · Vừa · `feature/v2-students-excel`

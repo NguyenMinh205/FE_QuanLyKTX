@@ -14,6 +14,4 @@ export const contractApi = {
   approve:     (id, data) => (USE_MOCK ? mockContracts.approve(id, data)      : axiosClient.patch(`/contracts/${id}/approve`, data)),
   /** { reason } */
   reject:      (id, data) => (USE_MOCK ? mockContracts.reject(id, data)       : axiosClient.patch(`/contracts/${id}/reject`, data)),
-  // Sắp hết hạn (BR-29) dùng chính `getList({ expiringInDays })` — KHÔNG dùng `/contracts/expiring`:
-  // endpoint đó của backend bỏ qua tham số ngày nên trả về mọi hợp đồng đang hiệu lực.
 };

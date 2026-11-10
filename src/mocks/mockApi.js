@@ -9,7 +9,7 @@ import {
   utilityReadings, invoices, payments, TERM_MONTHS, residentsOf, meterOf, newReading, billReading,
   issuePersonalInvoice, collectInvoice,
   bedsOf, availableSlots, generateBeds, newApplication, approveContract, pendingOn, selectableBeds,
-  occupancyStats, debtOf, demoRaceRoomIds, rivalStudentFor, todayPlus, periodPlus,
+  debtOf, demoRaceRoomIds, rivalStudentFor, todayPlus, periodPlus,
 } from './mockDb';
 
 // ---------------------------------------------------------------- tiện ích
@@ -552,7 +552,6 @@ export const mockContracts = {
     const statuses = q.status ? String(q.status).split(',') : null;
     let rows = contracts.map(contractView);
     if (statuses) rows = rows.filter((c) => statuses.includes(c.status));
-    if (q.expiringInDays) rows = rows.filter((c) => isExpiring(c, Number(q.expiringInDays)));
     if (q.buildingId) rows = rows.filter((c) => c.buildingId === q.buildingId);
     if (q.term) rows = rows.filter((c) => c.term === q.term);
     if (q.isDepositRefunded !== undefined) rows = rows.filter((c) => String(c.isDepositRefunded) === String(q.isDepositRefunded));
@@ -560,7 +559,6 @@ export const mockContracts = {
     // Đơn chờ duyệt: nộp sớm lên đầu · đơn bị từ chối: xử lý gần nhất · sắp hết hạn: gần hết hạn nhất · còn lại: bắt đầu gần nhất
     const sortKey = (c) => String(c.startDate || c.reviewedAt || c.createdAt);
     if (statuses?.length === 1 && statuses[0] === 'pending') rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    else if (q.expiringInDays) rows.sort((a, b) => a.endDate.localeCompare(b.endDate));
     else rows.sort((a, b) => sortKey(b).localeCompare(sortKey(a)) || a.contractCode.localeCompare(b.contractCode));
     const res = paginate(rows, q);
     // Số theo tab — không phụ thuộc bộ lọc, đúng các khóa của API.md §6
@@ -953,33 +951,59 @@ export const mockPayments = {
 
 };
 
-// ---------------------------------------------------------------- dashboard
+// ---------------------------------------------------------------- dashboard (API.md §10)
+const countBeds = (list) => ({
+  occupied: list.filter((x) => x.status === 'occupied').length,
+  available: list.filter((x) => x.status === 'available').length,
+  maintenance: list.filter((x) => x.status === 'maintenance').length,
+});
+
 export const mockDashboard = {
-  getOccupancy: async () => { await delay(); return ok(occupancyStats()); },
+  /** GET /dashboard/summary — KPI FR-70. total = occupied + available + maintenance; nợ không tính tiền cọc */
   getSummary: async () => {
     await delay();
-    // Hết khái niệm quá hạn ở v2 — tạm hiểu là chưa trả và đã qua hạn, M9 làm lại thẻ này
-    const overdue = invoices.filter((i) => i.status === 'unpaid' && i.dueDate < todayPlus(0));
-    const active = contracts.filter((c) => statusOf(c) === 'active');
+    const unpaid = (type) => invoices.filter((i) => i.type === type && i.status === 'unpaid').reduce((t, i) => t + i.amount, 0);
+    const roomDebt = unpaid('room_semester');
+    const utilityDebt = unpaid('utility');
     return ok({
-      occupancy: occupancyStats().overall,
-      residents: {
-        activeStudents: active.length,
-        activeContracts: active.length,
-        expiringIn30Days: active.filter((c) => isExpiring(c)).length,
-        contractsByStatus: {
-          active: active.length,
-          expired: countBy('expired'),
-          terminated: contracts.filter((c) => c.status === 'terminated').length,
-        },
-      },
-      finance: {
-        totalDebt: students.reduce((s, st) => s + debtOf(st.id), 0),
-        overdueInvoiceCount: overdue.length,
-        overdueAmount: overdue.reduce((s, i) => s + i.amount, 0),
-      },
+      occupancy: { total: beds.length, ...countBeds(beds) },
+      // Đang nội trú = hợp đồng còn giữ giường (gồm cả quá hạn chưa thanh lý)
+      activeStudents: contracts.filter((c) => c.status === 'active').length,
       pendingApplications: contracts.filter((c) => c.status === 'pending').length,
+      finance: { totalDebt: roomDebt + utilityDebt, roomDebt, utilityDebt },
     });
+  },
+  /** GET /dashboard/occupancy — theo tòa đang hoạt động (FR-71). Tòa ngừng hoạt động không có phòng nên không hiện */
+  getOccupancy: async () => {
+    await delay();
+    return ok(buildings.filter((b) => b.isActive).map((b) => {
+      const roomIds = rooms.filter((r) => r.buildingId === b.id).map((r) => r.id);
+      const list = beds.filter((x) => roomIds.includes(x.roomId));
+      return {
+        buildingId: b.id, buildingCode: b.code, buildingName: b.name,
+        totalRooms: roomIds.length, totalBeds: list.length, ...countBeds(list),
+      };
+    }));
+  },
+  /**
+   * GET /dashboard/revenue ?year= — chỉ admin (FR-72). Mỗi tháng có thu tiền một dòng, cũ trước, gom theo `paidAt`.
+   * Không tính tiền cọc vì sẽ hoàn lại khi trả phòng.
+   */
+  getRevenue: async (q = {}) => {
+    await delay();
+    if (authStorage.getUser()?.role !== 'admin') fail(403, 'FORBIDDEN', 'Chỉ quản trị viên xem được doanh thu');
+    const year = String(q.year || new Date().getFullYear());
+    const byMonth = {};
+    payments.forEach((p) => {
+      const inv = invoices.find((i) => i.id === p.invoiceId);
+      const month = String(p.paidAt).slice(0, 7);
+      if (!inv || inv.type === 'deposit' || !month.startsWith(year)) return;
+      const row = byMonth[month] ?? (byMonth[month] = { month, roomRevenue: 0, utilityRevenue: 0, total: 0 });
+      if (inv.type === 'room_semester') row.roomRevenue += p.amount;
+      else row.utilityRevenue += p.amount;
+      row.total += p.amount;
+    });
+    return ok(Object.values(byMonth).sort((x, y) => x.month.localeCompare(y.month)));
   },
 };
 

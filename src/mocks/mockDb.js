@@ -479,24 +479,3 @@ seedPastContract(students[82], rooms[2], {
 });
 seedPastContract(students[84], rooms[3], { startDate: '2025-09-01', endDate: '2026-06-30', terminatedAt: '2026-01-15' });
 
-// ---------------------------------------------------------------- thống kê dashboard
-export const occupancyStats = () => {
-  const count = (list, status) => list.filter((b) => b.status === status).length;
-  const summarize = (list) => {
-    const total = list.length;
-    const occupied = count(list, 'occupied');
-    const maintenance = count(list, 'maintenance');
-    return {
-      total, occupied, available: count(list, 'available'), maintenance,
-      rate: Number((occupied / (total - maintenance)).toFixed(3)),
-    };
-  };
-  return {
-    overall: summarize(beds),
-    // Chỉ tòa đang hoạt động — giống backend (dashboard, sơ đồ lấp đầy)
-    byBuilding: buildings.filter((b) => b.isActive).map((b) => {
-      const ids = rooms.filter((r) => r.buildingId === b.id).map((r) => r.id);
-      return { buildingName: b.name, ...summarize(beds.filter((x) => ids.includes(x.roomId))) };
-    }),
-  };
-};

@@ -552,7 +552,7 @@ With no `active` or `expired` contract: `{ "hasResidence": false, "contract": nu
 ```
 `occupancy` must satisfy `total = occupied + available + maintenance`. `roomDebt` covers unpaid `room_semester`, `utilityDebt` unpaid `utility`. Deposits are excluded.
 
-**GET `/dashboard/occupancy`**: plain array of `{ buildingId, buildingCode, buildingName, totalRooms, totalBeds, occupied, available, maintenance }`.
+**GET `/dashboard/occupancy`**: plain array of `{ buildingId, buildingCode, buildingName, totalRooms, totalBeds, occupied, available, maintenance }`, active buildings only (an inactive building has no usable beds).
 
 **GET `/dashboard/revenue`**: plain array, one entry per month that has payments, oldest first: `{ month: "2026-10", roomRevenue, utilityRevenue, total }`. Grouped by `paidAt`. Deposits are excluded, since they are returned later.
 
@@ -644,6 +644,7 @@ Optional later: a SePay or Casso webhook for FR-54b would call the same logic as
 
 | Version | Date | Change |
 |---|---|---|
+| 2.4 | 10/11/2026 | Dashboard (M9): occupancy lists active buildings only. `GET /dashboard/revenue` returns `403 FORBIDDEN` for staff. |
 | 2.3 | 10/11/2026 | Student portal (M8): `debtSummary` is personal only; utility history returns billed months only. |
 | 2.2 | 10/11/2026 | Invoices (M7): `Invoice.createdAt`; `GET /invoices/:id` adds `contractCode` on personal invoices. |
 | 2.1 | 10/11/2026 | Online application (M4): `GET /rooms/:id` beds carry `hasPendingApplication`; contract `reviewedAt`; `status` filter accepts a list; approve adds `BED_ALREADY_REQUESTED`, `APPLICATION_OR_CONTRACT_EXISTS`. |

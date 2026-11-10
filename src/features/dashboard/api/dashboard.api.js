@@ -2,51 +2,18 @@ import axiosClient from '../../../lib/axiosClient';
 import { mockDashboard } from '../../../mocks/mockApi';
 import { USE_MOCK } from '../../../lib/env';
 
-const num = (...values) => {
-  const v = values.find((x) => typeof x === 'number');
-  return v === undefined ? null : v;
-};
-
-/**
- * Chuẩn hóa response GET /dashboard/summary về một dạng duy nhất (API.md mục 12).
- * Backend hiện tại trả tên trường khác (totalBeds, occupancyRate...) — chấp nhận cả hai,
- * trường nào backend chưa có thì để null để giao diện hiện "—" thay vì số sai.
- * Tỷ lệ lấp đầy KHÔNG lấy từ backend mà tính lại theo docs: đã sử dụng / (tổng − bảo trì).
- */
-export const normalizeSummary = (d = {}) => {
-  const o = d.occupancy || {};
-  const total = num(o.total, o.totalBeds);
-  const occupied = num(o.occupied, o.occupiedBeds);
-  const available = num(o.available, o.availableBeds);
-  const maintenance = num(o.maintenance, o.maintenanceBeds) ?? 0;
-  const usable = total !== null ? total - maintenance : null;
-
-  return {
-    occupancy: {
-      total, occupied, available, maintenance,
-      rate: usable ? occupied / usable : null,
-      consistent: total === null || occupied === null || available === null || total === occupied + available + maintenance,
-    },
-    residents: {
-      activeStudents: num(d.residents?.activeStudents),
-      activeContracts: num(d.residents?.activeContracts),
-      expiringIn30Days: num(d.residents?.expiringIn30Days, d.queue?.expiringContracts),
-      contractsByStatus: d.residents?.contractsByStatus ?? null,
-    },
-    finance: {
-      totalDebt: num(d.finance?.totalDebt, d.finance?.totalOutstandingDebt),
-      overdueInvoiceCount: num(d.finance?.overdueInvoiceCount),
-      overdueAmount: num(d.finance?.overdueAmount),
-    },
-    pendingApplications: num(d.pendingApplications),
-  };
-};
-
-const withNormalizedSummary = (promise) => promise.then((res) => ({
-  ...res, data: { ...res.data, data: normalizeSummary(res.data?.data) },
-}));
-
+/** API.md §10 */
 export const dashboardApi = {
-  getSummary:   () => withNormalizedSummary(USE_MOCK ? mockDashboard.getSummary() : axiosClient.get('/dashboard/summary')),
-  getOccupancy: () => (USE_MOCK ? mockDashboard.getOccupancy() : axiosClient.get('/dashboard/occupancy')),
+  /** KPI FR-70: { occupancy{ total, occupied, available, maintenance }, activeStudents, pendingApplications, finance{ totalDebt, roomDebt, utilityDebt } } */
+  getSummary:   ()       => (USE_MOCK ? mockDashboard.getSummary()         : axiosClient.get('/dashboard/summary')),
+  /** FR-71: [{ buildingId, buildingCode, buildingName, totalRooms, totalBeds, occupied, available, maintenance }] */
+  getOccupancy: ()       => (USE_MOCK ? mockDashboard.getOccupancy()       : axiosClient.get('/dashboard/occupancy')),
+  /** FR-72, chỉ admin: [{ month, roomRevenue, utilityRevenue, total }] theo tháng có thu tiền, cũ trước */
+  getRevenue:   (params) => (USE_MOCK ? mockDashboard.getRevenue(params)   : axiosClient.get('/dashboard/revenue', { params })),
+};
+
+/** Tỷ lệ lấp đầy: đã sử dụng / (tổng − bảo trì) — giường bảo trì không xếp được nên không tính vào mẫu */
+export const occupancyRateOf = ({ total, occupied, maintenance = 0 }) => {
+  const usable = (total ?? 0) - maintenance;
+  return usable > 0 ? occupied / usable : null;
 };
