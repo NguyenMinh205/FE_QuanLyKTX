@@ -76,7 +76,7 @@ export default function NoResidenceHome() {
     );
   }
 
-  const ended = latest && ['expired', 'terminated'].includes(latest.status);
+  const ended = latest?.status === 'terminated';
   return (
     <Card styles={{ body: { padding: 32 } }} style={{ background: 'linear-gradient(135deg, #1677FF 0%, #4096FF 100%)', border: 'none' }}>
       <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -89,6 +89,15 @@ export default function NoResidenceHome() {
             {ended ? `Hợp đồng ${latest.contractCode} đã kết thúc ngày ${formatDate(latest.terminatedAt || latest.endDate)}. ` : ''}
             Muốn ở kỳ tiếp theo, bạn nộp đơn mới bằng mã sinh viên hiện tại.
           </Text>
+          {ended && (
+            <div style={{ marginTop: 8 }}>
+              <Tag color={latest.isDepositRefunded ? 'success' : 'warning'} style={{ margin: 0 }}>
+                {latest.isDepositRefunded
+                  ? `Đã nhận lại cọc ngày ${formatDate(latest.depositRefundedAt)}`
+                  : `Chưa nhận lại cọc ${formatCurrency(latest.depositAmount)} — đến văn phòng KTX để nhận`}
+              </Tag>
+            </div>
+          )}
         </div>
         <div style={{ display: 'grid', gap: 8 }}>
           <Button size="large" onClick={() => navigate('/apply')} style={{ fontWeight: 600 }}>

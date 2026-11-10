@@ -18,8 +18,8 @@ const PERMISSIONS = {
   'room:update': OPS,
 
   'application:review': OPS,        // duyệt / từ chối
-  'contract:update': OPS,
-  'contract:terminate': OPS,
+  'contract:terminate': OPS,        // thanh lý khi trả phòng
+  'contract:refundDeposit': OPS,    // xác nhận đã hoàn cọc
 
   'utilityReading:record': OPS,
   'invoice:create': OPS,

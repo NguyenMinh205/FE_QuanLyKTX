@@ -6,13 +6,21 @@ import { delay, ok, paginate, fail, search } from './mockHelpers';
 import { authStorage } from '../lib/authStorage';
 import {
   DEMO_STUDENT_INDEX, buildings, rooms, beds, students, contracts,
-  feeTypes, utilityReadings, invoices, payments, ROOM_AMENITIES, TERM_MONTHS,
+  feeTypes, utilityReadings, invoices, payments, TERM_MONTHS,
   bedsOf, availableSlots, generateBeds, newApplication, approveContract, pendingOn, selectableBeds,
   occupancyStats, debtOf, demoRaceRoomIds, rivalStudentFor, todayPlus, periodPlus,
 } from './mockDb';
 
 // ---------------------------------------------------------------- tiện ích
+/**
+ * Hợp đồng đang giữ giường của sinh viên — gồm cả hợp đồng đã quá ngày kết thúc mà chưa thanh lý.
+ * ⚠️ Mock lưu `status: 'active'` cho tới khi thanh lý; `expired` chỉ là trạng thái SUY RA khi đọc (statusOf).
+ * Mọi chỗ hỏi "còn giữ giường không" dùng status lưu; chỗ trả ra cho FE thì dùng statusOf.
+ */
 const activeContractOf = (studentId) => contracts.find((c) => c.studentId === studentId && c.status === 'active');
+/** API.md §6: `expired` = active và đã qua endDate, suy ra lúc đọc (không có job đổi trạng thái) */
+const statusOf = (c) => (c.status === 'active' && c.endDate < todayPlus(0) ? 'expired' : c.status);
+const OPEN_INVOICE = ['unpaid', 'partial', 'overdue'];
 const withRemaining = (inv) => ({ ...inv, remainingAmount: inv.totalAmount - inv.paidAmount });
 
 const roomView = (r) => {
@@ -56,6 +64,8 @@ const ACCOUNTS = [
   account('sv007@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv007),
   // Vừa được duyệt đơn: tài khoản = mật khẩu = MSSV, phải đổi ở lần đăng nhập đầu (FR-02, BR-06)
   account('sv008@dorm.local', students[DEMO_STUDENT_INDEX.sv008].studentCode, 'student', null, DEMO_STUDENT_INDEX.sv008, true),
+  // Hợp đồng đã hết hạn 5 ngày, chưa thanh lý, còn nợ hóa đơn tháng
+  account('sv009@dorm.local', 'Student@123', 'student', null, DEMO_STUDENT_INDEX.sv009),
   // Mật khẩu tạm do ban quản lý cấp — đăng nhập xong bị buộc đổi mật khẩu (BR-85)
   account('doimk@dorm.local', 'Tam@12345', 'staff', 'Phạm Văn Mới Vào', null, true, { createdAt: '2026-09-10T09:00:00+07:00' }),
   // Cho màn Tài khoản (SCR-81): thêm một quản trị viên và một nhân viên đã bị khóa
@@ -518,7 +528,7 @@ export const mockPublic = {
 // ---------------------------------------------------------------- contracts (gồm cả đơn chờ duyệt)
 /** Hợp đồng còn hiệu lực và hết hạn trong N ngày tới (BR-29) */
 const isExpiring = (c, days = 30) => c.status === 'active' && c.endDate >= todayPlus(0) && c.endDate <= todayPlus(days);
-const countBy = (st) => contracts.filter((c) => c.status === st).length;
+const countBy = (st) => contracts.filter((c) => statusOf(c) === st).length;
 
 const contractView = (c) => {
   const room = rooms.find((r) => r.id === c.roomId);
@@ -526,6 +536,7 @@ const contractView = (c) => {
   const { demoRace, ...fields } = c; // eslint-disable-line no-unused-vars -- cờ nội bộ của mock, không trả ra
   return {
     ...fields,
+    status: statusOf(c),
     student: { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender },
     room: roomRef(room),
     buildingId: room?.buildingId,
@@ -568,13 +579,11 @@ export const mockContracts = {
     else if (q.expiringInDays) rows.sort((a, b) => a.endDate.localeCompare(b.endDate));
     else rows.sort((a, b) => sortKey(b).localeCompare(sortKey(a)) || a.contractCode.localeCompare(b.contractCode));
     const res = paginate(rows, q);
-    // Số theo tab — không phụ thuộc bộ lọc. `all`, `expiring` là của màn Hợp đồng hiện tại, sửa ở M5
+    // Số theo tab — không phụ thuộc bộ lọc, đúng các khóa của API.md §6
     res.data.data.summary = {
       pending: countBy('pending'), active: countBy('active'), expired: countBy('expired'),
       terminated: countBy('terminated'), rejected: countBy('rejected'),
       awaitingDepositRefund: contracts.filter((c) => c.status === 'terminated' && !c.isDepositRefunded).length,
-      all: countBy('active') + countBy('expired') + countBy('terminated'),
-      expiring: contracts.filter((c) => isExpiring(c)).length,
     };
     return res;
   },
@@ -595,8 +604,12 @@ export const mockContracts = {
         description: `Giường ${c.bedCode} · tạo hóa đơn tiền cọc và tiền phòng cả kỳ`,
       },
       c.status === 'rejected' && { at: c.reviewedAt, type: 'rejected', title: 'Từ chối đơn', description: c.rejectionReason },
-      c.status === 'terminated' && { at: c.terminatedAt, type: 'terminated', title: 'Chấm dứt hợp đồng', description: c.terminationReason },
-      c.status === 'expired' && { at: c.endDate, type: 'expired', title: 'Hết hạn hợp đồng', description: 'Hết thời hạn thuê' },
+      statusOf(c) === 'expired' && { at: c.endDate, type: 'expired', title: 'Hết hạn hợp đồng', description: 'Chưa thanh lý — sinh viên vẫn giữ giường' },
+      c.status === 'terminated' && { at: c.terminatedAt, type: 'terminated', title: 'Thanh lý hợp đồng', description: 'Trả phòng, giường trả về trống' },
+      c.isDepositRefunded && {
+        at: c.depositRefundedAt, type: 'deposit_refunded', title: 'Hoàn cọc',
+        description: `Đã trả lại tiền cọc${c.depositRefundedByName ? ` · ${c.depositRefundedByName}` : ''}`,
+      },
     ].filter(Boolean).sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
     return ok({
@@ -674,47 +687,43 @@ export const mockContracts = {
     });
     return ok(contractView(c), 'Đã từ chối đơn đăng ký');
   },
-  update: async (id, { terms } = {}) => {
+  /**
+   * PATCH /contracts/:id/terminate — thanh lý khi sinh viên trả phòng tại văn phòng (FR-34, D1). Không có body.
+   * Áp cho active và expired. BR-04: chặn nếu sinh viên còn hóa đơn chưa trả, hoặc phòng còn hóa đơn điện nước chưa trả.
+   */
+  terminate: async (id) => {
     await delay();
     const c = contracts.find((x) => x.id === id);
     if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy hợp đồng');
-    if (!terms || !terms.trim()) {
-      fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field: 'terms', message: 'Điều khoản không được để trống' }] });
+    if (c.status !== 'active') fail(409, 'CONTRACT_NOT_TERMINABLE', 'Chỉ thanh lý được hợp đồng đang hiệu lực hoặc đã hết hạn');
+    const outstanding = invoices.filter((i) => OPEN_INVOICE.includes(i.status) && (
+      i.studentId === c.studentId || (i.type === 'utility' && i.roomId === c.roomId)
+    ));
+    if (outstanding.length) {
+      fail(422, 'OUTSTANDING_INVOICES', `Còn ${outstanding.length} hóa đơn chưa thanh toán, chưa thể thanh lý`, {
+        invoices: outstanding.map((i) => ({
+          id: i.id, invoiceCode: i.invoiceCode, type: i.type, amount: (i.amount ?? i.totalAmount) - (i.paidAmount || 0), status: i.status,
+        })),
+      });
     }
-    c.terms = terms.trim();
-    return ok(c, 'Cập nhật điều khoản thành công');
+    Object.assign(c, { status: 'terminated', terminatedAt: todayPlus(0) });
+    // Chỉ trả giường nếu đúng giường của hợp đồng này và không hợp đồng nào khác đang giữ
+    const bed = beds.find((b) => b.id === c.bedId);
+    if (bed && !contracts.some((x) => x.id !== c.id && x.bedId === bed.id && x.status === 'active')) bed.status = 'available';
+    return ok({ contract: contractView(c) }, `Đã thanh lý hợp đồng ${c.contractCode}`);
   },
-  /** { reason, terminationDate } — trả giường, đóng lưu trú, quyết toán cọc */
-  terminate: async (id, { reason, terminationDate } = {}) => {
+  /** PATCH /contracts/:id/deposit-refund — xác nhận đã trả cọc tại văn phòng (FR-35, BR-08): một chiều, một lần, hoàn đủ */
+  refundDeposit: async (id) => {
     await delay();
     const c = contracts.find((x) => x.id === id);
     if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy hợp đồng');
-    if (c.status !== 'active') fail(422, 'CONTRACT_NOT_ACTIVE', 'Hợp đồng không ở trạng thái hiệu lực');
-    const date = terminationDate || todayPlus(0);
-    const errors = [];
-    if (!reason || reason.trim().length < 10) errors.push({ field: 'reason', message: 'Lý do chấm dứt tối thiểu 10 ký tự' });
-    if (date < c.startDate || date > c.endDate) errors.push({ field: 'terminationDate', message: 'Ngày chấm dứt phải nằm trong thời hạn hợp đồng' });
-    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
-
-    // Mock KHÔNG tính tiền phòng kỳ dở theo ngày ở thực tế (BR-31) — con số cuối cùng do backend chốt
-    const outstandingDebt = debtOf(c.studentId);
-    const refund = c.depositAmount - outstandingDebt;
-
+    if (c.status !== 'terminated') fail(409, 'CONTRACT_NOT_TERMINATED', 'Chỉ hoàn cọc sau khi đã thanh lý hợp đồng');
+    if (c.isDepositRefunded) fail(409, 'DEPOSIT_ALREADY_REFUNDED', 'Hợp đồng này đã được xác nhận hoàn cọc');
     Object.assign(c, {
-      status: 'terminated', terminatedAt: date, terminationReason: reason.trim(), depositRefunded: Math.max(0, refund),
+      isDepositRefunded: true, depositRefundedAt: new Date().toISOString(),
+      depositRefundedByName: authStorage.getUser()?.fullName ?? null,
     });
-    const bed = beds.find((b) => b.id === c.bedId);
-    if (bed) bed.status = 'available';
-
-    return ok({
-      contract: { id: c.id, contractCode: c.contractCode, status: c.status, terminatedAt: date },
-      settlement: {
-        outstandingDebt,
-        depositAmount: c.depositAmount,
-        refundAmount: Math.max(0, refund),
-        studentStillOwes: Math.max(0, -refund),
-      },
-    }, 'Đã chấm dứt hợp đồng');
+    return ok(contractView(c), 'Đã xác nhận hoàn cọc');
   },
 };
 
@@ -1226,7 +1235,7 @@ export const mockDashboard = {
   getSummary: async () => {
     await delay();
     const overdue = invoices.filter((i) => i.status === 'overdue');
-    const active = contracts.filter((c) => c.status === 'active');
+    const active = contracts.filter((c) => statusOf(c) === 'active');
     return ok({
       occupancy: occupancyStats().overall,
       residents: {
@@ -1235,7 +1244,7 @@ export const mockDashboard = {
         expiringIn30Days: active.filter((c) => isExpiring(c)).length,
         contractsByStatus: {
           active: active.length,
-          expired: contracts.filter((c) => c.status === 'expired').length,
+          expired: countBy('expired'),
           terminated: contracts.filter((c) => c.status === 'terminated').length,
         },
       },
@@ -1262,13 +1271,11 @@ export const mockPortal = {
       .map((x) => ({ studentCode: x.studentCode, fullName: x.studentName })); // chỉ họ tên + MSSV
     return ok({
       hasResidence: true,
-      contract: c,
-      roomType: { name: c.roomTypeName, pricePerMonth: c.monthlyPrice },
-      includedInRoom: ROOM_AMENITIES,
+      contract: contractView(c), // active hoặc expired (chưa thanh lý thì vẫn đang ở)
       roommates,
       debtSummary: {
         totalDebt: debtOf(st.id),
-        unpaidInvoiceCount: invoices.filter((i) => i.studentId === st.id && ['unpaid', 'partial', 'overdue'].includes(i.status)).length,
+        unpaidInvoiceCount: invoices.filter((i) => i.studentId === st.id && OPEN_INVOICE.includes(i.status)).length,
       },
     });
   },

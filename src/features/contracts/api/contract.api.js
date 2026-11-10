@@ -6,8 +6,10 @@ import { USE_MOCK } from '../../../lib/env';
 export const contractApi = {
   getList:     (params)   => (USE_MOCK ? mockContracts.getList(params)        : axiosClient.get('/contracts', { params })),
   getById:     (id)       => (USE_MOCK ? mockContracts.getById(id)            : axiosClient.get(`/contracts/${id}`)),
-  update:      (id, data) => (USE_MOCK ? mockContracts.update(id, data)       : axiosClient.put(`/contracts/${id}`, data)),
-  terminate:   (id, data) => (USE_MOCK ? mockContracts.terminate(id, data)    : axiosClient.patch(`/contracts/${id}/terminate`, data)),
+  /** Không có body — trả phòng tại văn phòng (FR-34). 422 OUTSTANDING_INVOICES kèm `data.invoices` (BR-04) */
+  terminate:   (id)       => (USE_MOCK ? mockContracts.terminate(id)          : axiosClient.patch(`/contracts/${id}/terminate`)),
+  /** Không có body — xác nhận đã trả cọc, chỉ sau thanh lý (FR-35, BR-08) */
+  refundDeposit: (id)     => (USE_MOCK ? mockContracts.refundDeposit(id)      : axiosClient.patch(`/contracts/${id}/deposit-refund`)),
   /** { roomId?, bedNumber? } — bỏ trống là khóa đúng giường sinh viên đã chọn (FR-32) */
   approve:     (id, data) => (USE_MOCK ? mockContracts.approve(id, data)      : axiosClient.patch(`/contracts/${id}/approve`, data)),
   /** { reason } */

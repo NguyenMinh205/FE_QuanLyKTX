@@ -1,6 +1,6 @@
 # KẾ HOẠCH CHỈNH SỬA FRONTEND THEO PHIÊN BẢN TINH GỌN HaUI (v2.0)
 
-**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026), chưa sửa code
+**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M5 (M5 chờ commit, 10/11/2026)
 **Nguồn yêu cầu:** `D:\BE_QLKTX\docs\EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS v2.0) và `EDIT_DOCS_DATA_SCHEMA.md`. Khác với tài liệu cũ trong `docs/` thì theo hai file này. Chỗ SRS bỏ ngỏ thì theo luồng use case trong `BAO_CAO_CHUONG_2.md`.
 **Bổ sung ngoài SRS:** xác nhận hoàn cọc (FR-35, BR-08), theo yêu cầu ngày 09/11/2026.
 **File này phục vụ một việc:** làm xong v2 thì xoá.
@@ -171,12 +171,17 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 - **Thử:** quét QR bằng app ngân hàng thấy đúng số tiền và nội dung. Không chuyển tiền thật.
 
 ### M9. Dashboard · Nhỏ · `feature/v2-dashboard`
-- **AI:** KPI FR-70, lấp đầy theo tòa, doanh thu tháng tách tiền phòng/điện nước, ẩn doanh thu với Staff.
+- **AI:** KPI FR-70, lấp đầy theo tòa, doanh thu tháng tách tiền phòng/điện nước, ẩn doanh thu với Staff. Thẻ và bảng "Hợp đồng sắp hết hạn" đang gọi `GET /contracts?expiringInDays=` — tham số này đã bỏ ở API v2 (§13): lấy số từ `/dashboard/summary`, bảng thì lọc phía FE hoặc bỏ. Từ M5 link "Xem danh sách" tạm trỏ tab Đang hiệu lực (tab này xếp theo ngày bắt đầu, chưa đưa hợp đồng sắp hết hạn lên đầu).
 - **Thử:** so số trên thẻ với dữ liệu giả; đăng nhập Staff không thấy doanh thu.
 
 ### M10. Sinh viên và Excel · Vừa · `feature/v2-students-excel`
 - **AI:** bộ lọc và cột mới, drawer chi tiết (FR-11), đặt lại MK, import sinh viên có báo cáo dòng lỗi, xuất/nhập chỉ số.
 - **Thử:** tải mẫu → điền 1 dòng đúng, 1 dòng trùng MSSV → báo 1 thành công, 1 lỗi đúng dòng.
+
+### M10b. Làm đẹp giao diện · Vừa · `feature/v2-ui-polish`
+- **Quyết định (10/11/2026):** làm sau M10, trước M11 (phương án A) — làm đẹp khi các màn đã ổn định, khỏi làm lại.
+- **AI:** rà toàn bộ màn bằng skill cài riêng trong project (Impeccable chế độ app quản trị, TasteSkill redesign/minimalist). Giữ Ant Design và quy tắc UI của bạn: hiệu ứng đứng yên, mỗi lúc chỉ một thứ chuyển động; không thêm thư viện animation, font hay bộ icon mới. Kiểm ở 1366px và 390px.
+- **Thử:** so ảnh trước/sau từng màn; e2e M1–M10 vẫn đạt.
 
 ### M11. Rà soát và bàn giao BE · Nhỏ · `docs/v2-acceptance`
 - **AI:** thử trọn luồng theo 3 vai trò, xoá code và mock thừa, cập nhật `docs/15`, `16`, `17`, thêm ghi chú đầu `docs/README.md` rằng tài liệu 01–14 mô tả v1.
@@ -218,6 +223,7 @@ Bản đầy đủ ở [`docs/API.md`](API.md) (v2.0, xong M0 ngày 09/11/2026),
 8. **Thêm vào Contract:** `isDepositRefunded` (Boolean, mặc định `false`), `depositRefundedAt` (Date), `depositRefundedBy` (ref `User`). SRS, schema, Quy trình 4 và UC-07 của báo cáo cần bổ sung FR-35, BR-08.
 9. SV đã được duyệt rồi bỏ không ở, chưa đóng tiền: BR-04 chặn thanh lý mà hóa đơn không hủy được, giường bị giữ mãi. Cần quy định cách xử lý.
 10. Báo cáo chương 2 kết luận "30 FR, 10 NFR" nhưng bảng thực tế có 39 FR (chưa tính FR-54b) và 11 NFR.
+11. **Ở tiếp kỳ sau:** không có gia hạn, và UC-01 3a chặn nộp đơn khi SV còn hợp đồng `active` (kể cả đã quá hạn, chưa thanh lý). Nên SV muốn ở tiếp phải trả phòng (thanh lý) rồi mới nộp đơn mới, và giường cũ có thể bị người khác đăng ký mất trong lúc đó. FE (M5) ghi đúng như vậy trong thông báo; cần giảng viên xác nhận đây là ý đồ.
 
 ---
 

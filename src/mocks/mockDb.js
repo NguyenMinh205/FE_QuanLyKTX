@@ -5,7 +5,8 @@
  *   → 90 sinh viên (72 đang ở) → đơn đăng ký → hợp đồng → hóa đơn → thanh toán
  *
  * Tài khoản thử (xem mockApi.js): sv001 đang ở phòng Tiêu chuẩn, có nợ · sv002 chưa có chỗ ·
- * sv003 dùng test IDOR · sv004 hợp đồng còn 20 ngày ·
+ * sv003 dùng test IDOR · sv004 hợp đồng còn 20 ngày · sv007 đã trả phòng, chờ hoàn cọc ·
+ * sv009 hợp đồng đã hết hạn nhưng chưa thanh lý, còn nợ ·
  * sv005 có đơn gần nhất bị từ chối · sv006 có đơn chờ duyệt (giường đã chọn vừa có người nhận) ·
  * sv008 vừa được cấp tài khoản, mật khẩu là MSSV, phải đổi ở lần đăng nhập đầu.
  *
@@ -26,15 +27,11 @@ const KHOA = [
 
 /** Chỉ số sinh viên dùng cho tài khoản thử */
 // sv007: sinh viên từng ở năm trước, hiện không còn chỗ — dùng để xem lịch sử lưu trú (FR-39)
-export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75, sv007: 80, sv008: 4 };
+export const DEMO_STUDENT_INDEX = { sv001: 0, sv002: 85, sv003: 2, sv004: 3, sv005: 73, sv006: 75, sv007: 80, sv008: 4, sv009: 9 };
 
 // ---------------------------------------------------------------- giá mẫu theo sức chứa
 const PRICE_BY_CAPACITY = { 8: 250000, 6: 320000, 4: 450000 };
 const DEPOSIT_AMOUNT = 500000;
-const BASIC = ['Giường tầng', 'Bàn học chung', 'Tủ cá nhân', 'WC riêng', 'Bình nóng lạnh', 'Quạt trần'];
-
-/** Đồ cố định có trong mọi phòng — cổng sinh viên còn hiển thị tới M5 */
-export const ROOM_AMENITIES = BASIC;
 
 // ---------------------------------------------------------------- tòa nhà
 export const buildings = [
@@ -179,9 +176,8 @@ export const approveContract = (c, {
     status: 'active', roomId: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName, bedNumber,
     pricePerMonth: room.pricePerMonth, depositAmount: room.depositAmount, totalRoomFee: room.pricePerMonth * months,
     startDate, endDate: plusMonths(startDate, months), reviewedAt, approvedByName,
-    // Trường của các màn chưa chuyển sang v2 (hợp đồng, hóa đơn, cổng SV) — bỏ dần ở M5–M8
-    bedId: bed.id, bedCode: bed.bedCode, monthlyPrice: room.pricePerMonth, roomTypeName: `Phòng ${room.capacity} chỗ`,
-    depositRefunded: 0, terms: 'Sinh viên tuân thủ nội quy ký túc xá.',
+    // Trường của các màn hóa đơn chưa chuyển sang v2 — bỏ ở M6–M7
+    bedId: bed.id, bedCode: bed.bedCode, monthlyPrice: room.pricePerMonth,
   });
   return { bed, contract: c };
 };
@@ -211,6 +207,13 @@ contracts.filter((_, i) => i % 7 === 6).forEach((c, k) => { c.endDate = todayPlu
   const c = contracts.find((x) => x.studentId === students[DEMO_STUDENT_INDEX.sv004].id);
   if (c) c.endDate = todayPlus(20);
 }
+// Hai hợp đồng đã quá ngày kết thúc 5 ngày nhưng chưa thanh lý — `expired` suy ra lúc đọc, vẫn giữ giường.
+// sv009 (index 9) còn nợ hóa đơn tháng → thanh lý bị chặn (BR-04); index 10 đã trả hết → thanh lý được.
+[9, 10].forEach((i) => {
+  const c = contracts[i];
+  c.endDate = todayPlus(-5);
+  c.startDate = plusMonths(c.endDate, -TERM_MONTHS[c.term]);
+});
 
 // 2 giường trống chuyển bảo trì (không đụng giường có người)
 [rooms[1], rooms[12]].forEach((r) => {
@@ -426,21 +429,22 @@ invoices.filter((inv) => ['unpaid', 'overdue'].includes(inv.status)).slice(0, 3)
   });
 });
 
-// ---------------------------------------------------------------- hợp đồng năm trước (đã hết hạn / đã chấm dứt)
-// Sinh viên 80, 82, 84 (nam) từng ở tòa K1 năm học 2025-2026 — hiện không còn chỗ ở. Giường của họ đã được trả lại.
+// ---------------------------------------------------------------- hợp đồng năm trước (đã thanh lý)
+// Sinh viên 80, 82, 84 (nam) từng ở tòa K1 năm học 2025-2026 — đã trả phòng, giường đã trả lại.
+// 82 đã nhận lại cọc; 80 (sv007) và 84 chưa → nằm ở tab "Chờ hoàn cọc" (FR-35).
 let pastSeq = 0;
-const seedPastContract = (st, room, { startDate, endDate, status, terminatedAt = null, terminationReason = null }) => {
+const seedPastContract = (st, room, { startDate, endDate, terminatedAt, refundedAt = null }) => {
   const bed = bedsOf(room.id)[pastSeq % room.capacity];
   pastSeq += 1;
   const c = newApplication(st, room, bed.bedNumber, {
     contractCode: `HD-2025-${pad(pastSeq, 4)}`, createdAt: `${startDate.slice(0, 4)}-08-10T09:00:00+07:00`,
   });
   Object.assign(c, {
-    status, startDate, endDate, terminatedAt, terminationReason,
+    status: 'terminated', startDate, endDate, terminatedAt,
+    isDepositRefunded: !!refundedAt, depositRefundedAt: refundedAt, depositRefundedByName: refundedAt ? 'Lê Thị Nhân Viên' : null,
     reviewedAt: `${startDate.slice(0, 4)}-08-15T10:00:00+07:00`, approvedByName: 'Lê Thị Nhân Viên',
     pricePerMonth: room.pricePerMonth - 20000, // giá năm trước — hợp đồng giữ giá đã chốt (BR-27)
-    bedId: bed.id, bedCode: bed.bedCode, roomTypeName: `Phòng ${room.capacity} chỗ`,
-    depositRefunded: room.depositAmount, terms: 'Sinh viên tuân thủ nội quy ký túc xá.',
+    bedId: bed.id, bedCode: bed.bedCode,
   });
   Object.assign(c, { monthlyPrice: c.pricePerMonth, totalRoomFee: c.pricePerMonth * TERM_MONTHS[c.term] });
   invoices.push({
@@ -453,12 +457,11 @@ const seedPastContract = (st, room, { startDate, endDate, status, terminatedAt =
     issueDate: `${startDate.slice(0, 4)}-08-15`, dueDate: `${startDate.slice(0, 4)}-08-22`, status: 'paid',
   });
 };
-seedPastContract(students[80], rooms[0], { startDate: '2025-09-01', endDate: '2026-06-30', status: 'expired' });
-seedPastContract(students[82], rooms[2], { startDate: '2025-09-01', endDate: '2026-06-30', status: 'expired' });
-seedPastContract(students[84], rooms[3], {
-  startDate: '2025-09-01', endDate: '2026-06-30', status: 'terminated',
-  terminatedAt: '2026-01-15', terminationReason: 'Sinh viên chuyển trường, đã bàn giao phòng và thu hồi chìa khóa',
+seedPastContract(students[80], rooms[0], { startDate: '2025-09-01', endDate: '2026-06-30', terminatedAt: '2026-06-30' });
+seedPastContract(students[82], rooms[2], {
+  startDate: '2025-09-01', endDate: '2026-06-30', terminatedAt: '2026-06-30', refundedAt: '2026-07-02T10:15:00+07:00',
 });
+seedPastContract(students[84], rooms[3], { startDate: '2025-09-01', endDate: '2026-06-30', terminatedAt: '2026-01-15' });
 
 // ---------------------------------------------------------------- thống kê dashboard
 export const occupancyStats = () => {

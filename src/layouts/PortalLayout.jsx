@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { portalApi } from '../features/portal/api/portal.api';
 import BrandLogo from '../components/BrandLogo';
-import { splitBedCode } from '../features/rooms/utils/roomStatus';
+import { roomLabelOf } from '../features/rooms/utils/roomStatus';
 
 const { Header, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -33,7 +33,7 @@ export default function PortalLayout() {
   // Chưa tải xong hoặc lỗi thì không khóa gì — backend vẫn tự chặn.
   const { data: residence } = useApi(() => portalApi.getMyResidence(), [location.pathname === '/portal/home']);
   const locked = residence?.hasResidence === false;
-  const roomText = residence?.contract?.bedCode ? `Phòng ${splitBedCode(residence.contract.bedCode).room}` : null;
+  const roomText = residence?.contract?.room ? `Phòng ${roomLabelOf(residence.contract.room)}` : null;
 
   const go = (tab) => {
     if (tab.needsResidence && locked) return;

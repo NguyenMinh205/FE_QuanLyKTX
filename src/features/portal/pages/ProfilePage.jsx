@@ -12,6 +12,7 @@ import { GENDER } from '../../../constants/statuses';
 import { formatDate, formatPhone } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import { initialsOf } from '../../applications/utils/applicationView';
+import { placeTextOf } from '../../contracts/utils/contractView';
 
 const { Text, Title } = Typography;
 
@@ -63,7 +64,7 @@ export default function ProfilePage() {
             <Divider style={{ margin: '16px 0' }} />
             <Info label="Chỗ ở hiện tại" icon={<HomeOutlined />}>
               {contract
-                ? <>{contract.bedCode}<div><Text type="secondary" style={{ fontSize: 12 }}>{contract.buildingName}</Text></div></>
+                ? <>{placeTextOf(contract)}<div><Text type="secondary" style={{ fontSize: 12 }}>{contract.room?.buildingName}</Text></div></>
                 : <Text type="secondary">Chưa có chỗ ở</Text>}
             </Info>
             <Info label="Tài khoản đăng nhập" icon={<MailOutlined />}>{user?.email}</Info>

@@ -19,7 +19,7 @@
 | 4 | Duyệt đơn đăng ký | SCR-31 | `feature/application-review` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 27) |
 | 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 27) |
 | 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | ⬜ Chưa test |
-| 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | ⬜ Chưa test |
+| 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 28) |
 | 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | 🚫 Bỏ ở v2 |
 | 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | 🚫 Bỏ ở v2 |
 | 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
@@ -31,7 +31,7 @@
 | 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
-| 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả **và** backend thật | 🔁 Làm lại ở v2 (mục 28) |
 | 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
 | 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
@@ -39,6 +39,7 @@
 | 24 | v2 · M2: đăng nhập Email/MSSV, tài khoản cán bộ, nhận diện HaUI | — | `feature/v2-auth-accounts` | Dữ liệu giả | ⬜ Chưa test |
 | 25 | v2 · M3: tòa nhà và phòng, bỏ loại phòng | — | `feature/v2-rooms` | Dữ liệu giả | ⬜ Chưa test |
 | 26 | v2 · M4: nộp đơn công khai, tra cứu, duyệt đơn | — | `feature/v2-online-application` | Dữ liệu giả | ⬜ Chưa test |
+| 27 | v2 · M5: hợp đồng, thanh lý, hoàn cọc, chỗ ở của sinh viên | SCR-32, SCR-61, SCR-63 | `feature/v2-contracts-checkout` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1564,6 +1565,54 @@ Từ màn đăng nhập (bấm **Đăng nhập** ở góc phải), vào `staff@d
 - [ ] `sv006@dorm.local` / `Student@123` → Trang chủ: thẻ "Đơn đăng ký đang chờ duyệt", không có nút hủy.
 - [ ] `sv005@dorm.local` → thẻ bị từ chối kèm lý do, nút **Nộp đơn mới** mở `/apply`.
 - [ ] `sv007@dorm.local` → "Bạn chưa có chỗ ở", ghi hợp đồng cũ đã kết thúc ngày nào.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 28. v2 · M5 — Hợp đồng, thanh lý, hoàn cọc, chỗ ở của sinh viên
+
+Chạy dữ liệu giả như mục 24. ⚠️ Dữ liệu giả **mất khi tải lại trang (F5)**: các bước 28.2 → 28.4 phải làm liền, chỉ bấm trong app. Mục 8, 20 phía trên không cần test nữa.
+
+Dữ liệu dựng sẵn: hai hợp đồng **đã quá hạn 5 ngày** chưa thanh lý — `HD-2026-0010` (Trần Phương Linh, tài khoản `sv009`, còn nợ) và `HD-2026-0011` (Lê Quốc Bảo, đã trả hết). Hai hợp đồng năm trước **chờ hoàn cọc**: `HD-2025-0001` (sv007) và `HD-2025-0003`.
+
+### 28.1. Danh sách hợp đồng (SCR-32)
+
+`staff@dorm.local` / `Staff@123` → **Hợp đồng**.
+
+- [ ] Năm tab: **Đang hiệu lực** (mặc định), **Hết hạn** (số 2, nền vàng), **Chờ hoàn cọc** (số 2, nền vàng), **Đã chấm dứt**, **Tất cả**. Không còn tab "Sắp hết hạn".
+- [ ] Cột: Mã hợp đồng, Sinh viên, Chỗ ở (`K1-101 · Giường 01`), Gói thuê, Thời hạn, Tiền phòng cả kỳ, Tiền cọc (kèm nhãn **Đang giữ cọc**), Công nợ, Trạng thái.
+- [ ] Hợp đồng còn ≤ 30 ngày ghi "còn N ngày" màu vàng (vd `HD-2026-0004` còn 20 ngày).
+- [ ] Lọc **Mọi gói thuê** → 6 tháng: chỉ còn hợp đồng 6 tháng. Lọc tòa, tìm theo mã hợp đồng hoạt động.
+- [ ] Từ **Dashboard** bấm "Xem danh sách" ở thẻ hợp đồng → mở màn Hợp đồng, tab Đang hiệu lực.
+
+### 28.2. Thanh lý bị chặn vì còn nợ (FR-34, BR-04)
+
+- [ ] Tab **Hết hạn** → 2 dòng, ghi "quá hạn 5 ngày, chưa thanh lý".
+- [ ] Mở `HD-2026-0010` → cảnh báo "đã hết hạn 5 ngày, sinh viên vẫn giữ giường"; chân drawer có nút **Thanh lý hợp đồng**, không có nút hoàn cọc, không còn ô sửa điều khoản.
+- [ ] Bấm **Thanh lý hợp đồng** → hộp thoại **không có ô nhập** nào, ghi rõ: không hoàn tác, kiểm kê tài sản + thu chìa khóa, giường trả về trống, cọc hoàn tại văn phòng.
+- [ ] Bấm **Thanh lý hợp đồng** trong hộp thoại → báo "Còn 1 hóa đơn chưa thanh toán…", liệt kê mã hóa đơn + số tiền còn thiếu. Hợp đồng vẫn Hết hạn. Bấm Hủy.
+
+### 28.3. Thanh lý → hoàn cọc (FR-34, FR-35, BR-08)
+
+- [ ] Đóng drawer, mở `HD-2026-0011` → **Thanh lý hợp đồng** → xác nhận → thông báo thành công. Drawer đổi sang **Đã chấm dứt** + nhãn **Chờ hoàn cọc**, có dòng "Thanh lý ngày" là hôm nay; nút Thanh lý biến mất, hiện nút **Xác nhận đã hoàn cọc**.
+- [ ] Tab **Chờ hoàn cọc** tăng lên 3, tab Hết hạn giảm còn 1.
+- [ ] Vào **Phòng** → K1-101: giường 06 đã trống.
+- [ ] Quay lại mở `HD-2026-0011` → **Xác nhận đã hoàn cọc** → hộp thoại hỏi lại, nêu 500.000 đ, không có ô nhập số tiền → **Đã hoàn cọc**.
+- [ ] Nhãn đổi **Đã hoàn cọc**; dòng Tiền cọc ghi giờ xác nhận + "Lê Thị Nhân Viên"; Lịch sử có mục **Hoàn cọc**; hết nút hoàn cọc. Tab Chờ hoàn cọc về 2.
+- [ ] Tab **Chờ hoàn cọc** → mở `HD-2025-0001` (sv007) → **Xác nhận đã hoàn cọc** → hợp đồng rời khỏi tab này.
+
+### 28.4. Cổng sinh viên
+
+Đăng xuất (menu tài khoản góc phải), đăng nhập lại — không F5.
+
+- [ ] `sv007@dorm.local` / `Student@123` → Trang chủ "Bạn chưa có chỗ ở", nhãn xanh **Đã nhận lại cọc ngày …** (vừa xác nhận ở 28.3).
+- [ ] **Chỗ ở & hợp đồng** (sv007): bảng Lịch sử lưu trú có cột Tiền cọc, dòng "Trả phòng dd/mm/yyyy"; không còn lý do chấm dứt.
+- [ ] `sv009@dorm.local` / `Student@123` → Trang chủ: thẻ công nợ đỏ, thẻ **Hợp đồng đã hết hạn ngày …**; thẻ Hợp đồng ghi "Quá hạn 5 ngày", trạng thái **Hết hạn**. Không còn "Loại phòng", "Có sẵn trong phòng".
+- [ ] **Chỗ ở & hợp đồng** (sv009): có Gói thuê, Thời hạn, Đơn giá, Tiền phòng cả kỳ, Tiền cọc ("Hoàn lại tại văn phòng sau khi trả phòng"). Không còn Điều khoản, "Phòng đã có sẵn". Header ghi **Phòng K2-101**.
+- [ ] `sv004@dorm.local` → cảnh báo "còn 20 ngày", ghi rõ không gia hạn, muốn ở kỳ sau thì nộp đơn mới sau khi trả phòng.
+- [ ] `sv001@dorm.local` → **Hồ sơ cá nhân**: Chỗ ở hiện tại ghi `K1-101 · Giường 01`, dưới là Tòa K1.
+- [ ] Thu cửa sổ còn ~390px ở Trang chủ và Chỗ ở & hợp đồng (sv001): không cuộn ngang.
 
 **Lỗi phát hiện:** _(chưa có)_
 

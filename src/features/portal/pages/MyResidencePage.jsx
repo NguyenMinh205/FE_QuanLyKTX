@@ -4,14 +4,17 @@ import {
 } from 'antd';
 import {
   HomeOutlined, FileTextOutlined, TeamOutlined, DollarOutlined, ArrowRightOutlined,
-  CalendarOutlined, GiftOutlined, HistoryOutlined,
+  CalendarOutlined, HistoryOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { portalApi } from '../api/portal.api';
+import { CONTRACT_TERM } from '../../../constants/statuses';
 import { formatCurrency, formatDate } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import StatusTag from '../../../components/StatusTag';
-import { daysUntil, splitBedCode } from '../utils/homeView';
+import { EXPIRING_DAYS, daysUntil } from '../utils/homeView';
+import { placeTextOf } from '../../contracts/utils/contractView';
+import { roomLabelOf } from '../../rooms/utils/roomStatus';
 
 const { Text, Title } = Typography;
 
@@ -22,7 +25,7 @@ const Info = ({ label, children }) => (
   </div>
 );
 
-/** SCR-63 Chỗ ở & hợp đồng (FR-82, FR-39) — chỉ xem; trả phòng làm trực tiếp tại văn phòng KTX (UC-07) */
+/** SCR-63 Chỗ ở & hợp đồng (FR-82, FR-39) — chỉ xem; trả phòng và nhận lại cọc làm tại văn phòng KTX (UC-07, D1) */
 export default function MyResidencePage() {
   const navigate = useNavigate();
   const { data: residence, loading, error } = useApi(() => portalApi.getMyResidence(), []);
@@ -32,7 +35,8 @@ export default function MyResidencePage() {
   if (error) return <>{header}<Alert type="error" showIcon title="Không tải được thông tin chỗ ở" description={error} /></>;
   if (loading && !residence) return <>{header}<Card><Skeleton active paragraph={{ rows: 8 }} /></Card></>;
 
-  const history = (contracts || []).filter((c) => ['expired', 'terminated'].includes(c.status));
+  // Hợp đồng hết hạn chưa thanh lý vẫn là chỗ ở hiện tại, không phải lịch sử
+  const history = (contracts || []).filter((c) => c.status === 'terminated');
 
   if (!residence?.hasResidence) {
     return (
@@ -55,10 +59,11 @@ export default function MyResidencePage() {
     );
   }
 
-  const { contract, roomType, includedInRoom = [], roommates = [], debtSummary = {} } = residence;
-  const { room, bed } = splitBedCode(contract.bedCode);
+  const { contract, roommates = [], debtSummary = {} } = residence;
   const daysLeft = daysUntil(contract.endDate);
-  const expiring = daysLeft !== null && daysLeft <= 30;
+  const expired = contract.status === 'expired';
+  const expiring = !expired && daysLeft !== null && daysLeft >= 0 && daysLeft <= EXPIRING_DAYS;
+  const term = CONTRACT_TERM[contract.term];
 
   return (
     <>
@@ -68,7 +73,14 @@ export default function MyResidencePage() {
         <Alert
           type="warning" showIcon style={{ marginBottom: 16 }}
           title={`Hợp đồng còn ${daysLeft} ngày (hết hạn ${formatDate(contract.endDate)})`}
-          description="Muốn ở tiếp, bạn nộp đơn đăng ký mới cho kỳ sau. Nếu không ở tiếp, bạn đến văn phòng KTX làm thủ tục trả phòng."
+          description="Ký túc xá không gia hạn hợp đồng. Hết hạn, bạn đến văn phòng KTX làm thủ tục trả phòng. Muốn ở kỳ sau, bạn nộp đơn mới sau khi đã trả phòng."
+        />
+      )}
+      {expired && (
+        <Alert
+          type="error" showIcon style={{ marginBottom: 16 }}
+          title={`Hợp đồng đã hết hạn ngày ${formatDate(contract.endDate)}`}
+          description="Bạn đến văn phòng KTX làm thủ tục trả phòng. Cần thanh toán hết hóa đơn còn nợ trước khi trả phòng."
         />
       )}
 
@@ -76,13 +88,10 @@ export default function MyResidencePage() {
         <Col xs={24} lg={12}>
           <Card title={<span><HomeOutlined style={{ color: '#1677FF' }} /> Chỗ ở của tôi</span>} style={{ height: '100%' }}>
             <div style={{ textAlign: 'center', marginBottom: 12 }}>
-              <Title level={2} style={{ margin: 0 }}>{room}</Title>
-              <Text type="secondary">{contract.buildingName} · Giường {bed}</Text>
+              <Title level={2} style={{ margin: 0 }}>{roomLabelOf(contract.room)}</Title>
+              <Text type="secondary">{contract.room?.buildingName} · Giường {String(contract.bedNumber).padStart(2, '0')}</Text>
             </div>
-            <Info label="Loại phòng">
-              {roomType?.name || contract.roomTypeName}
-              {roomType?.pricePerMonth ? <div><Text type="secondary" style={{ fontSize: 12 }}>{formatCurrency(roomType.pricePerMonth)}/tháng</Text></div> : null}
-            </Info>
+            <Info label="Phòng">{contract.room?.capacity} chỗ · Tầng {contract.room?.floor}</Info>
             <Info label={<span><TeamOutlined /> Bạn cùng phòng</span>}>
               {roommates.length
                 ? <Space orientation="vertical" size={2} style={{ alignItems: 'flex-end' }}>
@@ -90,14 +99,6 @@ export default function MyResidencePage() {
                 </Space>
                 : <Text type="secondary">Chưa có ai khác trong phòng</Text>}
             </Info>
-            <div style={{ paddingTop: 12 }}>
-              <Text type="secondary"><GiftOutlined /> Phòng đã có sẵn</Text>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                {includedInRoom.length
-                  ? includedInRoom.map((x) => <Tag key={x} style={{ margin: 0 }}>{x}</Tag>)
-                  : <Text type="secondary">Không có đồ cấp sẵn</Text>}
-              </div>
-            </div>
           </Card>
         </Col>
 
@@ -108,18 +109,26 @@ export default function MyResidencePage() {
             style={{ height: '100%' }}
           >
             <Info label="Mã hợp đồng"><Text code>{contract.contractCode}</Text></Info>
+            <Info label="Gói thuê">{term?.label} ({term?.hint})</Info>
             <Info label={<span><CalendarOutlined /> Thời hạn</span>}>
               {formatDate(contract.startDate)} → {formatDate(contract.endDate)}
-              {daysLeft !== null && daysLeft >= 0 && (
-                <div><Text type={expiring ? 'warning' : 'secondary'} style={{ fontSize: 12 }}>Còn {daysLeft} ngày</Text></div>
+              {daysLeft !== null && (
+                <div>
+                  {expired
+                    ? <Text type="danger" style={{ fontSize: 12 }}>Quá hạn {-daysLeft} ngày</Text>
+                    : <Text type={expiring ? 'warning' : 'secondary'} style={{ fontSize: 12 }}>Còn {daysLeft} ngày</Text>}
+                </div>
               )}
             </Info>
-            <Info label="Tiền phòng">{formatCurrency(contract.monthlyPrice)}/tháng</Info>
-            <Info label="Tiền cọc đã nộp">{formatCurrency(contract.depositAmount)}</Info>
-            {contract.terms && <Info label="Điều khoản"><Text style={{ fontSize: 13 }}>{contract.terms}</Text></Info>}
+            <Info label="Đơn giá">{formatCurrency(contract.pricePerMonth)}/tháng</Info>
+            <Info label="Tiền phòng cả kỳ">{formatCurrency(contract.totalRoomFee)}</Info>
+            <Info label="Tiền cọc">
+              {formatCurrency(contract.depositAmount)}
+              <div><Text type="secondary" style={{ fontSize: 12 }}>Hoàn lại tại văn phòng sau khi trả phòng</Text></div>
+            </Info>
             <Divider style={{ margin: '12px 0' }} />
             <Text type="secondary" style={{ fontSize: 13 }}>
-              Muốn trả phòng, bạn đến văn phòng KTX làm thủ tục. Cán bộ kiểm tra công nợ và tài sản phòng rồi thanh lý hợp đồng.
+              Muốn trả phòng, bạn đến văn phòng KTX. Cán bộ kiểm tra công nợ và tài sản phòng, thanh lý hợp đồng rồi hoàn cọc cho bạn.
             </Text>
           </Card>
         </Col>
@@ -149,23 +158,30 @@ export default function MyResidencePage() {
   );
 }
 
-/** Lịch sử lưu trú (FR-39) — hợp đồng cũ đã hết hạn hoặc đã chấm dứt */
+/** Lịch sử lưu trú (FR-39) — hợp đồng đã thanh lý, kèm trạng thái nhận lại cọc (FR-35) */
 function ResidenceHistory({ history, loading }) {
   const columns = [
-    { title: 'Mã hợp đồng', dataIndex: 'contractCode', width: 160, render: (v) => <Text code>{v}</Text> },
-    { title: 'Chỗ ở', key: 'bed', render: (_, c) => `${c.buildingName} · ${c.bedCode}` },
+    { title: 'Mã hợp đồng', dataIndex: 'contractCode', width: 150, render: (v) => <Text code>{v}</Text> },
+    { title: 'Chỗ ở', key: 'place', width: 200, render: (_, c) => `${c.room?.buildingName ?? ''} · ${placeTextOf(c)}` },
     {
-      title: 'Thời hạn', key: 'period', width: 230,
-      render: (_, c) => `${formatDate(c.startDate)} → ${formatDate(c.endDate)}`,
-    },
-    {
-      title: 'Trạng thái', dataIndex: 'status', width: 150,
-      render: (v, c) => (
+      title: 'Thời hạn', key: 'period', width: 220,
+      render: (_, c) => (
         <>
-          <StatusTag type="contract" value={v} />
-          {c.terminationReason && <div><Text type="secondary" style={{ fontSize: 12 }}>{c.terminationReason}</Text></div>}
+          <div>{formatDate(c.startDate)} → {formatDate(c.endDate)}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>Trả phòng {formatDate(c.terminatedAt)}</Text>
         </>
       ),
+    },
+    {
+      title: 'Tiền cọc', key: 'deposit', width: 230,
+      render: (_, c) => (c.isDepositRefunded
+        ? <Tag color="success" style={{ margin: 0 }}>Đã nhận lại cọc ngày {formatDate(c.depositRefundedAt)}</Tag>
+        : (
+          <>
+            <Tag color="warning" style={{ margin: 0 }}>Chưa nhận lại {formatCurrency(c.depositAmount)}</Tag>
+            <div><Text type="secondary" style={{ fontSize: 12 }}>Đến văn phòng KTX để nhận</Text></div>
+          </>
+        )),
     },
   ];
 
@@ -176,7 +192,7 @@ function ResidenceHistory({ history, loading }) {
       styles={{ body: { padding: history.length ? 0 : 24 } }}
     >
       {history.length
-        ? <Table rowKey="id" columns={columns} dataSource={history} loading={loading} pagination={false} scroll={{ x: 700 }} size="middle" />
+        ? <Table rowKey="id" columns={columns} dataSource={history} loading={loading} pagination={false} scroll={{ x: 800 }} size="middle" />
         : <Text type="secondary">Đây là lần đầu bạn ở ký túc xá — chưa có hợp đồng cũ nào.</Text>}
     </Card>
   );

@@ -4,19 +4,18 @@ import {
 } from 'antd';
 import {
   WarningFilled, CreditCardOutlined, HomeOutlined, FileTextOutlined,
-  ArrowRightOutlined, ReloadOutlined, CalendarOutlined, InboxOutlined, TeamOutlined,
+  ArrowRightOutlined, ReloadOutlined, CalendarOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../../hooks/useApi';
 import { portalApi } from '../../api/portal.api';
 import { formatCurrency, formatDate } from '../../../../utils/formatter';
-import { INVOICE_TYPE } from '../../../../constants/statuses';
+import { CONTRACT_TERM, INVOICE_TYPE } from '../../../../constants/statuses';
 import StatusTag from '../../../../components/StatusTag';
 import SupportCard from '../SupportCard';
 import {
-  EXPIRING_DAYS, OPEN_INVOICE_STATUSES, daysUntil, splitBedCode, invoicePeriodText, invoiceSummaryText,
+  EXPIRING_DAYS, OPEN_INVOICE_STATUSES, daysUntil, invoicePeriodText, invoiceSummaryText,
 } from '../../utils/homeView';
-import { monthsBetween } from '../../utils/applyDates';
-import dayjs from 'dayjs';
+import { placeTextOf } from '../../../contracts/utils/contractView';
 
 const { Text } = Typography;
 const RECENT_COUNT = 3;
@@ -42,11 +41,10 @@ function Row2({ label, children }) {
   );
 }
 
-/** Trang chủ khi đang lưu trú (docs/08 mục 6.9) */
+/** Trang chủ khi đang lưu trú — hợp đồng `active`, hoặc `expired` mà chưa thanh lý (vẫn giữ giường) */
 export default function ResidentHome({ residence }) {
   const navigate = useNavigate();
-  const { contract, roomType, includedInRoom = [], roommates = [], debtSummary = {} } = residence;
-  const { room, bed } = splitBedCode(contract.bedCode);
+  const { contract, roommates = [], debtSummary = {} } = residence;
 
   const { data: invoices, meta: invoiceMeta, loading: invLoading, error: invError, refetch: refetchInvoices } = useApi(
     () => portalApi.getMyInvoices({ limit: 100 }), [],
@@ -60,7 +58,8 @@ export default function ResidentHome({ residence }) {
 
   // ---- hợp đồng sắp hết hạn (BR-29)
   const daysLeft = daysUntil(contract.endDate);
-  const expiring = daysLeft !== null && daysLeft >= 0 && daysLeft <= EXPIRING_DAYS;
+  const expired = contract.status === 'expired';
+  const expiring = !expired && daysLeft !== null && daysLeft >= 0 && daysLeft <= EXPIRING_DAYS;
 
   // ---- hóa đơn gần đây: mới phát hành lên đầu
   const recent = [...(invoices || [])]
@@ -85,7 +84,7 @@ export default function ResidentHome({ residence }) {
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} lg={16}>
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1fr)' }}>
           {/* ---------- Công nợ ---------- */}
           {totalDebt > 0 && (
             <Card style={{ background: '#FFF1F0', borderColor: '#FFCCC7' }}>
@@ -123,12 +122,19 @@ export default function ResidentHome({ residence }) {
             </Card>
           )}
 
-          {/* ---------- Hợp đồng sắp hết hạn ---------- */}
+          {/* ---------- Hợp đồng sắp hết hạn / đã hết hạn — không có gia hạn, ở tiếp thì nộp đơn mới ---------- */}
           {expiring && (
             <Alert
               type="warning" showIcon
               title={`Hợp đồng còn ${daysLeft} ngày`}
-              description={`Hợp đồng ${contract.contractCode} hết hạn ngày ${formatDate(contract.endDate)}. Muốn ở tiếp, bạn nộp đơn đăng ký mới cho kỳ sau. Nếu không ở tiếp, bạn đến văn phòng KTX làm thủ tục trả phòng.`}
+              description={`Hợp đồng ${contract.contractCode} hết hạn ngày ${formatDate(contract.endDate)} và không gia hạn. Hết hạn, bạn đến văn phòng KTX làm thủ tục trả phòng. Muốn ở kỳ sau, bạn nộp đơn mới sau khi đã trả phòng.`}
+            />
+          )}
+          {expired && (
+            <Alert
+              type="error" showIcon
+              title={`Hợp đồng đã hết hạn ngày ${formatDate(contract.endDate)}`}
+              description="Bạn đến văn phòng KTX làm thủ tục trả phòng. Cần thanh toán hết hóa đơn còn nợ trước khi trả phòng; tiền cọc được hoàn tại văn phòng sau khi trả phòng."
             />
           )}
 
@@ -136,13 +142,9 @@ export default function ResidentHome({ residence }) {
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Card style={{ height: '100%' }} title={<CardTitle icon={<HomeOutlined style={{ color: '#1677FF' }} />} title="Chỗ ở của tôi" />}>
-                <Row2 label="Vị trí"><Text strong>{contract.buildingName} · Phòng {room}{bed ? ` · Giường ${bed}` : ''}</Text></Row2>
-                <Row2 label="Loại phòng"><Text>{roomType?.name}</Text></Row2>
-                <Row2 label="Đơn giá"><Text strong style={{ color: '#1677FF' }}>{formatCurrency(contract.monthlyPrice)}</Text><Text type="secondary">/tháng</Text></Row2>
-                <Text type="secondary" style={{ display: 'block', fontSize: 12, margin: '8px 0 6px' }}><InboxOutlined /> CÓ SẴN TRONG PHÒNG</Text>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {includedInRoom.map((x) => <Tag key={x} style={{ margin: 0 }}>{x}</Tag>)}
-                </div>
+                <Row2 label="Vị trí"><Text strong>{contract.room?.buildingName} · Phòng {placeTextOf(contract)}</Text></Row2>
+                <Row2 label="Phòng"><Text>{contract.room?.capacity} chỗ · Tầng {contract.room?.floor}</Text></Row2>
+                <Row2 label="Đơn giá"><Text strong style={{ color: '#1677FF' }}>{formatCurrency(contract.pricePerMonth)}</Text><Text type="secondary">/tháng</Text></Row2>
                 <Divider style={{ margin: '12px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                   <Tooltip title={roommates.length ? roommates.map((m) => `${m.fullName} (${m.studentCode})`).join(', ') : 'Chưa có bạn cùng phòng'}>
@@ -158,14 +160,18 @@ export default function ResidentHome({ residence }) {
                 title={<CardTitle icon={<FileTextOutlined style={{ color: '#1677FF' }} />} title="Hợp đồng của tôi" extra={<StatusTag type="contract" value={contract.status} />} />}
               >
                 <Row2 label="Số hợp đồng"><Text strong style={{ fontFamily: 'monospace' }}>{contract.contractCode}</Text></Row2>
-                <Row2 label="Thời hạn">
-                  <Text strong>{monthsBetween(dayjs(contract.startDate), dayjs(contract.endDate))} tháng</Text>
+                <Row2 label="Gói thuê">
+                  <Text strong>{CONTRACT_TERM[contract.term]?.label}</Text>
                   <div><Text type="secondary" style={{ fontSize: 12 }}>{formatDate(contract.startDate)} – {formatDate(contract.endDate)}</Text></div>
                 </Row2>
-                <Row2 label="Tiền cọc đã nộp"><Text strong>{formatCurrency(contract.depositAmount)}</Text></Row2>
+                <Row2 label="Tiền phòng cả kỳ"><Text strong>{formatCurrency(contract.totalRoomFee)}</Text></Row2>
+                <Row2 label="Tiền cọc"><Text strong>{formatCurrency(contract.depositAmount)}</Text></Row2>
                 <Divider style={{ margin: '12px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <Text type="secondary">{expiring ? <Text type="warning">Còn {daysLeft} ngày</Text> : `Hết hạn ${formatDate(contract.endDate)}`}</Text>
+                  <Text type="secondary">
+                    {expired ? <Text type="danger">Quá hạn {-daysLeft} ngày</Text>
+                      : expiring ? <Text type="warning">Còn {daysLeft} ngày</Text> : `Hết hạn ${formatDate(contract.endDate)}`}
+                  </Text>
                   <a onClick={() => navigate('/portal/my-residence')}>Xem chi tiết <ArrowRightOutlined /></a>
                 </div>
               </Card>
@@ -195,7 +201,7 @@ export default function ResidentHome({ residence }) {
       </Col>
 
       <Col xs={24} lg={8}>
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1fr)' }}>
           <SupportCard title="Hỗ trợ sinh viên" />
         </div>
       </Col>

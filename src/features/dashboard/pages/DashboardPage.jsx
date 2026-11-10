@@ -109,7 +109,7 @@ export default function DashboardPage() {
             label="Hợp đồng sắp hết hạn" icon={<ClockCircleOutlined style={{ color: '#D48806' }} />} iconBg="#FFFBE6"
             value={s?.residents?.expiringIn30Days} valueColor="#D48806" loading={loading}
             badge={<Tag color="warning" style={{ margin: 0 }}>Trong {EXPIRING_DAYS} ngày tới</Tag>}
-            footer={actionLink('Xem danh sách', '/admin/contracts?tab=expiring')}
+            footer={actionLink('Xem danh sách', '/admin/contracts?tab=active')}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
@@ -144,7 +144,7 @@ export default function DashboardPage() {
       <Card
         style={{ marginTop: 16 }}
         title={<span><ClockCircleOutlined style={{ color: '#D48806' }} /> Hợp đồng sắp hết hạn gần nhất</span>}
-        extra={expiringApi.meta?.total > 0 && actionLink(`Xem tất cả (${expiringApi.meta.total})`, '/admin/contracts?tab=expiring')}
+        extra={expiringApi.meta?.total > 0 && actionLink(`Xem tất cả (${expiringApi.meta.total})`, '/admin/contracts?tab=active')}
       >
         {expiringApi.error && <Alert type="error" showIcon title={expiringApi.error} />}
         {!expiringApi.error && expiringApi.loading && !expiringApi.data && <Skeleton active paragraph={{ rows: 3 }} />}
