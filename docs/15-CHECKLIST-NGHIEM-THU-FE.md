@@ -44,6 +44,7 @@
 | 29 | v2 · M7: hóa đơn, thu tiền mặt / xác nhận VietQR, biên lai, phiếu thu | SCR-52, 54, 55, 56 | `feature/v2-invoices-payments` | Dữ liệu giả | ⬜ Chưa test |
 | 30 | v2 · M8: cổng SV — hóa đơn 2 nhóm, VietQR, chuông, lịch sử nộp tiền, điện nước phòng | SCR-61, 63, 64 | `feature/v2-portal-vietqr` | Dữ liệu giả | ⬜ Chưa test |
 | 31 | v2 · M9: Dashboard — KPI, lấp đầy theo tòa, doanh thu (chỉ Admin) | SCR-10 | `feature/v2-dashboard` | Dữ liệu giả | ⬜ Chưa test |
+| 32 | v2 · M10: Sinh viên (lọc, chi tiết, đặt lại MK), nhập Excel sinh viên, Excel chỉ số điện nước | SCR-11, SCR-51 | `feature/v2-students-excel` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1780,6 +1781,45 @@ Chạy dữ liệu giả như mục 24. Mục 11 phía trên không cần test n
 - [ ] Chọn **Năm 2025** → biểu đồ đổi sang năm 2025 (chỉ có tháng 8).
 - [ ] Thu một hóa đơn ở màn Hóa đơn rồi quay lại Dashboard → **Làm mới dữ liệu** → tháng hiện tại tăng đúng số vừa thu (trừ khi là tiền cọc), công nợ giảm.
 - [ ] Thu cửa sổ còn ~390px: không cuộn ngang.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 33. v2 · M10 — Sinh viên và Excel
+
+Chạy dữ liệu giả như mục 24. Cần Microsoft Excel (hoặc LibreOffice / Google Sheets) để mở và sửa file.
+
+### 33.1. Danh sách và chi tiết (FR-10, FR-11)
+
+`staff@dorm.local` / `Staff@123` → **Sinh viên**.
+
+- [ ] Cột: MSSV, Họ và tên (dưới là giới tính · SĐT), Lớp · Khoa, Chỗ ở (`K1-101 · Giường 01` hoặc "Không ở KTX"), Tài khoản (Đã có / Chưa có), Công nợ.
+- [ ] Lọc Giới tính, Khoa, Tài khoản (Đã có / Chưa có), Trạng thái hồ sơ (Đang hoạt động / Đã vô hiệu hóa) đều đúng; nút ↻ xóa lọc.
+- [ ] Bấm dòng `2021600001` → drawer: Hồ sơ (kể cả liên hệ khẩn cấp), Chỗ ở hiện tại (link hợp đồng sang màn Hợp đồng), Hóa đơn chưa trả (link sang hóa đơn), Lịch sử đơn và hợp đồng.
+- [ ] Nút **Vô hiệu hóa** bị khóa, rê chuột thấy "Sinh viên còn hợp đồng ở ký túc xá — thanh lý trước". Với sinh viên không ở, không nợ (vd lọc "Chưa có tài khoản" rồi chọn một bạn) thì vô hiệu hóa được và hồ sơ sang trạng thái Đã vô hiệu hóa.
+
+### 33.2. Thêm, sửa, đặt lại mật khẩu (FR-12, FR-13, FR-06)
+
+- [ ] **Thêm sinh viên**: MSSV phải đúng 10 chữ số; SĐT 10 số bắt đầu 0; nhập MSSV đã có → lỗi ngay dưới ô "Mã số sinh viên đã tồn tại". Khoa gợi ý theo danh sách. Có 3 ô liên hệ khẩn cấp.
+- [ ] Sửa một sinh viên, đổi MSSV sang mã của bạn khác → báo trùng; đổi sang mã mới chưa ai dùng → lưu được.
+- [ ] Drawer `2021600001` → **Đặt lại mật khẩu** → xác nhận → hiện mật khẩu tạm một lần (Staff làm được). Đăng xuất, vào `sv001@dorm.local` với mật khẩu tạm → bị chuyển sang Đổi mật khẩu.
+- [ ] Sinh viên chưa có tài khoản không có nút Đặt lại mật khẩu.
+
+### 33.3. Nhập sinh viên từ Excel (FR-12b)
+
+- [ ] **Nhập từ Excel** → **Tải file mẫu** → mở `mau-nhap-sinh-vien.xlsx`: trang "Sinh viên" chỉ có dòng tiêu đề, cột Giới tính chọn được Nam/Nữ, cột Khoa có danh sách; trang "Hướng dẫn".
+- [ ] Điền 4 dòng: (2) MSSV mới đúng; (3) MSSV `2021600001` đã có; (4) SĐT `12345`; (5) MSSV mới, SĐT gõ thành số `912000003` (Excel nuốt số 0). Lưu file.
+- [ ] Kéo file vào → "Xem trước: 4 dòng" → **Nhập 4 dòng** → "Đã nhập 2 sinh viên, 2 dòng lỗi", bảng lỗi chỉ đúng **dòng 3** (MSSV đã tồn tại) và **dòng 4** (Số điện thoại).
+- [ ] Tìm MSSV dòng 2 và 5 → có trong danh sách, **Chưa có** tài khoản; SĐT dòng 5 là `0912000003`.
+- [ ] Chọn một file Excel bất kỳ không đúng mẫu → báo "File thiếu cột bắt buộc…", nút Nhập bị khóa. Chọn file không phải .xlsx → báo chỉ nhận .xlsx.
+
+### 33.4. Excel chỉ số điện nước (FR-40)
+
+- [ ] **Chỉ số điện nước** → Tòa K2, tháng hiện tại → **Xuất Excel** → file `chi-so-K2-<yyyy-mm>.xlsx`: dòng 1 ghi tòa và tháng, mỗi phòng một dòng, số cũ điền sẵn, ô số mới cần nhập tô vàng; phòng đã chốt / phòng trống có ghi chú.
+- [ ] Điền số mới cho K2-206, gõ chữ `abc` vào ô Điện mới của K2-207 → lưu → **Nhập Excel** → "Đã điền 1 phòng vào bảng, 1 dòng bỏ qua" kèm lý do K2-207.
+- [ ] K2-206 trong lưới hiện số mới, trạng thái **Chưa lưu** — chưa gửi gì lên; bấm **Lưu 1 phòng** mới lưu.
+- [ ] Nhập file của tòa khác hoặc tháng khác → báo "File không khớp tòa / tháng đang mở", lưới không đổi.
 
 **Lỗi phát hiện:** _(chưa có)_
 

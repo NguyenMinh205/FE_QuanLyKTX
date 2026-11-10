@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Card, Select, Table, Tag, Typography, Progress, Alert, Tooltip, App, Space, InputNumber, Button,
+  Card, Select, Table, Tag, Typography, Progress, Alert, Tooltip, App, Space, InputNumber, Button, Upload,
 } from 'antd';
 import {
   ThunderboltOutlined, ExperimentOutlined, CheckSquareOutlined, HistoryOutlined, InfoCircleOutlined,
+  DownloadOutlined, UploadOutlined,
 } from '@ant-design/icons';
+import { exportReadingSheet, parseReadingFile } from '../utils/readingExcel';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
@@ -114,6 +116,47 @@ export default function UtilityReadingsPage() {
   const setPrice = (key, value) => {
     setPriceDraft((prev) => ({ ...(prev ?? defaults), [key]: value === null ? null : Math.trunc(value) }));
     setPriceErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  // ---- FR-40 qua Excel: xuất số cũ, nhập ngược lên chỉ ĐIỀN VÀO LƯỚI — cán bộ xem lại rồi mới bấm Lưu
+  const exportExcel = () => exportReadingSheet({ buildingCode: building.code, buildingName: building.name, monthYear, rows })
+    .catch((err) => message.error(`Không tạo được file: ${err.message}`));
+
+  const importExcel = async (file) => {
+    try {
+      const parsed = await parseReadingFile(file);
+      if (parsed.buildingCode !== building.code || parsed.monthYear !== monthYear) {
+        modal.warning({
+          title: 'File không khớp tòa / tháng đang mở',
+          content: parsed.buildingCode
+            ? `File là của Tòa ${parsed.buildingCode} — ${periodLabel(parsed.monthYear)}. Chọn đúng tòa và tháng rồi nhập lại.`
+            : 'Không thấy dòng tiêu đề của file xuất từ hệ thống. Bấm "Xuất Excel" để lấy đúng file.',
+        });
+        return false;
+      }
+      const byLabel = Object.fromEntries(rows.map((r) => [r.roomLabel, r]));
+      const skipped = [];
+      const next = {};
+      parsed.entries.forEach((e) => {
+        const r = byLabel[e.label];
+        if (!r) { skipped.push(`dòng ${e.excelRow}: không có phòng ${e.label}`); return; }
+        if (r.billed || r.skipped) return; // đã ghi chú trong file, bỏ qua không cần báo
+        if (e.invalid.length) { skipped.push(`${e.label}: ô ${e.invalid.join(', ')} không phải số`); return; }
+        const changed = Object.entries(e.values).filter(([f, v]) => v !== r.values[f]);
+        if (changed.length) next[r.room.id] = { ...drafts[r.room.id], ...Object.fromEntries(changed) };
+      });
+      setDrafts((prev) => ({ ...prev, ...next }));
+      const filled = Object.keys(next).length;
+      if (skipped.length) {
+        modal.warning({
+          title: `Đã điền ${filled} phòng vào bảng, ${skipped.length} dòng bỏ qua`,
+          content: <ul style={{ paddingLeft: 18, margin: 0 }}>{skipped.slice(0, 10).map((x) => <li key={x}>{x}</li>)}</ul>,
+        });
+      } else message.success(filled ? `Đã điền ${filled} phòng vào bảng — kiểm tra rồi bấm Lưu` : 'File không có số nào khác bảng hiện tại');
+    } catch (err) {
+      message.error(`Không đọc được file: ${err.message}`);
+    }
+    return false; // không để Upload tự gửi file
   };
 
   const handleSave = async () => {
@@ -307,6 +350,16 @@ export default function UtilityReadingsPage() {
         breadcrumb={['Tài chính', 'Chỉ số điện nước']}
         title="Chỉ số điện nước"
         description="Nhập theo tòa và tháng, chỉ số cũ tự lấy từ tháng trước. Chốt & phát hành tạo một hóa đơn cho mỗi phòng có người."
+        extra={ready && rows.length > 0 && (
+          <>
+            <Button icon={<DownloadOutlined />} onClick={exportExcel}>Xuất Excel</Button>
+            {canEdit && editable && (
+              <Upload accept=".xlsx" showUploadList={false} beforeUpload={importExcel} disabled={saving || publishing}>
+                <Button icon={<UploadOutlined />} disabled={saving || publishing}>Nhập Excel</Button>
+              </Upload>
+            )}
+          </>
+        )}
       />
 
       <Card styles={{ body: { padding: '12px 16px' } }} style={{ marginBottom: 16 }}>

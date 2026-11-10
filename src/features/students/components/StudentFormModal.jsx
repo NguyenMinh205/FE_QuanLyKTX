@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Modal, Form, Input, Select, DatePicker, App } from 'antd';
+import {
+  Modal, Form, Input, Select, DatePicker, AutoComplete, Row, Col, App,
+} from 'antd';
 import dayjs from 'dayjs';
 import { studentApi } from '../api/student.api';
 import { GENDER_OPTIONS } from '../../../constants/statuses';
+import { FACULTY_OPTIONS } from '../../../constants/app';
 import { getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
 
 /**
- * Modal dùng chung cho cả THÊM MỚI và SỬA (ARCHITECTURE.md mục 4.2).
- * student = null  -> thêm mới
- * student != null -> sửa
+ * Thêm (FR-12) và sửa (FR-13) hồ sơ sinh viên. Chỉ tạo hồ sơ, không tạo tài khoản đăng nhập.
+ * student = null → thêm mới; ngược lại → sửa. Đổi MSSV được nhưng backend chặn trùng.
  */
 export default function StudentFormModal({ open, student, onCancel, onSaved }) {
   const [form] = Form.useForm();
@@ -18,32 +20,27 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
 
   useEffect(() => {
     if (!open) return;
-    if (isEdit) {
-      form.setFieldsValue({ ...student, dob: student.dob ? dayjs(student.dob) : null });
-    } else {
-      form.resetFields();
-    }
+    if (isEdit) form.setFieldsValue({ ...student, dob: student.dob ? dayjs(student.dob) : null });
+    else form.resetFields();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, student]);
 
   const handleSubmit = async (values) => {
     setSaving(true);
     try {
-      const payload = { ...values, dob: values.dob ? values.dob.format('YYYY-MM-DD') : null };
-
-      if (isEdit) await studentApi.update(student.id, payload);
-      else await studentApi.create(payload);
-
-      message.success(isEdit ? 'Cập nhật thành công' : 'Thêm sinh viên thành công');
+      const ec = values.emergencyContact || {};
+      const payload = {
+        ...values,
+        dob: values.dob ? values.dob.format('YYYY-MM-DD') : undefined,
+        emergencyContact: ec.name || ec.phone ? ec : undefined,
+      };
+      const res = isEdit ? await studentApi.update(student.id, payload) : await studentApi.create(payload);
+      message.success(res.data.message);
       onSaved();
     } catch (err) {
-      // Lỗi theo từng trường -> hiển thị ngay dưới ô nhập tương ứng
       const fieldErrors = getFieldErrors(err);
-      if (fieldErrors) {
-        form.setFields(fieldErrors.map((e) => ({ name: e.field, errors: [e.message] })));
-      } else {
-        message.error(getErrorMessage(err));
-      }
+      if (fieldErrors) form.setFields(fieldErrors.map((e) => ({ name: e.field.split('.'), errors: [e.message] })));
+      else message.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -52,74 +49,78 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
   return (
     <Modal
       open={open}
-      title={isEdit ? 'Sửa thông tin sinh viên' : 'Thêm sinh viên'}
+      title={isEdit ? `Sửa hồ sơ ${student.fullName}` : 'Thêm sinh viên'}
       onCancel={onCancel}
       onOk={() => form.submit()}
       confirmLoading={saving}
       okText="Lưu"
       cancelText="Hủy"
       destroyOnHidden
-      width={560}
+      width={640}
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off">
-        <Form.Item
-          name="studentCode"
-          label="Mã số sinh viên"
-          rules={[
-            { required: true, message: 'Vui lòng nhập mã số sinh viên' },
-            { pattern: /^[A-Za-z0-9]{6,20}$/, message: 'MSSV gồm 6–20 ký tự chữ và số' },
-          ]}
-        >
-          <Input placeholder="VD: SV2026001" disabled={isEdit} />
-        </Form.Item>
-
-        <Form.Item
-          name="fullName"
-          label="Họ và tên"
-          rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
-        >
-          <Input placeholder="VD: Trần Thị B" />
-        </Form.Item>
-
-        <Form.Item
-          name="gender"
-          label="Giới tính"
-          rules={[{ required: true, message: 'Vui lòng chọn giới tính' }]}
-          extra="Giới tính quyết định sinh viên được xếp vào phòng nào (BR-06)"
-        >
-          <Select options={GENDER_OPTIONS} placeholder="Chọn giới tính" />
-        </Form.Item>
-
-        <Form.Item
-          name="dob"
-          label="Ngày sinh"
-          rules={[{ required: true, message: 'Vui lòng chọn ngày sinh' }]}
-        >
-          <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Chọn ngày sinh" />
-        </Form.Item>
-
-        <Form.Item
-          name="phone"
-          label="Số điện thoại"
-          rules={[
-            { required: true, message: 'Vui lòng nhập số điện thoại' },
-            { pattern: /^0\d{9}$/, message: 'Số điện thoại gồm 10 số, bắt đầu bằng 0' },
-          ]}
-        >
-          <Input placeholder="VD: 0912345678" />
-        </Form.Item>
-
-        <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]}>
-          <Input placeholder="VD: sv2026001@sv.edu.vn" />
-        </Form.Item>
-
-        <Form.Item name="className" label="Lớp">
-          <Input placeholder="VD: CNTT2026A" />
-        </Form.Item>
-
-        <Form.Item name="faculty" label="Khoa">
-          <Input placeholder="VD: Công nghệ thông tin" />
-        </Form.Item>
+        <Row gutter={12}>
+          <Col xs={24} sm={10}>
+            <Form.Item
+              name="studentCode" label="Mã sinh viên"
+              rules={[{ required: true, message: 'Nhập mã sinh viên' }, { pattern: /^\d{10}$/, message: 'Mã sinh viên gồm đúng 10 chữ số' }]}
+              extra={isEdit ? 'Đổi MSSV thì sinh viên đăng nhập bằng mã mới' : null}
+            >
+              <Input placeholder="VD: 2021601234" maxLength={10} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={14}>
+            <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true, whitespace: true, message: 'Nhập họ và tên' }]}>
+              <Input placeholder="VD: Nguyễn Văn An" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={10}>
+            <Form.Item name="gender" label="Giới tính" rules={[{ required: true, message: 'Chọn giới tính' }]} extra="Quyết định tòa và phòng được xếp">
+              <Select options={GENDER_OPTIONS} placeholder="Chọn giới tính" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={14}>
+            <Form.Item name="dob" label="Ngày sinh">
+              <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Chọn ngày sinh" disabledDate={(d) => d.isAfter(dayjs())} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={10}>
+            <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true, message: 'Nhập số điện thoại' }, { pattern: /^0\d{9}$/, message: '10 số, bắt đầu bằng 0' }]}>
+              <Input placeholder="VD: 0912345678" maxLength={10} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={14}>
+            <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]} extra="Dùng để gửi kết quả duyệt đơn">
+              <Input placeholder="VD: an.nv@gmail.com" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={10}>
+            <Form.Item name="className" label="Lớp">
+              <Input placeholder="VD: KTPM01-K16" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={14}>
+            <Form.Item name="faculty" label="Khoa">
+              <AutoComplete options={FACULTY_OPTIONS.map((f) => ({ value: f }))} placeholder="VD: Công nghệ thông tin"
+                filterOption={(input, o) => o.value.toLowerCase().includes(input.toLowerCase())} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={10}>
+            <Form.Item name={['emergencyContact', 'name']} label="Người liên hệ khẩn cấp">
+              <Input placeholder="VD: Nguyễn Văn B" />
+            </Form.Item>
+          </Col>
+          <Col xs={12} sm={7}>
+            <Form.Item name={['emergencyContact', 'relationship']} label="Quan hệ">
+              <Input placeholder="VD: Bố" />
+            </Form.Item>
+          </Col>
+          <Col xs={12} sm={7}>
+            <Form.Item name={['emergencyContact', 'phone']} label="SĐT người thân" rules={[{ pattern: /^0\d{9}$/, message: '10 số' }]}>
+              <Input placeholder="09…" maxLength={10} />
+            </Form.Item>
+          </Col>
+        </Row>
       </Form>
     </Modal>
   );

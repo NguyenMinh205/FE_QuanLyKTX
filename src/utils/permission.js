@@ -11,6 +11,7 @@ const PERMISSIONS = {
   'student:create': OPS,
   'student:update': OPS,
   'student:delete': OPS,
+  'student:resetPassword': OPS,     // FR-06: Staff đặt lại được cho sinh viên, không cho Admin
 
   'building:create': OPS,
   'building:delete': [ADMIN],

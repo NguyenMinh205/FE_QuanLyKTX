@@ -232,57 +232,128 @@ export const mockUsers = {
   },
 };
 
-// ---------------------------------------------------------------- students
+// ---------------------------------------------------------------- students (API.md §3)
+const STUDENT_CODE_RE = /^\d{10}$/; // MSSV HaUI 10 số
+const PHONE_RE = /^0\d{9}$/;
+const EMAIL_RE_STUDENT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const STUDENT_FIELDS = ['studentCode', 'fullName', 'gender', 'phone', 'email', 'dob', 'faculty', 'className', 'emergencyContact'];
+
+/** Lỗi theo trường của một hồ sơ — dùng chung cho thêm, sửa và từng dòng Excel */
+const studentErrors = (body) => {
+  const errors = [];
+  const push = (field, message) => errors.push({ field, message });
+  if (!STUDENT_CODE_RE.test(String(body.studentCode || ''))) push('studentCode', 'Mã sinh viên gồm đúng 10 chữ số');
+  if (!String(body.fullName || '').trim()) push('fullName', 'Nhập họ và tên');
+  if (!['male', 'female'].includes(body.gender)) push('gender', 'Giới tính là Nam hoặc Nữ');
+  if (!PHONE_RE.test(String(body.phone || ''))) push('phone', 'Số điện thoại gồm 10 số, bắt đầu bằng 0');
+  if (body.email && !EMAIL_RE_STUDENT.test(body.email)) push('email', 'Email không hợp lệ');
+  if (body.dob && !/^\d{4}-\d{2}-\d{2}$/.test(body.dob)) push('dob', 'Ngày sinh không hợp lệ');
+  return errors;
+};
+const pickStudent = (body) => Object.fromEntries(STUDENT_FIELDS.filter((f) => body[f] !== undefined)
+  .map((f) => [f, typeof body[f] === 'string' ? body[f].trim() : body[f]]));
+
+/** List item: hồ sơ + tài khoản + công nợ + chỗ ở hiện tại `{ buildingCode, roomNumber, bedNumber }` */
+const studentListItem = (st) => {
+  const c = activeContractOf(st.id);
+  const room = c && rooms.find((r) => r.id === c.roomId);
+  const acc = ACCOUNTS.find((x) => x.studentId === st.id);
+  return {
+    ...st,
+    userId: acc?.id ?? null,
+    hasAccount: !!acc,
+    totalDebt: debtOf(st.id),
+    residence: room ? { buildingCode: room.buildingCode, roomNumber: room.roomNumber, bedNumber: c.bedNumber } : null,
+  };
+};
+
 export const mockStudents = {
+  /** GET /students ?search=&gender=&faculty=&status=&hasAccount=&page=&limit= (FR-10) */
   getList: async (q = {}) => {
     await delay();
     let rows = students.filter((s) => s.status === (q.status || 'active'));
     rows = search(rows, q.search, ['fullName', 'studentCode', 'phone']);
     if (q.gender) rows = rows.filter((s) => s.gender === q.gender);
     if (q.faculty) rows = rows.filter((s) => s.faculty === q.faculty);
-    const items = rows.map((s) => {
-      const c = activeContractOf(s.id);
-      return {
-        ...s,
-        residence: c ? { room: roomRef(rooms.find((r) => r.id === c.roomId)), bedNumber: c.bedNumber, endDate: c.endDate } : null,
-        hasAccount: ACCOUNTS.some((a) => a.studentId === s.id),
-        totalDebt: debtOf(s.id),
-      };
-    });
+    let items = rows.map(studentListItem);
+    if (q.hasAccount !== undefined && q.hasAccount !== '') items = items.filter((s) => String(s.hasAccount) === String(q.hasAccount));
     return paginate(items, q);
   },
+  /** GET /students/:id — kèm hợp đồng hiện tại, lịch sử hợp đồng, hóa đơn chưa trả (FR-11) */
   getById: async (id) => {
     await delay();
-    const s = students.find((x) => x.id === id);
-    if (!s) fail(404, 'NOT_FOUND', 'Không tìm thấy sinh viên');
-    return ok({ ...s, contract: activeContractOf(id) || null, totalDebt: debtOf(id) });
+    const st = students.find((x) => x.id === id);
+    if (!st) fail(404, 'NOT_FOUND', 'Không tìm thấy sinh viên');
+    const current = activeContractOf(id);
+    return ok({
+      ...studentListItem(st),
+      currentContract: current ? contractView(current) : null,
+      contracts: contracts.filter((c) => c.studentId === id).map(contractView)
+        .sort((x, y) => String(y.createdAt).localeCompare(String(x.createdAt))),
+      unpaidInvoices: invoices.filter((i) => i.studentId === id && i.status === 'unpaid').map(invoiceView),
+    });
   },
-  create: async (body) => {
+  /** POST /students — chỉ tạo hồ sơ, không tạo tài khoản (FR-12) */
+  create: async (body = {}) => {
     await delay();
+    const errors = studentErrors(body);
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
     if (students.some((s) => s.studentCode === body.studentCode)) {
-      fail(409, 'DUPLICATE_ENTRY', 'Mã số sinh viên đã tồn tại',
-        { errors: [{ field: 'studentCode', message: 'Mã số sinh viên đã tồn tại' }] });
+      fail(409, 'DUPLICATE_ENTRY', 'Mã số sinh viên đã tồn tại', { errors: [{ field: 'studentCode', message: 'Mã số sinh viên đã tồn tại' }] });
     }
-    const s = { id: `s${students.length + 1}`, status: 'active', ...body };
-    students.push(s);
-    return ok(s, 'Thêm sinh viên thành công');
+    const st = { id: `s-new${students.length + 1}`, status: 'active', ...pickStudent(body) };
+    students.push(st);
+    return ok(studentListItem(st), 'Thêm sinh viên thành công');
   },
-  update: async (id, body) => {
+  /** PUT /students/:id — đổi được MSSV nhưng không trùng mã đã có (FR-13) */
+  update: async (id, body = {}) => {
     await delay();
-    const s = students.find((x) => x.id === id);
-    if (!s) fail(404, 'NOT_FOUND', 'Không tìm thấy sinh viên');
-    Object.assign(s, body);
-    return ok(s, 'Cập nhật thành công');
+    const st = students.find((x) => x.id === id);
+    if (!st) fail(404, 'NOT_FOUND', 'Không tìm thấy sinh viên');
+    const next = { ...st, ...pickStudent(body) };
+    const errors = studentErrors(next);
+    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
+    if (students.some((s) => s.id !== id && s.studentCode === next.studentCode)) {
+      fail(409, 'DUPLICATE_ENTRY', 'Mã số sinh viên đã tồn tại', { errors: [{ field: 'studentCode', message: 'Mã số sinh viên đã tồn tại' }] });
+    }
+    Object.assign(st, pickStudent(body));
+    // Tài khoản đăng nhập bằng MSSV (FR-01) → đổi MSSV / họ tên thì tài khoản đi theo
+    const acc = ACCOUNTS.find((x) => x.studentId === st.id);
+    if (acc) Object.assign(acc, { studentCode: st.studentCode, fullName: st.fullName });
+    return ok(studentListItem(st), 'Cập nhật thành công');
   },
+  /**
+   * POST /students/import — { rows: [{ row, ...Student }] }, tối đa 1000 dòng (FR-12b).
+   * Dòng hợp lệ vẫn lưu khi dòng khác lỗi; mỗi dòng báo lỗi đầu tiên gặp, kèm số dòng Excel.
+   */
+  importMany: async ({ rows = [] } = {}) => {
+    await delay(600);
+    if (!Array.isArray(rows) || !rows.length) fail(400, 'VALIDATION_ERROR', 'File không có dòng dữ liệu nào');
+    if (rows.length > 1000) fail(400, 'VALIDATION_ERROR', 'Mỗi lần nhập tối đa 1000 dòng');
+    const errors = [];
+    let successCount = 0;
+    rows.forEach((r) => {
+      const err = (field, message) => errors.push({ row: r.row, studentCode: r.studentCode ?? null, field, message });
+      const fieldErrors = studentErrors(r);
+      if (fieldErrors.length) { err(fieldErrors[0].field, fieldErrors[0].message); return; }
+      if (students.some((s) => s.studentCode === r.studentCode)) { err('studentCode', 'Mã số sinh viên đã tồn tại'); return; }
+      students.push({ id: `s-imp${students.length + 1}`, status: 'active', ...pickStudent(r) });
+      successCount += 1;
+    });
+    errors.sort((x, y) => x.row - y.row);
+    const message = errors.length ? `Đã nhập ${successCount} sinh viên, ${errors.length} dòng lỗi` : `Đã nhập ${successCount} sinh viên`;
+    return ok({ successCount, errorCount: errors.length, errors }, message);
+  },
+  /** PATCH /students/:id/deactivate — chặn khi còn hợp đồng hoặc còn nợ (FR-14) */
   deactivate: async (id) => {
     await delay();
     if (activeContractOf(id) || contracts.some((c) => c.studentId === id && c.status === 'pending')) {
       fail(422, 'STUDENT_HAS_ACTIVE_CONTRACT', 'Sinh viên đang có hợp đồng hiệu lực hoặc đơn đăng ký chờ duyệt, không thể vô hiệu hóa');
     }
     if (debtOf(id) > 0) fail(422, 'STUDENT_HAS_DEBT', 'Sinh viên còn công nợ chưa thanh toán');
-    const s = students.find((x) => x.id === id);
-    s.status = 'inactive';
-    return ok(s, 'Đã vô hiệu hóa sinh viên');
+    const st = students.find((x) => x.id === id);
+    st.status = 'inactive';
+    return ok(studentListItem(st), 'Đã vô hiệu hóa sinh viên');
   },
 };
 

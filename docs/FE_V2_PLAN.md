@@ -1,6 +1,6 @@
 # KẾ HOẠCH CHỈNH SỬA FRONTEND THEO PHIÊN BẢN TINH GỌN HaUI (v2.0)
 
-**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M9 (M9 chờ commit, 10/11/2026)
+**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M10 (M10 chờ commit, 10/11/2026)
 **Nguồn yêu cầu:** `D:\BE_QLKTX\docs\EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS v2.0) và `EDIT_DOCS_DATA_SCHEMA.md`. Khác với tài liệu cũ trong `docs/` thì theo hai file này. Chỗ SRS bỏ ngỏ thì theo luồng use case trong `BAO_CAO_CHUONG_2.md`.
 **Bổ sung ngoài SRS:** xác nhận hoàn cọc (FR-35, BR-08), theo yêu cầu ngày 09/11/2026.
 **File này phục vụ một việc:** làm xong v2 thì xoá.
@@ -177,6 +177,7 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 ### M10. Sinh viên và Excel · Vừa · `feature/v2-students-excel`
 - **AI:** bộ lọc và cột mới, drawer chi tiết (FR-11), đặt lại MK, import sinh viên có báo cáo dòng lỗi, xuất/nhập chỉ số.
 - **Thử:** tải mẫu → điền 1 dòng đúng, 1 dòng trùng MSSV → báo 1 thành công, 1 lỗi đúng dòng.
+- **Đã làm (10/11/2026):** thêm thư viện `exceljs@4.4.0`, tải động nên tách chunk riêng (~930 kB, chỉ tải khi bấm nút Excel). Nhập chỉ số từ Excel chỉ điền vào lưới, cán bộ xem rồi bấm Lưu; file mang mã tòa + tháng ở dòng 1 để chặn nạp nhầm. MSSV khi thêm/sửa/nhập phải đúng 10 chữ số. `npm audit` báo `uuid` (vừa, qua exceljs) và `follow-redirects` (cao, qua axios có từ trước) — chưa xử lý.
 
 ### M10b. Làm đẹp giao diện · Vừa · `feature/v2-ui-polish`
 - **Quyết định (10/11/2026):** làm sau M10, trước M11 (phương án A) — làm đẹp khi các màn đã ổn định, khỏi làm lại.
