@@ -508,7 +508,7 @@ Every endpoint is `student` only and identifies the student from the JWT.
 | GET | `/portal/my-invoices/:id` | Detail, same shape as §8 |
 | GET | `/portal/my-invoices/:id/vietqr` | QR payload (FR-53) |
 | GET | `/portal/my-payments` | `?page=&limit=`. Own personal payments and room payments, as `Payment[]` (FR-63) |
-| GET | `/portal/my-room/utility-history` | `?limit=12`, newest first, as `Reading[]` (FR-42) |
+| GET | `/portal/my-room/utility-history` | `?limit=12`, newest first, as `Reading[]` (FR-42). Billed months only: an unbilled reading can still change |
 
 Room invoices are limited to the room the student currently lives in. The portal bell has no endpoint: it counts `GET /portal/my-invoices?scope=room&status=unpaid`.
 
@@ -520,6 +520,8 @@ Room invoices are limited to the room the student currently lives in. The portal
             "debtSummary": { "totalDebt": 630000, "unpaidInvoiceCount": 1 } } }
 ```
 With no `active` or `expired` contract: `{ "hasResidence": false, "contract": null, "roommates": [], "debtSummary": { "totalDebt": 0, "unpaidInvoiceCount": 0 } }`. Roommates expose only name and student code (FR-60).
+
+`debtSummary` counts the student's **personal** unpaid invoices only. Room invoices are shared and paid by one roommate, so the portal reads them from `GET /portal/my-invoices?scope=room&status=unpaid`.
 
 **GET `/portal/my-invoices/:id/vietqr`**
 ```json
@@ -642,6 +644,7 @@ Optional later: a SePay or Casso webhook for FR-54b would call the same logic as
 
 | Version | Date | Change |
 |---|---|---|
+| 2.3 | 10/11/2026 | Student portal (M8): `debtSummary` is personal only; utility history returns billed months only. |
 | 2.2 | 10/11/2026 | Invoices (M7): `Invoice.createdAt`; `GET /invoices/:id` adds `contractCode` on personal invoices. |
 | 2.1 | 10/11/2026 | Online application (M4): `GET /rooms/:id` beds carry `hasPendingApplication`; contract `reviewedAt`; `status` filter accepts a list; approve adds `BED_ALREADY_REQUESTED`, `APPLICATION_OR_CONTRACT_EXISTS`. |
 | **2.0** | **09/11/2026** | Rewritten for the streamlined HaUI edition. Three roles, public application portal, one contract document, embedded beds, 6 or 12 month terms, one utility invoice per room, cash and VietQR only, deposit refund confirmation. The v1.2 change history is on branch `backup/v1-full`. |

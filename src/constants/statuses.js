@@ -53,7 +53,6 @@ export const ROOM_CAPACITY_OPTIONS = [4, 6, 8].map((n) => ({ value: n, label: `$
 export const PAYMENT_METHOD = {
   cash:   { label: 'Tiền mặt' },
   vietqr: { label: 'Chuyển khoản VietQR' },
-  vnpay:  { label: 'VNPay' }, // chỉ còn ở luồng thử của cổng SV — bỏ ở M8
 };
 
 export const GENDER = {

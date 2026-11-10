@@ -861,8 +861,6 @@ export const mockFees = {
     if (q.type) rows = rows.filter((i) => i.type === q.type);
     if (q.scope) rows = rows.filter((i) => i.scope === q.scope);
     if (q.buildingId) rows = rows.filter((i) => i.room?.buildingId === q.buildingId);
-    // chỉ cổng SV dùng (mockPortal) — API thật lấy danh tính từ JWT
-    if (q.studentId) rows = rows.filter((i) => i.student?.id === q.studentId);
     const term = String(q.search || '').trim().toLowerCase();
     if (term) {
       rows = rows.filter((i) => [i.invoiceCode, i.student?.studentCode, i.student?.fullName, i.room?.roomNumber, i.room && `${i.room.buildingCode}-${i.room.roomNumber}`]
@@ -953,49 +951,6 @@ export const mockPayments = {
   /** POST /payments/vietqr/confirm — { invoiceId, payerStudentId?, transactionCode?, note? } (FR-54) */
   confirmVietqr: (body) => collect('vietqr', body),
 
-  // ⚠️ Luồng VNPay thử của cổng sinh viên (v1) — giữ tạm để màn cổng SV không gãy, M8 thay bằng VietQR rồi xoá.
-  // Giao dịch "đang chờ cổng" nằm ở mảng riêng, không lẫn vào phiếu thu của cán bộ.
-  checkout: async ({ invoiceId }) => {
-    await delay();
-    const inv = invoices.find((x) => x.id === invoiceId);
-    if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
-    if (inv.studentId !== me().id) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này');
-    if (inv.status === 'paid') fail(409, 'INVOICE_ALREADY_PAID', `Hóa đơn ${inv.invoiceCode} đã được thanh toán`);
-    const transactionRef = `PAY${Date.now()}`;
-    const pending = {
-      transactionRef, invoiceId: inv.id, studentId: inv.studentId, amount: inv.amount, method: 'vnpay',
-      status: 'pending', paidAt: null, createdAt: new Date().toISOString(), demoWebhookAt: Date.now() + 5000,
-    };
-    demoOnline.push(pending);
-    saveDemoPayment(pending);
-    return ok({ transactionRef, gateway: 'vnpay', amount: inv.amount, redirectUrl: `${window.location.origin}/portal/payment-result?ref=${transactionRef}` });
-  },
-};
-
-/** Giao dịch VNPay thử của cổng SV — xem chú thích ở mockPayments.checkout */
-const demoOnline = [];
-const DEMO_PAYMENT_KEY = 'mockOnlinePayments';
-/** Dữ liệu giả sống trong bộ nhớ, mà cổng thanh toán lại tải lại trang → giữ giao dịch đang chờ ở sessionStorage */
-const saveDemoPayment = (p) => {
-  try {
-    const kept = JSON.parse(sessionStorage.getItem(DEMO_PAYMENT_KEY) || '[]');
-    sessionStorage.setItem(DEMO_PAYMENT_KEY, JSON.stringify([...kept, p].slice(-5)));
-  } catch { /* chế độ riêng tư: bỏ qua */ }
-};
-const applyDemoWebhooks = () => {
-  try {
-    JSON.parse(sessionStorage.getItem(DEMO_PAYMENT_KEY) || '[]')
-      .filter((p) => !demoOnline.some((x) => x.transactionRef === p.transactionRef))
-      .forEach((p) => demoOnline.push({ ...p }));
-  } catch { /* bỏ qua */ }
-  demoOnline.filter((p) => p.status === 'pending' && Date.now() >= p.demoWebhookAt).forEach((p) => {
-    const inv = invoices.find((i) => i.id === p.invoiceId);
-    p.status = 'success';
-    p.paidAt = new Date().toISOString();
-    if (inv && inv.status === 'unpaid') {
-      collectInvoice(inv, { payerStudentId: p.studentId, method: 'vietqr', note: 'Thanh toán online (bản thử)', paidAt: p.paidAt, collectedByName: null });
-    }
-  });
 };
 
 // ---------------------------------------------------------------- dashboard
@@ -1029,13 +984,27 @@ export const mockDashboard = {
 };
 
 // ---------------------------------------------------------------- portal (sinh viên) — danh tính luôn lấy từ me()
+/**
+ * Tài khoản nhận tiền của KTX cho mã VietQR — SỐ MẪU. Muốn quét thử bằng app ngân hàng thật thì thay bằng tài khoản thật
+ * (bankBin là mã BIN ngân hàng 6 số, VD 970436 Vietcombank). Backend thật tự trả payload này.
+ */
+const VIETQR_ACCOUNT = { bankBin: '970436', accountNumber: '0011001234567', accountName: 'KY TUC XA HAUI' };
+
+/**
+ * Sinh viên xem được: hóa đơn cá nhân của mình, và hóa đơn của phòng ĐANG ở (API.md §9).
+ * ⚠️ Chuyển phòng / trả phòng thì không còn thấy hóa đơn của phòng cũ — đúng ý đồ, hóa đơn phòng thuộc về người đang ở.
+ */
+const canSeeInvoice = (inv, st) => (inv.scope === 'personal'
+  ? inv.studentId === st.id
+  : inv.roomId === activeContractOf(st.id)?.roomId);
+
 export const mockPortal = {
   getProfile: async () => { await delay(); return ok(me()); },
   getMyResidence: async () => {
     await delay();
     const st = me();
     const c = activeContractOf(st.id);
-    if (!c) return ok({ hasResidence: false });
+    if (!c) return ok({ hasResidence: false, contract: null, roommates: [], debtSummary: { totalDebt: 0, unpaidInvoiceCount: 0 } });
     const roommates = contracts
       .filter((x) => x.roomId === c.roomId && x.status === 'active' && x.studentId !== st.id)
       .map((x) => ({ studentCode: x.studentCode, fullName: x.studentName })); // chỉ họ tên + MSSV
@@ -1055,21 +1024,56 @@ export const mockPortal = {
     return ok(contracts.filter((c) => c.studentId === me().id).map(contractView)
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
   },
-  getMyInvoices: async (q = {}) => mockFees.getInvoices({ ...q, studentId: me().id }),
+  /** GET /portal/my-invoices ?scope=personal|room&status=&page=&limit= (FR-62) — chưa nộp lên đầu, rồi mới nhất */
+  getMyInvoices: async (q = {}) => {
+    await delay();
+    const st = me();
+    let rows = invoices.filter((i) => canSeeInvoice(i, st));
+    if (q.scope) rows = rows.filter((i) => i.scope === q.scope);
+    if (q.status) rows = rows.filter((i) => i.status === q.status);
+    rows = rows.map(invoiceView).sort((x, y) => (x.status === y.status ? 0 : x.status === 'unpaid' ? -1 : 1)
+      || String(y.createdAt).localeCompare(String(x.createdAt)));
+    return paginate(rows, { limit: 100, ...q });
+  },
+  /** GET /portal/my-invoices/:id — cùng dạng §8 */
   getMyInvoiceById: async (id) => {
-    applyDemoWebhooks();
     const inv = invoices.find((x) => x.id === id);
-    if (inv && inv.studentId !== me().id) { await delay(); fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này'); }
+    if (inv && !canSeeInvoice(inv, me())) { await delay(); fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này'); }
     return mockFees.getInvoiceById(id);
   },
-  /** ?transactionRef= — màn Kết quả thanh toán (VNPay thử, bỏ ở M8) hỏi lại giao dịch vừa tạo */
+  /** GET /portal/my-invoices/:id/vietqr (FR-53) — chuyển khoản xong hóa đơn vẫn `unpaid` tới khi cán bộ xác nhận (§8) */
+  getMyInvoiceVietqr: async (id) => {
+    await delay(200);
+    const inv = invoices.find((x) => x.id === id);
+    if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
+    const st = me();
+    if (!canSeeInvoice(inv, st)) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này');
+    if (inv.status === 'paid') fail(409, 'INVOICE_ALREADY_PAID', `Hóa đơn ${inv.invoiceCode} đã được thanh toán`);
+    const code = inv.invoiceCode.replace(/-/g, '');
+    const room = rooms.find((r) => r.id === inv.roomId);
+    return ok({
+      ...VIETQR_ACCOUNT, amount: inv.amount,
+      transferContent: inv.scope === 'room' ? `HAUI ${code} P${room?.roomNumber ?? ''}` : `HAUI ${code} ${st.studentCode}`,
+    });
+  },
+  /** GET /portal/my-payments ?page=&limit= — phiếu thu hóa đơn của mình và của phòng mình (FR-63), mới nhất lên đầu */
   getMyPayments: async (q = {}) => {
     await delay();
-    applyDemoWebhooks();
-    const mine = demoOnline.filter((p) => p.studentId === me().id && (!q.transactionRef || p.transactionRef === q.transactionRef));
-    return ok(mine.map((p) => {
-      const inv = invoices.find((i) => i.id === p.invoiceId);
-      return { ...p, invoiceCode: inv?.invoiceCode, invoice: inv ? invoiceView(inv) : null };
-    }));
+    const st = me();
+    const rows = payments
+      .filter((p) => { const inv = invoices.find((i) => i.id === p.invoiceId); return inv && canSeeInvoice(inv, st); })
+      .map(paymentView)
+      .sort((x, y) => String(y.paidAt).localeCompare(String(x.paidAt)));
+    return paginate(rows, { limit: 100, ...q });
+  },
+  /** GET /portal/my-room/utility-history ?limit=12 — chỉ tháng đã chốt của phòng đang ở (FR-42) */
+  getMyRoomUtilityHistory: async (q = {}) => {
+    await delay();
+    const c = activeContractOf(me().id);
+    if (!c) return ok([]);
+    return ok(utilityReadings
+      .filter((u) => u.roomId === c.roomId && u.isBilled)
+      .sort((x, y) => y.monthYear.localeCompare(x.monthYear))
+      .slice(0, Math.min(Number(q.limit) || 12, 24)));
   },
 };

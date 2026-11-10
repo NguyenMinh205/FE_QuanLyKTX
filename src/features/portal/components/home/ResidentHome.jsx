@@ -13,8 +13,9 @@ import { CONTRACT_TERM, INVOICE_TYPE } from '../../../../constants/statuses';
 import StatusTag from '../../../../components/StatusTag';
 import SupportCard from '../SupportCard';
 import {
-  EXPIRING_DAYS, OPEN_INVOICE_STATUSES, daysUntil, invoicePeriodText, invoiceSummaryText,
+  EXPIRING_DAYS, daysUntil,
 } from '../../utils/homeView';
+import { periodLabel } from '../../../fees/utils/readingSheet';
 import { placeTextOf } from '../../../contracts/utils/contractView';
 
 const { Text } = Typography;
@@ -50,8 +51,10 @@ export default function ResidentHome({ residence }) {
     () => portalApi.getMyInvoices({ limit: 100 }), [],
   );
 
-  // ---- công nợ: số liệu tổng lấy từ my-residence, hạn gần nhất lấy từ hóa đơn còn mở
-  const openInvoices = (invoices || []).filter((i) => OPEN_INVOICE_STATUSES.includes(i.status));
+  // ---- công nợ: nợ cá nhân lấy từ my-residence; hóa đơn điện nước của phòng tính riêng (một bạn đại diện nộp)
+  const openInvoices = (invoices || []).filter((i) => i.status === 'unpaid');
+  const roomOpen = openInvoices.filter((i) => i.scope === 'room');
+  const roomDebt = roomOpen.reduce((t, i) => t + i.amount, 0);
   const nearestDue = openInvoices.map((i) => i.dueDate).sort()[0];
   const dueIn = daysUntil(nearestDue);
   const totalDebt = debtSummary.totalDebt ?? 0;
@@ -61,23 +64,27 @@ export default function ResidentHome({ residence }) {
   const expired = contract.status === 'expired';
   const expiring = !expired && daysLeft !== null && daysLeft >= 0 && daysLeft <= EXPIRING_DAYS;
 
-  // ---- hóa đơn gần đây: mới phát hành lên đầu
+  // ---- hóa đơn gần đây: mới tạo lên đầu
   const recent = [...(invoices || [])]
-    .filter((i) => i.status !== 'cancelled')
-    .sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
     .slice(0, RECENT_COUNT);
 
   const invoiceColumns = [
     {
-      title: 'Kỳ hóa đơn', key: 'period',
-      render: (_, i) => <Text strong>{invoicePeriodText(i, INVOICE_TYPE[i.type]?.label)}</Text>,
+      title: 'Hóa đơn', key: 'title',
+      render: (_, i) => (
+        <>
+          <Text strong>{INVOICE_TYPE[i.type]?.label ?? i.type}{i.monthYear ? ` ${periodLabel(i.monthYear).toLowerCase()}` : ''}</Text>
+          <div><Text type="secondary" style={{ fontSize: 12 }}>{i.scope === 'room' ? 'Của phòng' : 'Của bạn'}</Text></div>
+        </>
+      ),
     },
-    { title: 'Khoản thu', key: 'desc', ellipsis: true, render: (_, i) => invoiceSummaryText(i) },
-    { title: 'Số tiền', dataIndex: 'totalAmount', align: 'right', width: 130, render: (v) => <Text strong>{formatCurrency(v)}</Text> },
+    { title: 'Nội dung', dataIndex: 'description', ellipsis: true },
+    { title: 'Số tiền', dataIndex: 'amount', align: 'right', width: 130, render: (v) => <Text strong>{formatCurrency(v)}</Text> },
     { title: 'Trạng thái', dataIndex: 'status', width: 170, render: (s) => <StatusTag type="invoice" value={s} /> },
     {
       title: '', key: 'action', width: 90, align: 'right',
-      render: (_, i) => <a onClick={() => navigate(`/portal/my-invoices?id=${i.id}`)}>Chi tiết</a>,
+      render: (_, i) => <a onClick={() => navigate(`/portal/my-invoices?invoice=${i.id}`)}>Chi tiết</a>,
     },
   ];
 
@@ -86,7 +93,7 @@ export default function ResidentHome({ residence }) {
       <Col xs={24} lg={16}>
         <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1fr)' }}>
           {/* ---------- Công nợ ---------- */}
-          {totalDebt > 0 && (
+          {(totalDebt > 0 || roomDebt > 0) && (
             <Card style={{ background: '#FFF1F0', borderColor: '#FFCCC7' }}>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ width: 52, height: 52, borderRadius: 12, background: '#FFCCC7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -95,14 +102,15 @@ export default function ResidentHome({ residence }) {
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <Text strong>Công nợ cần thanh toán</Text>
-                    {dueIn !== null && dueIn < 0 && <Tag color="error" style={{ margin: 0 }}>QUÁ HẠN</Tag>}
+                    {dueIn !== null && dueIn < 0 && <Tag color="error" style={{ margin: 0 }}>ĐÃ QUA HẠN</Tag>}
                   </div>
                   <div>
                     <Text type="secondary">Bạn đang nợ: </Text>
                     <Text strong style={{ fontSize: 28, color: '#CF1322' }}>{formatCurrency(totalDebt)}</Text>
                   </div>
                   <Text type="secondary">
-                    {debtSummary.unpaidInvoiceCount ?? openInvoices.length} hóa đơn chưa thanh toán đủ
+                    {debtSummary.unpaidInvoiceCount ?? 0} hóa đơn của bạn
+                    {roomDebt > 0 && <> · phòng còn <Text strong>{formatCurrency(roomDebt)}</Text> tiền điện nước</>}
                     {nearestDue && (
                       <>
                         {' · '}<CalendarOutlined /> Hạn gần nhất: {formatDate(nearestDue)}{' '}
@@ -114,7 +122,7 @@ export default function ResidentHome({ residence }) {
                   </Text>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Button type="primary" size="large" icon={<CreditCardOutlined />} onClick={() => navigate('/portal/my-invoices?status=unpaid')}>
+                  <Button type="primary" size="large" icon={<CreditCardOutlined />} onClick={() => navigate(totalDebt > 0 ? '/portal/my-invoices' : '/portal/my-invoices?tab=room')}>
                     Thanh toán ngay
                   </Button>
                 </div>

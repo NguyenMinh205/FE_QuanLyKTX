@@ -1,6 +1,6 @@
 # KẾ HOẠCH CHỈNH SỬA FRONTEND THEO PHIÊN BẢN TINH GỌN HaUI (v2.0)
 
-**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M7 (M7 chờ commit, 10/11/2026)
+**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M8 (M8 chờ commit, 10/11/2026)
 **Nguồn yêu cầu:** `D:\BE_QLKTX\docs\EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS v2.0) và `EDIT_DOCS_DATA_SCHEMA.md`. Khác với tài liệu cũ trong `docs/` thì theo hai file này. Chỗ SRS bỏ ngỏ thì theo luồng use case trong `BAO_CAO_CHUONG_2.md`.
 **Bổ sung ngoài SRS:** xác nhận hoàn cọc (FR-35, BR-08), theo yêu cầu ngày 09/11/2026.
 **File này phục vụ một việc:** làm xong v2 thì xoá.
@@ -166,7 +166,7 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 - **Thử:** thu tiền mặt hóa đơn phòng, chọn người nộp → `paid`, chi tiết hiện đúng tên; xác nhận VietQR có ô mã giao dịch, được để trống (FR-54 ghi "nếu cần").
 
 ### M8. Cổng SV: hóa đơn và VietQR · Vừa · `feature/v2-portal-vietqr`
-- **AI:** 2 nhóm hóa đơn, ảnh QR đúng số tiền và nội dung FR-53, trạng thái đại diện đã nộp, chuông (D3), lịch sử thanh toán, lịch sử điện nước phòng mình, xoá VNPay.
+- **AI:** 2 nhóm hóa đơn, ảnh QR đúng số tiền và nội dung FR-53, trạng thái đại diện đã nộp, chuông (D3), lịch sử thanh toán, lịch sử điện nước phòng mình, xoá VNPay. **Đã làm (10/11/2026):** xoá lớp chuyển đổi tạm của M7 và luồng VNPay thử; `debtSummary` chỉ tính nợ cá nhân, hóa đơn phòng đọc riêng qua `scope=room`. Tài khoản nhận tiền trong mock là số mẫu (`VIETQR_ACCOUNT` trong `mockApi.js`).
 - **Bạn:** đưa mã ngân hàng, số tài khoản, tên tài khoản nếu muốn quét thử bằng app thật.
 - **Thử:** quét QR bằng app ngân hàng thấy đúng số tiền và nội dung. Không chuyển tiền thật.
 

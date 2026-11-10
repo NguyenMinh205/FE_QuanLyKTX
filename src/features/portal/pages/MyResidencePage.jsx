@@ -15,6 +15,7 @@ import StatusTag from '../../../components/StatusTag';
 import { EXPIRING_DAYS, daysUntil } from '../utils/homeView';
 import { placeTextOf } from '../../contracts/utils/contractView';
 import { roomLabelOf } from '../../rooms/utils/roomStatus';
+import RoomUtilityHistoryCard from '../components/RoomUtilityHistoryCard';
 
 const { Text, Title } = Typography;
 
@@ -135,7 +136,7 @@ export default function MyResidencePage() {
 
         <Col xs={24}>
           <Card
-            title={<span><DollarOutlined style={{ color: '#1677FF' }} /> Công nợ</span>}
+            title={<span><DollarOutlined style={{ color: '#1677FF' }} /> Công nợ của bạn</span>}
             extra={<a onClick={() => navigate('/portal/my-invoices')}>Xem hóa đơn <ArrowRightOutlined /></a>}
           >
             {debtSummary.totalDebt > 0 ? (
@@ -153,6 +154,7 @@ export default function MyResidencePage() {
         </Col>
       </Row>
 
+      <RoomUtilityHistoryCard />
       <ResidenceHistory history={history} loading={histLoading} />
     </>
   );

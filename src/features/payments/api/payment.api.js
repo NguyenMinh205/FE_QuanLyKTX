@@ -10,6 +10,4 @@ export const paymentApi = {
   collectCash:   (data)   => (USE_MOCK ? mockPayments.collectCash(data)     : axiosClient.post('/payments/cash', data)),
   /** như collectCash + transactionCode? (FR-54: không bắt buộc) */
   confirmVietqr: (data)   => (USE_MOCK ? mockPayments.confirmVietqr(data)   : axiosClient.post('/payments/vietqr/confirm', data)),
-  /** ⚠️ Luồng VNPay thử của cổng SV (v1) — M8 thay bằng mã VietQR rồi xoá */
-  checkout:      (data)   => (USE_MOCK ? mockPayments.checkout(data)        : axiosClient.post('/payments/online/checkout', data)),
 };

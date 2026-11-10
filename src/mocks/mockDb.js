@@ -429,13 +429,16 @@ export const billReading = (reading, { issuedAt = new Date().toISOString(), dueD
   return inv;
 };
 
-// Hai tháng trước đã chốt: tháng xa nhất trả hết, tháng gần nhất còn vài phòng chưa trả. Bạn MSSV nhỏ nhất đại diện nộp
+// Hai tháng trước đã chốt: tháng xa nhất trả hết, tháng gần nhất còn vài phòng chưa trả. Bạn MSSV nhỏ nhất đại diện nộp.
+// Phòng của sv009 (HĐ-2026-0010) cũng còn nợ để thử chuông cổng SV.
+// ⚠️ Phòng K1-101 (HĐ-2026-0011) phải hết nợ: M5 dùng nó để thử thanh lý thành công
+const demoUnpaidRoomId = contracts[DEMO_STUDENT_INDEX.sv009]?.roomId;
 utilityReadings.filter((r) => r.isBilled).forEach((r, k) => {
   const older = r.monthYear < periodPlus(-1);
   const issued = `${older ? periodPlus(-1) : periodPlus(0)}-01`; // chốt ngày 1 của tháng kế tiếp
   const inv = billReading(r, { issuedAt: `${issued}T08:00:00+07:00`, dueDate: `${issued.slice(0, 8)}08` });
   const roomIdx = rooms.findIndex((x) => x.id === r.roomId);
-  if (older || roomIdx % 4 !== 3) {
+  if (older || (roomIdx % 4 !== 3 && r.roomId !== demoUnpaidRoomId)) {
     seedPay(inv, residentsOf(r.roomId)[0].studentId, k, `${issued.slice(0, 8)}0${(k % 5) + 2}T10:00:00+07:00`);
   }
 });

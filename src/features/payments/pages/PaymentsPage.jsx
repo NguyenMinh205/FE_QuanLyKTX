@@ -21,8 +21,7 @@ const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const EMPTY_FILTERS = { page: 1, limit: 20, search: '', type: undefined, method: undefined, from: undefined, to: undefined };
-// Màn cán bộ chỉ có 2 hình thức của v2; VNPay chỉ còn ở luồng thử của cổng SV
-const METHOD_OPTIONS = ['cash', 'vietqr'].map((value) => ({ value, label: PAYMENT_METHOD[value].label }));
+const METHOD_OPTIONS = Object.entries(PAYMENT_METHOD).map(([value, m]) => ({ value, label: m.label }));
 
 /** SCR-56 Phiếu thu — mỗi lần thu đủ một hóa đơn là một phiếu; tra cứu, đối chiếu, in lại biên lai */
 export default function PaymentsPage() {

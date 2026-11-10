@@ -9,6 +9,7 @@ import { useApi } from '../hooks/useApi';
 import { portalApi } from '../features/portal/api/portal.api';
 import BrandLogo from '../components/BrandLogo';
 import { roomLabelOf } from '../features/rooms/utils/roomStatus';
+import RoomInvoiceBell from '../features/portal/components/RoomInvoiceBell';
 
 const { Header, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -76,6 +77,7 @@ export default function PortalLayout() {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {residence?.hasResidence && <RoomInvoiceBell refreshKey={location.pathname} />}
           <Dropdown
             menu={{ items: [
               { key: 'profile', icon: <ProfileOutlined />, label: 'Hồ sơ cá nhân', onClick: () => navigate('/portal/profile') },

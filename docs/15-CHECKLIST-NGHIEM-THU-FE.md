@@ -32,7 +32,7 @@
 | 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 30) |
 | 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả **và** backend thật | 🔁 Làm lại ở v2 (mục 28) |
-| 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả **và** backend thật | 🔁 Làm lại ở v2 (mục 31) |
 | 21 | Cổng SV: Mua sắm + Đơn hàng của tôi | SCR-67, SCR-68 | `feature/portal-shop-orders` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 22 | Đăng ký tài khoản sinh viên | SCR-02 | `feature/student-register` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 23 | v2 · M1: cắt Viewer, tự đăng ký, Nhu yếu phẩm, Yêu cầu, Gia hạn | — | `feature/v2-trim-scope` | Dữ liệu giả | ⬜ Chưa test |
@@ -42,6 +42,7 @@
 | 27 | v2 · M5: hợp đồng, thanh lý, hoàn cọc, chỗ ở của sinh viên | SCR-32, SCR-61, SCR-63 | `feature/v2-contracts-checkout` | Dữ liệu giả | ⬜ Chưa test |
 | 28 | v2 · M6: chỉ số điện nước, chốt & phát hành, lịch sử phòng | SCR-51 | `feature/v2-utility-billing` | Dữ liệu giả | ⬜ Chưa test |
 | 29 | v2 · M7: hóa đơn, thu tiền mặt / xác nhận VietQR, biên lai, phiếu thu | SCR-52, 54, 55, 56 | `feature/v2-invoices-payments` | Dữ liệu giả | ⬜ Chưa test |
+| 30 | v2 · M8: cổng SV — hóa đơn 2 nhóm, VietQR, chuông, lịch sử nộp tiền, điện nước phòng | SCR-61, 63, 64 | `feature/v2-portal-vietqr` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1593,7 +1594,7 @@ Dữ liệu dựng sẵn: hai hợp đồng **đã quá hạn 5 ngày** chưa th
 - [ ] Tab **Hết hạn** → 2 dòng, ghi "quá hạn 5 ngày, chưa thanh lý".
 - [ ] Mở `HD-2026-0010` → cảnh báo "đã hết hạn 5 ngày, sinh viên vẫn giữ giường"; chân drawer có nút **Thanh lý hợp đồng**, không có nút hoàn cọc, không còn ô sửa điều khoản.
 - [ ] Bấm **Thanh lý hợp đồng** → hộp thoại **không có ô nhập** nào, ghi rõ: không hoàn tác, kiểm kê tài sản + thu chìa khóa, giường trả về trống, cọc hoàn tại văn phòng.
-- [ ] Bấm **Thanh lý hợp đồng** trong hộp thoại → báo "Còn 1 hóa đơn chưa thanh toán…", liệt kê mã hóa đơn + số tiền còn thiếu. Hợp đồng vẫn Hết hạn. Bấm Hủy.
+- [ ] Bấm **Thanh lý hợp đồng** trong hộp thoại → báo "Còn 2 hóa đơn chưa thanh toán…" (tiền phòng cả kỳ của sinh viên + điện nước của phòng K2-101), liệt kê mã hóa đơn + số tiền. Hợp đồng vẫn Hết hạn. Bấm Hủy.
 
 ### 28.3. Thanh lý → hoàn cọc (FR-34, FR-35, BR-08)
 
@@ -1709,6 +1710,45 @@ Dữ liệu dựng sẵn: mọi sinh viên đã nộp cọc; một số chưa n�
 - [ ] **Hợp đồng** → mở `HD-2026-0001` → bảng hóa đơn của hợp đồng có số tiền, mã hóa đơn bấm sang được trang chi tiết.
 
 > Cổng sinh viên (hóa đơn, VNPay thử) làm lại ở M8 — mục này chỉ cần các màn đó mở được, không lỗi.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 31. v2 · M8 — Cổng sinh viên: hóa đơn, VietQR, chuông
+
+Chạy dữ liệu giả như mục 24. Cần mạng để thấy ảnh QR (lấy từ `img.vietqr.io`); không có mạng thì khối QR báo "Không tải được ảnh QR" và vẫn có thông tin chuyển khoản tay. Mục 21 phía trên không cần test nữa.
+
+Dữ liệu dựng sẵn: `sv009@dorm.local` / `Student@123` (phòng K2-101) còn nợ **tiền phòng cả kỳ** và phòng còn nợ **điện nước tháng trước**. Tài khoản nhận tiền là số mẫu (Vietcombank `0011001234567`, KY TUC XA HAUI) — **đừng chuyển tiền thật**.
+
+### 31.1. Trang chủ và chuông (FR-41, D3)
+
+- [ ] Đăng nhập sv009 → header có **chuông** với số 1. Chuông đứng yên, không rung.
+- [ ] Thẻ công nợ ghi số nợ của bạn và thêm "phòng còn … tiền điện nước".
+- [ ] Bấm chuông → "Hóa đơn phòng chưa nộp": Điện nước tháng …, số tiền, hạn, "một bạn nộp cho cả phòng". Bấm vào → sang **Hóa đơn**, tab **Của phòng**, đúng hóa đơn đó.
+- [ ] Bảng "Hóa đơn gần đây" ở trang chủ có cột Hóa đơn (ghi "Của bạn" / "Của phòng"), Nội dung, Số tiền; bấm **Chi tiết** mở đúng hóa đơn.
+- [ ] Sinh viên chưa có chỗ ở (`sv002@dorm.local`) không có chuông.
+
+### 31.2. Hóa đơn của phòng (FR-62)
+
+- [ ] Hai thẻ đầu trang: **Bạn cần nộp** và **Phòng cần nộp (một bạn đại diện)**.
+- [ ] Ba tab **Của tôi / Của phòng / Lịch sử nộp tiền**; hai tab đầu có số hóa đơn chưa nộp.
+- [ ] Hóa đơn điện nước chưa nộp: số tiền cả phòng, hạn nộp (đỏ nếu đã qua), bảng Điện / Nước (tiêu thụ, chỉ số, đơn giá, thành tiền), dòng "tham khảo ≈ …/người", khung xanh "Một bạn nộp đủ cho cả phòng".
+- [ ] Hóa đơn điện nước tháng trước nữa (đã nộp): dòng **Đại diện nộp: <tên>**, biên lai bên dưới, không có QR. Trong danh sách trái cũng ghi "Đại diện: <tên>".
+
+### 31.3. VietQR (FR-53)
+
+- [ ] Hóa đơn chưa nộp có khối **Chuyển khoản bằng mã VietQR**: ảnh QR, số tiền, nội dung, số tài khoản, chủ tài khoản; sao chép được nội dung và số tài khoản.
+- [ ] Nội dung hóa đơn phòng dạng `HAUI INVUTILK2101<yyyymm> P101`; tiền phòng của bạn dạng `HAUI INV2026xxxx 2021600010` (mã bỏ dấu `-`, kèm MSSV).
+- [ ] Quét QR bằng app ngân hàng (không bấm chuyển): app tự điền đúng số tiền và nội dung.
+- [ ] Ghi chú: hóa đơn chuyển Đã thanh toán khi cán bộ xác nhận. Không còn nút VNPay; mở `/portal/payment-result` → 404.
+
+### 31.4. Lịch sử và điện nước phòng (FR-63, FR-42)
+
+- [ ] Tab **Lịch sử nộp tiền**: các lần nộp của bạn và của phòng (kể cả bạn cùng phòng nộp). Bấm một dòng → biên lai.
+- [ ] **Chỗ ở & hợp đồng** → thẻ **Điện nước của phòng**: các tháng đã chốt, mới nhất trên cùng, điện, nước, tiền cả phòng, tham khảo mỗi người.
+- [ ] Đăng xuất, vào `staff@dorm.local` → Hóa đơn → thu hóa đơn điện nước K2-101 (VietQR, chọn người nộp). Đăng xuất, vào lại sv009 → chuông mất số, hóa đơn chuyển Đã thanh toán, ghi đúng người đại diện.
+- [ ] Thu cửa sổ còn ~390px ở màn Hóa đơn: không cuộn ngang, ảnh QR vừa màn.
 
 **Lỗi phát hiện:** _(chưa có)_
 

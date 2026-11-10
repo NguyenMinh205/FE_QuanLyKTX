@@ -24,7 +24,6 @@ import PaymentsPage from '../features/payments/pages/PaymentsPage';
 import MyResidencePage from '../features/portal/pages/MyResidencePage';
 import ProfilePage from '../features/portal/pages/ProfilePage';
 import MyInvoicesPage from '../features/portal/pages/MyInvoicesPage';
-import PaymentResultPage from '../features/portal/pages/PaymentResultPage';
 import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 
@@ -75,7 +74,6 @@ export default function AppRoutes() {
         <Route path="/portal/change-password" element={<ChangePasswordPage />} />
         <Route path="/portal/my-residence" element={<MyResidencePage />} />
         <Route path="/portal/my-invoices" element={<MyInvoicesPage />} />
-        <Route path="/portal/payment-result" element={<PaymentResultPage />} />
         <Route path="/portal/profile" element={<ProfilePage />} />
       </Route>
 
