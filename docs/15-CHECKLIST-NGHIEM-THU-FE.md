@@ -13,18 +13,18 @@
 
 | # | Màn hình | Mã | Nhánh | Chạy với | Trạng thái |
 |---|----------|----|-------|----------|------------|
-| 1 | Đăng nhập · Đổi mật khẩu · Không có quyền | SCR-01, 03, 04 | `feature/login-and-room-types` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
+| 1 | Đăng nhập · Đổi mật khẩu · Không có quyền | SCR-01, 03, 04 | `feature/login-and-room-types` | Dữ liệu giả **và** backend thật | 🔁 Làm lại ở v2 (mục 25) |
 | 2 | Loại phòng | SCR-22 | `feature/login-and-room-types` | Dữ liệu giả | 🚫 Bỏ ở v2 |
-| 3 | Quản lý phòng — sơ đồ tầng | SCR-23 | `feature/room-management` | Dữ liệu giả | ⬜ Chưa test |
+| 3 | Quản lý phòng — sơ đồ tầng | SCR-23 | `feature/room-management` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 26) |
 | 4 | Duyệt đơn đăng ký | SCR-31 | `feature/application-review` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 27) |
 | 5 | Cổng SV — Đăng ký chỗ ở 3 bước (+ header cổng SV) | SCR-62 | `feature/student-room-application` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 27) |
-| 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | ⬜ Chưa test |
+| 6 | Cổng SV — Trang chủ theo tình trạng lưu trú | SCR-61 | `feature/student-home` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 28, 31, 34) |
 | 7 | Quản lý hợp đồng (tab + drawer + chấm dứt) | SCR-32 | `feature/contract-management` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 28) |
 | 8 | Yêu cầu gia hạn / trả phòng + quyết toán cọc | SCR-41 | `feature/request-review` | Dữ liệu giả | 🚫 Bỏ ở v2 |
 | 9 | Cổng SV — Yêu cầu của tôi | SCR-66 | `feature/student-requests` | Dữ liệu giả | 🚫 Bỏ ở v2 |
 | 10 | Dashboard | SCR-10 | `feature/admin-dashboard` | Dữ liệu giả **và** backend thật | 🔁 Làm lại ở v2 (mục 32) |
-| 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | ⬜ Chưa test |
-| 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 11 | Quản lý tài khoản (+ đặt lại mật khẩu) | SCR-81 | `feature/user-accounts` | Dữ liệu giả | 🔁 Làm lại ở v2 (mục 25) |
+| 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 26) |
 | 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | 🚫 Bỏ ở v2 |
 | 14 | Nhập chỉ số điện nước | SCR-51 | `feature/utility-readings` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 29) |
 | 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 30) |
@@ -46,6 +46,7 @@
 | 31 | v2 · M9: Dashboard — KPI, lấp đầy theo tòa, doanh thu (chỉ Admin) | SCR-10 | `feature/v2-dashboard` | Dữ liệu giả | ⬜ Chưa test |
 | 32 | v2 · M10: Sinh viên (lọc, chi tiết, đặt lại MK), nhập Excel sinh viên, Excel chỉ số điện nước | SCR-11, SCR-51 | `feature/v2-students-excel` | Dữ liệu giả | ⬜ Chưa test |
 | 33 | v2 · M10b: sửa lỗi đợt soát tổng + làm đẹp giao diện | Mọi màn | `feature/v2-ui-polish` | Dữ liệu giả | ⬜ Chưa test |
+| 34 | v2 · M11: thử trọn luồng 3 vai trò + tổng nghiệm thu | Mọi màn | `docs/v2-acceptance` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1851,6 +1852,57 @@ Chạy dữ liệu giả như mục 24. Thử ở cửa sổ rộng 1366px và �
 - [ ] **Hóa đơn** ở 390px: ô tìm kiếm cả dòng, các ô lọc 2 ô một hàng. Cột Trạng thái: tên người nộp và ngày nộp nằm hai dòng riêng.
 - [ ] **Phòng** ở 390px: bộ lọc 2 cột thẳng hàng, nút Sơ đồ / Danh sách chiếm cả dòng. Chữ "Còn N chỗ" trên ô phòng xanh đậm, đọc rõ.
 - [ ] Mở/đóng menu, drawer, modal: chuyển động mượt, không "nảy".
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 35. v2 · M11 — Thử trọn luồng 3 vai trò + tổng nghiệm thu
+
+Chạy dữ liệu giả: `npm run dev`, mở địa chỉ ở dòng `Local:` (thường `http://localhost:5173`; các mục trên ghi `5174` là cổng của máy chạy test tự động).
+
+> ⚠️ **Làm liền một mạch trong cùng một tab, không F5.** Dữ liệu giả về ban đầu khi tải lại trang (phiên đăng nhập thì vẫn giữ).
+> Đổi tài khoản bằng menu tên ở góc phải trên → **Đăng xuất**.
+
+### 35.1. Khách: nộp đơn và tra cứu
+
+- [ ] Màn Đăng nhập → **Đăng ký ở ký túc xá**. Bước 1: MSSV `2021607777`, họ tên `Trần Văn Hùng`, **Nam**, SĐT `0987001122`, email `hung.tran@gmail.com` → **Tiếp tục chọn phòng**.
+- [ ] Bước 2: chỉ có phòng nam, phòng đầu gắn nhãn **Gợi ý**. Chọn một giường **Trống** ở một phòng **K1 đã có người ở** (vd. K1-103) → **Tiếp tục**.
+- [ ] Bước 3: chọn **12 tháng** → tổng = giá tháng × 12 + 500.000 đ. Tích ô xác nhận → **Gửi đơn đăng ký** → hiện mã đơn `HD-…`. Ghi lại mã này.
+- [ ] **Tra cứu tiến độ đơn** (hoặc `/apply/status`) bằng `2021607777` + `hung.tran@gmail.com` → **Chờ duyệt**.
+
+### 35.2. Cán bộ: duyệt và chốt điện nước
+
+- [ ] Đăng nhập `staff@dorm.local` / `Staff@123` → **Duyệt đơn đăng ký** → chọn **Trần Văn Hùng** → thấy đúng phòng, giường đã chọn → **Duyệt đơn** → xác nhận.
+- [ ] Thông báo **Đã duyệt đơn** ghi tài khoản `2021607777`, email, và **2 hóa đơn** (cọc + tiền phòng cả kỳ).
+- [ ] **Chỉ số điện nước** → Tòa K1, tháng hiện tại → **Chốt & phát hành** → xác nhận → "Đã phát hành N hóa đơn điện nước" → bấm **OK**. Cả bảng chuyển "Đã phát hành", không sửa được.
+
+### 35.3. Sinh viên: đăng nhập lần đầu
+
+- [ ] Đăng xuất → đăng nhập `2021607777` / `2021607777` → bị chuyển sang **Đổi mật khẩu**, không vào được trang khác.
+- [ ] Đổi sang `Hung@2026` → vào **Trang chủ**. Thẻ **Việc cần làm** có "Công nợ cần thanh toán" và "Điện nước của phòng"; chuông góc trên có số.
+- [ ] **Hóa đơn** → tab **Của tôi** có Tiền cọc + Tiền phòng cả kỳ, chọn một hóa đơn thấy khối **VietQR** (ảnh QR cần mạng) với nội dung `HAUI INV… 2021607777`.
+- [ ] Tab **Của phòng** có hóa đơn `INV-UTIL-K1-<phòng>-<năm tháng>` vừa chốt.
+- [ ] **Chỗ ở** hiện đúng phòng, giường, bạn cùng phòng, hợp đồng 12 tháng, tiền cọc 500.000 đ "Hoàn lại tại văn phòng sau khi trả phòng".
+
+### 35.4. Cán bộ: thanh lý bị chặn → thu tiền → thanh lý → hoàn cọc
+
+- [ ] Đăng xuất → `staff@dorm.local` → **Hợp đồng** → tìm mã đơn ở 35.1 → mở → **Thanh lý hợp đồng** → xác nhận → bị chặn, liệt kê **3 hóa đơn** chưa trả (2 của bạn + điện nước của phòng).
+- [ ] **Hóa đơn** → tìm `2021607777` → **Thu tiền** lần lượt 2 hóa đơn → mỗi lần hiện **phiếu thu** (mã `PAY-…`, người nộp, người thu, nút In biên lai).
+- [ ] Tìm mã hóa đơn điện nước của phòng → **Thu tiền** → chọn **Người nộp** = Trần Văn Hùng → phiếu thu ghi "nộp cho cả phòng".
+- [ ] **Hợp đồng** → mở lại → **Thanh lý hợp đồng** → thành công: **Đã chấm dứt** + **Chờ hoàn cọc**.
+- [ ] **Xác nhận đã hoàn cọc** → hộp thoại nêu 500.000 đ, không có ô nhập → xác nhận → nhãn **Đã hoàn cọc** kèm "Lê Thị Nhân Viên" và thời điểm.
+
+### 35.5. Sinh viên và quản trị: kết quả cuối
+
+- [ ] Đăng xuất → `2021607777` / `Hung@2026` → Trang chủ: **Bạn chưa có chỗ ở** + **Đã nhận lại cọc ngày …**.
+- [ ] Đăng xuất → `admin@dorm.local` / `Admin@123` → **Phiếu thu**: tìm `2021607777` thấy các phiếu vừa thu. **Dashboard** có biểu đồ **Doanh thu**; đăng nhập Staff thì không có phần doanh thu.
+
+### 35.6. Tổng nghiệm thu
+
+- [ ] Đã chạy các mục 24–34 (mỗi mục một mốc), lỗi ghi ở mục **Lỗi phát hiện** của từng mục.
+- [ ] Màn hình hẹp (DevTools → 390px): Trang chủ SV, Hóa đơn SV, Đăng nhập, Nộp đơn, Hóa đơn (cán bộ) không cuộn ngang.
+- [ ] Không còn dấu vết v1: menu không có Loại phòng, Loại phí, Nhu yếu phẩm, Yêu cầu; `/register`, `/portal/shop`, `/admin/room-types` ra trang 404.
 
 **Lỗi phát hiện:** _(chưa có)_
 

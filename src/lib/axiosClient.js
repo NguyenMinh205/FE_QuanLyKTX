@@ -49,7 +49,7 @@ export const getErrorMessage = (error, fallback = 'Có lỗi xảy ra, vui lòng
   return error?.response?.data?.message || fallback;
 };
 
-/** Mã lỗi ổn định để xử lý theo từng trường hợp, VD: 'BED_NOT_AVAILABLE' */
+/** Mã lỗi ổn định để xử lý theo từng trường hợp, VD: 'BED_ALREADY_OCCUPIED' */
 export const getErrorCode = (error) => error?.response?.data?.code || null;
 
 /** Lỗi theo từng trường để đổ vào Form của antd — API.md mục 1.1 */

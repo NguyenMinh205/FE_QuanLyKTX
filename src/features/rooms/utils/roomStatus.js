@@ -42,12 +42,6 @@ export const roomLabelOf = (room) => {
   return building && !number.toUpperCase().startsWith(building.toUpperCase()) ? `${building}-${number}` : number;
 };
 
-/** "K1-302-03" → { room: "K1-302", bed: "03" }. ⚠️ Mã tòa/phòng có thể chứa "-", nên số giường là phần sau dấu "-" CUỐI */
-export const splitBedCode = (bedCode = '') => {
-  const cut = bedCode.lastIndexOf('-');
-  return cut < 0 ? { room: bedCode || null, bed: null } : { room: bedCode.slice(0, cut), bed: bedCode.slice(cut + 1) };
-};
-
 /** VD "G05" */
 export const bedLabelOf = (bed) => `G${String(bed.bedNumber).padStart(2, '0')}`;
 

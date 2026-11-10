@@ -4,7 +4,7 @@ const { Title, Text } = Typography;
 
 /**
  * Breadcrumb + tiêu đề trang + mô tả + vùng nút hành động bên phải.
- * @example <PageHeader breadcrumb={['Cơ sở vật chất', 'Loại phòng']} title="Loại phòng" extra={<Button />} />
+ * @example <PageHeader breadcrumb={['Cơ sở vật chất', 'Phòng']} title="Quản lý phòng" extra={<Button />} />
  */
 export default function PageHeader({ title, description, extra, breadcrumb }) {
   return (

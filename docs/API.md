@@ -1,7 +1,7 @@
 # API Reference
 
 **Project:** HaUI Dormitory Management System (HaUI DMS)
-**Version:** 2.0 (streamlined HaUI edition)
+**Version:** 2.5 (streamlined HaUI edition)
 **Base URL:** `/api`
 **Auth:** JWT Bearer token (`Authorization: Bearer <token>`)
 **Audience:** Frontend and backend developers
@@ -159,7 +159,7 @@ Success sets `mustChangePassword` to `false`. New password: at least 8 character
 ```json
 { "code": "OK", "message": "Đã đặt lại mật khẩu", "data": { "temporaryPassword": "Ktx7Rm2qPz", "mustChangePassword": true } }
 ```
-`temporaryPassword` is returned once and never logged.
+`temporaryPassword` is returned once and never logged. Staff may reset **student** accounts only; resetting an admin or staff account as staff returns `403 FORBIDDEN`.
 
 | Error | HTTP | When |
 |---|---|---|
@@ -223,6 +223,9 @@ Beds are embedded in the room. There is no bed endpoint and no room type endpoin
 
 **Room body:** `{ buildingId, roomNumber, floor, gender, capacity, pricePerMonth, depositAmount }`. `PUT` also accepts `status`. `buildingId` cannot change after creation.
 
+- Changing `capacity` keeps the existing beds (their status and notes): it only adds the missing bed numbers or removes the highest ones.
+- Renaming a building must show on every room and contract that carries `buildingName`.
+
 **Room:**
 ```json
 { "id": "…", "buildingId": "…", "buildingCode": "K1", "buildingName": "Tòa K1", "roomNumber": "302", "floor": 3,
@@ -241,6 +244,7 @@ Beds are embedded in the room. There is no bed endpoint and no room type endpoin
 | `DUPLICATE_ENTRY` | 409 | Building code taken, or room number taken in that building |
 | `BUILDING_HAS_OCCUPANTS` | 422 | Deactivating a building with residents (FR-21) |
 | `ROOM_HAS_OCCUPANTS` | 422 | Changing `gender` or `capacity` of an occupied room (FR-25) |
+| `ROOM_HAS_PENDING_APPLICATIONS` | 422 | Lowering `capacity` would remove a bed that a pending application has chosen |
 
 ---
 
@@ -286,6 +290,7 @@ No token. These endpoints should be rate limited.
 - `email` is required here, because the account is delivered by email.
 - A new student code creates a `Student` with no `userId`. An existing student code with no `pending` or `active` contract reuses that record and refreshes it from the form, which is how a former resident returns.
 - Prices are read from the room, never from the client. The bed is **not** locked here (BR-05 locks at approval). `startDate` and `endDate` stay empty until approval.
+- The room must be `active` and its building active. Otherwise `404 NOT_FOUND` ("the room no longer accepts applications"), and the form returns to room selection.
 
 | Error | HTTP | When |
 |---|---|---|
@@ -359,6 +364,7 @@ Prices come from the final room when `roomId` is sent. A failed email does not r
 | `BED_ALREADY_REQUESTED` | 409 | The replacement bed is held by another pending application |
 | `APPLICATION_OR_CONTRACT_EXISTS` | 409 | The student already has an `active` contract |
 | `GENDER_MISMATCH` | 422 | The replacement room has the wrong gender |
+| `ROOM_NOT_AVAILABLE` | 422 | The final room is in maintenance or its building is inactive. Staff pick another room |
 | `EMAIL_ALREADY_USED` | 409 | The application email belongs to another account |
 
 **PATCH `/contracts/:id/reject`**: `{ "reason": "Hồ sơ thiếu thông tin" }`. `reason` is required. Sets `rejected`, stores `rejectionReason`, sends the email, and does not touch the bed.
@@ -591,6 +597,8 @@ With no `active` or `expired` contract: `{ "hasResidence": false, "contract": nu
 | `LAST_ACTIVE_ADMIN` | 422 | Would leave no active admin |
 | `BUILDING_HAS_OCCUPANTS` | 422 | Building still has residents |
 | `ROOM_HAS_OCCUPANTS` | 422 | Room still has residents |
+| `ROOM_HAS_PENDING_APPLICATIONS` | 422 | Lowering capacity would drop a bed held by a pending application |
+| `ROOM_NOT_AVAILABLE` | 422 | Approving into a room in maintenance or an inactive building |
 | `OUTSTANDING_INVOICES` | 422 | BR-04 blocks checkout |
 | `NOTHING_TO_PUBLISH` | 422 | No reading ready to bill |
 | `PAYER_NOT_IN_ROOM` | 422 | Payer is not a resident of the room |
@@ -644,6 +652,7 @@ Optional later: a SePay or Casso webhook for FR-54b would call the same logic as
 
 | Version | Date | Change |
 |---|---|---|
+| 2.5 | 10/11/2026 | Full review (M10b): approve adds `ROOM_NOT_AVAILABLE`; room update adds `ROOM_HAS_PENDING_APPLICATIONS` and keeps existing beds; online application needs an active room and building; staff reset student passwords only; building rename reaches rooms and contracts. |
 | 2.4 | 10/11/2026 | Dashboard (M9): occupancy lists active buildings only. `GET /dashboard/revenue` returns `403 FORBIDDEN` for staff. |
 | 2.3 | 10/11/2026 | Student portal (M8): `debtSummary` is personal only; utility history returns billed months only. |
 | 2.2 | 10/11/2026 | Invoices (M7): `Invoice.createdAt`; `GET /invoices/:id` adds `contractCode` on personal invoices. |

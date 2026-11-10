@@ -1,9 +1,9 @@
 # KẾ HOẠCH CHỈNH SỬA FRONTEND THEO PHIÊN BẢN TINH GỌN HaUI (v2.0)
 
-**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M10 (M10 chờ commit, 10/11/2026)
+**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M11 (M11 chờ commit và chờ bạn nghiệm thu, 10/11/2026)
 **Nguồn yêu cầu:** `D:\BE_QLKTX\docs\EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS v2.0) và `EDIT_DOCS_DATA_SCHEMA.md`. Khác với tài liệu cũ trong `docs/` thì theo hai file này. Chỗ SRS bỏ ngỏ thì theo luồng use case trong `BAO_CAO_CHUONG_2.md`.
 **Bổ sung ngoài SRS:** xác nhận hoàn cọc (FR-35, BR-08), theo yêu cầu ngày 09/11/2026.
-**File này phục vụ một việc:** làm xong v2 thì xoá.
+**File này phục vụ một việc:** làm xong v2 thì xoá. Quyết định D1–D5, mặc định, việc cố ý chưa làm đã chép sang `17-TONG-QUAN-FRONTEND.md` §12; điểm cần báo BE sang `16-YEU-CAU-API-BACKEND.md` §3 — nghiệm thu xong là xoá được.
 
 ---
 
@@ -197,6 +197,12 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 ### M11. Rà soát và bàn giao BE · Nhỏ · `docs/v2-acceptance`
 - **AI:** thử trọn luồng theo 3 vai trò, xoá code và mock thừa, cập nhật `docs/15`, `16`, `17`, thêm ghi chú đầu `docs/README.md` rằng tài liệu 01–14 mô tả v1.
 - **Bạn:** nghiệm thu theo checklist.
+- **Đã làm (10/11/2026), chờ commit:**
+  - Dọn code thừa: `constants/routes.js` (còn route v1), barrel `features/students/index.js`, `splitBedCode`, `formatPeriod`, `APP_NAME` + `VITE_APP_NAME`, 2 khóa quyền không ai kiểm, prop `iconBg` của `StatCard`, trường `isExpiring` mock trả mà không ai đọc, màu xanh cũ còn sót ở 3 thẻ số liệu. Quét lại: mock không còn endpoint thừa (51/51 đều được gọi).
+  - Thử trọn luồng 3 vai trò bằng bộ e2e mới (18 bước, đạt); cả 12 bộ e2e: 377/377.
+  - `API.md` lên 2.5 (ghi các mã lỗi và quy tắc thêm ở đợt soát M10b).
+  - Viết lại `16` (bàn giao BE v2), `17` (tổng quan FE v2); `15` thêm mục 35 và sửa bảng theo dõi; ghi chú v1/v2 ở đầu `docs/README.md`; sửa `README.md`.
+  - Backend `main` (`ba70bd9`) kiểm ngày 10/11/2026: vẫn v1.2, chưa có endpoint v2 nào.
 
 ---
 

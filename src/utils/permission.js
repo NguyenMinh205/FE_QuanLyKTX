@@ -14,7 +14,6 @@ const PERMISSIONS = {
   'student:resetPassword': OPS,     // FR-06: Staff đặt lại được cho sinh viên, không cho Admin
 
   'building:create': OPS,
-  'building:delete': [ADMIN],
   'room:create': OPS,
   'room:update': OPS,
 
@@ -25,7 +24,7 @@ const PERMISSIONS = {
   'utilityReading:record': OPS,    // nhập và chốt & phát hành
   'payment:record': OPS,           // thu tiền mặt, xác nhận VietQR
 
-  'user:manage': [ADMIN],
+  // Màn Tài khoản chỉ Admin: chặn bằng vai trò ở AppRoutes, không qua bảng này
 };
 
 export const can = (user, action) => {

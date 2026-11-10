@@ -100,21 +100,21 @@ function PaymentsView({ searchParams }) {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={8}>
           <StatCard
-            label="Đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} iconBg="#F6FFED" loading={!summary && loading}
-            value={summary ? formatCurrency(summary.totalAmount) : null} valueColor="#389E0D"
+            label="Đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} loading={!summary && loading}
+            value={summary ? formatCurrency(summary.totalAmount) : null} valueColor="var(--success-text)"
             footer={<Text type="secondary">{meta?.total ?? '—'} phiếu thu theo bộ lọc</Text>}
           />
         </Col>
         <Col xs={12} md={8}>
           <StatCard
-            label="Tiền mặt" icon={<WalletOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" loading={!summary && loading}
+            label="Tiền mặt" icon={<WalletOutlined style={{ color: 'var(--brand)' }} />} loading={!summary && loading}
             value={summary ? formatCurrency(summary.cashAmount) : null}
             footer={<Text type="secondary">Thu tại văn phòng</Text>}
           />
         </Col>
         <Col xs={12} md={8}>
           <StatCard
-            label="Chuyển khoản VietQR" icon={<QrcodeOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" loading={!summary && loading}
+            label="Chuyển khoản VietQR" icon={<QrcodeOutlined style={{ color: 'var(--brand)' }} />} loading={!summary && loading}
             value={summary ? formatCurrency(summary.vietqrAmount) : null}
             footer={<Text type="secondary">Cán bộ đã đối chiếu sao kê</Text>}
           />

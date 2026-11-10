@@ -612,8 +612,6 @@ export const mockPublic = {
 };
 
 // ---------------------------------------------------------------- contracts (gồm cả đơn chờ duyệt)
-/** Hợp đồng còn hiệu lực và hết hạn trong N ngày tới (BR-29) */
-const isExpiring = (c, days = 30) => c.status === 'active' && c.endDate >= todayPlus(0) && c.endDate <= todayPlus(days);
 const countBy = (st) => contracts.filter((c) => statusOf(c) === st).length;
 
 const contractView = (c) => {
@@ -627,7 +625,6 @@ const contractView = (c) => {
     room: roomRef(room),
     buildingId: room?.buildingId,
     buildingCode: room?.buildingCode,
-    isExpiring: isExpiring(c),
     totalDebt: debtOf(c.studentId),
   };
 };

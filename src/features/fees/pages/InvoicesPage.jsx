@@ -108,21 +108,21 @@ function InvoicesView({ searchParams }) {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={8}>
           <StatCard
-            label="Phải thu" icon={<WalletOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" loading={!summary && loading}
+            label="Phải thu" icon={<WalletOutlined style={{ color: 'var(--brand)' }} />} loading={!summary && loading}
             value={total !== null ? formatCurrency(total) : null}
             footer={<Text type="secondary">Theo bộ lọc đang chọn</Text>}
           />
         </Col>
         <Col xs={12} md={8}>
           <StatCard
-            label="Đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} iconBg="#F6FFED" loading={!summary && loading}
-            value={summary ? formatCurrency(summary.paidAmount) : null} valueColor="#389E0D"
+            label="Đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} loading={!summary && loading}
+            value={summary ? formatCurrency(summary.paidAmount) : null} valueColor="var(--success-text)"
             footer={<Text type="secondary">Tỷ lệ đã thu: <Text strong>{summary ? pctOf(summary.paidAmount) : '—'}</Text></Text>}
           />
         </Col>
         <Col xs={12} md={8}>
           <StatCard
-            label="Chưa thu" icon={<ExclamationCircleOutlined style={{ color: '#CF1322' }} />} iconBg="#FFF1F0" loading={!summary && loading}
+            label="Chưa thu" icon={<ExclamationCircleOutlined style={{ color: '#CF1322' }} />} loading={!summary && loading}
             value={summary ? formatCurrency(summary.unpaidAmount) : null} valueColor="#CF1322"
             footer={summary?.unpaidCount
               ? (filters.status === 'unpaid'

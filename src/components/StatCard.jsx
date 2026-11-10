@@ -7,10 +7,8 @@ const { Text } = Typography;
  * Biểu tượng đi cùng nhãn, không đặt trong ô nền màu — bản cũ lặp ô màu ở mọi thẻ làm trang rối, khó dò số.
  * Cỡ số tự nhỏ lại trên điện thoại (index.css `.stat-card-value`) để xếp 2 thẻ một hàng.
  * @param value   null/undefined → hiện "—" (backend chưa trả trường này)
- * @param iconBg  giữ cho tương thích chỗ gọi cũ, không còn dùng
  */
-// eslint-disable-next-line no-unused-vars
-export default function StatCard({ label, icon, iconBg, value, valueColor, badge, footer, loading, children }) {
+export default function StatCard({ label, icon, value, valueColor, badge, footer, loading, children }) {
   const empty = value === null || value === undefined;
   return (
     <Card className="stat-card" style={{ height: '100%' }} styles={{ body: { padding: 18, height: '100%', display: 'flex', flexDirection: 'column' } }}>

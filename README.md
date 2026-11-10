@@ -1,6 +1,7 @@
 # Hệ thống quản lý ký túc xá — Frontend
 
-Giao diện người dùng của đồ án **Hệ thống quản lý ký túc xá**, viết bằng React + Vite.
+Giao diện người dùng của đồ án **Hệ thống quản lý ký túc xá HaUI** (bản tinh gọn v2), viết bằng React + Vite.
+Tổng quan toàn bộ phần frontend: [`docs/17-TONG-QUAN-FRONTEND.md`](docs/17-TONG-QUAN-FRONTEND.md).
 
 - **Backend:** repo riêng `BE_QuanLyKTX` (Node.js + Express + MongoDB)
 - **Tài liệu:** [`docs/`](docs/README.md) — dùng chung cho **cả hai repo**, không sao chép sang repo backend
@@ -53,19 +54,20 @@ src/
 │       └── pages/       Màn hình
 ├── hooks/           useApi — gọi API và quản 3 trạng thái tải/lỗi/dữ liệu
 ├── layouts/         Khung trang: AdminLayout (quản trị), PortalLayout (sinh viên)
-├── lib/             axiosClient, authApi, env
+├── lib/             axiosClient, authApi, authStorage, env
 ├── mocks/           Dữ liệu giả — mockDb (dữ liệu) + mockApi (các endpoint, ném đúng mã lỗi)
-├── routes/          AppRoutes, RoleRoute (chặn theo vai trò)
-└── utils/           formatter (tiền, ngày), permission (ẩn/hiện nút)
+├── routes/          AppRoutes, RoleRoute (chặn theo vai trò, buộc đổi mật khẩu)
+├── theme/           tokens.js — một nguồn màu cho theme antd và biến CSS
+└── utils/           formatter (tiền, ngày), permission (ẩn/hiện nút), excel (tải exceljs khi cần)
 ```
 
 ---
 
 ## 4. Bắt đầu code một màn hình
 
-1. Xem mình phụ trách màn hình nào: [`docs/09` mục 1.4](docs/09-KE-HOACH-PHAN-CONG.md)
-2. Làm theo **checklist 6 bước**: [`docs/14` mục 15.8](docs/14-PHIEN-BAN-DON-GIAN-HOA.md) — khoảng 1 giờ cho một màn hình CRUD
-3. Mẫu để sao chép: [`src/features/students/`](src/features/students/) — màn hình sinh viên đã làm xong, đầy đủ danh sách, tìm kiếm, phân trang, thêm, sửa, phân quyền
+1. Đọc [`docs/17` mục 3 và 7](docs/17-TONG-QUAN-FRONTEND.md): cấu trúc thư mục và các cơ chế dùng chung.
+2. Endpoint và mã lỗi lấy từ [`docs/API.md`](docs/API.md); thêm endpoint thì viết vào `API.md` trước, rồi thêm hàm giả vào `src/mocks/mockApi.js`.
+3. Mẫu để sao chép: [`src/features/students/`](src/features/students/) — danh sách, tìm kiếm, phân trang, thêm, sửa, drawer chi tiết, phân quyền.
 
 Ba thứ đã dựng sẵn, **dùng lại, đừng viết lại**:
 
@@ -98,11 +100,12 @@ Gọi API để **ghi** (thêm/sửa/xóa) thì không dùng `useApi` — `await
 |----------|-----------|------|
 | React | 19.2 | Thư viện giao diện |
 | Vite | 8.3 | Công cụ dựng và máy chủ phát triển |
-| Ant Design | **6.6** | Bộ giao diện — ⚠️ **v6, không phải v5**, xem [`docs/14` mục 3.1.1](docs/14-PHIEN-BAN-DON-GIAN-HOA.md) |
+| Ant Design | **6.6** | Bộ giao diện — ⚠️ **v6, không phải v5** |
 | react-router-dom | 7.18 | Điều hướng trang |
 | axios | 1.20 | Gọi HTTP |
 | dayjs | 1.11 | Xử lý ngày tháng |
 | recharts | 3.10 | Biểu đồ ở Dashboard |
+| exceljs | 4.4 | Nhập sinh viên, xuất/nhập chỉ số điện nước — tải động qua `utils/excel.js`, chỉ khi bấm nút |
 
 Hai khác biệt của antd 6 hay làm sai:
 
@@ -121,7 +124,6 @@ Chép `.env.example` thành `.env`. **Không bao giờ commit file `.env`.**
 |------|----------|---------|
 | `VITE_USE_MOCK` | `true` | `true` dùng dữ liệu giả · `false` gọi backend thật |
 | `VITE_API_BASE_URL` | `http://localhost:5000/api` | Địa chỉ gốc của backend |
-| `VITE_APP_NAME` | Hệ thống quản lý ký túc xá | Tên hiển thị |
 
 Lúc chạy `npm run dev`, console của trình duyệt sẽ in rõ đang ở chế độ nào.
 
@@ -131,8 +133,8 @@ Lúc chạy `npm run dev`, console của trình duyệt sẽ in rõ đang ở ch
 
 | Tài liệu | Đọc để làm gì |
 |----------|---------------|
-| [`docs/README.md`](docs/README.md) | Bản đồ toàn bộ tài liệu |
-| [`docs/API.md`](docs/API.md) | **Hợp đồng chung với backend** — đổi phải báo nhau |
-| [`docs/08-THIET-KE-GIAO-DIEN.md`](docs/08-THIET-KE-GIAO-DIEN.md) | Bố cục, màu sắc, quy ước giao diện |
-| [`docs/14` mục 15.8](docs/14-PHIEN-BAN-DON-GIAN-HOA.md) | Checklist 6 bước thêm màn hình |
-| [`docs/03-PHAN-TICH-NGHIEP-VU.md`](docs/03-PHAN-TICH-NGHIEP-VU.md) | Tra khi làm 3 màn hình khó: lưu trú, điện nước, hóa đơn |
+| [`docs/17-TONG-QUAN-FRONTEND.md`](docs/17-TONG-QUAN-FRONTEND.md) | Nắm toàn bộ frontend v2: màn hình, luồng, quyết định đã chốt |
+| [`docs/API.md`](docs/API.md) | **Hợp đồng chung với backend** (v2.5) — đổi phải báo nhau |
+| [`docs/16-YEU-CAU-API-BACKEND.md`](docs/16-YEU-CAU-API-BACKEND.md) | Việc backend cần làm để lên v2 |
+| [`docs/15-CHECKLIST-NGHIEM-THU-FE.md`](docs/15-CHECKLIST-NGHIEM-THU-FE.md) | Bấm thử từng màn — bản v2 ở mục 24–35 |
+| [`docs/README.md`](docs/README.md) | Bản đồ tài liệu. ⚠️ Tài liệu `01`–`14` mô tả bản v1 |

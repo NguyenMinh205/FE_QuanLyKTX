@@ -67,16 +67,16 @@ export default function DashboardPage() {
             footer={<Text type="secondary">Trong đó <b>{o?.maintenance ?? 0}</b> giường đang bảo trì</Text>} />
         </Col>
         <Col xs={12} xl={6}>
-          <StatCard label="Đang có người ở" icon={<UserOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" value={o?.occupied} valueColor="#1677FF" loading={loading}
+          <StatCard label="Đang có người ở" icon={<UserOutlined style={{ color: 'var(--brand)' }} />} value={o?.occupied} valueColor="#1677FF" loading={loading}
             footer={<Text type="secondary">Giường đã xếp cho sinh viên</Text>} />
         </Col>
         <Col xs={12} xl={6}>
-          <StatCard label="Còn trống" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} iconBg="#F6FFED" value={o?.available} valueColor="#389E0D" loading={loading}
+          <StatCard label="Còn trống" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} value={o?.available} valueColor="var(--success-text)" loading={loading}
             footer={<Text type="secondary">Sẵn sàng xếp khi duyệt đơn</Text>} />
         </Col>
         <Col xs={12} xl={6}>
           <StatCard
-            label="Tỷ lệ lấp đầy" icon={<PieChartOutlined style={{ color: 'var(--brand)' }} />} iconBg="#E6F4FF" loading={loading}
+            label="Tỷ lệ lấp đầy" icon={<PieChartOutlined style={{ color: 'var(--brand)' }} />} loading={loading}
             value={rate === null ? null : formatPercent(rate * 100)}
             badge={(
               <Tooltip title="Đã có người / (tổng giường − giường bảo trì)">
@@ -98,14 +98,14 @@ export default function DashboardPage() {
         </Col>
         <Col xs={12} md={8}>
           <StatCard
-            label="Đơn đăng ký chờ duyệt" icon={<FileSearchOutlined style={{ color: 'var(--warning-text)' }} />} iconBg="#FFFBE6"
+            label="Đơn đăng ký chờ duyệt" icon={<FileSearchOutlined style={{ color: 'var(--warning-text)' }} />}
             value={s?.pendingApplications} valueColor={s?.pendingApplications ? 'var(--warning-text)' : undefined} loading={loading}
             footer={s?.pendingApplications ? actionLink('Duyệt đơn', '/admin/applications') : <Text type="secondary">Không có đơn nào đang chờ</Text>}
           />
         </Col>
         <Col xs={24} md={8}>
           <StatCard
-            label="Công nợ chưa thu" icon={<CreditCardOutlined style={{ color: '#CF1322' }} />} iconBg="#FFF1F0"
+            label="Công nợ chưa thu" icon={<CreditCardOutlined style={{ color: '#CF1322' }} />}
             value={s?.finance ? formatCurrency(s.finance.totalDebt) : null} valueColor="#CF1322" loading={loading}
             footer={s?.finance && (
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
