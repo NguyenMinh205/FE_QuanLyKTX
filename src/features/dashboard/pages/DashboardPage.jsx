@@ -15,6 +15,7 @@ import PageHeader from '../../../components/PageHeader';
 import { formatCurrency, formatDate, formatPercent } from '../../../utils/formatter';
 import StatCard from '../../../components/StatCard';
 import OccupancyChart from '../components/OccupancyChart';
+import { placeTextOf } from '../../contracts/utils/contractView';
 
 const { Text } = Typography;
 const EXPIRING_DAYS = 30;
@@ -128,7 +129,7 @@ export default function DashboardPage() {
             footer={(
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                 <Text type="secondary">{s?.finance?.overdueAmount !== null && s?.finance?.overdueAmount !== undefined ? `Còn nợ ${formatCurrency(s.finance.overdueAmount)}` : ''}</Text>
-                {actionLink('Xem hóa đơn', '/admin/invoices?status=overdue', true)}
+                {actionLink('Xem hóa đơn', '/admin/invoices?status=unpaid', true)}
               </div>
             )}
           />
@@ -162,7 +163,7 @@ export default function DashboardPage() {
                 >
                   <div style={{ minWidth: 0 }}>
                     <Text strong>{c.studentName}</Text> <Text type="secondary">· {c.studentCode}</Text>
-                    <div><Text type="secondary" style={{ fontSize: 12 }}>{c.contractCode} · {c.bedCode} · hết hạn {formatDate(c.endDate)}</Text></div>
+                    <div><Text type="secondary" style={{ fontSize: 12 }}>{c.contractCode} · {placeTextOf(c)} · hết hạn {formatDate(c.endDate)}</Text></div>
                   </div>
                   <Tag color={left <= 7 ? 'error' : 'warning'} style={{ margin: 0 }}>{left === 0 ? 'Hôm nay' : `Còn ${left} ngày`}</Tag>
                 </div>

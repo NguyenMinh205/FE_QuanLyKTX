@@ -7,6 +7,7 @@ import { authStorage } from '../lib/authStorage';
 import {
   DEMO_STUDENT_INDEX, buildings, rooms, beds, students, contracts,
   utilityReadings, invoices, payments, TERM_MONTHS, residentsOf, meterOf, newReading, billReading,
+  issuePersonalInvoice, collectInvoice,
   bedsOf, availableSlots, generateBeds, newApplication, approveContract, pendingOn, selectableBeds,
   occupancyStats, debtOf, demoRaceRoomIds, rivalStudentFor, todayPlus, periodPlus,
 } from './mockDb';
@@ -20,8 +21,6 @@ import {
 const activeContractOf = (studentId) => contracts.find((c) => c.studentId === studentId && c.status === 'active');
 /** API.md §6: `expired` = active và đã qua endDate, suy ra lúc đọc (không có job đổi trạng thái) */
 const statusOf = (c) => (c.status === 'active' && c.endDate < todayPlus(0) ? 'expired' : c.status);
-const OPEN_INVOICE = ['unpaid', 'partial', 'overdue'];
-const withRemaining = (inv) => ({ ...inv, remainingAmount: inv.totalAmount - inv.paidAmount });
 
 const roomView = (r) => {
   const bs = bedsOf(r.id);
@@ -245,7 +244,7 @@ export const mockStudents = {
       const c = activeContractOf(s.id);
       return {
         ...s,
-        residence: c ? { bedCode: c.bedCode, buildingName: c.buildingName, roomNumber: c.roomNumber, endDate: c.endDate } : null,
+        residence: c ? { room: roomRef(rooms.find((r) => r.id === c.roomId)), bedNumber: c.bedNumber, endDate: c.endDate } : null,
         hasAccount: ACCOUNTS.some((a) => a.studentId === s.id),
         totalDebt: debtOf(s.id),
       };
@@ -546,21 +545,6 @@ const contractView = (c) => {
   };
 };
 
-let issuedSeq = 0;
-/** Hai hóa đơn lúc duyệt (FR-32): tiền cọc + tiền phòng trọn gói, hạn 7 ngày */
-const issueContractInvoice = (c, st, type, amount, description) => {
-  issuedSeq += 1;
-  const inv = {
-    id: `i-${type}-${c.id}`, invoiceCode: `INV-2026-${String(9000 + issuedSeq).padStart(4, '0')}`,
-    studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
-    contractId: c.id, bedCode: c.bedCode, type, billingPeriod: null,
-    lineItems: [{ feeTypeId: type === 'deposit' ? 'f4' : 'f1', description, quantity: 1, unitPrice: amount, amount }],
-    amount, totalAmount: amount, paidAmount: 0, issueDate: todayPlus(0), dueDate: todayPlus(7), status: 'unpaid',
-  };
-  invoices.push(inv);
-  return inv;
-};
-
 export const mockContracts = {
   /** ?status= nhận một hoặc nhiều trạng thái cách nhau dấu phẩy */
   getList: async (q = {}) => {
@@ -592,8 +576,8 @@ export const mockContracts = {
     const c = contracts.find((x) => x.id === id);
     if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy hợp đồng');
     const st = students.find((s) => s.id === c.studentId);
-    const contractInvoices = invoices.filter((i) => i.contractId === id).map(withRemaining)
-      .sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''));
+    const contractInvoices = invoices.filter((i) => i.contractId === id).map(invoiceView)
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     const depositInvoice = contractInvoices.find((i) => i.type === 'deposit');
 
     // Lịch sử hợp đồng — mới nhất lên đầu
@@ -601,7 +585,7 @@ export const mockContracts = {
       { at: c.createdAt, type: 'application_submitted', title: 'Nộp đơn đăng ký', description: `Mã ${c.contractCode}` },
       c.reviewedAt && c.status !== 'rejected' && {
         at: c.reviewedAt, type: 'application_approved', title: 'Duyệt đơn, khóa giường',
-        description: `Giường ${c.bedCode} · tạo hóa đơn tiền cọc và tiền phòng cả kỳ`,
+        description: `Phòng ${c.roomNumber} giường ${String(c.bedNumber).padStart(2, '0')} · tạo hóa đơn tiền cọc và tiền phòng cả kỳ`,
       },
       c.status === 'rejected' && { at: c.reviewedAt, type: 'rejected', title: 'Từ chối đơn', description: c.rejectionReason },
       statusOf(c) === 'expired' && { at: c.endDate, type: 'expired', title: 'Hết hạn hợp đồng', description: 'Chưa thanh lý — sinh viên vẫn giữ giường' },
@@ -660,11 +644,7 @@ export const mockContracts = {
       };
       ACCOUNTS.push(account);
     }
-    const months = TERM_MONTHS[c.term];
-    const created = [
-      issueContractInvoice(c, st, 'deposit', c.depositAmount, 'Tiền đặt cọc'),
-      issueContractInvoice(c, st, 'room_semester', c.totalRoomFee, `Tiền phòng ${room.buildingCode}-${room.roomNumber} (${months} tháng)`),
-    ];
+    const created = [issuePersonalInvoice(c, 'deposit'), issuePersonalInvoice(c, 'room_semester')];
     return ok({
       contract: contractView(c),
       account: { studentCode: st.studentCode, email: account.email, isNew },
@@ -696,13 +676,13 @@ export const mockContracts = {
     const c = contracts.find((x) => x.id === id);
     if (!c) fail(404, 'NOT_FOUND', 'Không tìm thấy hợp đồng');
     if (c.status !== 'active') fail(409, 'CONTRACT_NOT_TERMINABLE', 'Chỉ thanh lý được hợp đồng đang hiệu lực hoặc đã hết hạn');
-    const outstanding = invoices.filter((i) => OPEN_INVOICE.includes(i.status) && (
+    const outstanding = invoices.filter((i) => i.status === 'unpaid' && (
       i.studentId === c.studentId || (i.type === 'utility' && i.roomId === c.roomId)
     ));
     if (outstanding.length) {
       fail(422, 'OUTSTANDING_INVOICES', `Còn ${outstanding.length} hóa đơn chưa thanh toán, chưa thể thanh lý`, {
         invoices: outstanding.map((i) => ({
-          id: i.id, invoiceCode: i.invoiceCode, type: i.type, amount: (i.amount ?? i.totalAmount) - (i.paidAmount || 0), status: i.status,
+          id: i.id, invoiceCode: i.invoiceCode, type: i.type, amount: i.amount, status: i.status,
         })),
       });
     }
@@ -728,15 +708,31 @@ export const mockContracts = {
 };
 
 // ---------------------------------------------------------------- fees
-/** Hóa đơn + phòng, tòa (hóa đơn phòng có `roomId`, hóa đơn cá nhân suy từ hợp đồng) + còn lại */
-const invoiceView = (inv) => {
-  const c = contracts.find((x) => x.id === inv.contractId);
-  const room = rooms.find((r) => r.id === (inv.roomId ?? c?.roomId));
+/** StudentRef / người nộp từ id sinh viên */
+const studentRefOf = (id) => {
+  const st = students.find((x) => x.id === id);
+  return st ? { id: st.id, studentCode: st.studentCode, fullName: st.fullName, gender: st.gender } : null;
+};
+const payerRefOf = (id) => {
+  const st = students.find((x) => x.id === id);
+  return st ? { id: st.id, studentCode: st.studentCode, fullName: st.fullName } : null;
+};
+/** Invoice của API.md §8: StudentRef chỉ ở hóa đơn cá nhân, RoomRef luôn có, `payer` khi đã thu */
+const invoiceView = (inv) => ({
+  id: inv.id, invoiceCode: inv.invoiceCode, type: inv.type, scope: inv.scope, amount: inv.amount, description: inv.description,
+  createdAt: inv.createdAt, dueDate: inv.dueDate, status: inv.status, paidAt: inv.paidAt,
+  student: inv.scope === 'personal' ? studentRefOf(inv.studentId) : null,
+  room: roomRef(rooms.find((r) => r.id === inv.roomId)),
+  contractId: inv.contractId, utilityReadingId: inv.utilityReadingId, monthYear: inv.monthYear,
+  payer: inv.payerStudentId ? payerRefOf(inv.payerStudentId) : null,
+});
+/** Payment của API.md §8 — là biên lai của lần thu */
+const paymentView = (p) => {
+  const inv = invoices.find((i) => i.id === p.invoiceId);
   return {
-    ...withRemaining(inv),
-    roomNumber: room?.roomNumber ?? null, buildingId: room?.buildingId ?? null,
-    buildingCode: room?.buildingCode ?? null, buildingName: room?.buildingName ?? null,
-    ...(inv.scope === 'room' ? { room: roomRef(room) } : {}),
+    id: p.id, paymentCode: p.paymentCode, invoiceId: p.invoiceId, invoiceCode: inv?.invoiceCode, invoiceType: inv?.type,
+    amount: p.amount, method: p.method, transactionCode: p.transactionCode, note: p.note, paidAt: p.paidAt,
+    collectedByName: p.collectedByName, payer: payerRefOf(p.payerStudentId), room: roomRef(rooms.find((r) => r.id === inv?.roomId)),
   };
 };
 
@@ -857,222 +853,149 @@ export const mockFees = {
       .sort((a, b) => b.monthYear.localeCompare(a.monthYear))
       .slice(0, limit));
   },
-  /** ?search=&status=&type=&billingPeriod=&buildingId=&studentId= — kèm summary của cả tập đã lọc (bỏ hóa đơn đã hủy) */
+  /** GET /invoices ?status=&type=&scope=&buildingId=&search=&page=&limit= (FR-50) — kèm summary của cả tập đã lọc */
   getInvoices: async (q = {}) => {
     await delay();
     let rows = invoices.map(invoiceView);
     if (q.status) rows = rows.filter((i) => i.status === q.status);
     if (q.type) rows = rows.filter((i) => i.type === q.type);
-    if (q.billingPeriod) rows = rows.filter((i) => i.billingPeriod === q.billingPeriod);
-    if (q.studentId) rows = rows.filter((i) => i.studentId === q.studentId);
-    if (q.buildingId) rows = rows.filter((i) => i.buildingId === q.buildingId);
-    rows = search(rows, q.search, ['invoiceCode', 'studentCode', 'studentName', 'bedCode', 'roomNumber'])
-      .sort((a, b) => String(b.issueDate).localeCompare(String(a.issueDate)) || b.invoiceCode.localeCompare(a.invoiceCode));
-    const billable = rows.filter((i) => i.status !== 'cancelled');
-    const sum = (list, f) => list.reduce((t, i) => t + f(i), 0);
-    const overdue = billable.filter((i) => i.status === 'overdue');
+    if (q.scope) rows = rows.filter((i) => i.scope === q.scope);
+    if (q.buildingId) rows = rows.filter((i) => i.room?.buildingId === q.buildingId);
+    // chỉ cổng SV dùng (mockPortal) — API thật lấy danh tính từ JWT
+    if (q.studentId) rows = rows.filter((i) => i.student?.id === q.studentId);
+    const term = String(q.search || '').trim().toLowerCase();
+    if (term) {
+      rows = rows.filter((i) => [i.invoiceCode, i.student?.studentCode, i.student?.fullName, i.room?.roomNumber, i.room && `${i.room.buildingCode}-${i.room.roomNumber}`]
+        .some((v) => String(v || '').toLowerCase().includes(term)));
+    }
+    rows.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) || b.invoiceCode.localeCompare(a.invoiceCode));
+    const sum = (list) => list.reduce((t, i) => t + i.amount, 0);
+    const unpaid = rows.filter((i) => i.status === 'unpaid');
     const res = paginate(rows, q);
     res.data.data.summary = {
-      totalAmount: sum(billable, (i) => i.totalAmount),
-      paidAmount: sum(billable, (i) => i.paidAmount),
-      remainingAmount: sum(billable, (i) => i.remainingAmount),
-      overdueCount: overdue.length,
-      overdueAmount: sum(overdue, (i) => i.remainingAmount),
+      totalAmount: sum(rows), paidAmount: sum(rows.filter((i) => i.status === 'paid')),
+      unpaidAmount: sum(unpaid), unpaidCount: unpaid.length,
     };
     return res;
   },
-  /** GET /invoices/:id — kèm hợp đồng, chỗ ở và lịch sử thanh toán (cũ → mới) */
+  /** GET /invoices/:id — kèm phiếu thu; hóa đơn điện nước kèm chỉ số và thành viên phòng hiện tại (FR-51) */
   getInvoiceById: async (id) => {
     await delay();
     const inv = invoices.find((x) => x.id === id);
     if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
-    const contract = contracts.find((c) => c.id === inv.contractId);
-    return ok({
+    const detail = {
       ...invoiceView(inv),
-      contractCode: contract?.contractCode ?? null,
-      payments: payments.filter((p) => p.invoiceId === id).sort((a, b) => String(a.paidAt).localeCompare(String(b.paidAt))),
-    });
-  },
-  /** PATCH /invoices/:id/cancel — chỉ khi chưa có thanh toán thành công (BR-46) */
-  cancelInvoice: async (id) => {
-    await delay();
-    const inv = invoices.find((x) => x.id === id);
-    if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
-    if (inv.status === 'cancelled') fail(422, 'INVOICE_NOT_CANCELLABLE', 'Hóa đơn đã hủy trước đó');
-    if (inv.paidAmount > 0) fail(422, 'INVOICE_HAS_PAYMENT', 'Hóa đơn đã phát sinh thanh toán, không thể hủy');
-    if (inv.type === 'utility') fail(422, 'INVOICE_NOT_CANCELLABLE', 'Hóa đơn điện nước đã chốt, không hủy được');
-    inv.status = 'cancelled';
-    return ok(invoiceView(inv), `Đã hủy hóa đơn ${inv.invoiceCode}`);
+      contractCode: contracts.find((c) => c.id === inv.contractId)?.contractCode ?? null,
+      payments: payments.filter((p) => p.invoiceId === id).map(paymentView),
+    };
+    if (inv.type === 'utility') {
+      detail.reading = utilityReadings.find((u) => u.id === inv.utilityReadingId) ?? null;
+      detail.members = residentsOf(inv.roomId).map((c) => ({ id: c.studentId, studentCode: c.studentCode, fullName: c.studentName }));
+    }
+    return ok(detail);
   },
 };
 
-// ---------------------------------------------------------------- payments
+// ---------------------------------------------------------------- payments (API.md §8)
 /**
- * Dữ liệu giả: cổng thanh toán "gửi webhook" sau `demoWebhookAt` — cộng tiền vào hóa đơn đúng một lần (BR-62).
+ * POST /payments/cash và /payments/vietqr/confirm — luôn thu đủ `amount`.
+ * Hóa đơn phòng bắt buộc `payerStudentId` là người đang ở phòng đó (BR-03, D5); hóa đơn cá nhân thì người nộp là chủ hóa đơn.
  */
-const DEMO_PAYMENT_KEY = 'mockOnlinePayments';
-/** Dữ liệu giả sống trong bộ nhớ, mà cổng thanh toán lại tải lại trang → giữ giao dịch đang chờ ở sessionStorage */
-const saveDemoPayment = (payment) => {
-  try {
-    const kept = JSON.parse(sessionStorage.getItem(DEMO_PAYMENT_KEY) || '[]');
-    sessionStorage.setItem(DEMO_PAYMENT_KEY, JSON.stringify([...kept, payment].slice(-5)));
-  } catch { /* chế độ riêng tư: bỏ qua, demo vẫn chạy trong một lần tải trang */ }
-};
-const restoreDemoPayments = () => {
-  try {
-    JSON.parse(sessionStorage.getItem(DEMO_PAYMENT_KEY) || '[]')
-      .filter((p) => !payments.some((x) => x.transactionRef === p.transactionRef))
-      .forEach((p) => payments.push({ ...p }));
-  } catch { /* bỏ qua */ }
-};
-
-const applyDemoWebhooks = () => {
-  restoreDemoPayments();
-  payments.filter((p) => p.status === 'pending' && p.demoWebhookAt && Date.now() >= p.demoWebhookAt).forEach((p) => {
-    p.status = 'success';
-    p.paidAt = new Date().toISOString();
-    p.gatewayTransactionId = `VNP${String(Date.now()).slice(-8)}`;
-    const inv = invoices.find((i) => i.id === p.invoiceId);
-    if (!inv) return;
-    inv.paidAmount = payments.filter((x) => x.invoiceId === inv.id && x.type === 'payment' && x.status === 'success').reduce((t, x) => t + x.amount, 0); // BR-43
-    inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : 'partial';
+const collect = async (method, body = {}) => {
+  await delay();
+  const inv = invoices.find((x) => x.id === body.invoiceId);
+  if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
+  if (inv.status === 'paid') fail(409, 'INVOICE_ALREADY_PAID', `Hóa đơn ${inv.invoiceCode} đã được thanh toán`);
+  let payerStudentId = inv.studentId;
+  if (inv.scope === 'room') {
+    payerStudentId = body.payerStudentId;
+    if (!residentsOf(inv.roomId).some((c) => c.studentId === payerStudentId)) {
+      fail(422, 'PAYER_NOT_IN_ROOM', 'Chọn người nộp là sinh viên đang ở phòng này', { errors: [{ field: 'payerStudentId', message: 'Chọn người nộp đang ở phòng này' }] });
+    }
+  }
+  const transactionCode = method === 'vietqr' ? (String(body.transactionCode || '').trim().toUpperCase() || null) : null;
+  if (transactionCode && payments.some((p) => p.transactionCode === transactionCode)) {
+    fail(409, 'DUPLICATE_TRANSACTION_CODE', `Mã giao dịch ${transactionCode} đã được ghi nhận`, { errors: [{ field: 'transactionCode', message: 'Mã giao dịch này đã được ghi nhận trước đó' }] });
+  }
+  const payment = collectInvoice(inv, {
+    payerStudentId, method, transactionCode, note: String(body.note || '').trim(),
+    collectedByName: authStorage.getUser()?.fullName ?? null,
   });
+  return ok({ payment: paymentView(payment), invoice: invoiceView(inv) }, 'Đã xác nhận thu tiền');
 };
-
-/** Thời điểm xếp hạng / lọc của giao dịch: đã trả thì theo paidAt, chưa thì theo lúc tạo */
-const paymentTime = (p) => p.paidAt || p.createdAt || '';
-const paymentDate = (p) => String(paymentTime(p)).slice(0, 10);
 
 export const mockPayments = {
-  /** ?search=&invoiceId=&studentId=&type=&method=&status=&from=&to= — mới nhất lên đầu, kèm summary của cả tập đã lọc */
+  /** GET /payments ?method=&type=&from=&to=&search=&invoiceId=&page=&limit= — mới nhất lên đầu, summary của cả tập đã lọc */
   getList: async (q = {}) => {
     await delay();
-    let rows = payments;
+    let rows = payments.map(paymentView);
     if (q.invoiceId) rows = rows.filter((p) => p.invoiceId === q.invoiceId);
-    if (q.studentId) rows = rows.filter((p) => p.studentId === q.studentId);
-    if (q.type) rows = rows.filter((p) => p.type === q.type);
     if (q.method) rows = rows.filter((p) => p.method === q.method);
-    if (q.status) rows = rows.filter((p) => p.status === q.status);
-    if (q.from) rows = rows.filter((p) => paymentDate(p) >= q.from);
-    if (q.to) rows = rows.filter((p) => paymentDate(p) <= q.to);
-    rows = search(rows, q.search, ['transactionRef', 'invoiceCode', 'studentName', 'studentCode', 'bankReference', 'gatewayTransactionId'])
-      .slice()
-      .sort((a, b) => String(paymentTime(b)).localeCompare(String(paymentTime(a))));
-    const sumOf = (f) => rows.filter(f).reduce((t, p) => t + p.amount, 0);
+    if (q.type) rows = rows.filter((p) => p.invoiceType === q.type);
+    if (q.from) rows = rows.filter((p) => String(p.paidAt).slice(0, 10) >= q.from);
+    if (q.to) rows = rows.filter((p) => String(p.paidAt).slice(0, 10) <= q.to);
+    const term = String(q.search || '').trim().toLowerCase();
+    if (term) {
+      rows = rows.filter((p) => [p.paymentCode, p.invoiceCode, p.transactionCode, p.payer?.fullName, p.payer?.studentCode]
+        .some((v) => String(v || '').toLowerCase().includes(term)));
+    }
+    rows.sort((a, b) => String(b.paidAt).localeCompare(String(a.paidAt)));
+    const sumOf = (list) => list.reduce((t, p) => t + p.amount, 0);
     const res = paginate(rows, q);
     res.data.data.summary = {
-      collectedAmount: sumOf((p) => p.status === 'success' && p.type === 'payment'),
-      refundedAmount: sumOf((p) => p.status === 'success' && p.type === 'refund'),
-      successCount: rows.filter((p) => p.status === 'success').length,
-      pendingCount: rows.filter((p) => p.status === 'pending').length,
-      failedCount: rows.filter((p) => ['failed', 'expired'].includes(p.status)).length,
+      totalAmount: sumOf(rows), cashAmount: sumOf(rows.filter((p) => p.method === 'cash')),
+      vietqrAmount: sumOf(rows.filter((p) => p.method === 'vietqr')),
     };
     return res;
   },
-  /** POST /payments/:id/reconcile — hỏi lại cổng thanh toán cho giao dịch treo (FR-56, BR-64) */
-  reconcile: async (id) => {
-    await delay(700);
-    const payment = payments.find((p) => p.id === id);
-    if (!payment) fail(404, 'NOT_FOUND', 'Không tìm thấy giao dịch');
-    if (payment.status !== 'pending') fail(422, 'PAYMENT_NOT_PENDING', 'Chỉ đối soát được giao dịch đang xử lý');
-    if (['cash', 'bank_transfer'].includes(payment.method)) fail(422, 'PAYMENT_NOT_ONLINE', 'Giao dịch tại quầy không cần đối soát với cổng thanh toán');
-    const inv = invoices.find((x) => x.id === payment.invoiceId);
-    if (payment.demoReconcile === 'success') {
-      payment.status = 'success';
-      payment.paidAt = new Date().toISOString();
-      payment.gatewayTransactionId = payment.gatewayTransactionId || `VNP${Date.now()}`;
-      inv.paidAmount = payments.filter((p) => p.invoiceId === inv.id && p.type === 'payment' && p.status === 'success').reduce((t, p) => t + p.amount, 0); // BR-43
-      inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : inv.paidAmount > 0 ? 'partial' : inv.status;
-      return ok({ payment, invoice: withRemaining(inv) }, `Cổng thanh toán báo giao dịch ${payment.transactionRef} đã thành công — đã cập nhật hóa đơn`);
-    }
-    payment.status = 'expired'; // BR-64
-    return ok({ payment, invoice: withRemaining(inv) }, `Giao dịch ${payment.transactionRef} đã hết hạn ở cổng thanh toán`);
-  },
-  /**
-   * POST /payments/offline — { invoiceId, amount, method: cash|bank_transfer, paidAt, bankReference?, note? } (FR-51).
-   * Chuyển khoản bắt buộc mã giao dịch ngân hàng, không trùng (tránh ghi một khoản chuyển hai lần).
-   */
-  recordOffline: async (body = {}) => {
-    await delay();
-    const inv = invoices.find((x) => x.id === body.invoiceId);
-    if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
-    if (inv.status === 'cancelled') fail(422, 'INVOICE_CANCELLED', 'Hóa đơn đã hủy, không thu tiền được');
-    if (inv.status === 'paid') fail(422, 'INVOICE_ALREADY_PAID', 'Hóa đơn đã được thanh toán đủ'); // BR-45
-    const errors = [];
-    const amount = Number(body.amount);
-    if (!Number.isInteger(amount) || amount <= 0) errors.push({ field: 'amount', message: 'Số tiền thu phải lớn hơn 0' });
-    if (!['cash', 'bank_transfer'].includes(body.method)) errors.push({ field: 'method', message: 'Chọn hình thức thanh toán' });
-    const bankReference = String(body.bankReference || '').trim().toUpperCase();
-    if (body.method === 'bank_transfer' && !bankReference) errors.push({ field: 'bankReference', message: 'Nhập mã giao dịch ngân hàng' });
-    if (!body.paidAt) errors.push({ field: 'paidAt', message: 'Chọn ngày thu' });
-    else if (String(body.paidAt).slice(0, 10) > todayPlus(0)) errors.push({ field: 'paidAt', message: 'Ngày thu không được sau hôm nay' });
-    if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
-    const remaining = inv.totalAmount - inv.paidAmount;
-    if (amount > remaining) fail(422, 'PAYMENT_EXCEEDS_REMAINING', `Số tiền vượt quá số còn phải trả (${remaining.toLocaleString('vi-VN')} đ)`); // BR-44
-    if (bankReference && payments.some((p) => p.bankReference === bankReference && p.status === 'success')) {
-      fail(409, 'DUPLICATE_ENTRY', `Mã giao dịch ${bankReference} đã được ghi nhận`, { errors: [{ field: 'bankReference', message: 'Mã giao dịch này đã được ghi nhận trước đó' }] });
-    }
-    const payment = {
-      id: `p-${Date.now()}`, transactionRef: `PAY${Date.now()}`, invoiceId: inv.id, invoiceCode: inv.invoiceCode, invoiceType: inv.type,
-      studentId: inv.studentId, studentName: inv.studentName, amount, type: 'payment', method: body.method,
-      gatewayTransactionId: null, bankReference: bankReference || null, status: 'success',
-      paidAt: String(body.paidAt).length === 10 ? `${body.paidAt}T${new Date().toTimeString().slice(0, 8)}+07:00` : body.paidAt,
-      note: String(body.note || '').trim() || null, recordedByName: authStorage.getUser()?.fullName ?? null,
-    };
-    payments.push(payment);
-    // BR-43: tính lại từ các thanh toán thành công, không cộng dồn
-    inv.paidAmount = payments.filter((p) => p.invoiceId === inv.id && p.type === 'payment' && p.status === 'success').reduce((t, p) => t + p.amount, 0);
-    inv.status = inv.paidAmount >= inv.totalAmount ? 'paid' : 'partial';
-    const message = inv.status === 'paid' ? `Đã thu ${amount.toLocaleString('vi-VN')} đ — hóa đơn đã thanh toán đủ` : `Đã thu ${amount.toLocaleString('vi-VN')} đ`;
-    return ok({ payment, invoice: withRemaining(inv) }, message);
-  },
-  /**
-   * POST /payments/online/checkout — tạo giao dịch `pending` rồi trả link cổng thanh toán (FR-53).
-   * Dữ liệu giả: không có cổng thật nên link quay thẳng về màn kết quả, và webhook "về" sau 5 giây
-   * để thử đúng luồng hỏi lại nhiều lần của SCR-65.
-   */
-  checkout: async ({ invoiceId, gateway = 'vnpay' }) => {
+  /** POST /payments/cash — { invoiceId, payerStudentId?, note? } (FR-52) */
+  collectCash: (body) => collect('cash', body),
+  /** POST /payments/vietqr/confirm — { invoiceId, payerStudentId?, transactionCode?, note? } (FR-54) */
+  confirmVietqr: (body) => collect('vietqr', body),
+
+  // ⚠️ Luồng VNPay thử của cổng sinh viên (v1) — giữ tạm để màn cổng SV không gãy, M8 thay bằng VietQR rồi xoá.
+  // Giao dịch "đang chờ cổng" nằm ở mảng riêng, không lẫn vào phiếu thu của cán bộ.
+  checkout: async ({ invoiceId }) => {
     await delay();
     const inv = invoices.find((x) => x.id === invoiceId);
     if (!inv) fail(404, 'NOT_FOUND', 'Không tìm thấy hóa đơn');
     if (inv.studentId !== me().id) fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này');
-    if (inv.status === 'cancelled') fail(422, 'INVOICE_CANCELLED', 'Hóa đơn đã hủy, không thanh toán được');
-    if (inv.status === 'paid') fail(422, 'INVOICE_ALREADY_PAID', 'Hóa đơn đã được thanh toán đủ');
-    const amount = inv.totalAmount - inv.paidAmount;
+    if (inv.status === 'paid') fail(409, 'INVOICE_ALREADY_PAID', `Hóa đơn ${inv.invoiceCode} đã được thanh toán`);
     const transactionRef = `PAY${Date.now()}`;
-    const payment = {
-      id: `p-online-${Date.now()}`, transactionRef,
-      invoiceId: inv.id, invoiceCode: inv.invoiceCode, invoiceType: inv.type,
-      studentId: inv.studentId, studentName: inv.studentName,
-      amount, type: 'payment', method: gateway, gatewayTransactionId: null, bankReference: null,
-      status: 'pending', paidAt: null, createdAt: new Date().toISOString(), note: null, recordedByName: null,
-      demoWebhookAt: Date.now() + 5000, // webhook giả về sau 5 giây
+    const pending = {
+      transactionRef, invoiceId: inv.id, studentId: inv.studentId, amount: inv.amount, method: 'vnpay',
+      status: 'pending', paidAt: null, createdAt: new Date().toISOString(), demoWebhookAt: Date.now() + 5000,
     };
-    payments.push(payment);
-    saveDemoPayment(payment);
-    return ok({
-      paymentId: payment.id,
-      transactionRef,
-      gateway,
-      amount,
-      redirectUrl: `${window.location.origin}/portal/payment-result?ref=${transactionRef}`,
-    });
+    demoOnline.push(pending);
+    saveDemoPayment(pending);
+    return ok({ transactionRef, gateway: 'vnpay', amount: inv.amount, redirectUrl: `${window.location.origin}/portal/payment-result?ref=${transactionRef}` });
   },
-  /** Chỉ có ở mock: giả lập webhook VNPay báo thành công — gọi nhiều lần vẫn chỉ ghi nhận một lần */
-  simulateGatewaySuccess: async (invoiceId) => {
-    await delay(100);
-    const inv = invoices.find((x) => x.id === invoiceId);
-    if (inv.status !== 'paid') {
-      payments.push({
-        id: `p-gw-${invoiceId}`, transactionRef: `PAYGW${invoiceId}`, invoiceId, invoiceCode: inv.invoiceCode, invoiceType: inv.type,
-        studentId: inv.studentId, studentName: inv.studentName, amount: inv.totalAmount - inv.paidAmount, type: 'payment',
-        method: 'vnpay', gatewayTransactionId: `VNP-${invoiceId}`, status: 'success', paidAt: new Date().toISOString(), note: null,
-      });
-      inv.paidAmount = inv.totalAmount;
-      inv.status = 'paid';
+};
+
+/** Giao dịch VNPay thử của cổng SV — xem chú thích ở mockPayments.checkout */
+const demoOnline = [];
+const DEMO_PAYMENT_KEY = 'mockOnlinePayments';
+/** Dữ liệu giả sống trong bộ nhớ, mà cổng thanh toán lại tải lại trang → giữ giao dịch đang chờ ở sessionStorage */
+const saveDemoPayment = (p) => {
+  try {
+    const kept = JSON.parse(sessionStorage.getItem(DEMO_PAYMENT_KEY) || '[]');
+    sessionStorage.setItem(DEMO_PAYMENT_KEY, JSON.stringify([...kept, p].slice(-5)));
+  } catch { /* chế độ riêng tư: bỏ qua */ }
+};
+const applyDemoWebhooks = () => {
+  try {
+    JSON.parse(sessionStorage.getItem(DEMO_PAYMENT_KEY) || '[]')
+      .filter((p) => !demoOnline.some((x) => x.transactionRef === p.transactionRef))
+      .forEach((p) => demoOnline.push({ ...p }));
+  } catch { /* bỏ qua */ }
+  demoOnline.filter((p) => p.status === 'pending' && Date.now() >= p.demoWebhookAt).forEach((p) => {
+    const inv = invoices.find((i) => i.id === p.invoiceId);
+    p.status = 'success';
+    p.paidAt = new Date().toISOString();
+    if (inv && inv.status === 'unpaid') {
+      collectInvoice(inv, { payerStudentId: p.studentId, method: 'vietqr', note: 'Thanh toán online (bản thử)', paidAt: p.paidAt, collectedByName: null });
     }
-    return ok({ alreadyConfirmed: payments.filter((p) => p.invoiceId === invoiceId && p.method === 'vnpay').length > 1 });
-  },
+  });
 };
 
 // ---------------------------------------------------------------- dashboard
@@ -1080,7 +1003,8 @@ export const mockDashboard = {
   getOccupancy: async () => { await delay(); return ok(occupancyStats()); },
   getSummary: async () => {
     await delay();
-    const overdue = invoices.filter((i) => i.status === 'overdue');
+    // Hết khái niệm quá hạn ở v2 — tạm hiểu là chưa trả và đã qua hạn, M9 làm lại thẻ này
+    const overdue = invoices.filter((i) => i.status === 'unpaid' && i.dueDate < todayPlus(0));
     const active = contracts.filter((c) => statusOf(c) === 'active');
     return ok({
       occupancy: occupancyStats().overall,
@@ -1097,7 +1021,7 @@ export const mockDashboard = {
       finance: {
         totalDebt: students.reduce((s, st) => s + debtOf(st.id), 0),
         overdueInvoiceCount: overdue.length,
-        overdueAmount: overdue.reduce((s, i) => s + (i.totalAmount - i.paidAmount), 0),
+        overdueAmount: overdue.reduce((s, i) => s + i.amount, 0),
       },
       pendingApplications: contracts.filter((c) => c.status === 'pending').length,
     });
@@ -1121,7 +1045,7 @@ export const mockPortal = {
       roommates,
       debtSummary: {
         totalDebt: debtOf(st.id),
-        unpaidInvoiceCount: invoices.filter((i) => i.studentId === st.id && OPEN_INVOICE.includes(i.status)).length,
+        unpaidInvoiceCount: invoices.filter((i) => i.studentId === st.id && i.status === 'unpaid').length,
       },
     });
   },
@@ -1133,17 +1057,19 @@ export const mockPortal = {
   },
   getMyInvoices: async (q = {}) => mockFees.getInvoices({ ...q, studentId: me().id }),
   getMyInvoiceById: async (id) => {
+    applyDemoWebhooks();
     const inv = invoices.find((x) => x.id === id);
     if (inv && inv.studentId !== me().id) { await delay(); fail(403, 'FORBIDDEN', 'Bạn không có quyền truy cập dữ liệu này'); }
     return mockFees.getInvoiceById(id);
   },
-  /** ?transactionRef= — màn Kết quả thanh toán hỏi lại giao dịch vừa tạo (SCR-65) */
+  /** ?transactionRef= — màn Kết quả thanh toán (VNPay thử, bỏ ở M8) hỏi lại giao dịch vừa tạo */
   getMyPayments: async (q = {}) => {
     await delay();
     applyDemoWebhooks();
-    let rows = payments.filter((p) => p.studentId === me().id);
-    if (q.transactionRef) rows = rows.filter((p) => p.transactionRef === q.transactionRef);
-    return ok(rows.map((p) => ({ ...p, invoice: invoices.find((i) => i.id === p.invoiceId) ? withRemaining(invoices.find((i) => i.id === p.invoiceId)) : null })));
+    const mine = demoOnline.filter((p) => p.studentId === me().id && (!q.transactionRef || p.transactionRef === q.transactionRef));
+    return ok(mine.map((p) => {
+      const inv = invoices.find((i) => i.id === p.invoiceId);
+      return { ...p, invoiceCode: inv?.invoiceCode, invoice: inv ? invoiceView(inv) : null };
+    }));
   },
-
 };

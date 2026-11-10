@@ -1,6 +1,6 @@
 import { Tag } from 'antd';
 import {
-  CONTRACT_STATUS, INVOICE_STATUS, INVOICE_TYPE, BED_STATUS, PAYMENT_STATUS, ROOM_STATUS,
+  CONTRACT_STATUS, INVOICE_STATUS, INVOICE_TYPE, BED_STATUS, ROOM_STATUS,
 } from '../constants/statuses';
 
 const MAP = {
@@ -8,7 +8,6 @@ const MAP = {
   invoice: INVOICE_STATUS,
   invoiceType: INVOICE_TYPE,
   bed: BED_STATUS,
-  payment: PAYMENT_STATUS,
   roomStatus: ROOM_STATUS,
 };
 

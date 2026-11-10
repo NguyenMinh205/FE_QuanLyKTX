@@ -11,6 +11,7 @@ import PageHeader from '../../../components/PageHeader';
 import DataTable from '../../../components/DataTable';
 import MoneyText from '../../../components/MoneyText';
 import StudentFormModal from '../components/StudentFormModal';
+import { placeTextOf } from '../../contracts/utils/contractView';
 
 /**
  * Màn hình mẫu cho mọi màn hình danh sách khác.
@@ -59,7 +60,7 @@ export default function StudentsPage() {
     { title: 'Khoa', dataIndex: 'faculty', width: 180, responsive: ['lg'] },
     {
       title: 'Chỗ ở', dataIndex: 'residence', width: 150,
-      render: (r) => (r ? <Tag color="blue">{r.bedCode}</Tag> : <span style={{ color: '#8C8C8C' }}>—</span>),
+      render: (r) => (r ? <Tag color="blue">{placeTextOf(r)}</Tag> : <span style={{ color: '#8C8C8C' }}>—</span>),
     },
     {
       title: 'Công nợ', dataIndex: 'totalDebt', width: 130, align: 'right',

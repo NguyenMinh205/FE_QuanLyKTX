@@ -455,7 +455,7 @@ Invoices are created only by approval (§6) and publishing (§7). They cannot be
 **Invoice:**
 ```json
 { "id": "…", "invoiceCode": "INV-UTIL-K1-302-202610", "type": "utility", "scope": "room", "amount": 630000,
-  "description": "Tiền điện nước Phòng 302 - Tháng 10/2026 (6 người)", "dueDate": "2026-11-16", "status": "paid", "paidAt": "2026-11-12T03:00:00Z",
+  "description": "Tiền điện nước Phòng 302 - Tháng 10/2026 (6 người)", "createdAt": "2026-11-09T01:00:00Z", "dueDate": "2026-11-16", "status": "paid", "paidAt": "2026-11-12T03:00:00Z",
   "student": null, "room": { }, "contractId": null, "utilityReadingId": "…",
   "payer": { "id": "…", "studentCode": "2021601234", "fullName": "Nguyễn Văn An" } }
 ```
@@ -464,7 +464,7 @@ Invoices are created only by approval (§6) and publishing (§7). They cannot be
 - `student` is `StudentRef` on personal invoices, `null` on room invoices. `room` is `RoomRef`. `payer` is `null` until paid.
 - The list adds `summary: { totalAmount, paidAmount, unpaidAmount, unpaidCount }`.
 
-**GET `/invoices/:id`** adds `payments: Payment[]`, and for utility invoices `reading: Reading` and `members: [ { id, studentCode, fullName } ]`. Members are the room's current residents.
+**GET `/invoices/:id`** adds `payments: Payment[]`, `contractCode` on personal invoices (link back to the contract), and for utility invoices `reading: Reading` and `members: [ { id, studentCode, fullName } ]`. Members are the room's current residents.
 
 **POST `/payments/cash`**
 ```json
@@ -642,5 +642,6 @@ Optional later: a SePay or Casso webhook for FR-54b would call the same logic as
 
 | Version | Date | Change |
 |---|---|---|
+| 2.2 | 10/11/2026 | Invoices (M7): `Invoice.createdAt`; `GET /invoices/:id` adds `contractCode` on personal invoices. |
 | 2.1 | 10/11/2026 | Online application (M4): `GET /rooms/:id` beds carry `hasPendingApplication`; contract `reviewedAt`; `status` filter accepts a list; approve adds `BED_ALREADY_REQUESTED`, `APPLICATION_OR_CONTRACT_EXISTS`. |
 | **2.0** | **09/11/2026** | Rewritten for the streamlined HaUI edition. Three roles, public application portal, one contract document, embedded beds, 6 or 12 month terms, one utility invoice per room, cash and VietQR only, deposit refund confirmation. The v1.2 change history is on branch `backup/v1-full`. |

@@ -1,6 +1,6 @@
 # KẾ HOẠCH CHỈNH SỬA FRONTEND THEO PHIÊN BẢN TINH GỌN HaUI (v2.0)
 
-**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M6 (M6 chờ commit, 10/11/2026)
+**Lập ngày:** 09/11/2026 · **Trạng thái:** đã duyệt, D1–D5 theo khuyến nghị (09/11/2026). Đã làm M0–M7 (M7 chờ commit, 10/11/2026)
 **Nguồn yêu cầu:** `D:\BE_QLKTX\docs\EDIT_DOCS_DAC_TA_YEU_CAU.md` (SRS v2.0) và `EDIT_DOCS_DATA_SCHEMA.md`. Khác với tài liệu cũ trong `docs/` thì theo hai file này. Chỗ SRS bỏ ngỏ thì theo luồng use case trong `BAO_CAO_CHUONG_2.md`.
 **Bổ sung ngoài SRS:** xác nhận hoàn cọc (FR-35, BR-08), theo yêu cầu ngày 09/11/2026.
 **File này phục vụ một việc:** làm xong v2 thì xoá.
@@ -162,7 +162,7 @@ Mỗi mốc một nhánh, tách từ nhánh của mốc liền trước vì `dev
 - **Thử:** nhập chỉ số một tòa → Chốt → mỗi phòng đúng 1 hóa đơn, không sửa được nữa. Màn Hóa đơn có thể hiển thị chưa đẹp cho tới hết M7.
 
 ### M7. Hóa đơn và thanh toán phía cán bộ · Vừa · `feature/v2-invoices-payments`
-- **AI:** danh sách và chi tiết theo model mới, modal xác nhận thu (D5), hiển thị biên lai sau khi thu (UC-06: mã phiếu, số tiền, người thu, thời gian), màn Thanh toán rút gọn, xoá hủy và thu một phần (lập lẻ, lập hàng loạt đã xoá ở M6). Bỏ hẳn loại hóa đơn `monthly` trong dữ liệu giả và các trường kiểu cũ trên hóa đơn điện nước.
+- **AI:** danh sách và chi tiết theo model mới, modal xác nhận thu (D5), hiển thị biên lai sau khi thu (UC-06: mã phiếu, số tiền, người thu, thời gian), màn Thanh toán rút gọn, xoá hủy và thu một phần (lập lẻ, lập hàng loạt đã xoá ở M6). Bỏ hẳn loại hóa đơn `monthly` trong dữ liệu giả và các trường kiểu cũ trên hóa đơn điện nước. **Đã làm (10/11/2026):** mock trả đúng model §8; cổng SV đọc qua lớp chuyển đổi tạm `toLegacyInvoice` trong `portal.api.js` và luồng VNPay thử tách riêng trong mock — **M8 xoá cả hai**. Hợp đồng trong dữ liệu giả không còn `bedCode`, `monthlyPrice`.
 - **Thử:** thu tiền mặt hóa đơn phòng, chọn người nộp → `paid`, chi tiết hiện đúng tên; xác nhận VietQR có ô mã giao dịch, được để trống (FR-54 ghi "nếu cần").
 
 ### M8. Cổng SV: hóa đơn và VietQR · Vừa · `feature/v2-portal-vietqr`

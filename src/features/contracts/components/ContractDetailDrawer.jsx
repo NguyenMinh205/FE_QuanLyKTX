@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Drawer, Button, Tag, Typography, Skeleton, Alert, Timeline, Table, Space, App,
 } from 'antd';
@@ -73,8 +74,8 @@ export default function ContractDetailDrawer({ contractId, open, canTerminate, c
   });
 
   const invoiceColumns = [
-    { title: 'Hóa đơn', key: 'code', render: (_, i) => <><div>{i.invoiceCode}</div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[i.type]?.label ?? i.type}</Text></> },
-    { title: 'Số tiền', dataIndex: 'totalAmount', align: 'right', render: (v) => formatCurrency(v) },
+    { title: 'Hóa đơn', key: 'code', render: (_, i) => <><Link to={`/admin/invoices/${i.id}`}>{i.invoiceCode}</Link><div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[i.type]?.label ?? i.type}</Text></div></> },
+    { title: 'Số tiền', dataIndex: 'amount', align: 'right', render: (v) => formatCurrency(v) },
     { title: 'Trạng thái', dataIndex: 'status', render: (s) => <Tag color={INVOICE_STATUS[s]?.color} style={{ margin: 0 }}>{INVOICE_STATUS[s]?.label ?? s}</Tag> },
   ];
 

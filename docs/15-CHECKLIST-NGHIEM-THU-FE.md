@@ -27,9 +27,9 @@
 | 12 | Tòa nhà | SCR-21 | `feature/building-management` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
 | 13 | Danh mục loại phí | SCR-82 | `feature/fee-type-catalog` | Dữ liệu giả **và** backend thật (chỉ xem) | 🚫 Bỏ ở v2 |
 | 14 | Nhập chỉ số điện nước | SCR-51 | `feature/utility-readings` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 29) |
-| 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Lập hàng loạt, lập lẻ bỏ ở M6; danh sách làm lại ở M7 |
-| 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
-| 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | ⬜ Chưa test |
+| 15 | Hóa đơn + lập hàng loạt + hóa đơn lẻ | SCR-52, SCR-53 | `feature/invoice-management` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 30) |
+| 16 | Chi tiết hóa đơn + ghi nhận thanh toán | SCR-54, SCR-55 | `feature/invoice-detail-payment` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 30) |
+| 17 | Lịch sử thanh toán | SCR-56 | `feature/payment-history` | Dữ liệu giả **và** backend thật (chỉ xem) | 🔁 Làm lại ở v2 (mục 30) |
 | 18 | Nhu yếu phẩm (đơn hàng + danh mục) | SCR-71 | `feature/supplies-management` | Dữ liệu giả **và** backend thật | 🚫 Bỏ ở v2 |
 | 19 | Cổng SV: Chỗ ở & hợp đồng + Hồ sơ | SCR-63, SCR-69 | `feature/portal-residence-profile` | Dữ liệu giả **và** backend thật | 🔁 Làm lại ở v2 (mục 28) |
 | 20 | Cổng SV: Hóa đơn + Kết quả thanh toán | SCR-64, SCR-65 | `feature/portal-invoices-payment` | Dữ liệu giả **và** backend thật | ⬜ Chưa test |
@@ -41,6 +41,7 @@
 | 26 | v2 · M4: nộp đơn công khai, tra cứu, duyệt đơn | — | `feature/v2-online-application` | Dữ liệu giả | ⬜ Chưa test |
 | 27 | v2 · M5: hợp đồng, thanh lý, hoàn cọc, chỗ ở của sinh viên | SCR-32, SCR-61, SCR-63 | `feature/v2-contracts-checkout` | Dữ liệu giả | ⬜ Chưa test |
 | 28 | v2 · M6: chỉ số điện nước, chốt & phát hành, lịch sử phòng | SCR-51 | `feature/v2-utility-billing` | Dữ liệu giả | ⬜ Chưa test |
+| 29 | v2 · M7: hóa đơn, thu tiền mặt / xác nhận VietQR, biên lai, phiếu thu | SCR-52, 54, 55, 56 | `feature/v2-invoices-payments` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1662,6 +1663,52 @@ Dữ liệu dựng sẵn: 2 tháng trước đã chốt (có hóa đơn điện 
 - [ ] Bấm biểu tượng đồng hồ ở dòng K2-206 → drawer "Lịch sử điện nước phòng K2-206": 3 tháng, mới nhất trên cùng, mỗi tháng có chỉ số, đơn giá, tiền cả phòng, số người, trạng thái.
 - [ ] **Hóa đơn**: không còn nút "Lập hóa đơn hàng loạt", "Tạo hóa đơn lẻ".
 - [ ] Tìm `INV-UTIL-K2-206` → 1 dòng, cột Sinh viên ghi **Cả phòng**, loại **Điện nước**. Mở chi tiết không lỗi. *(Màn Hóa đơn làm lại ở M7 nên cách hiển thị còn kiểu cũ.)*
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 30. v2 · M7 — Hóa đơn, thu tiền, phiếu thu
+
+Chạy dữ liệu giả như mục 24. ⚠️ Dữ liệu giả **mất khi tải lại trang (F5)**: làm liền 30.1 → 30.4, chỉ bấm trong app. Mục 16, 17, 18 phía trên không cần test nữa.
+
+Dữ liệu dựng sẵn: mọi sinh viên đã nộp cọc; một số chưa nộp **tiền phòng cả kỳ**, trong đó có sv001 (`2021600001`, 1.920.000 đ). Hóa đơn điện nước tháng trước còn vài phòng chưa nộp, vd `INV-UTIL-K1-104-…`, `INV-UTIL-K2-206-…`.
+
+### 30.1. Danh sách (FR-50)
+
+`staff@dorm.local` / `Staff@123` → **Tài chính → Hóa đơn**.
+
+- [ ] 3 thẻ **Phải thu / Đã thu / Chưa thu**; Phải thu = Đã thu + Chưa thu. Không còn thẻ Quá hạn, nút Lập hàng loạt, Tạo lẻ, Hủy.
+- [ ] Ở 1366px thấy đủ cột Số tiền, Hạn nộp, Trạng thái và nút **Thu tiền** mà không phải cuộn ngang.
+- [ ] Hóa đơn điện nước ghi **Cả phòng K…-…**; hóa đơn cá nhân ghi họ tên, dưới là MSSV · phòng.
+- [ ] Hạn nộp đã qua mà chưa thu thì ngày tô đỏ (không có trạng thái "Quá hạn" riêng). Đã thu thì dưới trạng thái ghi tên người nộp và ngày.
+- [ ] Bộ lọc Cá nhân / Cả phòng, Loại (3 loại), Trạng thái (2 trạng thái), Tòa đều lọc đúng. Bấm "… hóa đơn — xem ngay" ở thẻ Chưa thu → lọc Chưa thanh toán.
+
+### 30.2. Thu tiền mặt hóa đơn cá nhân (FR-52, UC-06)
+
+- [ ] Tìm `2021600001` → dòng **Tiền phòng cả kỳ** chưa thanh toán → **Thu tiền**.
+- [ ] Modal: số tiền cố định (không có ô nhập số tiền, không có "thu một phần"), không có ô chọn người nộp. Nút ghi "Xác nhận đã thu 1.920.000 đ".
+- [ ] Xác nhận → modal đổi thành **biên lai**: mã `PAY-2026-…`, số tiền, hóa đơn, người nộp Nguyễn Văn An, hình thức Tiền mặt, người thu Lê Thị Nhân Viên, thời gian. Có nút **In biên lai** (bản in chỉ có biên lai).
+- [ ] **Xong** → dòng chuyển Đã thanh toán, mất nút Thu tiền.
+- [ ] Mở **Thu tiền** một hóa đơn khác ngay sau đó → modal là form mới, không còn biên lai cũ.
+
+### 30.3. Xác nhận VietQR hóa đơn điện nước (FR-54, D5)
+
+- [ ] Lọc Cả phòng + Chưa thanh toán → **Thu tiền** một hóa đơn điện nước → modal có ô **Người nộp (đại diện cả phòng)**, danh sách là người đang ở phòng.
+- [ ] Chọn **Đã nhận chuyển khoản VietQR** → hiện nội dung chuyển khoản `HAUI INVUTIL… P<phòng>` (sao chép được) và ô **Mã giao dịch ngân hàng** ghi "Không bắt buộc".
+- [ ] Bấm xác nhận khi chưa chọn người nộp → báo "Chọn bạn đã nộp tiền".
+- [ ] Chọn người nộp, nhập mã `ft26test01` → biên lai ghi mã `FT26TEST01` (tự viết hoa), "nộp cho cả phòng".
+- [ ] Thu một hóa đơn điện nước khác bằng VietQR với cùng mã `FT26TEST01` → báo lỗi tại ô "đã được ghi nhận trước đó", không tạo phiếu. Xoá mã đi → xác nhận được.
+
+### 30.4. Chi tiết hóa đơn và phiếu thu (FR-51)
+
+- [ ] Mở hóa đơn điện nước vừa thu: thẻ **Chỉ số điện nước** (chỉ số, tiêu thụ, đơn giá, thành tiền, số người chốt lúc phát hành), thẻ **Đang ở phòng**, khung **Thanh toán** là biên lai + **In biên lai**.
+- [ ] Mở một hóa đơn chưa thu: khung Thanh toán ghi nội dung chuyển khoản cần dò và nút **Thu tiền**. Hóa đơn cá nhân có link sang hợp đồng.
+- [ ] **Tài chính → Thanh toán**: tiêu đề **Phiếu thu**, 3 thẻ Đã thu / Tiền mặt / Chuyển khoản VietQR (Đã thu = hai thẻ kia cộng lại). Không còn Đang xử lý, Đối soát, Hoàn tiền.
+- [ ] Tìm `FT26TEST01` → 1 phiếu. Bấm mã phiếu → drawer biên lai, nút **In** và **Hóa đơn**.
+- [ ] **Hợp đồng** → mở `HD-2026-0001` → bảng hóa đơn của hợp đồng có số tiền, mã hóa đơn bấm sang được trang chi tiết.
+
+> Cổng sinh viên (hóa đơn, VNPay thử) làm lại ở M8 — mục này chỉ cần các màn đó mở được, không lỗi.
 
 **Lỗi phát hiện:** _(chưa có)_
 

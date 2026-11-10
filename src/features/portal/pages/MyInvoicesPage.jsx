@@ -6,7 +6,6 @@ import {
 import { ClockCircleOutlined, WarningOutlined, ShoppingOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { portalApi } from '../api/portal.api';
-import { normalizeInvoice } from '../../fees/api/fee.api';
 import { INVOICE_TYPE } from '../../../constants/statuses';
 import { formatCurrency, formatDate } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
@@ -18,7 +17,7 @@ const { Text, Title } = Typography;
 
 const loadInvoices = () => portalApi.getMyInvoices({ limit: 100 }).then((res) => {
   const body = res.data?.data;
-  const items = (Array.isArray(body) ? body : body?.items || []).map(normalizeInvoice);
+  const items = Array.isArray(body) ? body : body?.items || [];
   return { ...res, data: { ...res.data, data: { items, total: items.length, page: 1, limit: items.length } } };
 });
 
@@ -82,7 +81,7 @@ export default function MyInvoicesPage() {
 
   const { data: detail, loading: detailLoading, refetch: refetchDetail } = useApi(
     () => (activeId
-      ? portalApi.getMyInvoiceById(activeId).then((res) => ({ ...res, data: { ...res.data, data: normalizeInvoice(res.data.data) } }))
+      ? portalApi.getMyInvoiceById(activeId)
       : Promise.resolve({ data: { data: null } })),
     [activeId],
   );

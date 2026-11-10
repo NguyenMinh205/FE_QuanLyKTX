@@ -19,20 +19,22 @@ export const CONTRACT_TERM = {
   '12_months': { label: '12 tháng', hint: 'cả năm học', months: 12 },
 };
 
+/** v2: không thu một phần, không hủy, không có trạng thái quá hạn — hạn đã qua chỉ tô đỏ ngày (API.md §8) */
 export const INVOICE_STATUS = {
-  unpaid:    { label: 'Chưa thanh toán',     color: 'warning' },
-  partial:   { label: 'Thanh toán một phần', color: 'processing' },
-  paid:      { label: 'Đã thanh toán',       color: 'success' },
-  overdue:   { label: 'Quá hạn',             color: 'error' },
-  cancelled: { label: 'Đã hủy',              color: 'default' },
+  unpaid: { label: 'Chưa thanh toán', color: 'warning' },
+  paid:   { label: 'Đã thanh toán',   color: 'success' },
 };
 
 export const INVOICE_TYPE = {
-  deposit:    { label: 'Tiền cọc',     color: 'blue' },
+  deposit:       { label: 'Tiền cọc',         color: 'blue' },
   room_semester: { label: 'Tiền phòng cả kỳ', color: 'geekblue' },
-  utility:    { label: 'Điện nước',    color: 'cyan' },
-  monthly:    { label: 'Hàng tháng',   color: 'default' },
-  other:      { label: 'Khác',         color: 'default' },
+  utility:       { label: 'Điện nước',        color: 'cyan' },
+};
+
+/** Hóa đơn cá nhân (cọc, tiền phòng) hay của cả phòng (điện nước, một bạn đại diện nộp) */
+export const INVOICE_SCOPE = {
+  personal: { label: 'Cá nhân' },
+  room:     { label: 'Cả phòng' },
 };
 
 export const BED_STATUS = {
@@ -48,18 +50,10 @@ export const ROOM_STATUS = {
 
 export const ROOM_CAPACITY_OPTIONS = [4, 6, 8].map((n) => ({ value: n, label: `${n} chỗ` }));
 
-export const PAYMENT_STATUS = {
-  pending: { label: 'Đang xử lý', color: 'processing' },
-  success: { label: 'Thành công', color: 'success' },
-  failed:  { label: 'Thất bại',   color: 'error' },
-  expired: { label: 'Hết hạn',    color: 'default' },
-};
-
 export const PAYMENT_METHOD = {
-  cash:          { label: 'Tiền mặt' },
-  bank_transfer: { label: 'Chuyển khoản' },
-  vnpay:         { label: 'VNPay' },
-  zalopay:       { label: 'ZaloPay' },
+  cash:   { label: 'Tiền mặt' },
+  vietqr: { label: 'Chuyển khoản VietQR' },
+  vnpay:  { label: 'VNPay' }, // chỉ còn ở luồng thử của cổng SV — bỏ ở M8
 };
 
 export const GENDER = {

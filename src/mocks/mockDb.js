@@ -125,6 +125,13 @@ export const todayPlus = (days) => {
 };
 
 /** "2026-09-01" + 6 tháng → "2027-03-01" */
+/** "YYYY-MM-DD" (hoặc ISO) + N ngày → "YYYY-MM-DD" */
+export const plusDays = (date, days) => {
+  const [y, m, d] = String(date).slice(0, 10).split('-').map(Number);
+  const t = new Date(y, m - 1, d + days);
+  return `${t.getFullYear()}-${pad(t.getMonth() + 1, 2)}-${pad(t.getDate(), 2)}`;
+};
+
 export const plusMonths = (date, months) => {
   const [y, m, d] = date.split('-').map(Number);
   const t = new Date(y, m - 1 + months, d);
@@ -176,8 +183,7 @@ export const approveContract = (c, {
     status: 'active', roomId: room.id, roomNumber: room.roomNumber, buildingName: room.buildingName, bedNumber,
     pricePerMonth: room.pricePerMonth, depositAmount: room.depositAmount, totalRoomFee: room.pricePerMonth * months,
     startDate, endDate: plusMonths(startDate, months), reviewedAt, approvedByName,
-    // Trường của các màn hóa đơn chưa chuyển sang v2 — bỏ ở M6–M7
-    bedId: bed.id, bedCode: bed.bedCode, monthlyPrice: room.pricePerMonth,
+    bedId: bed.id, // giường đang giữ — thanh lý trả đúng giường này
   });
   return { bed, contract: c };
 };
@@ -330,59 +336,73 @@ rooms.forEach((room, idx) => {
   });
 });
 
-// ---------------------------------------------------------------- hóa đơn cọc + tháng
+// ---------------------------------------------------------------- hóa đơn + phiếu thu (API.md §8)
+/**
+ * Hóa đơn chỉ sinh từ duyệt đơn (cọc, tiền phòng cả kỳ) và chốt điện nước (cả phòng). Không lập tay, không hủy,
+ * không thu một phần: `unpaid` → `paid` một lần, đủ `amount`.
+ * Bản ghi lưu id thô (`studentId`, `roomId`, `payerStudentId`); mockApi dựng StudentRef/RoomRef khi trả ra.
+ */
 export const invoices = [];
+/** Phiếu thu — mỗi hóa đơn đúng một phiếu, là biên lai của lần thu đó (UC-06) */
+export const payments = [];
 let invSeq = 0;
-const nextInvoiceCode = (period) => { invSeq += 1; return { id: `i${pad(invSeq)}`, invoiceCode: `INV-${period}-${pad(invSeq, 5)}` }; };
+let paySeq = 0;
+const STAFF_NAME = 'Lê Thị Nhân Viên';
 
-contracts.filter((c) => c.status === 'active').forEach((c, i) => {
-  invoices.push({
-    ...nextInvoiceCode('202609'),
-    studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
-    contractId: c.id, bedCode: c.bedCode,
-    type: 'deposit', billingPeriod: null,
-    lineItems: [{ feeTypeId: 'f4', description: 'Tiền đặt cọc', quantity: 1, unitPrice: c.depositAmount, amount: c.depositAmount }],
-    totalAmount: c.depositAmount, paidAmount: c.depositAmount,
-    issueDate: '2026-08-30', dueDate: '2026-09-08', status: 'paid',
-  });
+/** Hai hóa đơn cá nhân lúc duyệt đơn (FR-32): `deposit` và `room_semester`, hạn 7 ngày */
+export const issuePersonalInvoice = (c, type, { issuedAt = new Date().toISOString(), dueDate = todayPlus(7) } = {}) => {
+  invSeq += 1;
+  const room = rooms.find((r) => r.id === c.roomId);
+  const amount = type === 'deposit' ? c.depositAmount : c.totalRoomFee;
+  const description = type === 'deposit'
+    ? `Tiền đặt cọc - ${c.contractCode}`
+    : `Tiền phòng ${room.buildingCode}-${room.roomNumber} - ${TERM_MONTHS[c.term]} tháng (${c.contractCode})`;
+  const inv = {
+    id: `i${pad(invSeq, 4)}`, invoiceCode: `INV-${String(issuedAt).slice(0, 4)}-${pad(invSeq, 4)}`,
+    type, scope: 'personal', amount, description,
+    studentId: c.studentId, roomId: c.roomId, contractId: c.id, utilityReadingId: null, monthYear: null,
+    createdAt: issuedAt, dueDate, status: 'unpaid', paidAt: null, payerStudentId: null,
+  };
+  invoices.push(inv);
+  return inv;
+};
 
-  // Hóa đơn tháng kiểu cũ (v1) chỉ còn tiền phòng — điện nước là hóa đơn của phòng (§7). M7 thay loại hóa đơn này
-  const rent = c.monthlyPrice;
-  const total = rent;
-  const cycle = i % 4; // 0 chưa trả · 1 một phần · 2 đã trả · 3 quá hạn
-  const paid = cycle === 1 ? Math.floor(total / 2) : cycle === 2 ? total : 0;
-  const status = ['unpaid', 'partial', 'paid', 'overdue'][cycle];
+/**
+ * Thu đủ một hóa đơn → phiếu thu (FR-52 tiền mặt, FR-54 VietQR). Dùng chung cho dữ liệu mẫu và mock API.
+ * Hóa đơn phòng: `payerStudentId` là bạn đại diện nộp cho cả phòng (BR-03, D5).
+ */
+export const collectInvoice = (inv, {
+  payerStudentId, method = 'cash', transactionCode = null, note = '', paidAt = new Date().toISOString(), collectedByName = STAFF_NAME,
+}) => {
+  paySeq += 1;
+  const payment = {
+    id: `p${pad(paySeq, 4)}`, paymentCode: `PAY-${String(paidAt).slice(0, 4)}-${pad(paySeq, 4)}`,
+    invoiceId: inv.id, amount: inv.amount, method, transactionCode, note, paidAt, collectedByName, payerStudentId,
+  };
+  payments.push(payment);
+  Object.assign(inv, { status: 'paid', paidAt, payerStudentId });
+  return payment;
+};
 
-  invoices.push({
-    ...nextInvoiceCode('202610'),
-    studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
-    contractId: c.id, bedCode: c.bedCode,
-    type: 'monthly', billingPeriod: '2026-10',
-    lineItems: [
-      { feeTypeId: 'f1', description: 'Tiền phòng tháng 10/2026', quantity: 1, unitPrice: rent, amount: rent },
-    ],
-    totalAmount: total, paidAmount: paid,
-    issueDate: '2026-11-01', dueDate: cycle === 3 ? '2026-11-05' : '2026-11-10', status,
-  });
+/** Mã giao dịch ngân hàng mẫu cho VietQR — tiền mặt thì không có */
+const seedPay = (inv, payerStudentId, k, paidAt) => collectInvoice(inv, {
+  payerStudentId, paidAt,
+  method: k % 3 === 0 ? 'cash' : 'vietqr',
+  transactionCode: k % 3 === 0 ? null : (k % 2 ? `FT26${pad(250000 + k * 37, 7)}` : null), // VietQR được để trống mã (FR-54 "nếu cần")
+  note: k % 3 === 0 ? 'Nộp tại văn phòng' : '',
 });
 
-// Hóa đơn tháng đầu kiểu cũ (v1) — chỉ tiền phòng, đã trả. M7 thay loại hóa đơn này
-const firstMonthPeriod = periodPlus(0);
-contracts
-  .filter((c, i) => i >= 20 && c.status === 'active' && rooms.find((r) => r.id === c.roomId)?.buildingId === 'b1')
-  .slice(0, 3)
-  .forEach((c) => {
-    const [y, m] = firstMonthPeriod.split('-');
-    invoices.push({
-      ...nextInvoiceCode(`${y}${m}`),
-      studentId: c.studentId, studentCode: c.studentCode, studentName: c.studentName,
-      contractId: c.id, bedCode: c.bedCode,
-      type: 'monthly', billingPeriod: firstMonthPeriod,
-      lineItems: [{ feeTypeId: 'f1', description: `Tiền phòng tháng ${Number(m)}/${y}`, quantity: 1, unitPrice: c.monthlyPrice, amount: c.monthlyPrice }],
-      totalAmount: c.monthlyPrice, paidAmount: c.monthlyPrice,
-      issueDate: `${firstMonthPeriod}-01`, dueDate: `${firstMonthPeriod}-08`, status: 'paid',
-    });
-  });
+// Hợp đồng đang ở: cọc đã nộp hết; tiền phòng cả kỳ còn một số bạn chưa nộp (sv001, sv009 nằm trong số này)
+contracts.filter((c) => c.status === 'active').forEach((c, k) => {
+  const idx = contracts.indexOf(c);
+  const opts = { issuedAt: c.reviewedAt, dueDate: plusDays(c.reviewedAt, 7) };
+  const deposit = issuePersonalInvoice(c, 'deposit', opts);
+  const roomFee = issuePersonalInvoice(c, 'room_semester', opts);
+  const paidAt = `${plusDays(c.reviewedAt, 1 + (k % 5))}T09:${pad((k * 7) % 60, 2)}:00+07:00`;
+  seedPay(deposit, c.studentId, k, paidAt);
+  // ⚠️ idx 10 (HĐ-2026-0011) phải hết nợ: M5 dùng nó để thử thanh lý thành công
+  if (!(idx === 0 || idx === 9 || idx % 6 === 5)) seedPay(roomFee, c.studentId, k + 1, paidAt);
+});
 
 // ---------------------------------------------------------------- hóa đơn điện nước của phòng (FR-41)
 const monthText = (monthYear) => { const [y, m] = monthYear.split('-'); return `Tháng ${Number(m)}/${y}`; };
@@ -390,104 +410,41 @@ const monthText = (monthYear) => { const [y, m] = monthYear.split('-'); return `
 /**
  * Chốt một bản ghi: khóa, ghi số người + tiền mỗi người tại thời điểm chốt, sinh MỘT hóa đơn cho cả phòng.
  * Mã có mã tòa để phòng cùng số ở hai tòa không trùng (API.md §7). Trả hóa đơn vừa tạo.
- * ⚠️ Hóa đơn còn mang thêm các trường kiểu cũ (totalAmount, paidAmount, lineItems, billingPeriod) để màn Hóa đơn v1
- * hiển thị được cho tới M7 — M7 bỏ.
  */
-export const billReading = (reading, { issueDate = todayPlus(0), dueDate = todayPlus(7) } = {}) => {
+export const billReading = (reading, { issuedAt = new Date().toISOString(), dueDate = todayPlus(7) } = {}) => {
   const room = rooms.find((r) => r.id === reading.roomId);
   const residents = residentsOf(room.id);
   Object.assign(reading, {
     isBilled: true, occupantsCount: residents.length,
     perStudentAmount: Math.round(reading.totalAmount / residents.length),
   });
-  const ym = reading.monthYear.replace('-', '');
-  const amount = reading.totalAmount;
   const inv = {
-    id: `i-util-${reading.id}`, invoiceCode: `INV-UTIL-${room.buildingCode}-${room.roomNumber}-${ym}`,
-    type: 'utility', scope: 'room', amount,
+    id: `i-util-${reading.id}`, invoiceCode: `INV-UTIL-${room.buildingCode}-${room.roomNumber}-${reading.monthYear.replace('-', '')}`,
+    type: 'utility', scope: 'room', amount: reading.totalAmount,
     description: `Tiền điện nước Phòng ${room.roomNumber} - ${monthText(reading.monthYear)} (${residents.length} người)`,
-    roomId: room.id, utilityReadingId: reading.id, monthYear: reading.monthYear,
-    student: null, contractId: null, payer: null, paidAt: null,
-    issueDate, dueDate, status: 'unpaid',
-    // trường kiểu cũ cho màn Hóa đơn v1 — bỏ ở M7
-    studentId: null, studentCode: null, studentName: null, billingPeriod: reading.monthYear,
-    totalAmount: amount, paidAmount: 0,
-    lineItems: [
-      { feeTypeId: 'electricity', description: `Tiền điện (${reading.electricity.usage} kWh × ${reading.electricity.unitPrice})`, quantity: reading.electricity.usage, unitPrice: reading.electricity.unitPrice, amount: reading.electricity.amount },
-      { feeTypeId: 'water', description: `Tiền nước (${reading.water.usage} m³ × ${reading.water.unitPrice})`, quantity: reading.water.usage, unitPrice: reading.water.unitPrice, amount: reading.water.amount },
-    ],
+    studentId: null, roomId: room.id, contractId: null, utilityReadingId: reading.id, monthYear: reading.monthYear,
+    createdAt: issuedAt, dueDate, status: 'unpaid', paidAt: null, payerStudentId: null,
   };
   invoices.push(inv);
   return inv;
 };
 
-/** Ghi nhận phòng đã trả hóa đơn điện nước — một bạn đại diện trả đủ cho cả phòng (BR-03, D5) */
-const markPaidBy = (inv, paidAt) => {
-  const payer = residentsOf(inv.roomId)[0];
-  Object.assign(inv, {
-    status: 'paid', paidAt, paidAmount: inv.amount,
-    payer: payer ? { id: payer.studentId, studentCode: payer.studentCode, fullName: payer.studentName } : null,
-  });
-};
-
-// Hai tháng trước đã chốt: tháng xa nhất trả hết, tháng gần nhất còn vài phòng chưa trả
+// Hai tháng trước đã chốt: tháng xa nhất trả hết, tháng gần nhất còn vài phòng chưa trả. Bạn MSSV nhỏ nhất đại diện nộp
 utilityReadings.filter((r) => r.isBilled).forEach((r, k) => {
   const older = r.monthYear < periodPlus(-1);
   const issued = `${older ? periodPlus(-1) : periodPlus(0)}-01`; // chốt ngày 1 của tháng kế tiếp
-  const inv = billReading(r, { issueDate: issued, dueDate: `${issued.slice(0, 8)}08` });
+  const inv = billReading(r, { issuedAt: `${issued}T08:00:00+07:00`, dueDate: `${issued.slice(0, 8)}08` });
   const roomIdx = rooms.findIndex((x) => x.id === r.roomId);
-  if (older || roomIdx % 4 !== 3) markPaidBy(inv, `${issued.slice(0, 8)}0${(k % 5) + 2}T10:00:00+07:00`);
+  if (older || roomIdx % 4 !== 3) {
+    seedPay(inv, residentsOf(r.roomId)[0].studentId, k, `${issued.slice(0, 8)}0${(k % 5) + 2}T10:00:00+07:00`);
+  }
 });
 
 // ---------------------------------------------------------------- công nợ
-export const debtOf = (studentId) =>
-  invoices
-    .filter((inv) => inv.studentId === studentId && ['unpaid', 'partial', 'overdue'].includes(inv.status))
-    .reduce((sum, inv) => sum + (inv.totalAmount - inv.paidAmount), 0);
-
-// ---------------------------------------------------------------- thanh toán
-export const payments = [];
-let paySeq = 0;
-
-invoices.filter((inv) => inv.paidAmount > 0).forEach((inv, i) => {
-  paySeq += 1;
-  const online = i % 3 !== 0;
-  payments.push({
-    id: `p${pad(paySeq)}`,
-    transactionRef: `PAY2026110${pad(paySeq, 4)}`,
-    invoiceId: inv.id, invoiceCode: inv.invoiceCode, invoiceType: inv.type,
-    studentId: inv.studentId, studentName: inv.studentName,
-    amount: inv.paidAmount, type: 'payment',
-    method: online ? 'vnpay' : 'cash',
-    gatewayTransactionId: online ? `VNP${pad(80000 + paySeq, 6)}` : null,
-    status: 'success',
-    paidAt: `2026-11-0${(i % 8) + 1}T10:${pad((i * 7) % 60, 2)}:00+07:00`,
-    note: online ? null : 'Thu tiền mặt tại văn phòng',
-    recordedByName: online ? null : 'Lê Thị Nhân Viên', bankReference: null,
-  });
-});
-
-// Giao dịch online chưa xong: 1 đang xử lý đối soát được, 1 đang xử lý quá 15 phút (BR-64), 1 thất bại
-const minutesAgo = (m) => new Date(Date.now() - m * 60000).toISOString();
-invoices.filter((inv) => ['unpaid', 'overdue'].includes(inv.status)).slice(0, 3).forEach((inv, i) => {
-  paySeq += 1;
-  payments.push({
-    id: `p${pad(paySeq)}`,
-    transactionRef: `PAY2026110${pad(paySeq, 4)}`,
-    invoiceId: inv.id, invoiceCode: inv.invoiceCode, invoiceType: inv.type,
-    studentId: inv.studentId, studentName: inv.studentName,
-    amount: inv.totalAmount - inv.paidAmount, type: 'payment',
-    method: i === 2 ? 'zalopay' : 'vnpay',
-    gatewayTransactionId: i === 0 ? `VNP${pad(90000 + paySeq, 6)}` : null,
-    bankReference: null,
-    status: i === 2 ? 'failed' : 'pending',
-    paidAt: null, createdAt: minutesAgo(i === 1 ? 40 : 6),
-    note: i === 2 ? 'Sinh viên hủy ở cổng thanh toán' : null,
-    recordedByName: null,
-    // chỉ có trong dữ liệu giả: kết quả khi bấm "Đối soát lại"
-    demoReconcile: i === 0 ? 'success' : 'expired',
-  });
-});
+/** Nợ cá nhân = hóa đơn cá nhân chưa trả. Hóa đơn điện nước thuộc cả phòng, không cộng vào nợ riêng ai */
+export const debtOf = (studentId) => invoices
+  .filter((inv) => inv.studentId === studentId && inv.status === 'unpaid')
+  .reduce((sum, inv) => sum + inv.amount, 0);
 
 // ---------------------------------------------------------------- hợp đồng năm trước (đã thanh lý)
 // Sinh viên 80, 82, 84 (nam) từng ở tòa K1 năm học 2025-2026 — đã trả phòng, giường đã trả lại.
@@ -504,18 +461,14 @@ const seedPastContract = (st, room, { startDate, endDate, terminatedAt, refunded
     isDepositRefunded: !!refundedAt, depositRefundedAt: refundedAt, depositRefundedByName: refundedAt ? 'Lê Thị Nhân Viên' : null,
     reviewedAt: `${startDate.slice(0, 4)}-08-15T10:00:00+07:00`, approvedByName: 'Lê Thị Nhân Viên',
     pricePerMonth: room.pricePerMonth - 20000, // giá năm trước — hợp đồng giữ giá đã chốt (BR-27)
-    bedId: bed.id, bedCode: bed.bedCode,
+    bedId: bed.id,
   });
-  Object.assign(c, { monthlyPrice: c.pricePerMonth, totalRoomFee: c.pricePerMonth * TERM_MONTHS[c.term] });
-  invoices.push({
-    ...nextInvoiceCode('202508'),
-    studentId: st.id, studentCode: st.studentCode, studentName: st.fullName,
-    contractId: c.id, bedCode: bed.bedCode,
-    type: 'deposit', billingPeriod: null,
-    lineItems: [{ feeTypeId: 'f4', description: 'Tiền đặt cọc', quantity: 1, unitPrice: c.depositAmount, amount: c.depositAmount }],
-    totalAmount: c.depositAmount, paidAmount: c.depositAmount,
-    issueDate: `${startDate.slice(0, 4)}-08-15`, dueDate: `${startDate.slice(0, 4)}-08-22`, status: 'paid',
-  });
+  c.totalRoomFee = c.pricePerMonth * TERM_MONTHS[c.term];
+  // Năm trước nộp đủ cả cọc lẫn tiền phòng (BR-04 mới cho thanh lý)
+  const opts = { issuedAt: c.reviewedAt, dueDate: plusDays(c.reviewedAt, 7) };
+  const paidAt = `${plusDays(c.reviewedAt, 2)}T09:30:00+07:00`;
+  collectInvoice(issuePersonalInvoice(c, 'deposit', opts), { payerStudentId: st.id, paidAt });
+  collectInvoice(issuePersonalInvoice(c, 'room_semester', opts), { payerStudentId: st.id, paidAt });
 };
 seedPastContract(students[80], rooms[0], { startDate: '2025-09-01', endDate: '2026-06-30', terminatedAt: '2026-06-30' });
 seedPastContract(students[82], rooms[2], {

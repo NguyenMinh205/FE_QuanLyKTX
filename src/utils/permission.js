@@ -22,8 +22,7 @@ const PERMISSIONS = {
   'contract:refundDeposit': OPS,    // xác nhận đã hoàn cọc
 
   'utilityReading:record': OPS,    // nhập và chốt & phát hành
-  'invoice:cancel': OPS,
-  'payment:record': OPS,
+  'payment:record': OPS,           // thu tiền mặt, xác nhận VietQR
 
   'user:manage': [ADMIN],
 };

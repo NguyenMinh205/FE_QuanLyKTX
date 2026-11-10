@@ -1,31 +1,22 @@
-import { roomLabelOf, splitBedCode } from '../../rooms/utils/roomStatus';
+import dayjs from 'dayjs';
+import { roomLabelOf } from '../../rooms/utils/roomStatus';
 
-/** "2026-10" → "10/2026"; null → "—" */
-export const periodShort = (period) => {
-  const [y, m] = String(period || '').split('-');
-  return y && m ? `${m}/${y}` : '—';
+/** "K1-302" từ RoomRef */
+export const roomTextOf = (room) => (room ? roomLabelOf(room) : '—');
+
+/** Ai phải trả: sinh viên (hóa đơn cá nhân) hoặc cả phòng (điện nước) */
+export const subjectOf = (inv) => (inv.scope === 'room'
+  ? { name: `Cả phòng ${roomTextOf(inv.room)}`, sub: inv.room?.buildingName ?? '' }
+  : { name: inv.student?.fullName ?? '—', sub: [inv.student?.studentCode, inv.room && roomTextOf(inv.room)].filter(Boolean).join(' · ') });
+
+/** Chưa trả và đã qua hạn — v2 không có trạng thái "quá hạn", chỉ tô đỏ ngày (API.md §8) */
+export const isPastDue = (inv) => inv.status === 'unpaid' && !!inv.dueDate && dayjs(inv.dueDate).isBefore(dayjs(), 'day');
+
+/**
+ * Nội dung chuyển khoản sinh viên ghi khi quét VietQR (API.md §9) — cán bộ dò sao kê theo chuỗi này.
+ * Bỏ dấu "-" vì app ngân hàng có thể lược mất.
+ */
+export const transferContentOf = (inv) => {
+  const code = String(inv.invoiceCode || '').replace(/-/g, '');
+  return inv.scope === 'room' ? `HAUI ${code} P${inv.room?.roomNumber ?? ''}` : `HAUI ${code} ${inv.student?.studentCode ?? ''}`;
 };
-
-/** "A" + "101" → "A101"; không có phòng thì lấy phần phòng của mã giường "A101-02" */
-export const invoiceRoomOf = (inv) => (inv.roomNumber
-  ? roomLabelOf(inv)
-  : (inv.bedCode ? splitBedCode(String(inv.bedCode)).room : '—'));
-
-const OPEN_STATUSES = ['unpaid', 'partial', 'overdue'];
-export const isOpenInvoice = (inv) => OPEN_STATUSES.includes(inv.status);
-
-/** null = hủy được; chuỗi = lý do không hủy được (BR-46, FR-58) */
-export const cancelBlockReason = (inv) => {
-  if (inv.status === 'cancelled') return 'Hóa đơn đã hủy';
-  if (inv.paidAmount > 0) return 'Đã có thanh toán — không hủy được (BR-46)';
-  return null;
-};
-
-/** "Tiền điện tháng 9/2026 (56 kWh, chia đều 2 người)" → { main: "Tiền điện tháng 9/2026", sub: "56 kWh, chia đều 2 người" } */
-export const splitLineDescription = (text) => {
-  const m = String(text || '').match(/^(.*?)\s*\(([^()]+)\)\s*$/);
-  return m ? { main: m[1], sub: m[2] } : { main: text || '—', sub: null };
-};
-
-/** Nội dung chuyển khoản gợi ý để kế toán đối soát: mã hóa đơn bỏ dấu "-" + MSSV */
-export const transferNoteOf = (inv) => `${String(inv.invoiceCode || '').replace(/-/g, '')} ${inv.studentCode || ''}`.trim();
