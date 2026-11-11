@@ -1,7 +1,7 @@
 # API Reference
 
 **Project:** HaUI Dormitory Management System (HaUI DMS)
-**Version:** 2.5 (streamlined HaUI edition)
+**Version:** 2.6 (streamlined HaUI edition)
 **Base URL:** `/api`
 **Auth:** JWT Bearer token (`Authorization: Bearer <token>`)
 **Audience:** Frontend and backend developers
@@ -63,6 +63,7 @@ Extra aggregates sit next to the pagination fields, for example `summary`.
 |---|---|
 | `role` | `admin`, `staff`, `student` |
 | `gender` | `male`, `female` |
+| `student.status` | `active`, `inactive` (after `PATCH /students/:id/deactivate`) |
 | `room.status` | `active`, `maintenance` |
 | `bed.status` | `available`, `occupied`, `maintenance` |
 | `room.capacity` | `4`, `6`, `8` |
@@ -112,7 +113,7 @@ Referenced by name in the sections below.
 | PATCH | `/auth/change-password` | authenticated | Change own password |
 | GET | `/users` | admin | `?search=&role=&isActive=&page=&limit=`. Search covers email, name, student code |
 | POST | `/users` | admin | Create a staff or admin account |
-| PUT | `/users/:id` | admin | Update `{ email, fullName, role }` |
+| PUT | `/users/:id` | admin | Update `{ email, fullName, role }`, returns the updated **User item** (below) |
 | PATCH | `/users/:id/status` | admin | Lock or unlock, `{ isActive }` |
 | POST | `/users/:id/reset-password` | admin, staff | Issue a temporary password |
 
@@ -181,7 +182,9 @@ Success sets `mustChangePassword` to `false`. New password: at least 8 character
 | PUT | `/students/:id` | admin, staff | Update (FR-13) |
 | PATCH | `/students/:id/deactivate` | admin, staff | Deactivate (FR-14) |
 
-**Student body:** `{ studentCode, fullName, gender, phone, email?, dob?, faculty?, className?, emergencyContact?: { name, phone, relationship } }`. `phone` matches `/^0\d{9}$/`.
+**Student body:** `{ studentCode, fullName, gender, phone, email?, dob?, faculty?, className?, emergencyContact?: { name, phone, relationship } }`. `studentCode` is exactly 10 digits (`/^\d{10}$/`), here, in the import and in the public application (§5), so every profile stays editable. `phone` matches `/^0\d{9}$/`.
+
+**PUT `/students/:id`**: `gender` cannot change while the student has a `pending` or `active` contract (BR-01: the held bed is in a room of the old gender). Returns `422 GENDER_CHANGE_NOT_ALLOWED` with a field error on `gender`.
 
 **List item:** Student fields, plus `userId`, `hasAccount`, `status`, `totalDebt`, and `residence: { buildingCode, roomNumber, bedNumber } | null`.
 
@@ -200,6 +203,7 @@ Success sets `mustChangePassword` to `false`. New password: at least 8 character
 | Error | HTTP | When |
 |---|---|---|
 | `DUPLICATE_ENTRY` | 409 | Student code already exists, field error on `studentCode` |
+| `GENDER_CHANGE_NOT_ALLOWED` | 422 | Changing `gender` while a `pending` or `active` contract holds a bed |
 | `STUDENT_HAS_ACTIVE_CONTRACT` | 422 | Deactivating a student with an `active` contract |
 | `STUDENT_HAS_DEBT` | 422 | Deactivating a student with an unpaid invoice |
 
@@ -211,7 +215,7 @@ Success sets `mustChangePassword` to `false`. New password: at least 8 character
 |---|---|---|---|
 | GET | `/buildings` | admin, staff | Plain array sorted by `code`, with stats. `?includeInactive=true` adds inactive buildings |
 | POST | `/buildings` | admin, staff | `{ code, name, description? }` |
-| PUT | `/buildings/:id` | admin, staff | `{ code, name, description, isActive }` |
+| PUT | `/buildings/:id` | admin, staff | Partial `{ name?, description?, isActive? }`: only the fields sent change. `code` cannot change. The edit form sends `{ name, description }`, the activate/deactivate button sends `{ isActive }` alone. `isActive: false` with residents returns `422 BUILDING_HAS_OCCUPANTS` |
 | GET | `/rooms` | admin, staff | `?buildingId=&floor=&gender=&capacity=&status=&availability=has_slot\|full&page=&limit=` (FR-22) |
 | GET | `/rooms/:id` | admin, staff | Detail with beds |
 | POST | `/rooms` | admin, staff | Create, beds generated automatically (FR-24) |
@@ -287,7 +291,7 @@ No token. These endpoints should be rate limited.
             "pricePerMonth": 320000, "totalRoomFee": 1920000, "depositAmount": 500000 } }
 ```
 
-- `email` is required here, because the account is delivered by email.
+- `email` is required here, because the account is delivered by email. `studentCode` is exactly 10 digits, the same rule as §3, otherwise `400 VALIDATION_ERROR` with a field error on `studentCode`.
 - A new student code creates a `Student` with no `userId`. An existing student code with no `pending` or `active` contract reuses that record and refreshes it from the form, which is how a former resident returns.
 - Prices are read from the room, never from the client. The bed is **not** locked here (BR-05 locks at approval). `startDate` and `endDate` stay empty until approval.
 - The room must be `active` and its building active. Otherwise `404 NOT_FOUND` ("the room no longer accepts applications"), and the form returns to room selection.
@@ -303,8 +307,10 @@ No token. These endpoints should be rate limited.
 ```json
 { "code": "OK", "message": "Success",
   "data": { "contractCode": "HD-2026-0012", "status": "pending", "submittedAt": "2026-11-09T08:00:00Z", "room": { },
-            "bedNumber": 3, "term": "6_months", "startDate": null, "endDate": null, "rejectionReason": null } }
+            "bedNumber": 3, "term": "6_months", "startDate": null, "endDate": null, "rejectionReason": null,
+            "pricePerMonth": 320000, "totalRoomFee": 1920000, "depositAmount": 500000 } }
 ```
+The three price fields are required: a `pending` application shows "you will pay `depositAmount + totalRoomFee` on approval". Copy them from the contract (fixed when the application was submitted).
 Returns the most recent application for that pair. No match returns `404 APPLICATION_NOT_FOUND`, with the same message whether the code or the email was wrong.
 
 ---
@@ -330,15 +336,21 @@ A contract carries the application and the stay in one document.
   "student": { }, "room": { }, "bedNumber": 3,
   "rejectionReason": null, "approvedByName": "Lê Thị Nhân Viên", "reviewedAt": "2026-11-09T09:00:00Z", "terminatedAt": null,
   "isDepositRefunded": false, "depositRefundedAt": null, "depositRefundedByName": null,
-  "createdAt": "2026-11-09T08:00:00Z" }
+  "totalDebt": 0, "createdAt": "2026-11-09T08:00:00Z" }
 ```
+
+- `totalDebt` is the sum of the student's **personal** unpaid invoices (`room_semester`, `deposit`), computed when reading. It feeds the "Công nợ" column and the drawer, and is what BR-04 checks at checkout. Without it the screen shows 0 đ for everyone.
 
 - `student` is `StudentRef`, `room` is `RoomRef`.
 - `reviewedAt` is when the application was approved or rejected, `approvedByName` the staff who did it.
 - `status` accepts one value or a comma-separated list, e.g. `?status=active,expired,terminated` for every contract that is not an application.
 - `status` is `expired` when an `active` contract is past `endDate`. There is no scheduled job, so the server derives it when reading. The bed stays occupied until checkout.
 - `GET /contracts` adds `summary: { pending, active, expired, terminated, rejected, awaitingDepositRefund }`. `awaitingDepositRefund` counts `terminated` contracts with `isDepositRefunded: false`.
-- `GET /contracts/:id` adds `student` with the full profile (phone, email, dob, faculty, className, emergencyContact), and `invoices: Invoice[]`.
+- `GET /contracts/:id` adds `student` with the full profile (phone, email, dob, faculty, className, emergencyContact), `invoices: Invoice[]`, and `history`: a timeline built from the contract's own dates, newest first.
+  ```jsonc
+  "history": [ { "at": "2026-11-09T09:00:00Z", "type": "application_approved", "title": "Duyệt đơn, khóa giường", "description": "Phòng 302 giường 03 · …" } ]
+  ```
+  `type` is one of `application_submitted` (`createdAt`), `application_approved` or `rejected` (`reviewedAt`), `expired` (`endDate`, only while `expired`), `terminated` (`terminatedAt`), `deposit_refunded` (`depositRefundedAt`). Entries whose date is empty are left out. No extra collection is needed.
 
 **PATCH `/contracts/:id/approve`**
 ```json
@@ -412,12 +424,12 @@ Prices come from the final room when `roomId` is sent. A failed email does not r
 { "code": "OK", "message": "Success",
   "data": { "buildingId": "…", "monthYear": "2026-10",
             "defaultUnitPrices": { "electricity": 3000, "water": 15000 },
-            "rows": [ { "room": { "id": "…", "roomNumber": "302", "floor": 3, "capacity": 6, "occupied": 6 },
+            "rows": [ { "room": { "id": "…", "roomNumber": "302", "floor": 3, "capacity": 6, "status": "active", "occupied": 6 },
                         "previous": { "electricityNewIndex": 1200, "waterNewIndex": 300 },
                         "reading": null } ] } }
 ```
 
-- `rows` is a plain array sorted like §5, one row per `active` room. `previous` is `null` when there is no earlier reading.
+- `rows` is a plain array sorted like §5, one row per room that must be billed: every `active` room, plus a room in `maintenance` that still has residents (maintenance only stops new applications, FR-25). `room` also carries `status` so the grid can mark it. `previous` is `null` when there is no earlier reading.
 - `defaultUnitPrices` comes from the most recent readings of the building, or `0` when none exist. There is no price catalogue: prices are entered on the grid and stored on each reading.
 
 **POST `/utility-readings/bulk`**
@@ -462,11 +474,12 @@ Invoices are created only by approval (§6) and publishing (§7). They cannot be
 ```json
 { "id": "…", "invoiceCode": "INV-UTIL-K1-302-202610", "type": "utility", "scope": "room", "amount": 630000,
   "description": "Tiền điện nước Phòng 302 - Tháng 10/2026 (6 người)", "createdAt": "2026-11-09T01:00:00Z", "dueDate": "2026-11-16", "status": "paid", "paidAt": "2026-11-12T03:00:00Z",
-  "student": null, "room": { }, "contractId": null, "utilityReadingId": "…",
+  "student": null, "room": { }, "contractId": null, "utilityReadingId": "…", "monthYear": "2026-10",
   "payer": { "id": "…", "studentCode": "2021601234", "fullName": "Nguyễn Văn An" } }
 ```
 
 - `scope` is `personal` for `room_semester` and `deposit`, `room` for `utility`.
+- `monthYear` is the billed month of a `utility` invoice (copied from its reading), `null` on personal invoices. Lists and the portal bell title invoices by it ("Điện nước tháng 10/2026") and have no other way to know the month.
 - `student` is `StudentRef` on personal invoices, `null` on room invoices. `room` is `RoomRef`. `payer` is `null` until paid.
 - The list adds `summary: { totalAmount, paidAmount, unpaidAmount, unpaidCount }`.
 
@@ -507,13 +520,13 @@ Every endpoint is `student` only and identifies the student from the JWT.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/portal/profile` | Own profile (FR-60) |
+| GET | `/portal/profile` | Own profile (FR-60): the Student object itself, not wrapped, `{ id, studentCode, fullName, gender, dob, phone, email, faculty, className, emergencyContact, status }` |
 | GET | `/portal/my-residence` | Current stay (FR-60, FR-61) |
 | GET | `/portal/my-contracts` | All own contracts, newest first, as `Contract[]`. Includes deposit status |
 | GET | `/portal/my-invoices` | `?scope=personal\|room&status=&page=&limit=` (FR-62) |
 | GET | `/portal/my-invoices/:id` | Detail, same shape as §8 |
 | GET | `/portal/my-invoices/:id/vietqr` | QR payload (FR-53) |
-| GET | `/portal/my-payments` | `?page=&limit=`. Own personal payments and room payments, as `Payment[]` (FR-63) |
+| GET | `/portal/my-payments` | `?page=&limit=`. Own personal payments and room payments, paginated `{ items: Payment[], total, page, limit }` (FR-63) |
 | GET | `/portal/my-room/utility-history` | `?limit=12`, newest first, as `Reading[]` (FR-42). Billed months only: an unbilled reading can still change |
 
 Room invoices are limited to the room the student currently lives in. The portal bell has no endpoint: it counts `GET /portal/my-invoices?scope=room&status=unpaid`.
@@ -591,6 +604,7 @@ With no `active` or `expired` contract: `{ "hasResidence": false, "contract": nu
 | `INVOICE_ALREADY_PAID` | 409 | Invoice already paid |
 | `DUPLICATE_TRANSACTION_CODE` | 409 | Bank reference already recorded |
 | `GENDER_MISMATCH` | 422 | Student and room gender differ |
+| `GENDER_CHANGE_NOT_ALLOWED` | 422 | Student gender edited while a `pending` or `active` contract holds a bed |
 | `STUDENT_HAS_ACTIVE_CONTRACT` | 422 | Student still has an `active` contract |
 | `STUDENT_HAS_DEBT` | 422 | Student still owes money |
 | `CANNOT_MODIFY_SELF` | 422 | Action on your own account |
@@ -652,6 +666,7 @@ Optional later: a SePay or Casso webhook for FR-54b would call the same logic as
 
 | Version | Date | Change |
 |---|---|---|
+| 2.6 | 11/11/2026 | Pre-integration review. Documented fields the screens already read: `Contract.totalDebt`, contract detail `history`, `Invoice.monthYear`, prices on `GET /public/applications/status`, `/portal/profile` shape, `PUT /users/:id` response, `student.status` values, paginated `/portal/my-payments`. `PUT /buildings/:id` is partial and cannot change `code`. `studentCode` is 10 digits in the public application too. `PUT /students/:id` adds `GENDER_CHANGE_NOT_ALLOWED`. The utility grid and publish include rooms in maintenance that still have residents. |
 | 2.5 | 10/11/2026 | Full review (M10b): approve adds `ROOM_NOT_AVAILABLE`; room update adds `ROOM_HAS_PENDING_APPLICATIONS` and keeps existing beds; online application needs an active room and building; staff reset student passwords only; building rename reaches rooms and contracts. |
 | 2.4 | 10/11/2026 | Dashboard (M9): occupancy lists active buildings only. `GET /dashboard/revenue` returns `403 FORBIDDEN` for staff. |
 | 2.3 | 10/11/2026 | Student portal (M8): `debtSummary` is personal only; utility history returns billed months only. |

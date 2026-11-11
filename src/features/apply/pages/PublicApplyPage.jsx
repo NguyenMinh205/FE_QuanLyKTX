@@ -206,13 +206,13 @@ export default function PublicApplyPage() {
             <Col xs={24} md={12}>
               <Form.Item
                 name="studentCode" label="Mã sinh viên"
-                normalize={(v) => (v || '').toUpperCase()}
                 rules={[
                   { required: true, whitespace: true, message: 'Nhập mã sinh viên' },
-                  { pattern: /^[A-Za-z0-9]{6,20}$/, message: 'Mã sinh viên gồm 6–20 ký tự chữ và số' },
+                  // ⚠️ Phải cùng luật với hồ sơ sinh viên (10 số): nhận mã khác ở đây thì duyệt xong hồ sơ không sửa được nữa
+                  { pattern: /^\d{10}$/, message: 'Mã sinh viên gồm đúng 10 chữ số' },
                 ]}
               >
-                <Input placeholder="VD: 2021601234" maxLength={20} />
+                <Input placeholder="VD: 2021601234" maxLength={10} inputMode="numeric" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>

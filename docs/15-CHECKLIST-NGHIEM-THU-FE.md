@@ -47,6 +47,7 @@
 | 32 | v2 · M10: Sinh viên (lọc, chi tiết, đặt lại MK), nhập Excel sinh viên, Excel chỉ số điện nước | SCR-11, SCR-51 | `feature/v2-students-excel` | Dữ liệu giả | ⬜ Chưa test |
 | 33 | v2 · M10b: sửa lỗi đợt soát tổng + làm đẹp giao diện | Mọi màn | `feature/v2-ui-polish` | Dữ liệu giả | ⬜ Chưa test |
 | 34 | v2 · M11: thử trọn luồng 3 vai trò + tổng nghiệm thu | Mọi màn | `docs/v2-acceptance` | Dữ liệu giả | ⬜ Chưa test |
+| 35 | Sửa lỗi trước khi nối backend: phòng bảo trì còn người, khóa giới tính, MSSV 10 số, API.md 2.6 (mục 36) | SCR-11, 23, 51, 62 | `fix/pre-integration` | Dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1903,6 +1904,38 @@ Chạy dữ liệu giả: `npm run dev`, mở địa chỉ ở dòng `Local:` (t
 - [ ] Đã chạy các mục 24–34 (mỗi mục một mốc), lỗi ghi ở mục **Lỗi phát hiện** của từng mục.
 - [ ] Màn hình hẹp (DevTools → 390px): Trang chủ SV, Hóa đơn SV, Đăng nhập, Nộp đơn, Hóa đơn (cán bộ) không cuộn ngang.
 - [ ] Không còn dấu vết v1: menu không có Loại phòng, Loại phí, Nhu yếu phẩm, Yêu cầu; `/register`, `/portal/shop`, `/admin/room-types` ra trang 404.
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 36. Sửa lỗi trước khi nối backend (11/11/2026)
+
+Nhánh `fix/pre-integration`. Dữ liệu giả, mở trang mới (F5) trước mỗi phần. Tài khoản cán bộ `staff@dorm.local` / `Staff@123`.
+
+### 36.1. Phòng bảo trì còn người vẫn thu điện nước (FR-40, FR-41)
+
+- [ ] **Phòng** → Tòa K1 → bấm phòng **K1-101** (đang có người) → **Sửa** → ô Trạng thái ghi "Người đang ở vẫn ở tiếp và vẫn được ghi điện nước" → chọn **Đang bảo trì** → **Lưu** → thành công.
+- [ ] **Chỉ số điện nước** → Tháng hiện tại, Tòa K1 → dòng **K1-101 vẫn còn**, dưới tên phòng có chữ vàng **Đang bảo trì**, nhập và lưu được như phòng khác.
+- [ ] **Chốt & phát hành** → xác nhận → **Hóa đơn** → tìm `K1-101` → có hóa đơn điện nước tháng này của K1-101.
+- [ ] Phòng **đang bảo trì mà trống** (không có người ở) thì **không** có dòng trong lưới.
+
+### 36.2. Khóa giới tính sinh viên đang ở hoặc có đơn chờ (BR-01)
+
+- [ ] **Sinh viên** → bấm **Nguyễn Văn An** (`2021600001`, đang ở K1-101) → **Sửa** → ô **Giới tính bị khóa**, dòng dưới ghi "Đang ở hoặc có đơn chờ duyệt — thanh lý / từ chối đơn trước khi đổi giới tính". Sửa SĐT rồi **Lưu** vẫn thành công.
+- [ ] Bấm **Phạm Phương Linh** (`2021600076`, có đơn chờ duyệt) → **Sửa** → ô Giới tính cũng bị khóa.
+- [ ] Bấm một sinh viên cột **Chỗ ở** trống và không có đơn chờ → **Sửa** → ô Giới tính mở, đổi được và lưu thành công.
+
+### 36.3. MSSV đúng 10 chữ số ở nộp đơn và tra cứu
+
+- [ ] Đăng xuất → **Đăng ký ở ký túc xá** → ô Mã sinh viên gõ `SV12345` → báo **"Mã sinh viên gồm đúng 10 chữ số"**; ô không nhận quá 10 ký tự.
+- [ ] Gõ `2021607777` → hết báo lỗi, đi tiếp sang bước chọn phòng được.
+- [ ] **Tra cứu tiến độ đơn** → MSSV `12345` + email bất kỳ → **Tra cứu** → báo cùng lỗi, không gửi yêu cầu.
+
+### 36.4. Tài liệu bàn giao backend
+
+- [ ] `docs/API.md` lên **2.6**, nhật ký phiên bản liệt kê các trường mới (`totalDebt`, `history`, `monthYear`, giá ở tra cứu đơn, profile, `PUT /buildings` nhận một phần, `GENDER_CHANGE_NOT_ALLOWED`).
+- [ ] `docs/16-YEU-CAU-API-BACKEND.md` lên **2.1**, **không còn** mục "Danh mục loại phòng".
 
 **Lỗi phát hiện:** _(chưa có)_
 

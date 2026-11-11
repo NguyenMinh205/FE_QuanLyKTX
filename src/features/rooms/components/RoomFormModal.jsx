@@ -126,7 +126,7 @@ export default function RoomFormModal({ open, room, buildings, defaultBuildingId
         </Row>
 
         {isEdit && (
-          <Form.Item name="status" label="Trạng thái" extra="Phòng đang bảo trì không nhận đơn đăng ký mới">
+          <Form.Item name="status" label="Trạng thái" extra="Phòng đang bảo trì không nhận đơn đăng ký mới. Người đang ở vẫn ở tiếp và vẫn được ghi điện nước">
             <Radio.Group options={STATUS_OPTIONS} />
           </Form.Item>
         )}

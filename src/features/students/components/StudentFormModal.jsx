@@ -17,6 +17,8 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
   const { message } = App.useApp();
   const [saving, setSaving] = useState(false);
   const isEdit = !!student;
+  // Mở sửa từ drawer chi tiết nên có `contracts`; thiếu thì chỉ dựa vào `residence`
+  const genderLocked = isEdit && (!!student.residence || !!student.contracts?.some((c) => c.status === 'pending'));
 
   useEffect(() => {
     if (!open) return;
@@ -77,8 +79,12 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
             </Form.Item>
           </Col>
           <Col xs={24} sm={10}>
-            <Form.Item name="gender" label="Giới tính" rules={[{ required: true, message: 'Chọn giới tính' }]} extra="Quyết định tòa và phòng được xếp">
-              <Select options={GENDER_OPTIONS} placeholder="Chọn giới tính" />
+            <Form.Item
+              name="gender" label="Giới tính" rules={[{ required: true, message: 'Chọn giới tính' }]}
+              // BR-01: đang ở hoặc có đơn chờ duyệt thì giường thuộc phòng theo giới tính hiện tại — khóa ô (backend cũng chặn, 422)
+              extra={genderLocked ? 'Đang ở hoặc có đơn chờ duyệt — thanh lý / từ chối đơn trước khi đổi giới tính' : 'Quyết định tòa và phòng được xếp'}
+            >
+              <Select options={GENDER_OPTIONS} placeholder="Chọn giới tính" disabled={genderLocked} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={14}>

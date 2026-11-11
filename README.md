@@ -134,7 +134,7 @@ Lúc chạy `npm run dev`, console của trình duyệt sẽ in rõ đang ở ch
 | Tài liệu | Đọc để làm gì |
 |----------|---------------|
 | [`docs/17-TONG-QUAN-FRONTEND.md`](docs/17-TONG-QUAN-FRONTEND.md) | Nắm toàn bộ frontend v2: màn hình, luồng, quyết định đã chốt |
-| [`docs/API.md`](docs/API.md) | **Hợp đồng chung với backend** (v2.5) — đổi phải báo nhau |
+| [`docs/API.md`](docs/API.md) | **Hợp đồng chung với backend** (v2.6) — đổi phải báo nhau |
 | [`docs/16-YEU-CAU-API-BACKEND.md`](docs/16-YEU-CAU-API-BACKEND.md) | Việc backend cần làm để lên v2 |
 | [`docs/15-CHECKLIST-NGHIEM-THU-FE.md`](docs/15-CHECKLIST-NGHIEM-THU-FE.md) | Bấm thử từng màn — bản v2 ở mục 24–35 |
 | [`docs/README.md`](docs/README.md) | Bản đồ tài liệu. ⚠️ Tài liệu `01`–`14` mô tả bản v1 |

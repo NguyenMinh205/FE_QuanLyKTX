@@ -319,6 +319,14 @@ export const mockStudents = {
     if (students.some((s) => s.id !== id && s.studentCode === next.studentCode)) {
       fail(409, 'DUPLICATE_ENTRY', 'Mã số sinh viên đã tồn tại', { errors: [{ field: 'studentCode', message: 'Mã số sinh viên đã tồn tại' }] });
     }
+    // ⚠️ BR-01: giường đang giữ (đơn chờ duyệt hoặc đang ở) thuộc phòng theo giới tính cũ — đổi giới tính lúc này
+    // là đưa một SV nữ vào phòng nam. Muốn sửa thì từ chối đơn / thanh lý trước.
+    const holdsBed = contracts.some((c) => c.studentId === id && ['pending', 'active'].includes(c.status));
+    if (next.gender !== st.gender && holdsBed) {
+      fail(422, 'GENDER_CHANGE_NOT_ALLOWED', 'Sinh viên đang có đơn chờ duyệt hoặc đang ở, không đổi được giới tính', {
+        errors: [{ field: 'gender', message: 'Đang có đơn chờ duyệt hoặc đang ở — từ chối đơn hoặc thanh lý trước khi đổi giới tính' }],
+      });
+    }
     Object.assign(st, pickStudent(body));
     // Tài khoản đăng nhập bằng MSSV (FR-01) → đổi MSSV / họ tên thì tài khoản đi theo
     const acc = ACCOUNTS.find((x) => x.studentId === st.id);
@@ -555,7 +563,8 @@ export const mockPublic = {
     const code = String(body.studentCode || '').trim().toUpperCase();
     const email = String(body.email || '').trim().toLowerCase();
     const errors = [];
-    if (!/^[A-Z0-9]{6,20}$/.test(code)) errors.push({ field: 'studentCode', message: 'Mã sinh viên gồm 6–20 ký tự chữ và số' });
+    // Cùng luật với hồ sơ sinh viên — nhận mã khác thì hồ sơ tạo ra từ đơn này sẽ không sửa được (PUT /students bắt 10 số)
+    if (!STUDENT_CODE_RE.test(code)) errors.push({ field: 'studentCode', message: 'Mã sinh viên gồm đúng 10 chữ số' });
     if (!String(body.fullName || '').trim()) errors.push({ field: 'fullName', message: 'Nhập họ và tên' });
     if (!['male', 'female'].includes(body.gender)) errors.push({ field: 'gender', message: 'Chọn giới tính' });
     if (!/^0\d{9}$/.test(String(body.phone || ''))) errors.push({ field: 'phone', message: 'Số điện thoại gồm 10 số, bắt đầu bằng 0' });
@@ -830,9 +839,13 @@ const checkMonth = (value, field = 'monthYear') => {
   if (monthYear > periodPlus(0)) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: [{ field, message: 'Chưa tới tháng này, không nhập trước được' }] });
   return monthYear;
 };
-/** Phòng đang dùng của một tòa, xếp theo tầng rồi số phòng (BR-07) */
-const activeRoomsOf = (buildingId) => rooms
-  .filter((r) => r.buildingId === buildingId && r.status === 'active')
+/**
+ * Phòng phải ghi điện nước của một tòa, xếp theo tầng rồi số phòng (BR-07): phòng `active`, và cả phòng đang bảo trì
+ * mà còn người ở. ⚠️ Chỉ lọc `active` thì phòng có người chuyển sang bảo trì (sửa đồ khi SV vẫn ở) biến khỏi lưới
+ * và không bao giờ bị lập hóa đơn tháng đó — bảo trì chỉ chặn nhận đơn mới (FR-25), không miễn tiền điện nước.
+ */
+const billableRoomsOf = (buildingId) => rooms
+  .filter((r) => r.buildingId === buildingId && (r.status === 'active' || residentsOf(r.id).length > 0))
   .sort((a, b) => a.floor - b.floor || a.roomNumber.localeCompare(b.roomNumber, 'vi', { numeric: true }));
 const readingOf = (roomId, monthYear) => utilityReadings.find((u) => u.roomId === roomId && u.monthYear === monthYear);
 /** Bản ghi gần nhất TRƯỚC tháng này của phòng — chỉ số cũ tự điền từ đây (BR-51) */
@@ -849,7 +862,7 @@ export const mockFees = {
     const building = buildings.find((b) => b.id === q.buildingId);
     if (!building) fail(404, 'NOT_FOUND', 'Không tìm thấy tòa nhà');
     const monthYear = checkMonth(q.monthYear);
-    const roomList = activeRoomsOf(building.id);
+    const roomList = billableRoomsOf(building.id);
     // Đơn giá mặc định: bản ghi gần nhất của tòa (tháng này nếu đã lưu), không có thì 0 (D4)
     const latest = utilityReadings
       .filter((u) => u.monthYear <= monthYear && roomList.some((r) => r.id === u.roomId))
@@ -860,7 +873,7 @@ export const mockFees = {
       rows: roomList.map((r) => {
         const prev = previousReadingOf(r.id, monthYear);
         return {
-          room: { id: r.id, roomNumber: r.roomNumber, floor: r.floor, capacity: r.capacity, occupied: residentsOf(r.id).length },
+          room: { id: r.id, roomNumber: r.roomNumber, floor: r.floor, capacity: r.capacity, status: r.status, occupied: residentsOf(r.id).length },
           previous: prev ? { electricityNewIndex: prev.electricity.newIndex, waterNewIndex: prev.water.newIndex } : null,
           reading: readingOf(r.id, monthYear) ?? null,
         };
@@ -880,13 +893,13 @@ export const mockFees = {
     if (!isPrice(body.electricityUnitPrice)) priceErrors.push({ field: 'electricityUnitPrice', message: 'Đơn giá điện phải là số nguyên lớn hơn 0' });
     if (!isPrice(body.waterUnitPrice)) priceErrors.push({ field: 'waterUnitPrice', message: 'Đơn giá nước phải là số nguyên lớn hơn 0' });
     if (priceErrors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors: priceErrors });
-    const roomList = activeRoomsOf(building.id);
+    const roomList = billableRoomsOf(building.id);
     const errors = [];
     let savedCount = 0;
     (Array.isArray(body.rows) ? body.rows : []).forEach((row) => {
       const room = roomList.find((r) => r.id === row.roomId);
       const err = (message) => errors.push({ roomId: row.roomId, message });
-      if (!room) { err('Phòng không thuộc tòa này hoặc đang bảo trì'); return; }
+      if (!room) { err('Phòng không thuộc tòa này, hoặc đang bảo trì và không có người ở'); return; }
       const fields = ['electricityOldIndex', 'electricityNewIndex', 'waterOldIndex', 'waterNewIndex'];
       if (!fields.every((f) => isIndex(row[f]))) { err('Nhập đủ 4 chỉ số, là số nguyên không âm'); return; }
       const v = Object.fromEntries(fields.map((f) => [f, Number(row[f])]));
@@ -912,7 +925,7 @@ export const mockFees = {
     const building = buildings.find((b) => b.id === body.buildingId);
     if (!building) fail(404, 'NOT_FOUND', 'Không tìm thấy tòa nhà');
     const monthYear = checkMonth(body.monthYear);
-    const pending = activeRoomsOf(building.id)
+    const pending = billableRoomsOf(building.id)
       .map((room) => ({ room, reading: readingOf(room.id, monthYear) }))
       .filter((x) => x.reading && !x.reading.isBilled);
     const skipped = [];

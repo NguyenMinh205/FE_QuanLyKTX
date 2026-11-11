@@ -53,8 +53,11 @@ export default function ApplicationStatusPage() {
           >
             <Row gutter={16}>
               <Col xs={24} md={10}>
-                <Form.Item name="studentCode" label="Mã sinh viên" rules={[{ required: true, whitespace: true, message: 'Nhập mã sinh viên' }]}>
-                  <Input placeholder="VD: 2021601234" maxLength={20} />
+                <Form.Item
+                  name="studentCode" label="Mã sinh viên"
+                  rules={[{ required: true, whitespace: true, message: 'Nhập mã sinh viên' }, { pattern: /^\s*\d{10}\s*$/, message: 'Mã sinh viên gồm đúng 10 chữ số' }]}
+                >
+                  <Input placeholder="VD: 2021601234" maxLength={10} inputMode="numeric" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={14}>

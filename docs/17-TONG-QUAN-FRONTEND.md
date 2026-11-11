@@ -4,7 +4,7 @@
 **Người đọc:** thành viên nhóm phụ trách Frontend — dùng để nắm toàn bộ phần FE và trả lời khi được hỏi
 **Người lập:** FE Lead · **Cập nhật:** 10/11/2026 (bản 2.0) · **Trạng thái FE:** đủ 21 màn v2, chạy trên dữ liệu giả
 
-> Tài liệu này gom lại **những gì thực sự đã code** ở bản v2 và giải thích *vì sao làm như vậy*. Hợp đồng dữ liệu ở `API.md` (v2.5), mô tả đề tài ở `MO-TA-DE-TAI.md`. Các tài liệu `01`–`14`, `PRD.md`, `DATA-SCHEMA.md` mô tả **bản v1** (đăng ký theo loại phòng, nhu yếu phẩm, VNPay…) — chỉ dùng để tra lịch sử.
+> Tài liệu này gom lại **những gì thực sự đã code** ở bản v2 và giải thích *vì sao làm như vậy*. Hợp đồng dữ liệu ở `API.md` (v2.6), mô tả đề tài ở `MO-TA-DE-TAI.md`. Các tài liệu `01`–`14`, `PRD.md`, `DATA-SCHEMA.md` mô tả **bản v1** (đăng ký theo loại phòng, nhu yếu phẩm, VNPay…) — chỉ dùng để tra lịch sử.
 
 ---
 
@@ -157,9 +157,9 @@ Chuông thông báo ở thanh trên cổng sinh viên (`RoomInvoiceBell`) đếm
 - **Chỗ ở** hiện phòng, bạn cùng phòng, hợp đồng, trạng thái tiền cọc, lịch sử lưu trú và lịch sử điện nước của phòng. Không có thao tác trả phòng online (D1).
 
 ### 5.6. Cơ sở vật chất, sinh viên, tài khoản
-- **Phòng:** sức chứa 4/6/8; phòng có người không đổi được giới tính/sức chứa; giảm sức chứa mà mất giường đang có đơn chờ thì bị chặn. Bảo trì ở **cấp phòng**.
+- **Phòng:** sức chứa 4/6/8; phòng có người không đổi được giới tính/sức chứa; giảm sức chứa mà mất giường đang có đơn chờ thì bị chặn. Bảo trì ở **cấp phòng**: chỉ chặn nhận đơn mới, người đang ở vẫn ở tiếp và phòng vẫn có dòng trong lưới điện nước.
 - **Tòa nhà:** ngừng hoạt động bị chặn khi còn người ở.
-- **Sinh viên:** MSSV đúng 10 chữ số. Vô hiệu hóa bị chặn khi còn hợp đồng hoặc còn nợ.
+- **Sinh viên:** MSSV đúng 10 chữ số, cả ở form nộp đơn công khai. Không đổi được giới tính khi còn đơn chờ hoặc đang ở (BR-01). Vô hiệu hóa bị chặn khi còn hợp đồng hoặc còn nợ.
   - **Đặt lại mật khẩu** từ drawer sinh viên: Staff làm được, nhưng chỉ cho tài khoản sinh viên.
   - **Nhập Excel:** có file mẫu; dòng lỗi được báo đúng số dòng, các dòng đúng vẫn nhập.
 - **Tài khoản:** chỉ Admin vào. Chỉ tạo admin/staff (tài khoản sinh viên chỉ sinh ra khi duyệt đơn). Không khóa được admin cuối cùng, không tự khóa chính mình. Mật khẩu tạm hiện **một lần**.
@@ -275,7 +275,7 @@ FE **kiểm trước để người dùng biết sớm**, backend **kiểm lại
 
 | Mã | Luật | Trên màn hình |
 |---|---|---|
-| BR-01 | Phòng chia theo giới tính tuyệt đối | Nộp đơn chỉ hiện phòng cùng giới; duyệt sang phòng khác giới bị chặn |
+| BR-01 | Phòng chia theo giới tính tuyệt đối | Nộp đơn chỉ hiện phòng cùng giới; duyệt sang phòng khác giới bị chặn; sửa giới tính SV đang giữ giường bị chặn |
 | BR-02 | Thu trọn gói 6 hoặc 12 tháng khi duyệt | Tổng tiền tính sẵn ở bước 3; duyệt sinh hóa đơn tiền phòng cả kỳ |
 | BR-03 | 1 hóa đơn điện nước / phòng / tháng, một người nộp đại diện | Chốt & phát hành; ô Người nộp khi thu; "≈ … đ/người" chỉ để tham khảo |
 | BR-04 | Còn hóa đơn `unpaid` (cá nhân hoặc của phòng) thì không thanh lý | Hộp thoại thanh lý liệt kê hóa đơn còn nợ |
@@ -352,7 +352,7 @@ Bốn điểm luôn kiểm ở mọi màn: trạng thái **trống**, **lỗi**,
 **Kiến trúc và dữ liệu**
 3. *Vì sao chia thư mục theo tính năng?* — Sửa một màn thì mọi thứ liên quan nằm một chỗ.
 4. *Chưa có backend v2 thì làm sao code xong?* — Lớp dữ liệu giả đúng `API.md`, đổi sang backend thật bằng một biến môi trường (mục 8).
-5. *Sao biết định dạng khớp backend?* — `API.md` là hợp đồng chung, có nhật ký phiên bản (đang 2.5); FE cần đổi gì thì sửa `API.md` trước.
+5. *Sao biết định dạng khớp backend?* — `API.md` là hợp đồng chung, có nhật ký phiên bản (đang 2.6); FE cần đổi gì thì sửa `API.md` trước.
 6. *Xử lý lỗi API thế nào?* — Theo **mã lỗi** ổn định (`OUTSTANDING_INVOICES`, `BED_ALREADY_OCCUPIED`…), không so chuỗi tiếng Việt.
 
 **Bảo mật**

@@ -14,7 +14,7 @@
 >
 > | Tài liệu | Mô tả bản nào |
 > |---|---|
-> | `API.md` (v2.5), `MO-TA-DE-TAI.md`, `16`, `17` | **v2** — dùng các tài liệu này |
+> | `API.md` (v2.6), `MO-TA-DE-TAI.md`, `16`, `17` | **v2** — dùng các tài liệu này |
 > | `15` | Mục **24–35** là v2; các mục số nhỏ hơn là v1 (bảng ở đầu tài liệu ghi rõ mục nào đã bỏ) |
 > | `01`–`14`, `PRD.md`, `ARCHITECTURE.md`, `DATA-SCHEMA.md` | **v1** — chỉ để tra lịch sử, không viết lại |
 >

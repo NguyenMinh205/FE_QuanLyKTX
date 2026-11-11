@@ -278,7 +278,13 @@ export default function UtilityReadingsPage() {
   const columns = [
     {
       title: 'Phòng', key: 'room', width: 90,
-      render: (_, r) => <Text strong style={{ fontSize: 15 }} type={r.skipped ? 'secondary' : undefined}>{r.roomLabel}</Text>,
+      render: (_, r) => (
+        <>
+          <Text strong style={{ fontSize: 15 }} type={r.skipped ? 'secondary' : undefined}>{r.roomLabel}</Text>
+          {/* Phòng bảo trì chỉ hiện ở lưới khi còn người ở — vẫn phải thu điện nước */}
+          {r.room.status === 'maintenance' && <div><Text type="warning" style={{ fontSize: 12 }}>Đang bảo trì</Text></div>}
+        </>
+      ),
     },
     {
       title: 'Người ở', key: 'occupants', width: 80, align: 'center',
