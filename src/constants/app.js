@@ -4,9 +4,14 @@
  */
 export const APP_VERSION = 'v2.0';
 
-/** Khoa/Viện gợi ý ở form nộp đơn — dữ liệu minh họa theo SRS, vẫn gõ tên khác được */
-export const FACULTY_OPTIONS = ['Công nghệ thông tin', 'Cơ khí', 'Điện', 'Điện tử', 'Du lịch', 'Ngoại ngữ', 'Kinh tế']
-  .map((value) => ({ value }));
+/** Khoa/Viện gợi ý ở form nộp đơn, form sinh viên, bộ lọc — dữ liệu minh họa theo SRS, vẫn gõ tên khác được */
+export const FACULTIES = ['Công nghệ thông tin', 'Cơ khí', 'Điện', 'Điện tử', 'Du lịch', 'Ngoại ngữ', 'Kinh tế'];
+
+/**
+ * Option dựng sẵn cho AutoComplete / Select: dùng thẳng, KHÔNG map thêm lần nữa.
+ * ⚠️ Từng bọc hai lần ({ value: { value } }) → bấm vào ô là sập cả trang ("Objects are not valid as a React child").
+ */
+export const FACULTY_OPTIONS = FACULTIES.map((value) => ({ value, label: value }));
 
 export const SUPPORT_CONTACT = {
   office: 'Phòng Quản sinh KTX (P.101 Tòa K1)',

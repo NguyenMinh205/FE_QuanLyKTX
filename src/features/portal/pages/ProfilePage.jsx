@@ -81,6 +81,8 @@ export default function ProfilePage() {
             <Info label="Họ và tên" icon={<UserOutlined />}>{profile?.fullName}</Info>
             <Info label="Mã sinh viên" icon={<IdcardOutlined />}><Text code>{profile?.studentCode}</Text></Info>
             <Info label="Ngày sinh">{profile?.dob ? formatDate(profile.dob) : null}</Info>
+            <Info label="Số CCCD">{profile?.citizenId}</Info>
+            <Info label="Địa chỉ thường trú">{profile?.address}</Info>
             <Info label="Khoa">{profile?.faculty}</Info>
             <Info label="Lớp">{profile?.className}</Info>
             <Info label="Số điện thoại" icon={<PhoneOutlined />}>{profile?.phone ? formatPhone(profile.phone) : null}</Info>

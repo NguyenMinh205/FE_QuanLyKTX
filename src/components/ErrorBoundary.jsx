@@ -5,7 +5,9 @@ const { Paragraph, Text } = Typography;
 
 /**
  * Bắt lỗi khi render để một component hỏng không làm trắng toàn bộ trang.
- * Bọc quanh <App /> ở main.jsx.
+ * Hai lớp: quanh <App /> ở main.jsx (lớp cuối) và quanh <Outlet /> trong AdminLayout/PortalLayout, gắn key theo
+ * đường dẫn — một màn hỏng thì menu vẫn còn, bấm sang màn khác là chạy lại.
+ * ⚠️ Chỉ bọc ở main.jsx thì sau lần sập đầu, mọi màn đều hiện "Đã xảy ra lỗi" cho tới khi tải lại trang.
  *
  * React chưa có bản hook cho việc này nên bắt buộc phải dùng class component.
  */
@@ -38,7 +40,10 @@ export default class ErrorBoundary extends Component {
         status="500"
         title="Đã xảy ra lỗi"
         subTitle="Giao diện gặp sự cố ngoài dự kiến. Vui lòng tải lại trang."
-        extra={<Button type="primary" onClick={this.handleReload}>Về trang chủ</Button>}
+        extra={[
+          <Button key="reload" type="primary" onClick={() => window.location.reload()}>Tải lại trang</Button>,
+          <Button key="home" onClick={this.handleReload}>Về trang chủ</Button>,
+        ]}
       >
         {import.meta.env.DEV && (
           <Paragraph>

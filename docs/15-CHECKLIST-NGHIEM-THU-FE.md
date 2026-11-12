@@ -48,6 +48,7 @@
 | 33 | v2 · M10b: sửa lỗi đợt soát tổng + làm đẹp giao diện | Mọi màn | `feature/v2-ui-polish` | Dữ liệu giả | ⬜ Chưa test |
 | 34 | v2 · M11: thử trọn luồng 3 vai trò + tổng nghiệm thu | Mọi màn | `docs/v2-acceptance` | Dữ liệu giả | ⬜ Chưa test |
 | 35 | Sửa lỗi trước khi nối backend: phòng bảo trì còn người, khóa giới tính, MSSV 10 số, API.md 2.6 (mục 36) | SCR-11, 23, 51, 62 | `fix/pre-integration` | Dữ liệu giả | ⬜ Chưa test |
+| 36 | Nối backend thật, form đăng ký bắt buộc đủ + CCCD/địa chỉ, sửa sập ô Khoa, màn lỗi không lan (mục 37) | Mọi màn | `fix/be-integration` (FE) · `fix/v2-api-contract` (BE) | **Backend thật** và dữ liệu giả | ⬜ Chưa test |
 
 Trạng thái: ⬜ Chưa test · ✅ Đạt · ❌ Có lỗi (xem mục Lỗi phát hiện của màn đó).
 
@@ -1936,6 +1937,57 @@ Nhánh `fix/pre-integration`. Dữ liệu giả, mở trang mới (F5) trước 
 
 - [ ] `docs/API.md` lên **2.6**, nhật ký phiên bản liệt kê các trường mới (`totalDebt`, `history`, `monthYear`, giá ở tra cứu đơn, profile, `PUT /buildings` nhận một phần, `GENDER_CHANGE_NOT_ALLOWED`).
 - [ ] `docs/16-YEU-CAU-API-BACKEND.md` lên **2.1**, **không còn** mục "Danh mục loại phòng".
+
+**Lỗi phát hiện:** _(chưa có)_
+
+---
+
+## 37. Nối backend thật + form đăng ký bắt buộc đủ (12/11/2026)
+
+FE nhánh `fix/be-integration`, BE nhánh `fix/v2-api-contract` (repo `BE_QLKTX`, chưa đẩy lên remote).
+
+**Chạy với backend thật** — 4 cửa sổ, **CSDL cục bộ, không đụng cụm Atlas chung**:
+
+```bash
+# 1. MongoDB cục bộ (cài MongoDB Community, hoặc dùng mongod sẵn có)
+mongod --port 27018 --dbpath D:\mongo-test
+# 2. Dữ liệu mẫu — trong D:\BE_QLKTX (XÓA SẠCH CSDL test rồi dựng lại; làm lại mỗi khi muốn về ban đầu)
+set MONGODB_URI=mongodb://127.0.0.1:27018/dms_ktx_test&& node src/scripts/seed.js
+# 3. Backend — trong D:\BE_QLKTX
+set MONGODB_URI=mongodb://127.0.0.1:27018/dms_ktx_test&& set ENABLE_REDIS=false&& node src/server.js
+# 4. Frontend — trong D:\FE_QuanLyKTX, .env đặt VITE_USE_MOCK=false, mở đúng http://localhost:5173 (CORS)
+npm run dev
+```
+
+Tài khoản giống dữ liệu giả (bảng "Tài khoản thử" ở màn đăng nhập). Khác dữ liệu giả: **dữ liệu lưu thật**, F5 không mất; muốn về ban đầu thì chạy lại bước 2.
+
+### 37.1. Lỗi trong ảnh của nhóm
+
+- [ ] **Sinh viên**, **Phòng**, **Hợp đồng**, **Hóa đơn**, **Phiếu thu**, **Tài khoản**: mở được hết, có dữ liệu, không còn màn "Đã xảy ra lỗi — rawData.some is not a function".
+- [ ] Menu trái không còn **Nhu yếu phẩm**, **Yêu cầu** (ảnh của nhóm chụp từ nhánh cũ `main` — bản v1).
+- [ ] (Dữ liệu giả) Nếu một màn bị lỗi, menu trái vẫn còn; bấm sang màn khác chạy bình thường, không phải tải lại trang.
+
+### 37.2. Form đăng ký ở KTX
+
+- [ ] **Đăng ký ở ký túc xá** → bấm thẳng **Tiếp tục chọn phòng** → báo đỏ ở **mọi** ô: MSSV, họ tên, giới tính, ngày sinh, **Số CCCD**, SĐT, email, khoa, lớp, **Địa chỉ thường trú**, và 3 ô **Người liên hệ khẩn cấp**.
+- [ ] Bấm vào ô **Khoa / Viện** → hiện danh sách gợi ý, **trang không sập**. Gõ "điện" → lọc ra Điện, Điện tử; chọn được.
+- [ ] Số CCCD gõ 11 số → báo "Số CCCD gồm đúng 12 chữ số". Ngày sinh không chọn được hôm nay hay tương lai.
+- [ ] Điền đủ (CCCD `001204099999`, địa chỉ bất kỳ) → chọn phòng → gửi đơn được.
+- [ ] (Cán bộ) **Duyệt đơn** → đơn vừa nộp hiện **Số CCCD** và **Địa chỉ thường trú**.
+- [ ] (Cán bộ) Duyệt → thông báo có thêm dòng **"Chưa gửi được email cho sinh viên"** — đúng: backend chưa có dịch vụ gửi mail, cán bộ tự báo tài khoản cho sinh viên.
+
+### 37.3. Sinh viên: thêm, sửa, nhập Excel
+
+- [ ] **Thêm sinh viên** → bỏ trống → mọi ô báo đỏ, kể cả CCCD, địa chỉ, người thân. Ô **Khoa** bấm vào không sập.
+- [ ] Bộ lọc **Mọi khoa** ở danh sách sinh viên mở được, chọn được (trước đây cũng sập cùng lỗi).
+- [ ] **Nhập từ Excel → Tải file mẫu**: 13 cột, thêm Số CCCD, Địa chỉ thường trú, 3 cột người thân; ô **Khoa** thả xuống ra tên khoa (trước đây ra chữ `[object Object]`).
+- [ ] Điền một dòng thiếu CCCD → nhập → báo lỗi đúng dòng ở cột Số CCCD. Gõ CCCD dạng số, VD `001204012345` (Excel nuốt hai số 0 đầu, còn 10 số) → vẫn lưu đúng 12 số.
+- [ ] Bấm một sinh viên → drawer và (đăng nhập sinh viên) **Hồ sơ** hiện Số CCCD + Địa chỉ thường trú.
+
+### 37.4. Trọn luồng với backend thật
+
+- [ ] Làm lại **mục 35.1 → 35.5** trên backend thật (dùng CCCD, địa chỉ ở bước nộp đơn). Kết quả như dữ liệu giả, và **F5 không mất dữ liệu**.
+- [ ] Sinh viên `sv001` đăng nhập → gõ thẳng `http://localhost:5173/admin/invoices` → về trang 403, không xem được hóa đơn người khác.
 
 **Lỗi phát hiện:** _(chưa có)_
 

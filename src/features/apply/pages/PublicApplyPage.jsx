@@ -34,6 +34,16 @@ function Line({ label, children, strong }) {
 }
 
 /** Nộp đơn ở ký túc xá, không cần tài khoản (FR-30, UC-01): thông tin → phòng và giường → gói thuê */
+/**
+ * Lỗi theo trường từ máy chủ (API.md §1.1) → tên ô của form.
+ * ⚠️ Form dùng tên phẳng cho người thân, máy chủ báo `emergencyContact.name` — thiếu bảng này thì lỗi không hiện ở ô nào.
+ */
+const SERVER_FIELD = {
+  'emergencyContact.name': 'emergencyName',
+  'emergencyContact.phone': 'emergencyPhone',
+  'emergencyContact.relationship': 'emergencyRelationship',
+};
+
 export default function PublicApplyPage() {
   const navigate = useNavigate();
   const { message } = App.useApp();
@@ -104,12 +114,12 @@ export default function PublicApplyPage() {
         gender: v.gender,
         phone: v.phone.trim(),
         email: v.email.trim(),
-        dob: v.dob ? v.dob.format('YYYY-MM-DD') : null,
-        faculty: v.faculty?.trim() || '',
-        className: v.className?.trim() || '',
-        emergencyContact: v.emergencyName?.trim()
-          ? { name: v.emergencyName.trim(), phone: v.emergencyPhone?.trim() || '', relationship: v.emergencyRelationship?.trim() || '' }
-          : null,
+        dob: v.dob.format('YYYY-MM-DD'),
+        citizenId: v.citizenId.trim(),
+        address: v.address.trim(),
+        faculty: v.faculty.trim(),
+        className: v.className.trim(),
+        emergencyContact: { name: v.emergencyName.trim(), phone: v.emergencyPhone.trim(), relationship: v.emergencyRelationship.trim() },
         roomId: choice.roomId,
         bedNumber: choice.bedNumber,
         term,
@@ -126,7 +136,7 @@ export default function PublicApplyPage() {
         form.setFields([{ name: 'studentCode', errors: [getErrorMessage(err)] }]);
         goTo(0);
       } else if (fieldErrors) {
-        form.setFields(fieldErrors.map((e) => ({ name: e.field, errors: [e.message] })));
+        form.setFields(fieldErrors.map((e) => ({ name: SERVER_FIELD[e.field] ?? e.field, errors: [e.message] })));
         goTo(0);
       } else {
         message.error(getErrorMessage(err));
@@ -229,8 +239,19 @@ export default function PublicApplyPage() {
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="dob" label="Ngày sinh">
-                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isAfter(dayjs())} placeholder="Chọn ngày sinh" />
+              <Form.Item name="dob" label="Ngày sinh" rules={[{ required: true, message: 'Chọn ngày sinh' }]}>
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} disabledDate={(d) => !d.isBefore(dayjs(), 'day')} placeholder="Chọn ngày sinh" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="citizenId" label="Số CCCD"
+                rules={[
+                  { required: true, whitespace: true, message: 'Nhập số CCCD' },
+                  { pattern: /^\d{12}$/, message: 'Số CCCD gồm đúng 12 chữ số' },
+                ]}
+              >
+                <Input placeholder="VD: 001204012345" maxLength={12} inputMode="numeric" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -254,29 +275,41 @@ export default function PublicApplyPage() {
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="faculty" label="Khoa / Viện">
-                <AutoComplete options={FACULTY_OPTIONS.map((f) => ({ value: f }))} placeholder="VD: Công nghệ thông tin" filterOption={(input, o) => String(o?.value ?? '').toLowerCase().includes(String(input).toLowerCase())} />
+              <Form.Item name="faculty" label="Khoa / Viện" rules={[{ required: true, whitespace: true, message: 'Nhập khoa / viện' }]}>
+                <AutoComplete options={FACULTY_OPTIONS} placeholder="VD: Công nghệ thông tin" filterOption={(input, o) => String(o?.value ?? '').toLowerCase().includes(String(input).toLowerCase())} />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="className" label="Lớp">
+              <Form.Item name="className" label="Lớp" rules={[{ required: true, whitespace: true, message: 'Nhập lớp' }]}>
                 <Input placeholder="VD: KTPM01-K16" maxLength={30} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="address" label="Địa chỉ thường trú" rules={[{ required: true, whitespace: true, message: 'Nhập địa chỉ thường trú' }]}>
+                <Input placeholder="Số nhà, xã/phường, quận/huyện, tỉnh/thành" maxLength={200} />
               </Form.Item>
             </Col>
           </Row>
 
-          <Divider titlePlacement="start" style={{ marginTop: 0 }}>Liên hệ khẩn cấp (không bắt buộc)</Divider>
+          <Divider titlePlacement="start" style={{ marginTop: 0 }}>Người liên hệ khẩn cấp</Divider>
           <Row gutter={16}>
             <Col xs={24} md={8}>
-              <Form.Item name="emergencyName" label="Họ tên người thân"><Input maxLength={100} /></Form.Item>
+              <Form.Item name="emergencyName" label="Họ tên người thân" rules={[{ required: true, whitespace: true, message: 'Nhập họ tên người thân' }]}>
+                <Input maxLength={100} />
+              </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="emergencyPhone" label="Số điện thoại" rules={[{ pattern: /^0\d{9}$/, message: 'Số điện thoại gồm 10 số, bắt đầu bằng 0' }]}>
+              <Form.Item
+                name="emergencyPhone" label="Số điện thoại người thân"
+                rules={[{ required: true, message: 'Nhập số điện thoại người thân' }, { pattern: /^0\d{9}$/, message: 'Số điện thoại gồm 10 số, bắt đầu bằng 0' }]}
+              >
                 <Input maxLength={10} />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="emergencyRelationship" label="Quan hệ"><Input placeholder="VD: Bố" maxLength={30} /></Form.Item>
+              <Form.Item name="emergencyRelationship" label="Quan hệ" rules={[{ required: true, whitespace: true, message: 'Nhập quan hệ' }]}>
+                <Input placeholder="VD: Bố" maxLength={30} />
+              </Form.Item>
             </Col>
           </Row>
         </Form>

@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { portalApi } from '../features/portal/api/portal.api';
 import BrandLogo from '../components/BrandLogo';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { roomLabelOf } from '../features/rooms/utils/roomStatus';
 import RoomInvoiceBell from '../features/portal/components/RoomInvoiceBell';
 
@@ -103,7 +104,8 @@ export default function PortalLayout() {
 
       <Content style={{ padding: isMobile ? 12 : 24, paddingBottom: isMobile ? 72 : 24 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Outlet />
+          {/* Một màn hỏng không kéo sập menu; key theo đường dẫn nên bấm sang màn khác là dựng lại từ đầu */}
+          <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>
         </div>
       </Content>
 

@@ -42,6 +42,11 @@ export default function DataTable({
   rowClassName,
 }) {
   if (error) return <Alert type="error" title={error} showIcon />;
+  // ⚠️ antd Table sập ("rawData.some is not a function") nếu dataSource không phải mảng — gặp khi backend trả danh
+  // sách sai định dạng. Báo rõ thay vì làm sập cả màn.
+  if (data != null && !Array.isArray(data)) {
+    return <Alert type="error" showIcon title="Máy chủ trả danh sách sai định dạng" description="Cần mảng (API.md mục 1.2). Báo nhóm backend kèm đường dẫn của màn này." />;
+  }
 
   // Đổi bộ lọc thì luôn quay về trang 1, nếu không người dùng sẽ thấy trang trống
   const changeFilter = (patch) => onFiltersChange({ ...filters, ...patch, page: 1 });

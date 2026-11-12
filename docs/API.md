@@ -1,7 +1,7 @@
 # API Reference
 
 **Project:** HaUI Dormitory Management System (HaUI DMS)
-**Version:** 2.6 (streamlined HaUI edition)
+**Version:** 2.7 (streamlined HaUI edition)
 **Base URL:** `/api`
 **Auth:** JWT Bearer token (`Authorization: Bearer <token>`)
 **Audience:** Frontend and backend developers
@@ -182,7 +182,19 @@ Success sets `mustChangePassword` to `false`. New password: at least 8 character
 | PUT | `/students/:id` | admin, staff | Update (FR-13) |
 | PATCH | `/students/:id/deactivate` | admin, staff | Deactivate (FR-14) |
 
-**Student body:** `{ studentCode, fullName, gender, phone, email?, dob?, faculty?, className?, emergencyContact?: { name, phone, relationship } }`. `studentCode` is exactly 10 digits (`/^\d{10}$/`), here, in the import and in the public application (§5), so every profile stays editable. `phone` matches `/^0\d{9}$/`.
+**Student body:** `{ studentCode, fullName, gender, dob, phone, email, citizenId, address, faculty, className, emergencyContact: { name, phone, relationship } }`. **Every field is required** (since 2.7), with the same rules here, in the import and in the public application (§5), so a profile created by any path stays editable by the others:
+
+| Field | Rule |
+|---|---|
+| `studentCode` | Exactly 10 digits, `/^\d{10}$/` |
+| `dob` | `YYYY-MM-DD`, before today |
+| `phone`, `emergencyContact.phone` | `/^0\d{9}$/` |
+| `email` | Valid email |
+| `citizenId` | Citizen ID (CCCD), exactly 12 digits |
+| `address` | Permanent address, non-empty |
+| `fullName`, `faculty`, `className`, `emergencyContact.name`, `emergencyContact.relationship` | Non-empty |
+
+Field errors use the dotted path for the contact, for example `{ "field": "emergencyContact.phone" }`.
 
 **PUT `/students/:id`**: `gender` cannot change while the student has a `pending` or `active` contract (BR-01: the held bed is in a room of the old gender). Returns `422 GENDER_CHANGE_NOT_ALLOWED` with a field error on `gender`.
 
@@ -193,7 +205,7 @@ Success sets `mustChangePassword` to `false`. New password: at least 8 character
 **POST `/students/import`**: the frontend reads the Excel file and sends JSON, so the server handles no upload.
 ```json
 // request, at most 1000 rows, `row` is the Excel row number used in the report
-{ "rows": [ { "row": 2, "studentCode": "2021601234", "fullName": "Nguyễn Văn An", "gender": "male", "phone": "0912345678" } ] }
+{ "rows": [ { "row": 2, "studentCode": "2021601234", "fullName": "Nguyễn Văn An", "gender": "male", "phone": "0912345678", "…": "every Student body field" } ] }
 // response: valid rows are saved even when other rows fail
 { "code": "OK", "message": "Đã nhập 1 sinh viên, 1 dòng lỗi",
   "data": { "successCount": 1, "errorCount": 1,
@@ -282,7 +294,8 @@ No token. These endpoints should be rate limited.
 ```json
 // request
 { "studentCode": "2021601234", "fullName": "Nguyễn Văn An", "gender": "male", "phone": "0912345678",
-  "email": "an@gmail.com", "dob": "2003-05-20", "faculty": "CNTT", "className": "KTPM01-K16",
+  "email": "an@gmail.com", "dob": "2003-05-20", "citizenId": "001203012345", "address": "Xã Yên Lạc, Vĩnh Phúc",
+  "faculty": "CNTT", "className": "KTPM01-K16",
   "emergencyContact": { "name": "Nguyễn Văn Ba", "phone": "0987654321", "relationship": "Bố" },
   "roomId": "…", "bedNumber": 3, "term": "6_months" }
 // response 201
@@ -291,7 +304,7 @@ No token. These endpoints should be rate limited.
             "pricePerMonth": 320000, "totalRoomFee": 1920000, "depositAmount": 500000 } }
 ```
 
-- `email` is required here, because the account is delivered by email. `studentCode` is exactly 10 digits, the same rule as §3, otherwise `400 VALIDATION_ERROR` with a field error on `studentCode`.
+- Every Student field is required with the rules of §3 (the account is delivered by email, so `email` matters most). A broken rule returns `400 VALIDATION_ERROR` with field errors.
 - A new student code creates a `Student` with no `userId`. An existing student code with no `pending` or `active` contract reuses that record and refreshes it from the form, which is how a former resident returns.
 - Prices are read from the room, never from the client. The bed is **not** locked here (BR-05 locks at approval). `startDate` and `endDate` stay empty until approval.
 - The room must be `active` and its building active. Otherwise `404 NOT_FOUND` ("the room no longer accepts applications"), and the form returns to room selection.
@@ -666,6 +679,7 @@ Optional later: a SePay or Casso webhook for FR-54b would call the same logic as
 
 | Version | Date | Change |
 |---|---|---|
+| 2.7 | 12/11/2026 | Student adds `citizenId` (CCCD, 12 digits) and `address` (permanent address). Every Student field is now required in `POST/PUT /students`, the import and the public application. Contact errors use dotted fields (`emergencyContact.phone`). |
 | 2.6 | 11/11/2026 | Pre-integration review. Documented fields the screens already read: `Contract.totalDebt`, contract detail `history`, `Invoice.monthYear`, prices on `GET /public/applications/status`, `/portal/profile` shape, `PUT /users/:id` response, `student.status` values, paginated `/portal/my-payments`. `PUT /buildings/:id` is partial and cannot change `code`. `studentCode` is 10 digits in the public application too. `PUT /students/:id` adds `GENDER_CHANGE_NOT_ALLOWED`. The utility grid and publish include rooms in maintenance that still have residents. |
 | 2.5 | 10/11/2026 | Full review (M10b): approve adds `ROOM_NOT_AVAILABLE`; room update adds `ROOM_HAS_PENDING_APPLICATIONS` and keeps existing beds; online application needs an active room and building; staff reset student passwords only; building rename reaches rooms and contracts. |
 | 2.4 | 10/11/2026 | Dashboard (M9): occupancy lists active buildings only. `GET /dashboard/revenue` returns `403 FORBIDDEN` for staff. |

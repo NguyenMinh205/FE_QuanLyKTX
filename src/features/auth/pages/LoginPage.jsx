@@ -12,26 +12,22 @@ import BrandLogo from '../../../components/BrandLogo';
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
-/** Tài khoản thử — CHỈ hiện khi chạy dev. Bản thật khớp dữ liệu seed trên DB Atlas chung của nhóm (BE: src/scripts/seed.js) */
-const DEMO_ACCOUNTS = USE_MOCK
-  ? [
-    ['Quản trị', 'admin@dorm.local', 'Admin@123'],
-    ['Nhân viên', 'staff@dorm.local', 'Staff@123'],
-    ['SV đang ở', 'sv001@dorm.local', 'Student@123'],
-    ['SV chưa có chỗ', 'sv002@dorm.local', 'Student@123'],
-    ['SV sắp hết hạn hợp đồng', 'sv004@dorm.local', 'Student@123'],
-    ['SV bị từ chối đơn', 'sv005@dorm.local', 'Student@123'],
-    ['SV có đơn chờ duyệt', 'sv006@dorm.local', 'Student@123'],
-    ['SV từng ở, có lịch sử', 'sv007@dorm.local', 'Student@123'],
-    ['SV vừa được cấp tài khoản (MSSV)', '2021600005', '2021600005'],
-    ['Mật khẩu tạm (buộc đổi)', 'doimk@dorm.local', 'Tam@12345'],
-  ]
-  : [
-    ['Quản trị', 'admin@dorm.local', 'Admin@123'],
-    ['Nhân viên', 'staff1@dorm.local', 'Staff@123'],
-    ['Sinh viên nam', 'student.nam@dorm.local', 'Student@123'],
-    ['Sinh viên nữ', 'student.nu@dorm.local', 'Student@123'],
-  ];
+/**
+ * Tài khoản thử — CHỈ hiện khi chạy dev. Một bộ cho cả hai chế độ: dữ liệu giả (src/mocks) và seed của backend
+ * (BE `src/scripts/seed.js` dựng đúng các tài khoản và tình huống này). ⚠️ Đổi ở một bên thì đổi cả bên kia.
+ */
+const DEMO_ACCOUNTS = [
+  ['Quản trị', 'admin@dorm.local', 'Admin@123'],
+  ['Nhân viên', 'staff@dorm.local', 'Staff@123'],
+  ['SV đang ở', 'sv001@dorm.local', 'Student@123'],
+  ['SV chưa có chỗ', 'sv002@dorm.local', 'Student@123'],
+  ['SV sắp hết hạn hợp đồng', 'sv004@dorm.local', 'Student@123'],
+  ['SV bị từ chối đơn', 'sv005@dorm.local', 'Student@123'],
+  ['SV có đơn chờ duyệt', 'sv006@dorm.local', 'Student@123'],
+  ['SV từng ở, có lịch sử', 'sv007@dorm.local', 'Student@123'],
+  ['SV vừa được cấp tài khoản (MSSV)', '2021600005', '2021600005'],
+  ['Mật khẩu tạm (buộc đổi)', 'doimk@dorm.local', 'Tam@12345'],
+];
 
 const SupportInfo = () => (
   <Text type="secondary" style={{ fontSize: 13 }}>

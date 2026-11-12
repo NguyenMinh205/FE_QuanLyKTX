@@ -105,6 +105,8 @@ export const students = Array.from({ length: 90 }, (_, i) => {
     dob: `200${5 - (i % 3)}-${pad((i % 12) + 1, 2)}-${pad((i % 28) + 1, 2)}`,
     phone: `09${String(12000000 + i * 137)}`.slice(0, 10),
     email: `sv20216${pad(i + 1, 5)}@sv.edu.vn`,
+    citizenId: `0012040${pad(10000 + i * 31, 5)}`,
+    address: `Xã Yên Lạc, huyện Yên Lạc, ${['Hà Nội', 'Nam Định', 'Thái Bình', 'Nghệ An', 'Thanh Hóa', 'Hải Dương', 'Bắc Ninh', 'Phú Thọ'][i % 8]}`,
     className: `${pick(KHOA, i)[1]}0${(i % 3) + 1}-K16`,
     faculty: pick(KHOA, i)[0],
     emergencyContact: { name: `${pick(HO, i + 1)} Văn C`, phone: '0987654321', relationship: 'Bố' },

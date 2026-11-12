@@ -189,6 +189,8 @@ export default function ApplicationDetail({ contractId, canReview, onProcessed }
             <Field label="Mã sinh viên"><Text strong style={{ color: 'var(--brand)' }}>{student.studentCode}</Text></Field>
             <Field label="Giới tính">{GENDER[student.gender]?.label}</Field>
             <Field label="Ngày sinh">{student.dob ? formatDate(student.dob) : null}</Field>
+            <Field label="Số CCCD">{student.citizenId}</Field>
+            <Field label="Địa chỉ thường trú">{student.address}</Field>
             <Field label="Khoa / Viện">{student.faculty}</Field>
             <Field label="Lớp">{student.className}</Field>
             <Field label="Số điện thoại">{formatPhone(student.phone)}</Field>

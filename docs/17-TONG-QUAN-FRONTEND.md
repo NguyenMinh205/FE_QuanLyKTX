@@ -18,7 +18,7 @@
 6. **Nghiệp vụ lõi?** Sinh viên **tự chọn phòng và giường**, gói **6 hoặc 12 tháng**, thu **trọn gói** khi duyệt (tiền cọc + tiền phòng cả kỳ). Điện nước: **một hóa đơn mỗi phòng mỗi tháng**, một bạn nộp đại diện cả phòng (BR-03).
 7. **Thanh toán?** Chỉ **tiền mặt** và **chuyển khoản VietQR**; cán bộ xác nhận đã nhận tiền. Không có cổng thanh toán online, không thu một phần.
 8. **Rời ký túc xá?** Sinh viên đến văn phòng; cán bộ **thanh lý** (bị chặn nếu còn hóa đơn chưa trả — BR-04), rồi **xác nhận đã hoàn cọc** (FR-35). Không có gia hạn.
-9. **Dữ liệu ở đâu ra?** Hai chế độ: **dữ liệu giả** trong `src/mocks/` (đang dùng) và backend thật, đổi bằng biến `VITE_USE_MOCK`. Backend nhóm **chưa lên v2**, nên toàn bộ v2 hiện chạy trên dữ liệu giả — đây là chủ đích.
+9. **Dữ liệu ở đâu ra?** Hai chế độ: **dữ liệu giả** trong `src/mocks/` và backend thật, đổi bằng biến `VITE_USE_MOCK`. Từ 12/11/2026 backend (nhánh `fix/v2-api-contract`) khớp `API.md`, chạy thông trọn luồng với FE.
 10. **Kiểm thử?** 12 bộ kiểm thử tự động (Puppeteer), **377 bước**, gồm một bộ chạy trọn vòng đời một hồ sơ qua cả 3 vai trò; cộng checklist bấm tay `15-CHECKLIST-NGHIEM-THU-FE.md` mục 24–35.
 
 ---
@@ -134,6 +134,7 @@ Chuông thông báo ở thanh trên cổng sinh viên (`RoomInvoiceBell`) đếm
 - **3 bước:** thông tin → phòng & giường → gói thuê. Chọn giới tính trước, chỉ hiện phòng cùng giới (BR-01), xếp **tầng thấp → số phòng nhỏ**, phòng đầu gắn nhãn "Gợi ý" (BR-07) nhưng không ép.
 - Mỗi giường một trạng thái: Trống · Đã có người · **Đã có người đăng ký** (đơn chờ duyệt đang giữ) · Bảo trì. Chỉ chọn được giường Trống.
 - Tổng tiền tính sẵn: giá tháng × 6 hoặc 12 + tiền cọc (BR-02). Giá luôn do server đọc từ phòng.
+- **Mọi trường thông tin bắt buộc** (từ 12/11/2026), thêm **Số CCCD** (12 chữ số) và **Địa chỉ thường trú**. Cùng một bộ luật cho đơn công khai, form sinh viên và nhập Excel (`API.md` §3), để hồ sơ tạo từ đường nào cũng sửa được ở đường khác.
 - **Tranh giường lúc nộp:** người đến sau nhận `409`, form quay lại bước chọn giường và tải lại danh sách.
 - **Duyệt:** cán bộ thấy giường sinh viên chọn; nếu giường đó đã bị chiếm thì nút Duyệt khóa và phải chọn giường khác (cùng phòng hoặc phòng khác). Duyệt sinh **tài khoản + 2 hóa đơn** (cọc, tiền phòng cả kỳ, hạn 7 ngày); sinh viên cũ quay lại thì dùng lại tài khoản cũ. Từ chối bắt buộc nhập lý do.
 - **Tranh giường lúc duyệt:** server khóa giường bằng một lệnh nguyên tử (BR-05); người chậm hơn nhận `409 BED_ALREADY_OCCUPIED`.
@@ -263,9 +264,10 @@ Ngày tháng tính theo **ngày chạy**, nên "còn N ngày", "quá hạn" luô
 
 ## 9. Backend
 
-- Backend nhóm (`BE_QLKTX`) đang ở API **v1.x**. Từ mốc M1 của v2, FE **không chạy đúng với backend hiện tại** cho tới khi backend lên v2 — đã thống nhất từ đầu.
-- Việc backend cần làm: **`16-YEU-CAU-API-BACKEND.md`** (51 endpoint, phần bỏ đi của v1, các điểm cần bổ sung vào schema).
-- Khi backend xong: đặt `VITE_USE_MOCK=false`, chạy FE đúng cổng `5173` (backend chỉ cho phép CORS từ địa chỉ này), chạy lại checklist mục 24–35 với dữ liệu thật.
+- 12/11/2026: bản BE nhóm đẩy lên (`b8c6cc9`) lệch `API.md` ở gần như mọi endpoint, còn lỗi thật. FE sửa lại BE theo hợp đồng trên nhánh **`fix/v2-api-contract`** của repo BE (chưa đẩy, chờ nhóm BE review). Chi tiết và cách chạy: **`16-YEU-CAU-API-BACKEND.md` mục 6**.
+- Đã kiểm với BE thật: cả 51 endpoint khớp dạng dữ liệu với mock; trọn vòng đời một hồ sơ qua 3 vai trò chạy thông trên giao diện (23/23 bước); mọi màn mở được theo 3 vai trò.
+- Chạy: MongoDB cục bộ + `seed.js` + BE, FE đặt `VITE_USE_MOCK=false` và mở đúng cổng `5173` (CORS). Checklist mục 37.
+- ⚠️ Một màn hỏng không còn kéo sập cả app: `ErrorBoundary` bọc riêng phần nội dung trong `AdminLayout`/`PortalLayout`, gắn theo đường dẫn. `DataTable` nhận dữ liệu không phải mảng thì báo lỗi rõ thay vì sập.
 
 ---
 

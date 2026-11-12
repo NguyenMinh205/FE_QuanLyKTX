@@ -11,6 +11,7 @@ import { getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
 /**
  * Thêm (FR-12) và sửa (FR-13) hồ sơ sinh viên. Chỉ tạo hồ sơ, không tạo tài khoản đăng nhập.
  * student = null → thêm mới; ngược lại → sửa. Đổi MSSV được nhưng backend chặn trùng.
+ * Mọi trường bắt buộc, cùng luật với đơn đăng ký và nhập Excel (API.md §3) — hồ sơ tạo từ đường nào cũng sửa được ở đây.
  */
 export default function StudentFormModal({ open, student, onCancel, onSaved }) {
   const [form] = Form.useForm();
@@ -31,13 +32,7 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
   const handleSubmit = async (values) => {
     setSaving(true);
     try {
-      const ec = values.emergencyContact || {};
-      const payload = {
-        ...values,
-        // null (không phải undefined) để xoá được giá trị cũ — undefined bị bỏ khi gửi JSON nên giữ nguyên số cũ
-        dob: values.dob ? values.dob.format('YYYY-MM-DD') : null,
-        emergencyContact: ec.name || ec.phone ? ec : null,
-      };
+      const payload = { ...values, dob: values.dob.format('YYYY-MM-DD') };
       const res = isEdit ? await studentApi.update(student.id, payload) : await studentApi.create(payload);
       message.success(res.data.message);
       onSaved();
@@ -88,8 +83,18 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
             </Form.Item>
           </Col>
           <Col xs={24} sm={14}>
-            <Form.Item name="dob" label="Ngày sinh">
-              <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Chọn ngày sinh" disabledDate={(d) => d.isAfter(dayjs())} />
+            <Form.Item name="dob" label="Ngày sinh" rules={[{ required: true, message: 'Chọn ngày sinh' }]}>
+              <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Chọn ngày sinh" disabledDate={(d) => !d.isBefore(dayjs(), 'day')} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={10}>
+            <Form.Item name="citizenId" label="Số CCCD" rules={[{ required: true, message: 'Nhập số CCCD' }, { pattern: /^\d{12}$/, message: 'Gồm đúng 12 chữ số' }]}>
+              <Input placeholder="VD: 001204012345" maxLength={12} inputMode="numeric" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={14}>
+            <Form.Item name="address" label="Địa chỉ thường trú" rules={[{ required: true, whitespace: true, message: 'Nhập địa chỉ thường trú' }]}>
+              <Input placeholder="Số nhà, xã/phường, quận/huyện, tỉnh/thành" maxLength={200} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={10}>
@@ -98,34 +103,33 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
             </Form.Item>
           </Col>
           <Col xs={24} sm={14}>
-            <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]} extra="Dùng để gửi kết quả duyệt đơn">
+            <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Nhập email' }, { type: 'email', message: 'Email không hợp lệ' }]} extra="Dùng để gửi kết quả duyệt đơn">
               <Input placeholder="VD: an.nv@gmail.com" />
             </Form.Item>
           </Col>
           <Col xs={24} sm={10}>
-            <Form.Item name="className" label="Lớp">
+            <Form.Item name="className" label="Lớp" rules={[{ required: true, whitespace: true, message: 'Nhập lớp' }]}>
               <Input placeholder="VD: KTPM01-K16" />
             </Form.Item>
           </Col>
           <Col xs={24} sm={14}>
-            <Form.Item name="faculty" label="Khoa">
-              <AutoComplete options={FACULTY_OPTIONS.map((f) => ({ value: f }))} placeholder="VD: Công nghệ thông tin"
-                // ⚠️ antd v6 có lúc truyền value không phải chuỗi — gọi thẳng .toLowerCase() làm sập cả trang
+            <Form.Item name="faculty" label="Khoa" rules={[{ required: true, whitespace: true, message: 'Nhập khoa' }]}>
+              <AutoComplete options={FACULTY_OPTIONS} placeholder="VD: Công nghệ thông tin"
                 filterOption={(input, o) => String(o?.value ?? '').toLowerCase().includes(String(input).toLowerCase())} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={10}>
-            <Form.Item name={['emergencyContact', 'name']} label="Người liên hệ khẩn cấp">
+            <Form.Item name={['emergencyContact', 'name']} label="Người liên hệ khẩn cấp" rules={[{ required: true, whitespace: true, message: 'Nhập họ tên người thân' }]}>
               <Input placeholder="VD: Nguyễn Văn B" />
             </Form.Item>
           </Col>
           <Col xs={12} sm={7}>
-            <Form.Item name={['emergencyContact', 'relationship']} label="Quan hệ">
+            <Form.Item name={['emergencyContact', 'relationship']} label="Quan hệ" rules={[{ required: true, whitespace: true, message: 'Nhập quan hệ' }]}>
               <Input placeholder="VD: Bố" />
             </Form.Item>
           </Col>
           <Col xs={12} sm={7}>
-            <Form.Item name={['emergencyContact', 'phone']} label="SĐT người thân" rules={[{ pattern: /^0\d{9}$/, message: '10 số' }]}>
+            <Form.Item name={['emergencyContact', 'phone']} label="SĐT người thân" rules={[{ required: true, message: 'Nhập SĐT' }, { pattern: /^0\d{9}$/, message: '10 số, bắt đầu bằng 0' }]}>
               <Input placeholder="09…" maxLength={10} />
             </Form.Item>
           </Col>

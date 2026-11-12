@@ -1,4 +1,4 @@
-import { FACULTY_OPTIONS } from '../../../constants/app';
+import { FACULTIES } from '../../../constants/app';
 import {
   cellText, downloadWorkbook, fold, loadExcelJS, readFirstSheet,
 } from '../../../utils/excel';
@@ -9,10 +9,16 @@ export const TEMPLATE_COLUMNS = [
   { key: 'fullName', header: 'Họ và tên *', width: 26 },
   { key: 'gender', header: 'Giới tính * (Nam/Nữ)', width: 18 },
   { key: 'phone', header: 'Số điện thoại *', width: 16, text: true },
-  { key: 'email', header: 'Email', width: 28 },
-  { key: 'dob', header: 'Ngày sinh (dd/mm/yyyy)', width: 20, text: true },
-  { key: 'className', header: 'Lớp', width: 14 },
-  { key: 'faculty', header: 'Khoa', width: 24 },
+  { key: 'email', header: 'Email *', width: 28 },
+  { key: 'dob', header: 'Ngày sinh * (dd/mm/yyyy)', width: 22, text: true },
+  { key: 'className', header: 'Lớp *', width: 14 },
+  { key: 'faculty', header: 'Khoa *', width: 24 },
+  // Thêm 12/11/2026 — đặt CUỐI để cột Giới tính (3) và Khoa (8) giữ chỉ số, ô chọn danh sách vẫn đúng cột
+  { key: 'citizenId', header: 'Số CCCD *', width: 16, text: true },
+  { key: 'address', header: 'Địa chỉ thường trú *', width: 40 },
+  { key: 'emergencyName', header: 'Người thân - họ tên *', width: 24 },
+  { key: 'emergencyPhone', header: 'Người thân - SĐT *', width: 16, text: true },
+  { key: 'emergencyRelationship', header: 'Người thân - quan hệ *', width: 18 },
 ];
 export const MAX_IMPORT_ROWS = 1000;
 
@@ -28,14 +34,15 @@ export const downloadStudentTemplate = async () => {
   TEMPLATE_COLUMNS.forEach((c, i) => { if (c.text) ws.getColumn(i + 1).numFmt = '@'; });
   for (let r = 2; r <= MAX_IMPORT_ROWS + 1; r += 1) {
     ws.getCell(r, 3).dataValidation = { type: 'list', allowBlank: false, formulae: ['"Nam,Nữ"'] };
-    ws.getCell(r, 8).dataValidation = { type: 'list', allowBlank: true, formulae: [`"${FACULTY_OPTIONS.join(',')}"`] };
+    ws.getCell(r, 8).dataValidation = { type: 'list', allowBlank: true, formulae: [`"${FACULTIES.join(',')}"`] };
   }
   const guide = wb.addWorksheet('Hướng dẫn');
   guide.getColumn(1).width = 100;
   [
-    'Điền mỗi sinh viên một dòng ở trang "Sinh viên", bắt đầu từ dòng 2. Cột có dấu * là bắt buộc.',
+    'Điền mỗi sinh viên một dòng ở trang "Sinh viên", bắt đầu từ dòng 2. Mọi cột đều bắt buộc.',
     'MSSV: đúng 10 chữ số, không trùng sinh viên đã có. Giới tính: chọn Nam hoặc Nữ.',
-    'Số điện thoại: 10 số, bắt đầu bằng 0. Ngày sinh: dd/mm/yyyy, ví dụ 05/09/2005.',
+    'Số điện thoại (của sinh viên và người thân): 10 số, bắt đầu bằng 0. Ngày sinh: dd/mm/yyyy, ví dụ 05/09/2005.',
+    'Số CCCD: đúng 12 chữ số. Địa chỉ thường trú: số nhà, xã/phường, quận/huyện, tỉnh/thành.',
     `Mỗi lần nhập tối đa ${MAX_IMPORT_ROWS} dòng. Dòng đúng được lưu kể cả khi có dòng lỗi; xem báo cáo để sửa dòng lỗi rồi nhập lại.`,
     'Nhập sinh viên chỉ tạo hồ sơ, không tạo tài khoản đăng nhập. Tài khoản được cấp khi duyệt đơn ở ký túc xá.',
   ].forEach((line, i) => { guide.getCell(i + 1, 1).value = line; });
@@ -70,18 +77,25 @@ export const parseStudentFile = async (file) => {
     const get = (key) => (colOf[key] ? cellText(row.getCell(colOf[key])) : '');
     const values = Object.fromEntries(TEMPLATE_COLUMNS.map((c) => [c.key, get(c.key)]));
     if (Object.values(values).every((v) => v === '')) return;
-    // SĐT gõ thành số thì mất số 0 đầu: 912345678 → 0912345678
-    const phone = /^\d{9}$/.test(values.phone) ? `0${values.phone}` : values.phone;
+    // ⚠️ Gõ thành số thì Excel nuốt số 0 đầu: SĐT 912345678 → 0912345678.
+    // CCCD bắt đầu bằng mã tỉnh 001–096 nên có thể mất HAI số 0 (001204012345 → 1204012345): bù cho đủ 12 số.
+    const phoneOf = (v) => (/^\d{9}$/.test(v) ? `0${v}` : v);
+    const citizenId = /^\d{10,11}$/.test(values.citizenId) ? values.citizenId.padStart(12, '0') : values.citizenId;
     rows.push({
       row: rowNumber,
       studentCode: values.studentCode,
       fullName: values.fullName,
       gender: GENDER_OF[fold(values.gender)] ?? values.gender,
-      phone,
-      email: values.email || undefined,
-      dob: values.dob ? toIsoDate(values.dob) : undefined,
-      className: values.className || undefined,
-      faculty: values.faculty || undefined,
+      phone: phoneOf(values.phone),
+      email: values.email,
+      dob: values.dob ? toIsoDate(values.dob) : '',
+      className: values.className,
+      faculty: values.faculty,
+      citizenId,
+      address: values.address,
+      emergencyContact: {
+        name: values.emergencyName, phone: phoneOf(values.emergencyPhone), relationship: values.emergencyRelationship,
+      },
     });
   });
   return { rows, missing };

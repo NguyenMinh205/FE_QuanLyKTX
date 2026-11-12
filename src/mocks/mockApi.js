@@ -239,18 +239,30 @@ export const mockUsers = {
 const STUDENT_CODE_RE = /^\d{10}$/; // MSSV HaUI 10 số
 const PHONE_RE = /^0\d{9}$/;
 const EMAIL_RE_STUDENT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const STUDENT_FIELDS = ['studentCode', 'fullName', 'gender', 'phone', 'email', 'dob', 'faculty', 'className', 'emergencyContact'];
+const STUDENT_FIELDS = ['studentCode', 'fullName', 'gender', 'phone', 'email', 'dob', 'citizenId', 'address', 'faculty', 'className', 'emergencyContact'];
 
-/** Lỗi theo trường của một hồ sơ — dùng chung cho thêm, sửa và từng dòng Excel */
+/**
+ * Lỗi theo trường của một hồ sơ ĐẦY ĐỦ — dùng chung cho đơn đăng ký, thêm/sửa và từng dòng Excel.
+ * Từ 12/11/2026 mọi trường bắt buộc, thêm CCCD + địa chỉ thường trú. ⚠️ Cùng luật với BE `student.rules.js`.
+ */
 const studentErrors = (body) => {
   const errors = [];
   const push = (field, message) => errors.push({ field, message });
+  const ec = body.emergencyContact || {};
   if (!STUDENT_CODE_RE.test(String(body.studentCode || ''))) push('studentCode', 'Mã sinh viên gồm đúng 10 chữ số');
   if (!String(body.fullName || '').trim()) push('fullName', 'Nhập họ và tên');
-  if (!['male', 'female'].includes(body.gender)) push('gender', 'Giới tính là Nam hoặc Nữ');
+  if (!['male', 'female'].includes(body.gender)) push('gender', 'Chọn giới tính');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.dob || ''))) push('dob', 'Chọn ngày sinh');
+  else if (body.dob >= todayPlus(0)) push('dob', 'Ngày sinh không hợp lệ');
   if (!PHONE_RE.test(String(body.phone || ''))) push('phone', 'Số điện thoại gồm 10 số, bắt đầu bằng 0');
-  if (body.email && !EMAIL_RE_STUDENT.test(body.email)) push('email', 'Email không hợp lệ');
-  if (body.dob && !/^\d{4}-\d{2}-\d{2}$/.test(body.dob)) push('dob', 'Ngày sinh không hợp lệ');
+  if (!EMAIL_RE_STUDENT.test(String(body.email || ''))) push('email', 'Email không đúng định dạng');
+  if (!/^\d{12}$/.test(String(body.citizenId || ''))) push('citizenId', 'Số CCCD gồm đúng 12 chữ số');
+  if (!String(body.address || '').trim()) push('address', 'Nhập địa chỉ thường trú');
+  if (!String(body.faculty || '').trim()) push('faculty', 'Nhập khoa / viện');
+  if (!String(body.className || '').trim()) push('className', 'Nhập lớp');
+  if (!String(ec.name || '').trim()) push('emergencyContact.name', 'Nhập họ tên người thân');
+  if (!PHONE_RE.test(String(ec.phone || ''))) push('emergencyContact.phone', 'Số điện thoại người thân gồm 10 số, bắt đầu bằng 0');
+  if (!String(ec.relationship || '').trim()) push('emergencyContact.relationship', 'Nhập quan hệ (VD: Bố, Mẹ)');
   return errors;
 };
 const pickStudent = (body) => Object.fromEntries(STUDENT_FIELDS.filter((f) => body[f] !== undefined)
@@ -538,7 +550,6 @@ const roomRef = (room) => (room ? {
   roomNumber: room.roomNumber, floor: room.floor, gender: room.gender, capacity: room.capacity,
 } : null);
 const bedText = (room, bedNumber) => `giường ${String(bedNumber).padStart(2, '0')} phòng ${room.buildingCode}-${room.roomNumber}`;
-const EMAIL_RE_PUBLIC = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const mockPublic = {
   /** GET /public/rooms/available?gender= — sắp theo ngăn xếp: tầng thấp → số phòng nhỏ (BR-07), không lộ tên người ở */
@@ -562,13 +573,8 @@ export const mockPublic = {
     await delay(500);
     const code = String(body.studentCode || '').trim().toUpperCase();
     const email = String(body.email || '').trim().toLowerCase();
-    const errors = [];
-    // Cùng luật với hồ sơ sinh viên — nhận mã khác thì hồ sơ tạo ra từ đơn này sẽ không sửa được (PUT /students bắt 10 số)
-    if (!STUDENT_CODE_RE.test(code)) errors.push({ field: 'studentCode', message: 'Mã sinh viên gồm đúng 10 chữ số' });
-    if (!String(body.fullName || '').trim()) errors.push({ field: 'fullName', message: 'Nhập họ và tên' });
-    if (!['male', 'female'].includes(body.gender)) errors.push({ field: 'gender', message: 'Chọn giới tính' });
-    if (!/^0\d{9}$/.test(String(body.phone || ''))) errors.push({ field: 'phone', message: 'Số điện thoại gồm 10 số, bắt đầu bằng 0' });
-    if (!EMAIL_RE_PUBLIC.test(email)) errors.push({ field: 'email', message: 'Email không đúng định dạng' });
+    // Cùng luật với hồ sơ sinh viên — nhận khác thì hồ sơ tạo ra từ đơn này sẽ không sửa được (PUT /students)
+    const errors = studentErrors({ ...pickStudent(body), studentCode: code, email });
     if (!TERM_MONTHS[body.term]) errors.push({ field: 'term', message: 'Chọn gói thuê 6 hoặc 12 tháng' });
     if (errors.length) fail(400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ', { errors });
 
@@ -589,11 +595,7 @@ export const mockPublic = {
     }
     if (pendingOn(room.id, bedNumber)) fail(409, 'BED_ALREADY_REQUESTED', `${bedText(room, bedNumber)} vừa có người khác đăng ký, vui lòng chọn giường khác`);
 
-    const profile = {
-      studentCode: code, fullName: String(body.fullName).trim(), gender: body.gender, phone: String(body.phone), email,
-      dob: body.dob || null, faculty: body.faculty || '', className: body.className || '',
-      emergencyContact: body.emergencyContact || null, status: 'active',
-    };
+    const profile = { ...pickStudent(body), studentCode: code, email, status: 'active' };
     // MSSV đã có hồ sơ (sinh viên cũ quay lại) → dùng lại hồ sơ, cập nhật theo form
     if (st) Object.assign(st, profile);
     else { st = { id: `s-new-${Date.now()}`, ...profile }; students.push(st); }

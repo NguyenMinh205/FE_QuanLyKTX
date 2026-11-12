@@ -2,13 +2,14 @@
 
 **Hệ thống:** Ký túc xá HaUI — bản tinh gọn v2
 **Người đọc:** nhóm Backend
-**Người lập:** FE Lead · **Cập nhật:** 11/11/2026 (bản 2.1)
-**Đối chiếu:** `docs/API.md` **v2.6** ↔ repo `BE_QLKTX` nhánh `main` commit **`ba70bd9`** (bản mới nhất trên remote, kiểm lại ngày 11/11/2026)
+**Người lập:** FE Lead · **Cập nhật:** 12/11/2026 (bản 2.2)
+**Đối chiếu:** `docs/API.md` **v2.7** ↔ repo `BE_QLKTX`
 
-> **Tóm tắt:**
-> - **FE:** đã làm xong bản v2 trên dữ liệu giả, gọi **51 endpoint**. Tất cả đều mô tả trong `API.md` v2.6.
-> - **Backend `main`:** vẫn là bản v1.2. Còn loại phòng, nhu yếu phẩm, loại phí, VNPay, và chưa có endpoint đặc trưng nào của v2: nộp đơn công khai, chốt điện nước, VietQR, hoàn cọc, doanh thu, nhập sinh viên.
-> - **Việc của backend:** làm theo `API.md` v2.6 (mục 1 dưới đây), gỡ phần v1 (mục 2), bổ sung schema (mục 3).
+> **Tóm tắt (12/11/2026):**
+> - **Backend nhóm đẩy bản cập nhật** `b8c6cc9` (nhánh `docs`). Bản này bỏ phần v1 nhưng **không theo `API.md`**: 11/51 endpoint FE gọi bị thiếu, phần còn lại khác đường dẫn hoặc dạng dữ liệu. Còn có lỗi thật (khóa giường, gắn nhầm tài khoản, lộ dữ liệu sinh viên). FE chạy với bản này thì sập ở mọi danh sách (`rawData.some is not a function`).
+> - **FE đã sửa lại BE theo `API.md`** trên nhánh **`fix/v2-api-contract`** của repo BE, **chưa đẩy lên** — chờ nhóm BE xem (mục 6).
+> - **Kết quả:** cả 51 endpoint khớp dạng dữ liệu với FE; trọn vòng đời một hồ sơ qua 3 vai trò chạy thông trên giao diện với BE thật (23/23 bước).
+> - **Việc của nhóm BE:** review nhánh `fix/v2-api-contract` (mục 6.4), rồi gộp. Các mục 1–5 dưới đây là danh sách yêu cầu gốc, giữ để đối chiếu.
 >
 > Bản đối chiếu v1 (82 endpoint, kết quả nối thử 16/09/2026) nằm trong lịch sử git của file này và ở nhánh `backup/v1-full`.
 
@@ -179,10 +180,90 @@ Mọi endpoint khác trả `403 MUST_CHANGE_PASSWORD` khi tài khoản còn cờ
 
 ---
 
+## 6. Kết quả nối backend ngày 12/11/2026
+
+### 6.1. Bản `b8c6cc9` của nhóm BE lệch hợp đồng thế nào
+
+| Nhóm | Lệch chính |
+|---|---|
+| Chung | Danh sách trả `{ data, pagination }` thay vì `{ items, total, page, limit }` (§1.2), nên bảng antd ở FE sập. Không chặn `MUST_CHANGE_PASSWORD`. Id sai dạng trả 400 thay vì 404 |
+| Thiếu hẳn | Tra cứu đơn, hoàn cọc, lưới / chốt cả tòa / lịch sử điện nước, cổng SV: hồ sơ, chỗ ở, lịch sử hợp đồng, chi tiết hóa đơn, lịch sử điện nước phòng |
+| Khác đường dẫn | `POST` thay `PATCH` (duyệt / từ chối / thanh lý), `/students/import-excel`, `/students/:id/status`, `/dashboard/kpi`, `/payments/bank-transfer/confirm`, `/payments/vietqr/:invoiceId` |
+| Khác mô hình | Không có trạng thái `rejected` (từ chối thành `terminated`). Thanh lý gộp luôn hoàn cọc và tạo phiếu `refund` (trái BR-08). Hóa đơn không có `scope`, `monthYear`, người nộp |
+
+**Lỗi thật trong bản đó:**
+- **Khóa giường sai.** Điều kiện `{'beds.bedNumber': n, 'beds.status': 'available'}` thiếu `$elemMatch`, nên khớp khi phòng có *bất kỳ* giường trống nào. Hậu quả: có thể xếp hai người một giường.
+- **Gắn nhầm tài khoản.** Duyệt đơn mà email sinh viên trùng một tài khoản có sẵn (kể cả cán bộ) thì gắn sinh viên vào tài khoản đó.
+- **Cron trả giường quá sớm.** Cron đổi hợp đồng quá hạn sang `expired` và trả giường trước khi thanh lý, nên bỏ qua kiểm nợ BR-04.
+- **Hóa đơn quá hạn lọt khỏi kiểm nợ.** Cron đổi hóa đơn sang `overdue` (ngoài enum), nên mọi chỗ kiểm nợ (lọc `unpaid`) bỏ sót.
+- **Lộ dữ liệu.** Sinh viên xem được hóa đơn và hợp đồng của người khác (không kiểm quyền sở hữu).
+- **Đổi giới tính phòng không có tác dụng.** Đổi giới tính phòng bị bỏ qua im lặng; đổi sức chứa thì sinh lại toàn bộ giường, xóa trạng thái bảo trì.
+
+### 6.2. Đã sửa trên nhánh `fix/v2-api-contract` (repo BE, chưa đẩy)
+
+- **Tầng route / service** của 8 module viết lại theo `API.md` v2.7. Dạng dữ liệu trả ra gom một chỗ ở `src/shared/views.js` (StudentRef, RoomRef, Contract, Invoice, Payment).
+- **Hạ tầng giữ nguyên:** xác thực JWT, envelope, error-handler. Phần sửa thêm:
+  - chặn `403 MUST_CHANGE_PASSWORD`;
+  - id sai dạng trả `404`;
+  - trùng khóa trả lỗi theo trường;
+  - mã chứng từ tăng dần (`HD-2026-0001`), có thử lại khi trùng.
+- **Model:**
+  - ngày chỉ có ngày lưu chuỗi `YYYY-MM-DD` (giờ Việt Nam);
+  - Contract thêm `rejected`, `isDepositRefunded`, `terminatedAt`, `reviewedAt`;
+  - Invoice thêm `scope`, `monthYear`, `payerStudentId`;
+  - User thêm `studentCode` để đăng nhập bằng MSSV;
+  - Student thêm `citizenId`, `address`.
+- **Đã sửa mọi lỗi ở 6.1.** Khóa giường dùng `$elemMatch`. Duyệt đơn tự hoàn tác nếu bước sau lỗi, vì CSDL không chạy replica set nên không có transaction.
+- **Cron:** bỏ cả ba job cũ; `expired` tính lúc đọc.
+- **Dữ liệu mẫu `seed.js`:**
+  - dựng đủ tình huống, cùng bộ tài khoản với dữ liệu giả của FE;
+  - **từ chối chạy vào cụm Atlas** nếu không đặt `SEED_ALLOW_REMOTE=true`.
+- **Bỏ** các file controller / validation (Joi) cũ. Validate nằm trong service để trả đúng câu lỗi theo trường như FE cần.
+- **Không còn:**
+  - **gửi email:** BE chưa có dịch vụ mail. Duyệt đơn trả `emailSent: false`, màn duyệt nhắc cán bộ tự báo sinh viên;
+  - **Redis cache:** bỏ cache ở các service vì dữ liệu nhỏ và cache cũ từng gây sai số.
+
+### 6.3. Đã kiểm
+
+| Kiểm | Kết quả |
+|---|---|
+| So dạng dữ liệu BE với mock FE, mọi endpoint GET theo 3 vai trò | Khớp hết. Chỉ thiếu vài trường nội bộ của mock mà FE không đọc |
+| Quyền | Staff bị chặn doanh thu / tài khoản. Sinh viên bị chặn `/invoices` và hóa đơn người khác. Tài khoản bị buộc đổi mật khẩu bị chặn mọi chỗ |
+| Trọn vòng đời trên giao diện, BE thật | 23/23 bước: nộp đơn → tra cứu → duyệt → chốt điện nước → SV đăng nhập lần đầu → thanh lý bị chặn → thu tiền → thanh lý → hoàn cọc → SV thấy đã nhận cọc → doanh thu |
+| Mở mọi màn theo 3 vai trò, BE thật | Không màn nào lỗi, không request nào 4xx/5xx ngoài ý muốn |
+
+**Chưa kiểm:**
+- Chạy trên cụm Atlas dùng chung (mới chạy MongoDB cục bộ).
+- Nhiều người thao tác cùng lúc (chỉ kiểm logic điều kiện, chưa bắn tải).
+- Bản build production của BE.
+
+### 6.4. Nhóm BE cần làm
+
+1. Review nhánh `fix/v2-api-contract` (nhánh này chưa có trên remote — FE Lead đẩy khi nhóm sẵn sàng). Thay đổi lớn nhất: `src/shared/views.js`, `contracts/contract.service.js`, `fees/fee.service.js`, `scripts/seed.js`.
+2. Quyết có giữ Redis cache không. Nếu giữ thì phải xóa cache ở MỌI chỗ ghi.
+3. Thêm dịch vụ gửi email (gửi tài khoản khi duyệt đơn), rồi trả `emailSent: true`.
+4. Điền tài khoản nhận tiền thật cho VietQR: `.env` → `VIETQR_BANK_BIN`, `VIETQR_ACCOUNT_NUMBER`, `VIETQR_ACCOUNT_NAME`.
+
+### 6.5. Chạy thử trên máy (CSDL cục bộ, không đụng Atlas)
+
+```bash
+# 1. MongoDB cục bộ cổng 27018
+mongod --port 27018 --dbpath <thư mục dữ liệu>
+# 2. Dữ liệu mẫu (xóa sạch CSDL test rồi dựng lại)
+MONGODB_URI=mongodb://127.0.0.1:27018/dms_ktx_test node src/scripts/seed.js
+# 3. Backend
+MONGODB_URI=mongodb://127.0.0.1:27018/dms_ktx_test ENABLE_REDIS=false node src/server.js
+# 4. Frontend (đúng cổng 5173 vì CORS)
+VITE_USE_MOCK=false npm run dev
+```
+
+---
+
 ## Lịch sử phiên bản
 
 | Phiên bản | Ngày | Nội dung |
 |---|---|---|
+| 2.2 | 12/11/2026 | Mục 6: đối chiếu bản BE `b8c6cc9`, FE sửa lại BE theo `API.md` v2.7 trên nhánh `fix/v2-api-contract`, kết quả kiểm |
 | 2.1 | 11/11/2026 | Soát trước khi nối backend, theo `API.md` v2.6: thêm các trường màn hình đang đọc (`totalDebt`, `history`, `monthYear`, giá ở tra cứu đơn, shape profile), `PUT /buildings` nhận một phần, MSSV 10 số ở nộp đơn, `GENDER_CHANGE_NOT_ALLOWED`, lưới điện nước gồm phòng bảo trì còn người. Bỏ mục 11 "Danh mục loại phòng" còn sót từ v1. Backend `main` vẫn `ba70bd9` |
 | 2.0 | 10/11/2026 | Viết lại cho bản HaUI v2: 51 endpoint theo `API.md` v2.5, danh sách gỡ bỏ, bổ sung schema, D1–D5. Đối chiếu backend `main` `ba70bd9`: chưa có endpoint v2 |
 | 1.11 | 16/09/2026 | (v1) Kết quả nối thử bản backend `c1a24e1` — xem lịch sử git |

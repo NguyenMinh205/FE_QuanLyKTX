@@ -88,6 +88,8 @@ export default function StudentDetailDrawer({
             <Row label="Mã sinh viên"><Text strong>{s.studentCode}</Text></Row>
             <Row label="Giới tính">{GENDER[s.gender]?.label}</Row>
             <Row label="Ngày sinh">{s.dob ? formatDate(s.dob) : null}</Row>
+            <Row label="Số CCCD">{s.citizenId || null}</Row>
+            <Row label="Địa chỉ thường trú">{s.address || null}</Row>
             <Row label="Số điện thoại">{s.phone ? formatPhone(s.phone) : null}</Row>
             <Row label="Email">{s.email || null}</Row>
             <Row label="Lớp · Khoa">{[s.className, s.faculty].filter(Boolean).join(' · ') || null}</Row>

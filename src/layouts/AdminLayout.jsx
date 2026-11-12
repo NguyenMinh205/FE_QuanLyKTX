@@ -11,6 +11,7 @@ import { ROLES, ROLE_LABEL } from '../constants/roles';
 import { useApi } from '../hooks/useApi';
 import { dashboardApi } from '../features/dashboard/api/dashboard.api';
 import BrandLogo from '../components/BrandLogo';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -184,7 +185,8 @@ export default function AdminLayout() {
         </Drawer>
 
         <Content style={{ padding: isMobile ? 16 : 24, background: 'var(--layout-bg)', minWidth: 0 }}>
-          <Outlet />
+          {/* Một màn hỏng không kéo sập menu; key theo đường dẫn nên bấm sang màn khác là dựng lại từ đầu */}
+          <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>
         </Content>
       </Layout>
     </Layout>

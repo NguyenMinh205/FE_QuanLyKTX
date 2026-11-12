@@ -133,7 +133,7 @@ export default function StudentsPage() {
             <>
               <Select aria-label="Giới tính" allowClear placeholder="Giới tính" style={{ width: 120 }} options={GENDER_OPTIONS}
                 value={filters.gender} onChange={(v) => setFilter({ gender: v })} />
-              <Select aria-label="Khoa" allowClear placeholder="Mọi khoa" style={{ width: 190 }} options={FACULTY_OPTIONS.map((f) => ({ value: f, label: f }))}
+              <Select aria-label="Khoa" allowClear placeholder="Mọi khoa" style={{ width: 190 }} options={FACULTY_OPTIONS}
                 value={filters.faculty} onChange={(v) => setFilter({ faculty: v })} />
               <Select aria-label="Tài khoản" allowClear placeholder="Tài khoản" style={{ width: 150 }}
                 options={[{ value: 'true', label: 'Đã có tài khoản' }, { value: 'false', label: 'Chưa có tài khoản' }]}
