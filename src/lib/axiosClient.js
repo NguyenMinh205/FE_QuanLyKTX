@@ -16,14 +16,20 @@ axiosClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Token hết hạn -> xóa và về trang đăng nhập.
-// v1 dùng 1 token hạn 7 ngày, không có refresh token (SRS FR-08).
+const PUBLIC_PATHS = new Set(['/', '/apply', '/apply/status', '/login', '/admin/login']);
+
+// Token hết hạn -> xóa và về đúng cổng đăng nhập (không ép redirect khi đang ở trang công khai hoặc chính request /auth/login)
 axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const reqUrl = String(error.config?.url || '');
+    const isLoginRequest = reqUrl.includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginRequest) {
       authStorage.clear();
-      if (window.location.pathname !== '/login') window.location.href = '/login';
+      const path = window.location.pathname;
+      if (!PUBLIC_PATHS.has(path)) {
+        window.location.href = path.startsWith('/admin') ? '/admin/login' : '/login';
+      }
     }
     // API.md §1.4: mật khẩu vừa bị đặt lại khi đang đăng nhập → mọi API trả 403 MUST_CHANGE_PASSWORD
     if (error.response?.status === 403 && error.response?.data?.code === 'MUST_CHANGE_PASSWORD') {
@@ -49,7 +55,7 @@ export const getErrorMessage = (error, fallback = 'Có lỗi xảy ra, vui lòng
   return error?.response?.data?.message || fallback;
 };
 
-/** Mã lỗi ổn định để xử lý theo từng trường hợp, VD: 'BED_ALREADY_OCCUPIED' */
+/** Mã lỗi ổn định để xử lý theo từng trường hợp, VD: 'ROOM_FULL' */
 export const getErrorCode = (error) => error?.response?.data?.code || null;
 
 /** Lỗi theo từng trường để đổ vào Form của antd — API.md mục 1.1 */

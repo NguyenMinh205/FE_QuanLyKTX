@@ -1,77 +1,283 @@
-/* Cùng giá trị với src/theme/tokens.js — style nội dòng dùng var(--…), antd dùng token */
+/* HaUI Pro Light-Blue Design System — đồng bộ với src/theme/tokens.js */
 :root {
-  --brand: #1263D6;
-  --brand-soft: #EAF1FC;
-  --text-secondary: #4B5563;
-  --text-tertiary: #5B6474;
-  --success-text: #2F7D0B;
-  --warning-text: #9A5B00;
-  --danger-text: #CF1322;
-  --layout-bg: #F4F6F9;
-  --line: #EBEEF2;
-  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --brand: #2563EB;
+  --brand-hover: #1D4ED8;
+  --brand-deep: #153C88;
+  --brand-soft: #EFF6FF;
+  --brand-border: #BFDBFE;
+  --accent: #DE2737;
+  --ink: #0F172A;
+  --text: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #64748B;
+  --success-text: #15803D;
+  --warning-text: #B45309;
+  --danger-text: #DC2626;
+  --layout-bg: #F1F5F9;
+  --surface: #FFFFFF;
+  --surface-subtle: #F8FAFC;
+  --surface-blue: #F0F6FF;
+  --footer-bg: #0F294A;
+  --line: #E2E8F0;
+  --line-strong: #CBD5E1;
+  --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
+  --font-sans: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-sans);
+  color: var(--ink);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Những phần trình duyệt tự vẽ cũng theo màu của app */
-::selection { background: #CFE0FA; color: #0B2A5B; }
-/* Vòng focus rõ khi dùng bàn phím, không hiện khi bấm chuột */
+::selection { background: #DBEAFE; color: #1E3A8A; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-/* Số tiền, chỉ số, mã trong bảng thẳng cột */
-.ant-table, .ant-statistic, .stat-card-value { font-variant-numeric: tabular-nums; }
-a { text-underline-offset: 3px; }
 
-/* Thẻ số liệu nhỏ lại trên điện thoại để 2 thẻ đứng cạnh nhau */
-.stat-card-value { font-size: 26px; line-height: 1.2; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--layout-bg); color: var(--ink); }
+#root { min-height: 100vh; }
+a { text-underline-offset: 3px; cursor: pointer; }
+
+.mono,
+.ant-typography code {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+.ant-table, .ant-statistic, .stat-card-value, .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Card trắng nổi rõ trên nền canvas #F1F5F9 — phân khối sắc nét, chiều sâu nhẹ chuẩn enterprise */
+.ant-card {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--card-shadow) !important;
+}
+.ant-card-head {
+  border-bottom-color: var(--line) !important;
+  min-height: 48px !important;
+}
+.ant-card-head-title {
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.ant-table-thead > tr > th {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary) !important;
+}
+
+/* Sidebar quản trị — nền trắng sạch, mục đang chọn có vạch xanh trái rõ ràng */
+.admin-sidebar-menu .ant-menu-item-group-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 16px 16px 6px !important;
+  line-height: 1.25;
+}
+.admin-sidebar-menu .ant-menu-item-group:first-child .ant-menu-item-group-title {
+  padding-top: 8px !important;
+}
+.admin-sidebar-menu .ant-menu-item {
+  height: 38px !important;
+  line-height: 38px !important;
+  margin-block: 2px !important;
+  font-size: 13.5px;
+  font-weight: 500;
+  position: relative;
+}
+.admin-sidebar-menu .ant-menu-item-selected {
+  font-weight: 600;
+}
+.admin-sidebar-menu .ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+
+/* Hộp viết tắt tên người dùng trong header (căn giữa tuyệt đối) */
+.haui-avatar-box {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--brand-soft);
+  color: var(--brand-hover);
+  border: 1px solid var(--brand-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Hệ nhãn trạng thái gọn gàng (Status Dot Badge) */
+.haui-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  background: #FFFFFF;
+  color: var(--ink);
+}
+.haui-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.haui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: nowrap;
+  background: #F1F5F9;
+  color: #334155;
+  border: 1px solid #E2E8F0;
+}
+.haui-chip-navy {
+  background: var(--brand-soft);
+  color: var(--brand-hover);
+  border-color: var(--brand-border);
+}
+
+/* Dải KPI liền mạch phân cách bằng hairline */
+.haui-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+.haui-kpi-cell {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--line);
+}
+.haui-kpi-cell:last-child { border-right: none; }
+@media (max-width: 1199px) {
+  .haui-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .haui-kpi-cell:nth-child(2) { border-right: none; }
+  .haui-kpi-cell:nth-child(1),
+  .haui-kpi-cell:nth-child(2) { border-bottom: 1px solid var(--line); }
+}
 @media (max-width: 575px) {
-  .stat-card-value { font-size: 19px; }
+  .haui-kpi-strip { grid-template-columns: 1fr; }
+  .haui-kpi-cell { border-right: none !important; border-bottom: 1px solid var(--line); padding: 14px 16px; }
+  .haui-kpi-cell:last-child { border-bottom: none; }
+}
+
+/* Thẻ số liệu KPI */
+.stat-card-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+@media (max-width: 575px) {
+  .stat-card-value { font-size: 20px; }
   .stat-card .ant-card-body { padding: 14px !important; }
   .stat-card-footer { font-size: 12px !important; }
 }
 
-/* Nhãn trạng thái (Tag success/warning/error): antd tô chữ bằng màu nền đậm (#FAAD14 trên nền vàng nhạt chỉ ~1.9:1).
-   Đổi riêng màu chữ sang bản đậm; nền và viền giữ. ⚠️ Cần đủ 4 class (+ body) mới thắng style của antd (0,4,0). */
-body .ant-tag.ant-tag-success:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--success-text); }
-body .ant-tag.ant-tag-warning:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--warning-text); }
-body .ant-tag.ant-tag-error:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--danger-text); }
+/* Nút ô thao tác phẳng & sắc nét */
+.portal-quick-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: border-color 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease;
+}
+.portal-quick-tile:hover {
+  border-color: var(--brand);
+  background: var(--surface-blue);
+}
 
-/* Thanh lọc trên bảng (DataTable). Ở điện thoại: ô tìm kiếm và khoảng ngày chiếm cả dòng, các ô chọn 2 ô một dòng.
-   ⚠️ Các ô lọc đặt width bằng style inline ở từng trang — phải !important mới đè được. */
-.table-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+/* Ô sơ đồ phòng trên FloorMap */
+.room-tile {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 10px 12px 10px 13px;
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  transition: border-color 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease;
+}
+.room-tile:hover {
+  border-color: #93C5FD;
+  background: #F8FBFF;
+}
+.room-tile-selected {
+  border-color: var(--brand) !important;
+  background: var(--brand-soft) !important;
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+/* Liên kết chân trang chuẩn đại học */
+.haui-footer-link {
+  color: #CBD5E1;
+  font-size: 13px;
+  transition: color 0.14s ease;
+}
+.haui-footer-link:hover {
+  color: #FFFFFF;
+}
+
+/* Hàng bảng & toolbar + quy tắc responsive mobile-first */
+.table-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; }
+@media (max-width: 767px) {
+  .ant-card-head-wrapper { flex-wrap: wrap; gap: 8px; padding: 10px 0; }
+  .ant-card-head-title { flex: 1 1 100% !important; padding: 0 !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+  .ant-card-extra { margin-inline-start: 0 !important; padding: 0 !important; }
+}
 @media (max-width: 575px) {
   .table-toolbar > * { flex: 1 1 calc(50% - 4px); min-width: 0; width: auto !important; }
   .table-toolbar > .table-toolbar-search,
   .table-toolbar > .ant-picker-range { flex-basis: 100%; }
   .table-toolbar > .ant-btn { flex: 0 0 auto; }
 
-  /* Bộ lọc sơ đồ phòng: cùng lưới 2 cột; nút Sơ đồ / Danh sách chiếm cả dòng */
-  .room-filters { display: grid !important; grid-template-columns: 1fr 1fr; }
-  .room-filters .ant-select { width: 100% !important; }
-  .room-filters > .room-filters-view { grid-column: 1 / -1; margin-left: 0 !important; }
+  .room-filters { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .room-filters > * { min-width: 0; }
+  .room-filters .ant-select { width: 100% !important; min-width: 0 !important; }
+  .room-filters > .room-filters-view { grid-column: 1 / -1; margin-left: 0 !important; width: 100%; }
   .room-filters > .room-filters-view .ant-segmented { width: 100%; }
   .room-filters > .room-filters-view .ant-segmented-item { flex: 1; }
 }
 
-* {
-  box-sizing: border-box;
-}
+/* Tăng tương phản chữ Tag AntD còn lại */
+body .ant-tag.ant-tag-success:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--success-text); }
+body .ant-tag.ant-tag-warning:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--warning-text); }
+body .ant-tag.ant-tag-error:not(.ant-tag-disabled):not(.ant-tag-solid) { color: var(--danger-text); }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: var(--layout-bg);
-}
-
-#root {
-  min-height: 100vh;
-}
-
-a {
-  cursor: pointer;
-}
-
-/* Kiểu dáng khi in hóa đơn / hợp đồng (docs/14 mục 4.8) */
 @media print {
   .no-print,
   .ant-layout-sider,
@@ -86,7 +292,5 @@ a {
     background: #fff !important;
     padding: 0 !important;
   }
-  @page {
-    margin: 1.5cm;
-  }
+  @page { margin: 1.5cm; }
 }

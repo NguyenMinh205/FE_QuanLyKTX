@@ -1,7 +1,7 @@
 import { Result, Button, Space, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { ROLE_LABEL } from '../../../constants/roles';
+import { ROLES, ROLE_LABEL } from '../../../constants/roles';
 import { homePathOf } from '../../../routes/paths';
 
 const { Text } = Typography;
@@ -12,8 +12,9 @@ export default function ForbiddenPage() {
   const { user, logout } = useAuth();
 
   const switchAccount = async () => {
+    const target = user?.role && user.role !== ROLES.STUDENT ? '/admin/login' : '/login';
     await logout();
-    navigate('/login', { replace: true });
+    navigate(target, { replace: true });
   };
 
   return (

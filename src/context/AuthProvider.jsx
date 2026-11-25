@@ -25,8 +25,8 @@ export function AuthProvider({ children }) {
    * @param {boolean} remember true = giữ phiên sau khi đóng trình duyệt (localStorage)
    * @returns user vừa đăng nhập — gồm role và mustChangePassword để trang đăng nhập điều hướng
    */
-  const login = useCallback(async (identifier, password, remember = true) => {
-    const res = await authApi.login({ identifier, password });
+  const login = useCallback(async (identifier, password, remember = true, portal = undefined) => {
+    const res = await authApi.login({ identifier, password, ...(portal ? { portal } : {}) });
     const { token, user: loggedInUser } = res.data.data;
     authStorage.save({ token, user: loggedInUser }, remember);
     setUser(loggedInUser);

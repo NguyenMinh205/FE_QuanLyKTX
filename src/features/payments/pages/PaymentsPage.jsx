@@ -4,26 +4,30 @@ import {
   Button, Card, Select, DatePicker, Typography, Tooltip, Row, Col,
 } from 'antd';
 import {
-  CheckCircleOutlined, WalletOutlined, QrcodeOutlined, ReloadOutlined, EyeOutlined,
+  CheckCircleOutlined, WalletOutlined, QrcodeOutlined, ReloadOutlined, EyeOutlined, RollbackOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useApi } from '../../../hooks/useApi';
 import { paymentApi } from '../api/payment.api';
-import { INVOICE_TYPE, PAYMENT_METHOD } from '../../../constants/statuses';
+import { INVOICE_TYPE, PAYMENT_METHOD, PAYMENT_TYPE } from '../../../constants/statuses';
 import { formatCurrency, formatDateTime } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import DataTable from '../../../components/DataTable';
 import StatCard from '../../../components/StatCard';
+import StatusTag from '../../../components/StatusTag';
 import PaymentDetailDrawer from '../components/PaymentDetailDrawer';
 import { roomTextOf } from '../../fees/utils/invoiceView';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
-const EMPTY_FILTERS = { page: 1, limit: 20, search: '', type: undefined, method: undefined, from: undefined, to: undefined };
+const EMPTY_FILTERS = {
+  page: 1, limit: 20, search: '', paymentType: undefined, type: undefined, method: undefined, from: undefined, to: undefined,
+};
 const METHOD_OPTIONS = Object.entries(PAYMENT_METHOD).map(([value, m]) => ({ value, label: m.label }));
+const PAYMENT_TYPE_OPTIONS = Object.entries(PAYMENT_TYPE).map(([value, m]) => ({ value, label: m.label }));
 
-/** SCR-56 Phiếu thu — mỗi lần thu đủ một hóa đơn là một phiếu; tra cứu, đối chiếu, in lại biên lai */
+/** Danh sách Phiếu thu & Phiếu chi hoàn cọc (v3.0 — tách riêng paymentType payment vs refund) */
 export default function PaymentsPage() {
   const [searchParams] = useSearchParams();
   return <PaymentsView key={searchParams.toString()} searchParams={searchParams} />;
@@ -42,11 +46,11 @@ function PaymentsView({ searchParams }) {
 
   const setFilter = (patch) => setFilters((f) => ({ ...f, ...patch, page: 1 }));
   const resetFilters = () => { setFilters(EMPTY_FILTERS); setTableKey((k) => k + 1); };
-  const hasFilter = filters.search || filters.type || filters.method || filters.from;
+  const hasFilter = filters.search || filters.paymentType || filters.type || filters.method || filters.from;
 
   const columns = [
     {
-      title: 'Mã phiếu thu', dataIndex: 'paymentCode', width: 170, fixed: 'left',
+      title: 'Mã chứng từ', dataIndex: 'paymentCode', width: 175, fixed: 'left',
       render: (v, p) => (
         <>
           <Button type="link" size="small" onClick={() => setOpenPayment(p)} style={{ padding: 0, height: 'auto', fontFamily: 'ui-monospace, Consolas, monospace' }}>{v}</Button>
@@ -55,16 +59,27 @@ function PaymentsView({ searchParams }) {
       ),
     },
     {
-      title: 'Hóa đơn', key: 'invoice', width: 210,
+      title: 'Loại phiếu', dataIndex: 'paymentType', width: 125,
+      render: (v) => <StatusTag type="paymentType" value={v || 'payment'} />,
+    },
+    {
+      title: 'Hóa đơn / Hợp đồng', key: 'invoice', width: 205,
       render: (_, p) => (
-        <>
-          <Link to={`/admin/invoices/${p.invoiceId}`}>{p.invoiceCode}</Link>
-          <div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[p.invoiceType]?.label ?? p.invoiceType}</Text></div>
-        </>
+        p.invoiceId ? (
+          <>
+            <Link to={`/admin/invoices/${p.invoiceId}`}>{p.invoiceCode}</Link>
+            <div><Text type="secondary" style={{ fontSize: 12 }}>{INVOICE_TYPE[p.invoiceType]?.label ?? p.invoiceType}</Text></div>
+          </>
+        ) : (
+          <>
+            <Text strong>Chi hoàn tiền cọc</Text>
+            <div><Text type="secondary" style={{ fontSize: 12 }}>{p.note || 'Quyết toán khi thanh lý'}</Text></div>
+          </>
+        )
       ),
     },
     {
-      title: 'Người nộp', key: 'payer', width: 200,
+      title: 'Sinh viên', key: 'payer', width: 195,
       render: (_, p) => (
         <>
           <div>{p.payer?.fullName ?? '—'}</div>
@@ -72,9 +87,14 @@ function PaymentsView({ searchParams }) {
         </>
       ),
     },
-    { title: 'Số tiền', dataIndex: 'amount', width: 130, align: 'right', render: (v) => <Text strong style={{ color: 'var(--success-text)' }}>+{formatCurrency(v)}</Text> },
     {
-      title: 'Hình thức', dataIndex: 'method', width: 190,
+      title: 'Số tiền', dataIndex: 'amount', width: 135, align: 'right',
+      render: (v, p) => (p.paymentType === 'refund'
+        ? <Text strong style={{ color: '#722ED1' }}>−{formatCurrency(v)}</Text>
+        : <Text strong style={{ color: 'var(--success-text)' }}>+{formatCurrency(v)}</Text>),
+    },
+    {
+      title: 'Hình thức', dataIndex: 'method', width: 185,
       render: (v, p) => (
         <>
           <div>{PAYMENT_METHOD[v]?.label ?? v}</div>
@@ -82,9 +102,9 @@ function PaymentsView({ searchParams }) {
         </>
       ),
     },
-    { title: 'Người thu', dataIndex: 'collectedByName', width: 160, render: (v) => v || <Text type="secondary">Tự động</Text> },
+    { title: 'Người xử lý', dataIndex: 'collectedByName', width: 155, render: (v) => v || <Text type="secondary">Webhook tự động</Text> },
     {
-      title: '', key: 'actions', width: 80, fixed: 'right',
+      title: '', key: 'actions', width: 75, fixed: 'right',
       render: (_, p) => <Button size="small" type="link" icon={<EyeOutlined />} onClick={() => setOpenPayment(p)}>Xem</Button>,
     },
   ];
@@ -92,31 +112,38 @@ function PaymentsView({ searchParams }) {
   return (
     <>
       <PageHeader
-        breadcrumb={['Tài chính', 'Thanh toán']}
-        title="Phiếu thu"
-        description="Mỗi lần thu đủ một hóa đơn là một phiếu thu — tra cứu, đối chiếu sao kê và in lại biên lai"
+        breadcrumb={['Tài chính', 'Thu chi & Hoàn cọc']}
+        title="Phiếu thu & Phiếu chi hoàn cọc"
+        description="Theo dõi lịch sử thu tiền mặt, đối soát/Webhook VietQR tự động và các phiếu chi hoàn cọc sau thanh lý."
       />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={8}>
+        <Col xs={12} lg={6}>
           <StatCard
-            label="Đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} loading={!summary && loading}
+            label="Tổng đã thu" icon={<CheckCircleOutlined style={{ color: 'var(--success-text)' }} />} loading={!summary && loading}
             value={summary ? formatCurrency(summary.totalAmount) : null} valueColor="var(--success-text)"
-            footer={<Text type="secondary">{meta?.total ?? '—'} phiếu thu theo bộ lọc</Text>}
+            footer={<Text type="secondary">Thu phòng, cọc &amp; điện nước</Text>}
           />
         </Col>
-        <Col xs={12} md={8}>
+        <Col xs={12} lg={6}>
           <StatCard
             label="Tiền mặt" icon={<WalletOutlined style={{ color: 'var(--brand)' }} />} loading={!summary && loading}
             value={summary ? formatCurrency(summary.cashAmount) : null}
-            footer={<Text type="secondary">Thu tại văn phòng</Text>}
+            footer={<Text type="secondary">Thu trực tiếp tại văn phòng</Text>}
           />
         </Col>
-        <Col xs={12} md={8}>
+        <Col xs={12} lg={6}>
           <StatCard
             label="Chuyển khoản VietQR" icon={<QrcodeOutlined style={{ color: 'var(--brand)' }} />} loading={!summary && loading}
             value={summary ? formatCurrency(summary.vietqrAmount) : null}
-            footer={<Text type="secondary">Cán bộ đã đối chiếu sao kê</Text>}
+            footer={<Text type="secondary">Webhook tự động &amp; đối soát</Text>}
+          />
+        </Col>
+        <Col xs={12} lg={6}>
+          <StatCard
+            label="Đã chi hoàn cọc" icon={<RollbackOutlined style={{ color: '#722ED1' }} />} loading={!summary && loading}
+            value={summary ? formatCurrency(summary.refundAmount ?? 0) : null} valueColor="#722ED1"
+            footer={<Text type="secondary">Tách riêng khỏi doanh thu</Text>}
           />
         </Col>
       </Row>
@@ -132,22 +159,27 @@ function PaymentsView({ searchParams }) {
           filters={filters}
           onFiltersChange={setFilters}
           searchPlaceholder="Tìm mã phiếu, mã hóa đơn, mã giao dịch, tên, MSSV…"
-          unit="phiếu thu"
-          scrollX={1160}
+          unit="chứng từ"
+          scrollX={1240}
           onRow={(p) => ({ onDoubleClick: () => setOpenPayment(p) })}
           extraFilters={(
             <>
               <Select
-                aria-label="Loại hóa đơn" placeholder="Mọi loại hóa đơn" allowClear style={{ width: 170 }}
+                placeholder="Thu / Hoàn cọc" allowClear style={{ width: 150 }}
+                value={filters.paymentType} onChange={(v) => setFilter({ paymentType: v })}
+                options={PAYMENT_TYPE_OPTIONS}
+              />
+              <Select
+                placeholder="Mọi loại hóa đơn" allowClear style={{ width: 165 }}
                 value={filters.type} onChange={(v) => setFilter({ type: v })}
                 options={Object.entries(INVOICE_TYPE).map(([value, t]) => ({ value, label: t.label }))}
               />
               <Select
-                aria-label="Hình thức" placeholder="Mọi hình thức" allowClear style={{ width: 190 }}
+                placeholder="Mọi hình thức" allowClear style={{ width: 175 }}
                 value={filters.method} onChange={(v) => setFilter({ method: v })} options={METHOD_OPTIONS}
               />
               <RangePicker
-                aria-label="Khoảng thời gian" format="DD/MM/YYYY" allowClear style={{ width: 250 }}
+                format="DD/MM/YYYY" allowClear style={{ width: 240 }}
                 value={filters.from ? [dayjs(filters.from), dayjs(filters.to)] : null}
                 disabledDate={(d) => d.isAfter(dayjs(), 'day')}
                 onChange={(range) => setFilter({
@@ -161,7 +193,6 @@ function PaymentsView({ searchParams }) {
             </>
           )}
         />
-        <Text type="secondary" style={{ fontSize: 12 }}>Thu tiền ở màn Hóa đơn. Phiếu thu không sửa, không xoá.</Text>
       </Card>
 
       <PaymentDetailDrawer payment={openPayment} onClose={() => setOpenPayment(null)} />

@@ -1,22 +1,39 @@
 /**
- * Logo tòa nhà dùng chung cho header quản trị và trang đăng nhập.
- * @param size    cạnh khung vuông (px)
- * @param variant 'solid' nền xanh chữ trắng · 'glass' nền trắng mờ trên nền xanh
+ * Logo chính thức Trường Đại học Công nghiệp Hà Nội (nguồn: ssc.haui.edu.vn/dnn/web/haui/assets/images/logo-ngang.svg).
+ * @param height  chiều cao ảnh SVG (px)
+ * @param onDark  true -> đặt trên nền thẻ trắng bo gọn để giữ nguyên bộ màu nhận diện chuẩn của logo trên nền tối
  */
-export default function BrandLogo({ size = 40, variant = 'solid' }) {
-  const box = variant === 'glass'
-    ? { background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.28)' }
-    : { background: 'var(--brand)' };
-
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: size * 0.22, display: 'grid', placeItems: 'center', flexShrink: 0, ...box,
-    }}>
-      <svg width={size * 0.5} height={size * 0.56} viewBox="0 0 20 22" fill="none" aria-hidden="true">
-        <rect x="1.5" y="1.5" width="17" height="19" rx="1.5" stroke="#fff" strokeWidth="2.2" />
-        {[5.5, 9, 12.5].map((y) => [6.5, 10, 13.5].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.1" fill="#fff" />))}
-        <path d="M7.5 20.5v-4h5v4" stroke="#fff" strokeWidth="2.2" />
-      </svg>
-    </div>
+export default function BrandLogo({ height = 34, onDark = false }) {
+  const img = (
+    <img
+      src="/logo-haui-ngang.svg"
+      alt="Đại học Công nghiệp Hà Nội — HaUI"
+      style={{
+        height,
+        width: 'auto',
+        display: 'block',
+        objectFit: 'contain',
+        flexShrink: 0,
+      }}
+    />
   );
+
+  if (onDark) {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          background: '#FFFFFF',
+          padding: '7px 13px',
+          borderRadius: 8,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.14)',
+        }}
+      >
+        {img}
+      </span>
+    );
+  }
+
+  return img;
 }

@@ -1,689 +1,195 @@
-# API Reference
+# RESTful API Contract — HaUI - DMS (v3.0)
 
-**Project:** HaUI Dormitory Management System (HaUI DMS)
-**Version:** 2.7 (streamlined HaUI edition)
-**Base URL:** `/api`
-**Auth:** JWT Bearer token (`Authorization: Bearer <token>`)
-**Audience:** Frontend and backend developers
-
-> ⚠️ **This is the contract between frontend and backend.** The frontend v2 mock data follows this file, and the backend implements it when it moves to v2. Any change is agreed and written here first.
->
-> **Requirements come from** the HaUI SRS v2.0 and data schema in the backend repo (`docs/EDIT_DOCS_DAC_TA_YEU_CAU.md`, `docs/EDIT_DOCS_DATA_SCHEMA.md`). FR-xx and BR-xx below refer to those documents. FR-35 and BR-08 (deposit refund) are additions described in §12.
->
-> **Backend status (09/11/2026):** the backend still implements v1.2. The full v1 contract is on branch `backup/v1-full`. §13 lists what v2 removes.
+- **Phiên bản:** v3.0 — Chuẩn hóa nghiệp vụ KTX Đại học Công nghiệp Hà Nội 2026–2027 (3 Cơ sở · 4 Vai trò RBAC · 10 Modules · 11 Collections · Quản lý cấp Phòng không theo dõi giường lẻ)
+- **Nguồn đồng bộ:** Khớp 100% với `BE_QLKTX/docs/API.md`, `BE_QLKTX/docs/EDIT_DOCS_DAC_TA_YEU_CAU.md` và `BE_QLKTX/docs/EDIT_DOCS_DATA_SCHEMA.md`.
+- **Base URL:** `http://localhost:5000/api`
+- **Envelope chuẩn:** `{ code: "OK" | "<ERROR_CODE>", message: string, data: any }`
+- **Phân trang chuẩn:** `data: { items, total, page, limit, summary? }` (`limit <= 100`). *(Chi tiết một bản ghi không bao giờ chứa trường `items`.)*
+- **Xác thực:** `Authorization: Bearer <jwt_7d>` (không dùng refresh token; `mustChangePassword: true` trả `403 MUST_CHANGE_PASSWORD` cho mọi API nghiệp vụ).
 
 ---
 
-## 1. Conventions
+## 0. Quy ước dữ liệu & Enum v3.0
 
-### 1.1 Response envelope
-
-```json
-// success
-{ "code": "OK", "message": "Success", "data": { } }
-
-// error
-{ "code": "VALIDATION_ERROR", "message": "Dữ liệu không hợp lệ", "data": null }
-```
-
-- HTTP status reflects the outcome: `200/201` success, `400` validation, `401` unauthenticated, `403` forbidden, `404` not found, `409` conflict, `422` business-rule violation, `500` server error.
-- `code` is a stable machine-readable string. `message` is **Vietnamese** and shown to the user as-is.
-- Field-level errors go in `data`, so the frontend can attach them to the right input:
-
-```json
-{ "code": "VALIDATION_ERROR", "message": "Dữ liệu không hợp lệ",
-  "data": { "errors": [ { "field": "studentCode", "message": "Mã số sinh viên đã tồn tại" } ] } }
-```
-
-### 1.2 Pagination
-
-List endpoints accept `?page=1&limit=20` and respond with:
-
-```json
-{ "code": "OK", "message": "Success", "data": { "items": [ ], "total": 132, "page": 1, "limit": 20 } }
-```
-
-> ⚠️ The frontend treats **any** `data` containing an array named `items` as a paginated list. Detail responses must not use a field called `items`.
-
-Extra aggregates sit next to the pagination fields, for example `summary`.
-
-### 1.3 Data rules
-
-| Topic | Rule |
+| Trường | Giá trị chuẩn (lowercase) |
 |---|---|
-| Identifiers | Every document is serialized with `id` (string), never `_id` |
-| Money | Integer VND |
-| Enums | Lowercase |
-| Dates | ISO 8601. Date-only values are `YYYY-MM-DD` |
-| Month | `monthYear` is `YYYY-MM`, for example `2026-10` |
-
-**Enums**
-
-| Field | Values |
-|---|---|
-| `role` | `admin`, `staff`, `student` |
-| `gender` | `male`, `female` |
-| `student.status` | `active`, `inactive` (after `PATCH /students/:id/deactivate`) |
+| `role` | `admin`, `manager`, `staff`, `student` |
+| `campus` | `cs1` (Cầu Diễn, Tây Tựu, HN — A14, A15), `cs2` (TDP Thượng 2, Tây Tựu, HN — B12, B14), `cs3` (Phù Vân, Ninh Bình — C15, C16, C17) |
+| `room.roomTier` | `high_quality`, `standard`, `basic` |
+| `room.capacity` | `2`, `3`, `4`, `6` (quản lý cấp Phòng qua `occupied`, `availableSlots`, `maintenanceSlots` — **không có `beds[]` / `bedNumber`**) |
 | `room.status` | `active`, `maintenance` |
-| `bed.status` | `available`, `occupied`, `maintenance` |
-| `room.capacity` | `4`, `6`, `8` |
-| `contract.status` | `pending`, `active`, `expired`, `terminated`, `rejected` |
-| `contract.term` | `6_months`, `12_months` |
+| `student.gender` | `male`, `female` |
+| `student.priorityType` | `policy_family`, `poor_household`, `remote_area`, `normal` |
+| `student.status` | `active`, `inactive` |
+| `period.targetCohort` | `freshman`, `returning`, `all` |
+| `period.status` | `upcoming`, `open`, `closed` |
+| `contract.term` | `5_months`, `6_months`, `8.5_months`, `10_months`, `12_months` |
+| `contract.status` | `pending`, `pending_payment`, `active`, `expired` *(suy ra lúc đọc)*, `terminated`, `rejected`, `cancelled` |
 | `invoice.type` | `room_semester`, `deposit`, `utility` |
-| `invoice.status` | `unpaid`, `paid` |
+| `invoice.scope` | `personal`, `room` |
+| `invoice.status` | `unpaid`, `paid`, `cancelled` |
+| `payment.paymentType` | `payment`, `refund` |
 | `payment.method` | `cash`, `vietqr` |
+| `request.type` | `repair`, `transfer`, `checkout` |
+| `request.repairCategory` | `electric`, `water`, `ac`, `furniture`, `other` |
+| `request.status` | `pending`, `in_progress`, `approved`, `completed`, `rejected`, `cancelled` |
+| `notification.scope` | `personal`, `broadcast` |
+| `notification.type` | `application`, `payment`, `utility`, `request`, `announcement` |
 
-### 1.4 Roles
-
-| Role | Access |
-|---|---|
-| `public` | No token. Only the endpoints in §5 and login |
-| `admin` | Everything except paying by VietQR |
-| `staff` | Operations. Cannot manage accounts or see revenue |
-| `student` | Own data, plus the invoices of their current room |
-
-Every endpoint re-checks the role on the server. Frontend guards are UX only.
-
-**Own-data rule.** For endpoints a `student` may call, identity comes from the **JWT**, never from a query or body parameter.
-
-**Forced password change (FR-01, BR-06).** While `mustChangePassword` is `true`, every endpoint except `GET /auth/me`, `POST /auth/logout` and `PATCH /auth/change-password` returns `403 MUST_CHANGE_PASSWORD`.
-
-### 1.5 Shared objects
-
-Referenced by name in the sections below.
-
-```jsonc
-// StudentRef
-{ "id": "…", "studentCode": "2021601234", "fullName": "Nguyễn Văn An", "gender": "male" }
-
-// RoomRef
-{ "id": "…", "buildingId": "…", "buildingCode": "K1", "buildingName": "Tòa K1",
-  "roomNumber": "302", "floor": 3, "gender": "male", "capacity": 6 }
-```
+### Phân quyền 4 vai trò RBAC
+- **`admin`:** Chỉ quản trị kỹ thuật & tài khoản (`/api/users/*`, `/api/auth/*`). Bị chặn `403` khỏi nghiệp vụ vận hành KTX và Dashboard.
+- **`manager`:** Trưởng ban QLKTX — quản lý Đợt đăng ký, Tòa nhà & Phòng 3 cơ sở, duyệt chuyển phòng nguyên tử, xem toàn bộ nghiệp vụ và **độc quyền `/api/dashboard/revenue`**.
+- **`staff`:** Cán bộ Quản sinh — hồ sơ SV, duyệt/từ chối/tự động xếp phòng/hủy quá hạn, quét QR Check-in, điện nước, thu tiền, xử lý báo hỏng & trả phòng, đăng bảng tin, xem Dashboard KPI & lấp đầy.
+- **`student`:** Cổng sinh viên `/api/portal/*` (chống IDOR — mọi danh tính đọc từ JWT `req.user.studentId`).
 
 ---
 
-## 2. Auth and accounts
+## 1. Trang Chủ Công Khai & Tiếp Nhận Đơn (`/api/public`, không cần token)
 
-| Method | Endpoint | Roles | Description |
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/api/health` | Kiểm tra tình trạng server |
+| `GET` | `/api/public/campuses` | Thông tin 3 cơ sở (địa chỉ 2026), danh sách tòa nhà & **Bảng giá phòng chính thức 2026–2027** (`{ academicYear, campuses, priceTable, hotline, website }`) |
+| `GET` | `/api/public/announcements` | Tin tức & Thông báo mở đợt công khai trên trang chủ KTX (`?campus=&limit=`) |
+| `GET` | `/api/public/periods/open` | Danh sách các Đợt đăng ký đang mở (`?studentCode=&faculty=` → tự phân luồng `freshman` vs `returning` từ 4 số đầu MSSV và gắn `eligibility: { eligible, reason, cohortInfo }`) |
+| `GET` | `/api/public/rooms/available` | Phòng còn chỗ trống lọc theo `?periodId=&campus=&buildingId=&gender=&roomTier=&capacity=&maxFloor=` (sắp xếp tầng thấp → phòng nhỏ, trả `occupied`, `availableSlots`, `pendingApplications`) |
+| `POST` | `/api/contracts/register-online` | Nộp đơn trực tuyến trong Đợt đang mở `{ periodId, ...studentFields, roomId?, preferredRoomTier?, preferredCapacity?, term }`. Nếu MSSV đã tồn tại, bắt buộc khớp `citizenId`. |
+| `GET` | `/api/public/applications/status` | Tra cứu tiến độ đơn `?studentCode=&email=` |
+| `POST` | `/api/public/applications/cancel` | Sinh viên tự hủy đơn khi đang `pending` `{ studentCode, email, citizenId, reason? }` |
+
+---
+
+## 2. Xác Thực & Quản Lý Tài Khoản (`/api/auth`, `/api/users`)
+
+| Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| POST | `/auth/login` | public | Log in with email or student code |
-| POST | `/auth/logout` | authenticated | Client clears the token |
-| GET | `/auth/me` | authenticated | Current user, with student profile when `student` |
-| PATCH | `/auth/change-password` | authenticated | Change own password |
-| GET | `/users` | admin | `?search=&role=&isActive=&page=&limit=`. Search covers email, name, student code |
-| POST | `/users` | admin | Create a staff or admin account |
-| PUT | `/users/:id` | admin | Update `{ email, fullName, role }`, returns the updated **User item** (below) |
-| PATCH | `/users/:id/status` | admin | Lock or unlock, `{ isActive }` |
-| POST | `/users/:id/reset-password` | admin, staff | Issue a temporary password |
-
-There is **no** registration endpoint (FR-02). Student accounts are only created by approving an application (§6).
-
-**POST `/auth/login`** (FR-01)
-```json
-// request: identifier is an email or a student code
-{ "identifier": "2021601234", "password": "••••••••" }
-// response
-{ "code": "OK", "message": "Đăng nhập thành công",
-  "data": { "token": "eyJhbGciOi…", "expiresIn": 604800,
-            "user": { "id": "…", "email": "an@gmail.com", "fullName": "Nguyễn Văn An", "role": "student",
-                      "studentId": "…", "studentCode": "2021601234", "mustChangePassword": true } } }
-```
-
-| Error | HTTP | When |
-|---|---|---|
-| `INVALID_CREDENTIALS` | 401 | Unknown identifier or wrong password, same message for both: "Tài khoản hoặc mật khẩu không chính xác" |
-| `ACCOUNT_LOCKED` | 403 | `isActive` is `false` |
-
-**PATCH `/auth/change-password`** (FR-05)
-```json
-{ "oldPassword": "2021601234", "newPassword": "Moi12345" }
-```
-Success sets `mustChangePassword` to `false`. New password: at least 8 characters, with letters and digits.
-
-| Error | HTTP | When |
-|---|---|---|
-| `INVALID_CURRENT_PASSWORD` | 400 | Old password is wrong |
-| `PASSWORD_SAME_AS_DEFAULT` | 400 | New password equals the student code (UC-04) |
-
-**POST `/users`**
-```json
-// request: role is admin or staff, students get accounts through approval
-{ "email": "canbo1@haui.edu.vn", "fullName": "Lê Thị Nhân Viên", "role": "staff" }
-// response 201
-{ "code": "OK", "message": "Đã tạo tài khoản", "data": { "user": { }, "temporaryPassword": "Ktx7Rm2qPz" } }
-```
-
-**User item:** `{ id, email, fullName, role, isActive, mustChangePassword, lastLoginAt, createdAt, student: StudentRef | null }`. The list adds `summary: { all, admin, staff, student, locked }`, counted over all accounts.
-
-**POST `/users/:id/reset-password`** (FR-06)
-```json
-{ "code": "OK", "message": "Đã đặt lại mật khẩu", "data": { "temporaryPassword": "Ktx7Rm2qPz", "mustChangePassword": true } }
-```
-`temporaryPassword` is returned once and never logged. Staff may reset **student** accounts only; resetting an admin or staff account as staff returns `403 FORBIDDEN`.
-
-| Error | HTTP | When |
-|---|---|---|
-| `FORBIDDEN` | 403 | Staff resetting anyone other than a student |
-| `CANNOT_MODIFY_SELF` | 422 | Locking, demoting or resetting your own account |
-| `LAST_ACTIVE_ADMIN` | 422 | Would leave no active admin |
-| `DUPLICATE_ENTRY` | 409 | Email already used, field error on `email` |
+| `POST` | `/api/auth/login` | Công khai | Đăng nhập bằng Email hoặc MSSV (`{ identifier, password }`) |
+| `POST` | `/api/auth/logout` | Đã đăng nhập | Đăng xuất |
+| `GET` | `/api/auth/me` | Đã đăng nhập | Thông tin tài khoản (kèm `student` & `unreadNotifications` nếu là SV) |
+| `PATCH` | `/api/auth/change-password` | Đã đăng nhập | Đổi mật khẩu & tắt cờ `mustChangePassword` |
+| `GET` | `/api/users` | `admin` | Danh sách tài khoản (`?role=&isActive=&search=&page=&limit=`) |
+| `POST` | `/api/users` | `admin` | Tạo tài khoản `admin`, `manager` hoặc `staff` |
+| `PUT` | `/api/users/:id` | `admin` | Cập nhật email, họ tên, vai trò (`admin \| manager \| staff`) |
+| `PATCH` | `/api/users/:id/status` | `admin` | Khóa / mở khóa tài khoản |
+| `POST` | `/api/users/:id/reset-password` | `admin`, `manager`, `staff` | Đặt lại mật khẩu tạm (`manager`/`staff` chỉ được reset cho `student`) |
 
 ---
 
-## 3. Students
+## 3. Quản Lý Hồ Sơ Sinh Viên (`/api/students`)
+*Quyền: `manager`, `staff`.*
 
-| Method | Endpoint | Roles | Description |
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/api/students` | Danh sách SV (`?search=&gender=&faculty=&priorityType=&enrollmentYear=&status=&hasAccount=`) |
+| `GET` | `/api/students/:id` | Chi tiết SV kèm hợp đồng, công nợ, diện ưu tiên, tình trạng sức khỏe |
+| `POST` | `/api/students` | Thêm 1 hồ sơ SV (tự trích `enrollmentYear` từ MSSV) |
+| `POST` | `/api/students/import` | Nhập hàng loạt từ Excel `{ rows: [...] }` (tối đa 1.000 dòng) |
+| `PUT` | `/api/students/:id` | Cập nhật hồ sơ SV (đồng bộ `User.studentCode` & `fullName`) |
+| `PATCH` | `/api/students/:id/deactivate` | Vô hiệu hóa hồ sơ (chặn nếu còn đơn/hợp đồng hoặc nợ) |
+
+---
+
+## 4. Cơ Sở Vật Chất 3 Cơ Sở (`/api/buildings`, `/api/rooms`)
+
+| Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| GET | `/students` | admin, staff | `?search=&gender=&faculty=&status=&hasAccount=&page=&limit=` (FR-10). Search covers student code, name, phone |
-| GET | `/students/:id` | admin, staff | Detail (FR-11) |
-| POST | `/students` | admin, staff | Create a profile only, no account (FR-12) |
-| POST | `/students/import` | admin, staff | Bulk import (FR-12b) |
-| PUT | `/students/:id` | admin, staff | Update (FR-13) |
-| PATCH | `/students/:id/deactivate` | admin, staff | Deactivate (FR-14) |
-
-**Student body:** `{ studentCode, fullName, gender, dob, phone, email, citizenId, address, faculty, className, emergencyContact: { name, phone, relationship } }`. **Every field is required** (since 2.7), with the same rules here, in the import and in the public application (§5), so a profile created by any path stays editable by the others:
-
-| Field | Rule |
-|---|---|
-| `studentCode` | Exactly 10 digits, `/^\d{10}$/` |
-| `dob` | `YYYY-MM-DD`, before today |
-| `phone`, `emergencyContact.phone` | `/^0\d{9}$/` |
-| `email` | Valid email |
-| `citizenId` | Citizen ID (CCCD), exactly 12 digits |
-| `address` | Permanent address, non-empty |
-| `fullName`, `faculty`, `className`, `emergencyContact.name`, `emergencyContact.relationship` | Non-empty |
-
-Field errors use the dotted path for the contact, for example `{ "field": "emergencyContact.phone" }`.
-
-**PUT `/students/:id`**: `gender` cannot change while the student has a `pending` or `active` contract (BR-01: the held bed is in a room of the old gender). Returns `422 GENDER_CHANGE_NOT_ALLOWED` with a field error on `gender`.
-
-**List item:** Student fields, plus `userId`, `hasAccount`, `status`, `totalDebt`, and `residence: { buildingCode, roomNumber, bedNumber } | null`.
-
-**Detail:** List item, plus `currentContract: Contract | null`, `contracts: Contract[]`, `unpaidInvoices: Invoice[]`.
-
-**POST `/students/import`**: the frontend reads the Excel file and sends JSON, so the server handles no upload.
-```json
-// request, at most 1000 rows, `row` is the Excel row number used in the report
-{ "rows": [ { "row": 2, "studentCode": "2021601234", "fullName": "Nguyễn Văn An", "gender": "male", "phone": "0912345678", "…": "every Student body field" } ] }
-// response: valid rows are saved even when other rows fail
-{ "code": "OK", "message": "Đã nhập 1 sinh viên, 1 dòng lỗi",
-  "data": { "successCount": 1, "errorCount": 1,
-            "errors": [ { "row": 3, "studentCode": "2021601234", "field": "studentCode", "message": "Mã số sinh viên đã tồn tại" } ] } }
-```
-
-| Error | HTTP | When |
-|---|---|---|
-| `DUPLICATE_ENTRY` | 409 | Student code already exists, field error on `studentCode` |
-| `GENDER_CHANGE_NOT_ALLOWED` | 422 | Changing `gender` while a `pending` or `active` contract holds a bed |
-| `STUDENT_HAS_ACTIVE_CONTRACT` | 422 | Deactivating a student with an `active` contract |
-| `STUDENT_HAS_DEBT` | 422 | Deactivating a student with an unpaid invoice |
+| `GET` | `/api/buildings` | `manager`, `staff` | Danh sách tòa nhà (`?campus=cs1\|cs2\|cs3&includeInactive=true`) kèm `stats: { totalRooms, totalSlots, occupiedSlots, availableSlots, maintenanceSlots }` |
+| `POST` | `/api/buildings` | `manager` | Tạo tòa nhà `{ campus, code, name, totalFloors?, description? }` |
+| `PUT` | `/api/buildings/:id` | `manager` | Cập nhật tòa (chặn tắt nếu còn người ở hoặc đơn `pending`/`pending_payment`) |
+| `GET` | `/api/rooms` | `manager`, `staff` | Danh sách phòng (`?campus=&buildingId=&floor=&gender=&roomTier=&capacity=&status=&availability=has_slot\|full&search=`) kèm `occupied`, `availableSlots`, `maintenanceSlots`, `pendingApplications` |
+| `GET` | `/api/rooms/:id` | `manager`, `staff` | Chi tiết phòng kèm danh sách `occupants[]` (các SV đang `active`/`pending_payment` trong phòng) và `pendingApplications` |
+| `POST` | `/api/rooms` | `manager` | Tạo phòng `{ buildingId, roomNumber, floor, gender, roomTier, capacity, hasAirConditioner?, hasWaterHeater?, amenities?, pricePerMonth, depositAmount }` |
+| `PUT` | `/api/rooms/:id` | `manager` | Cập nhật phòng (chặn đổi giới tính khi có người ở/đơn chờ; chặn hạ `capacity` dưới `occupied`) |
 
 ---
 
-## 4. Buildings and rooms
+## 5. Quản Lý Đợt Đăng Ký (`/api/periods`)
 
-| Method | Endpoint | Roles | Description |
+| Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| GET | `/buildings` | admin, staff | Plain array sorted by `code`, with stats. `?includeInactive=true` adds inactive buildings |
-| POST | `/buildings` | admin, staff | `{ code, name, description? }` |
-| PUT | `/buildings/:id` | admin, staff | Partial `{ name?, description?, isActive? }`: only the fields sent change. `code` cannot change. The edit form sends `{ name, description }`, the activate/deactivate button sends `{ isActive }` alone. `isActive: false` with residents returns `422 BUILDING_HAS_OCCUPANTS` |
-| GET | `/rooms` | admin, staff | `?buildingId=&floor=&gender=&capacity=&status=&availability=has_slot\|full&page=&limit=` (FR-22) |
-| GET | `/rooms/:id` | admin, staff | Detail with beds |
-| POST | `/rooms` | admin, staff | Create, beds generated automatically (FR-24) |
-| PUT | `/rooms/:id` | admin, staff | Update (FR-25) |
-
-Beds are embedded in the room. There is no bed endpoint and no room type endpoint.
-
-**Building:** `{ id, code, name, description, isActive, stats: { totalRooms, totalBeds, occupiedBeds, availableBeds, maintenanceBeds } }`.
-
-**Room body:** `{ buildingId, roomNumber, floor, gender, capacity, pricePerMonth, depositAmount }`. `PUT` also accepts `status`. `buildingId` cannot change after creation.
-
-- Changing `capacity` keeps the existing beds (their status and notes): it only adds the missing bed numbers or removes the highest ones.
-- Renaming a building must show on every room and contract that carries `buildingName`.
-
-**Room:**
-```json
-{ "id": "…", "buildingId": "…", "buildingCode": "K1", "buildingName": "Tòa K1", "roomNumber": "302", "floor": 3,
-  "gender": "male", "capacity": 6, "pricePerMonth": 320000, "depositAmount": 500000, "status": "active",
-  "occupied": 4, "availableSlots": 2, "maintenanceBeds": 0 }
-```
-
-**GET `/rooms/:id`** adds `beds`. Each bed also carries `hasPendingApplication`, so staff see beds held by other applications:
-```json
-"beds": [ { "bedNumber": 1, "status": "occupied", "occupant": { "studentCode": "2021601234", "fullName": "Nguyễn Văn An", "className": "KTPM01-K16" } },
-          { "bedNumber": 2, "status": "available", "occupant": null } ]
-```
-
-| Error | HTTP | When |
-|---|---|---|
-| `DUPLICATE_ENTRY` | 409 | Building code taken, or room number taken in that building |
-| `BUILDING_HAS_OCCUPANTS` | 422 | Deactivating a building with residents (FR-21) |
-| `ROOM_HAS_OCCUPANTS` | 422 | Changing `gender` or `capacity` of an occupied room (FR-25) |
-| `ROOM_HAS_PENDING_APPLICATIONS` | 422 | Lowering `capacity` would remove a bed that a pending application has chosen |
+| `GET` | `/api/periods` | `manager`, `staff` | Danh sách đợt đăng ký (`?campus=&status=&academicYearStart=`) kèm `stats` số đơn theo trạng thái |
+| `GET` | `/api/periods/:id` | `manager`, `staff` | Chi tiết 1 đợt đăng ký |
+| `POST` | `/api/periods` | `manager` | Tạo đợt đăng ký mới `{ code, name, academicYearStart, campus, targetCohort, allowedFaculties?, excludedFaculties?, allowedTerms, startDate, endDate, paymentDeadlineDays?, status?, description? }` |
+| `PUT` | `/api/periods/:id` | `manager` | Cập nhật cấu hình đợt |
+| `PATCH` | `/api/periods/:id/status` | `manager` | Đóng/mở nhanh đợt `{ status: 'upcoming' \| 'open' \| 'closed' }` |
 
 ---
 
-## 5. Public application portal
+## 6. Xét Duyệt, Chờ Đóng Phí, QR Check-in & Hoàn Cọc (`/api/contracts`)
+*Quyền: `manager`, `staff`.*
 
-No token. These endpoints should be rate limited.
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/api/contracts` | Danh sách đơn & hợp đồng (`?status=&periodId=&campus=&buildingId=&roomId=&term=&isDepositRefunded=&overduePayment=true&search=`) kèm `summary` |
+| `GET` | `/api/contracts/:id` | Chi tiết hợp đồng kèm hồ sơ SV, hóa đơn, trạng thái Check-in QR, thông tin khấu trừ cọc & dòng thời gian `history[]` |
+| `PATCH` | `/api/contracts/:id/approve` | Duyệt 1 đơn `{ roomId? }` → Tự động xếp phòng tầng thấp → cao đúng giới tính (hoặc phòng cán bộ chọn), khóa 1 chỗ nguyên tử (`occupiedCount < capacity`), chuyển `pending_payment` (hạn 7 ngày), cấp TK + Email + Thông báo + hóa đơn đầu kỳ |
+| `POST` | `/api/contracts/auto-approve` | **Duyệt hàng loạt theo thứ tự nộp (FIFO)** `{ periodId?, limit? }`: tự động xếp lấp đầy lần lượt từ tầng thấp lên tầng cao đúng loại phòng nguyện vọng & giới tính |
+| `PATCH` | `/api/contracts/:id/reject` | Từ chối đơn `pending` `{ reason }` + gửi Email thông báo |
+| `PATCH` | `/api/contracts/:id/cancel` | Hủy hợp đồng `pending_payment` `{ reason? }` (chưa thanh toán) → hủy hóa đơn nháp sang `cancelled` + nhả 1 chỗ phòng ngay |
+| `POST` | `/api/contracts/cancel-overdue` | Hủy hàng loạt toàn bộ hợp đồng `pending_payment` đã quá `paymentDeadline` chưa đóng phí |
+| `POST` | `/api/contracts/checkin-qr` | **Quét mã QR Check-in nhận phòng** `{ checkinCode }` → xác thực hợp đồng `active` & ghi nhận `checkedInAt` |
+| `PATCH` | `/api/contracts/:id/terminate` | Thanh lý hợp đồng `active`/`expired` khi sạch nợ 100% → nhả 1 chỗ phòng |
+| `PATCH` | `/api/contracts/:id/deposit-refund` | Quyết toán hoàn cọc `{ deductionAmount?: number, reason?: string }` → hoàn `depositAmount - deductionAmount`, lưu phiếu chi `Payment` loại `refund` |
 
-| Method | Endpoint | Roles | Description |
+---
+
+## 7. Điện Nước, Hóa Đơn & Webhook VietQR Tự Động (`/api/utility-readings`, `/api/invoices`, `/api/payments`)
+
+| Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| GET | `/public/rooms/available` | public | Rooms with free beds (FR-23) |
-| POST | `/contracts/register-online` | public | Submit an application (FR-30) |
-| GET | `/public/applications/status` | public | Track an application (FR-33) |
-
-**GET `/public/rooms/available`**: `?gender=male&buildingId=&limit=`. `gender` is required. Also used by staff to pick another bed when approving.
-
-```json
-{ "code": "OK", "message": "Success", "data": { "items": [
-  { "id": "…", "buildingId": "…", "buildingCode": "K1", "buildingName": "Tòa K1", "roomNumber": "101", "floor": 1,
-    "gender": "male", "capacity": 6, "pricePerMonth": 320000, "depositAmount": 500000, "availableSlots": 2,
-    "beds": [ { "bedNumber": 1, "status": "occupied", "hasPendingApplication": false },
-              { "bedNumber": 2, "status": "available", "hasPendingApplication": true },
-              { "bedNumber": 3, "status": "available", "hasPendingApplication": false } ] }
-], "total": 1, "page": 1, "limit": 100 } }
-```
-
-- Sorted by the stack rule (BR-07): `floor` ascending, then `roomNumber` ascending numerically. The frontend renders in this order and does not re-sort.
-- Only `active` rooms in `active` buildings with at least one selectable bed. A bed is selectable when `status` is `available` and `hasPendingApplication` is `false`. `availableSlots` counts selectable beds.
-- Never includes occupant names.
-
-**POST `/contracts/register-online`**
-```json
-// request
-{ "studentCode": "2021601234", "fullName": "Nguyễn Văn An", "gender": "male", "phone": "0912345678",
-  "email": "an@gmail.com", "dob": "2003-05-20", "citizenId": "001203012345", "address": "Xã Yên Lạc, Vĩnh Phúc",
-  "faculty": "CNTT", "className": "KTPM01-K16",
-  "emergencyContact": { "name": "Nguyễn Văn Ba", "phone": "0987654321", "relationship": "Bố" },
-  "roomId": "…", "bedNumber": 3, "term": "6_months" }
-// response 201
-{ "code": "OK", "message": "Đã gửi đơn đăng ký. Vui lòng theo dõi email để nhận kết quả xét duyệt",
-  "data": { "contractCode": "HD-2026-0012", "status": "pending", "room": { }, "bedNumber": 3, "term": "6_months",
-            "pricePerMonth": 320000, "totalRoomFee": 1920000, "depositAmount": 500000 } }
-```
-
-- Every Student field is required with the rules of §3 (the account is delivered by email, so `email` matters most). A broken rule returns `400 VALIDATION_ERROR` with field errors.
-- A new student code creates a `Student` with no `userId`. An existing student code with no `pending` or `active` contract reuses that record and refreshes it from the form, which is how a former resident returns.
-- Prices are read from the room, never from the client. The bed is **not** locked here (BR-05 locks at approval). `startDate` and `endDate` stay empty until approval.
-- The room must be `active` and its building active. Otherwise `404 NOT_FOUND` ("the room no longer accepts applications"), and the form returns to room selection.
-
-| Error | HTTP | When |
-|---|---|---|
-| `APPLICATION_OR_CONTRACT_EXISTS` | 409 | This student code has a `pending` or `active` contract (UC-01 3a) |
-| `BED_ALREADY_REQUESTED` | 409 | Another pending application holds this bed (UC-01 6a). The form returns to bed selection |
-| `BED_ALREADY_OCCUPIED` | 409 | The bed was taken or went into maintenance |
-| `GENDER_MISMATCH` | 422 | Student gender differs from room gender (BR-01) |
-
-**GET `/public/applications/status`**: `?studentCode=&email=`, both required.
-```json
-{ "code": "OK", "message": "Success",
-  "data": { "contractCode": "HD-2026-0012", "status": "pending", "submittedAt": "2026-11-09T08:00:00Z", "room": { },
-            "bedNumber": 3, "term": "6_months", "startDate": null, "endDate": null, "rejectionReason": null,
-            "pricePerMonth": 320000, "totalRoomFee": 1920000, "depositAmount": 500000 } }
-```
-The three price fields are required: a `pending` application shows "you will pay `depositAmount + totalRoomFee` on approval". Copy them from the contract (fixed when the application was submitted).
-Returns the most recent application for that pair. No match returns `404 APPLICATION_NOT_FOUND`, with the same message whether the code or the email was wrong.
+| `GET` | `/api/utility-readings/sheet` | `manager`, `staff` | Bảng lưới điện nước theo tòa & tháng `?buildingId=&monthYear=` |
+| `POST` | `/api/utility-readings/bulk` | `manager`, `staff` | Lưu hàng loạt (kiểm tra nối tiếp `oldIndex === previous.newIndex` trừ khi `allowMeterReset: true`) |
+| `POST` | `/api/utility-readings/publish` | `manager`, `staff` | Phát hành 01 hóa đơn phòng (`scope: 'room'`) + bắn Thông báo In-app & Email tới tất cả SV trong phòng |
+| `GET` | `/api/utility-readings/history` | `manager`, `staff` | Lịch sử điện nước 1 phòng `?roomId=&limit=12` |
+| `GET` | `/api/invoices` | `manager`, `staff` | Danh sách hóa đơn (`?status=&type=&scope=&campus=&buildingId=&search=`) kèm `summary` |
+| `GET` | `/api/invoices/:id` | `manager`, `staff` | Chi tiết hóa đơn kèm phiếu thu, chỉ số điện nước & danh sách thành viên phòng |
+| `GET` | `/api/payments` | `manager`, `staff` | Danh sách phiếu thu & phiếu chi hoàn cọc (`?paymentType=&method=&type=&from=&to=&search=`) |
+| `POST` | `/api/payments/cash` | `manager`, `staff` | Thu tiền mặt tại quầy `{ invoiceId, payerStudentId?, note? }` *(tự nâng `pending_payment -> active` nếu đủ phí đầu kỳ)* |
+| `POST` | `/api/payments/vietqr/confirm` | `manager`, `staff` | Đối soát thủ công dự phòng `{ invoiceId, payerStudentId?, transactionCode?, note? }` |
+| `POST` | `/api/payments/webhook/vietqr` | Webhook Secret | Tự động gạch nợ VietQR chuẩn SePay/Casso (`x-webhook-secret`) |
+| `POST` | `/api/payments/webhook/simulate` | `manager`, `staff` | **Giả lập ngân hàng báo có** `{ invoiceId, payerStudentId? }` phục vụ demo/kiểm thử |
 
 ---
 
-## 6. Contracts
+## 8. Phiếu Yêu Cầu SV (`/api/requests`) & Bảng Tin (`/api/notifications`)
 
-A contract carries the application and the stay in one document.
-
-| Method | Endpoint | Roles | Description |
+| Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| GET | `/contracts` | admin, staff | `?status=&buildingId=&roomId=&term=&isDepositRefunded=&search=&page=&limit=` (FR-31) |
-| GET | `/contracts/:id` | admin, staff | Detail |
-| PATCH | `/contracts/:id/approve` | admin, staff | Approve (FR-32) |
-| PATCH | `/contracts/:id/reject` | admin, staff | Reject (FR-33) |
-| PATCH | `/contracts/:id/terminate` | admin, staff | Check out (FR-34) |
-| PATCH | `/contracts/:id/deposit-refund` | admin, staff | Confirm the deposit was returned (FR-35) |
-
-**Contract:**
-```json
-{ "id": "…", "contractCode": "HD-2026-0012", "status": "active", "term": "6_months",
-  "startDate": "2026-11-09", "endDate": "2027-05-09",
-  "pricePerMonth": 320000, "totalRoomFee": 1920000, "depositAmount": 500000,
-  "student": { }, "room": { }, "bedNumber": 3,
-  "rejectionReason": null, "approvedByName": "Lê Thị Nhân Viên", "reviewedAt": "2026-11-09T09:00:00Z", "terminatedAt": null,
-  "isDepositRefunded": false, "depositRefundedAt": null, "depositRefundedByName": null,
-  "totalDebt": 0, "createdAt": "2026-11-09T08:00:00Z" }
-```
-
-- `totalDebt` is the sum of the student's **personal** unpaid invoices (`room_semester`, `deposit`), computed when reading. It feeds the "Công nợ" column and the drawer, and is what BR-04 checks at checkout. Without it the screen shows 0 đ for everyone.
-
-- `student` is `StudentRef`, `room` is `RoomRef`.
-- `reviewedAt` is when the application was approved or rejected, `approvedByName` the staff who did it.
-- `status` accepts one value or a comma-separated list, e.g. `?status=active,expired,terminated` for every contract that is not an application.
-- `status` is `expired` when an `active` contract is past `endDate`. There is no scheduled job, so the server derives it when reading. The bed stays occupied until checkout.
-- `GET /contracts` adds `summary: { pending, active, expired, terminated, rejected, awaitingDepositRefund }`. `awaitingDepositRefund` counts `terminated` contracts with `isDepositRefunded: false`.
-- `GET /contracts/:id` adds `student` with the full profile (phone, email, dob, faculty, className, emergencyContact), `invoices: Invoice[]`, and `history`: a timeline built from the contract's own dates, newest first.
-  ```jsonc
-  "history": [ { "at": "2026-11-09T09:00:00Z", "type": "application_approved", "title": "Duyệt đơn, khóa giường", "description": "Phòng 302 giường 03 · …" } ]
-  ```
-  `type` is one of `application_submitted` (`createdAt`), `application_approved` or `rejected` (`reviewedAt`), `expired` (`endDate`, only while `expired`), `terminated` (`terminatedAt`), `deposit_refunded` (`depositRefundedAt`). Entries whose date is empty are left out. No extra collection is needed.
-
-**PATCH `/contracts/:id/approve`**
-```json
-// request: empty body keeps the room and bed the student chose
-{ "roomId": "…", "bedNumber": 4 }
-// response
-{ "code": "OK", "message": "Đã duyệt đơn",
-  "data": { "contract": { },
-            "account": { "studentCode": "2021601234", "email": "an@gmail.com", "isNew": true },
-            "emailSent": true,
-            "invoices": [ { "id": "…", "invoiceCode": "INV-2026-0089", "type": "deposit", "amount": 500000, "dueDate": "2026-11-16" },
-                          { "id": "…", "invoiceCode": "INV-2026-0090", "type": "room_semester", "amount": 1920000, "dueDate": "2026-11-16" } ] } }
-```
-
-Server steps: lock the bed with one atomic conditional update (BR-05) → set `active`, `startDate` to today and `endDate` by `term` → create the account (`mustChangePassword: true`, password is the student code), or keep the existing one for a returning student → send the email → create two invoices due in 7 days.
-
-Prices come from the final room when `roomId` is sent. A failed email does not roll back the approval: the response returns `emailSent: false` and the screen warns the staff.
-
-| Error | HTTP | When |
-|---|---|---|
-| `CONTRACT_NOT_PENDING` | 409 | Already processed |
-| `BED_ALREADY_OCCUPIED` | 409 | Lost the race for this bed (UC-02 4a). The screen reloads and staff pick another bed |
-| `BED_ALREADY_REQUESTED` | 409 | The replacement bed is held by another pending application |
-| `APPLICATION_OR_CONTRACT_EXISTS` | 409 | The student already has an `active` contract |
-| `GENDER_MISMATCH` | 422 | The replacement room has the wrong gender |
-| `ROOM_NOT_AVAILABLE` | 422 | The final room is in maintenance or its building is inactive. Staff pick another room |
-| `EMAIL_ALREADY_USED` | 409 | The application email belongs to another account |
-
-**PATCH `/contracts/:id/reject`**: `{ "reason": "Hồ sơ thiếu thông tin" }`. `reason` is required. Sets `rejected`, stores `rejectionReason`, sends the email, and does not touch the bed.
-
-**PATCH `/contracts/:id/terminate`**: no body. Allowed on `active` and `expired`. Frees the bed, sets `terminated` and `terminatedAt`.
-
-```json
-{ "code": "OUTSTANDING_INVOICES", "message": "Sinh viên hoặc phòng còn hóa đơn chưa thanh toán, không thể thanh lý hợp đồng",
-  "data": { "invoices": [ { "id": "…", "invoiceCode": "INV-UTIL-K1-302-202610", "type": "utility", "amount": 450000 } ] } }
-```
-
-| Error | HTTP | When |
-|---|---|---|
-| `OUTSTANDING_INVOICES` | 422 | BR-04: an unpaid personal invoice or room utility invoice |
-| `CONTRACT_NOT_TERMINABLE` | 409 | Status is not `active` or `expired` |
-
-**PATCH `/contracts/:id/deposit-refund`** (FR-35, BR-08): no body. The office hands the deposit back, then staff confirm. Sets `isDepositRefunded: true`, `depositRefundedAt`, `depositRefundedBy`, returns the contract. One-way. No amount is sent, because BR-04 guarantees the student has no debt, so the full `depositAmount` is returned. No `Payment` is created, so revenue is unaffected.
-
-| Error | HTTP | When |
-|---|---|---|
-| `CONTRACT_NOT_TERMINATED` | 409 | Status is not `terminated` |
-| `DEPOSIT_ALREADY_REFUNDED` | 409 | Already confirmed |
+| `GET` | `/api/requests` | `manager`, `staff` | Danh sách phiếu yêu cầu (`?type=repair\|transfer\|checkout&status=&campus=&search=`) kèm `summary` |
+| `PATCH` | `/api/requests/:id/status` | `manager`, `staff` | Cập nhật trạng thái phiếu `{ status, handlerNote?, targetRoomId? }`. *Duyệt chuyển phòng (`transfer` → `approved`/`completed`) chỉ `manager` và tự khóa chỗ phòng mới + nhả chỗ phòng cũ nguyên tử.* |
+| `GET` | `/api/notifications/announcements` | `manager`, `staff` | Danh sách bảng tin KTX đã đăng |
+| `POST` | `/api/notifications/announcements` | `manager`, `staff` | Đăng bảng tin mới `{ title, content, campus?: 'all'\|'cs1'\|'cs2'\|'cs3' }` |
+| `DELETE` | `/api/notifications/announcements/:id` | `manager` | Xóa bảng tin |
 
 ---
 
-## 7. Utility readings
+## 9. Cổng Dịch Vụ Sinh Viên (`/api/portal`, Quyền: `student`)
 
-| Method | Endpoint | Roles | Description |
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/api/portal/profile` | Hồ sơ cá nhân SV |
+| `GET` | `/api/portal/my-residence` | Chỗ ở hiện tại (`hasResidence`, `hasPendingPayment`, `contract`, `roommates`, `debtSummary`, `unreadNotifications`) |
+| `GET` | `/api/portal/my-contracts` | Lịch sử đơn & hợp đồng của tôi |
+| `POST` | `/api/portal/applications` | Đăng ký / Gia hạn KTX nội bộ cho SV năm 2+ `{ periodId, roomId?, preferredRoomTier?, preferredCapacity?, term }` |
+| `GET` | `/api/portal/my-contracts/:id/checkin-qr` | Lấy **Mã QR Check-in** bàn giao phòng (khi hợp đồng đã `active`) |
+| `GET` | `/api/portal/my-invoices` | Hóa đơn cá nhân + hóa đơn điện nước phòng đang ở |
+| `GET` | `/api/portal/my-invoices/:id` | Chi tiết hóa đơn |
+| `GET` | `/api/portal/my-invoices/:id/vietqr` | Sinh mã VietQR động `{ bankBin, bankName, accountNumber, accountName, amount, transferContent, qrImageUrl }` |
+| `GET` | `/api/portal/my-payments` | Lịch sử thanh toán & phiếu hoàn cọc của tôi |
+| `GET` | `/api/portal/my-room/utility-history` | Lịch sử điện nước các tháng đã chốt của phòng |
+| `GET` | `/api/portal/requests` | Danh sách phiếu Báo hỏng / Chuyển phòng / Trả phòng đã gửi |
+| `POST` | `/api/portal/requests` | Gửi phiếu mới `{ type: 'repair'\|'transfer'\|'checkout', title, description, repairCategory?, targetRoomId?, attachmentUrl? }` |
+| `PATCH` | `/api/portal/requests/:id/cancel` | SV tự hủy phiếu khi đang `pending` |
+| `GET` | `/api/portal/notifications` | Chuông thông báo cá nhân + Bảng tin KTX (kèm `unreadCount`) |
+| `PATCH` | `/api/portal/notifications/:id/read` | Đánh dấu 1 thông báo đã đọc |
+| `PATCH` | `/api/portal/notifications/read-all` | Đánh dấu tất cả thông báo cá nhân đã đọc |
+
+---
+
+## 10. Dashboard & Báo Cáo 3 Cơ Sở (`/api/dashboard`)
+
+| Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| GET | `/utility-readings/sheet` | admin, staff | `?buildingId=&monthYear=`. One grid for one building and month (FR-40) |
-| POST | `/utility-readings/bulk` | admin, staff | Save the grid or an Excel import (FR-40) |
-| POST | `/utility-readings/publish` | admin, staff | Close the month and issue invoices (FR-41) |
-| GET | `/utility-readings/history` | admin, staff | `?roomId=&limit=12`, newest first (FR-42) |
-
-**Reading:**
-```json
-{ "id": "…", "roomId": "…", "monthYear": "2026-10",
-  "electricity": { "oldIndex": 1200, "newIndex": 1350, "usage": 150, "unitPrice": 3000, "amount": 450000 },
-  "water": { "oldIndex": 300, "newIndex": 312, "usage": 12, "unitPrice": 15000, "amount": 180000 },
-  "totalAmount": 630000, "occupantsCount": 6, "perStudentAmount": 105000, "isBilled": false, "recordedByName": "Lê Thị Nhân Viên" }
-```
-
-**GET `/utility-readings/sheet`**
-```json
-{ "code": "OK", "message": "Success",
-  "data": { "buildingId": "…", "monthYear": "2026-10",
-            "defaultUnitPrices": { "electricity": 3000, "water": 15000 },
-            "rows": [ { "room": { "id": "…", "roomNumber": "302", "floor": 3, "capacity": 6, "status": "active", "occupied": 6 },
-                        "previous": { "electricityNewIndex": 1200, "waterNewIndex": 300 },
-                        "reading": null } ] } }
-```
-
-- `rows` is a plain array sorted like §5, one row per room that must be billed: every `active` room, plus a room in `maintenance` that still has residents (maintenance only stops new applications, FR-25). `room` also carries `status` so the grid can mark it. `previous` is `null` when there is no earlier reading.
-- `defaultUnitPrices` comes from the most recent readings of the building, or `0` when none exist. There is no price catalogue: prices are entered on the grid and stored on each reading.
-
-**POST `/utility-readings/bulk`**
-```json
-// request
-{ "buildingId": "…", "monthYear": "2026-10", "electricityUnitPrice": 3000, "waterUnitPrice": 15000,
-  "rows": [ { "roomId": "…", "electricityOldIndex": 1200, "electricityNewIndex": 1350, "waterOldIndex": 300, "waterNewIndex": 312 } ] }
-// response: valid rows are saved even when other rows fail
-{ "code": "OK", "message": "Đã lưu 1 phòng, 1 phòng lỗi",
-  "data": { "savedCount": 1, "errors": [ { "roomId": "…", "message": "Chỉ số mới không được nhỏ hơn chỉ số cũ" } ] } }
-```
-Creates or updates the single reading of that room and month. Rejected per row: new index below old index, or a reading that is already billed. `monthYear` cannot be in the future.
-
-**POST `/utility-readings/publish`**: `{ "buildingId": "…", "monthYear": "2026-10" }`
-```json
-{ "code": "OK", "message": "Đã phát hành 18 hóa đơn điện nước",
-  "data": { "publishedCount": 18, "notifiedCount": 96,
-            "skipped": [ { "roomId": "…", "roomNumber": "305", "reason": "Phòng không có người ở" } ] } }
-```
-
-- Covers each reading with `isBilled: false` in that building and month. Rooms with no resident are skipped, never billed.
-- Each room gets **one** invoice of `type: utility` due in 7 days, code `INV-UTIL-<buildingCode>-<roomNumber>-<YYYYMM>`, so the same room number in two buildings cannot collide. Then `isBilled: true`, and the reading is locked.
-- `occupantsCount` and `perStudentAmount` are fixed at this moment. `perStudentAmount` is `Math.round(totalAmount / occupantsCount)`, advisory only (BR-03).
-- All current residents get an email and see the invoice in the portal.
-- Nothing eligible returns `422 NOTHING_TO_PUBLISH`.
-
----
-
-## 8. Invoices and payments
-
-| Method | Endpoint | Roles | Description |
-|---|---|---|---|
-| GET | `/invoices` | admin, staff | `?status=&type=&scope=personal\|room&buildingId=&search=&page=&limit=` (FR-50). Search covers invoice code, student code, room number |
-| GET | `/invoices/:id` | admin, staff | Detail (FR-51) |
-| POST | `/payments/cash` | admin, staff | Collect cash (FR-52) |
-| POST | `/payments/vietqr/confirm` | admin, staff | Confirm a bank transfer (FR-54) |
-| GET | `/payments` | admin, staff | `?method=&type=&from=&to=&search=&page=&limit=` |
-
-Invoices are created only by approval (§6) and publishing (§7). They cannot be created by hand, cancelled or partly paid.
-
-**Invoice:**
-```json
-{ "id": "…", "invoiceCode": "INV-UTIL-K1-302-202610", "type": "utility", "scope": "room", "amount": 630000,
-  "description": "Tiền điện nước Phòng 302 - Tháng 10/2026 (6 người)", "createdAt": "2026-11-09T01:00:00Z", "dueDate": "2026-11-16", "status": "paid", "paidAt": "2026-11-12T03:00:00Z",
-  "student": null, "room": { }, "contractId": null, "utilityReadingId": "…", "monthYear": "2026-10",
-  "payer": { "id": "…", "studentCode": "2021601234", "fullName": "Nguyễn Văn An" } }
-```
-
-- `scope` is `personal` for `room_semester` and `deposit`, `room` for `utility`.
-- `monthYear` is the billed month of a `utility` invoice (copied from its reading), `null` on personal invoices. Lists and the portal bell title invoices by it ("Điện nước tháng 10/2026") and have no other way to know the month.
-- `student` is `StudentRef` on personal invoices, `null` on room invoices. `room` is `RoomRef`. `payer` is `null` until paid.
-- The list adds `summary: { totalAmount, paidAmount, unpaidAmount, unpaidCount }`.
-
-**GET `/invoices/:id`** adds `payments: Payment[]`, `contractCode` on personal invoices (link back to the contract), and for utility invoices `reading: Reading` and `members: [ { id, studentCode, fullName } ]`. Members are the room's current residents.
-
-**POST `/payments/cash`**
-```json
-// request: payerStudentId is required on utility invoices and ignored on personal ones
-{ "invoiceId": "…", "payerStudentId": "…", "note": "" }
-// response 201, the payment is the receipt
-{ "code": "OK", "message": "Đã xác nhận thu tiền", "data": { "payment": { }, "invoice": { } } }
-```
-
-**POST `/payments/vietqr/confirm`**: same as cash, plus optional `transactionCode`.
-
-Always the full invoice `amount`. On utility invoices the payer settles the whole room (BR-03).
-
-**Payment:**
-```json
-{ "id": "…", "paymentCode": "PAY-2026-0045", "invoiceId": "…", "invoiceCode": "INV-2026-0089", "invoiceType": "deposit",
-  "amount": 500000, "method": "cash", "transactionCode": null, "note": "", "paidAt": "2026-11-12T03:00:00Z",
-  "collectedByName": "Lê Thị Nhân Viên", "payer": { }, "room": { } }
-```
-
-`GET /payments` adds `summary: { totalAmount, cashAmount, vietqrAmount }`.
-
-| Error | HTTP | When |
-|---|---|---|
-| `INVOICE_ALREADY_PAID` | 409 | Already paid |
-| `PAYER_NOT_IN_ROOM` | 422 | `payerStudentId` is missing or not a resident of the invoice's room |
-| `DUPLICATE_TRANSACTION_CODE` | 409 | `transactionCode` already recorded, field error on `transactionCode` |
-
----
-
-## 9. Student portal
-
-Every endpoint is `student` only and identifies the student from the JWT.
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/portal/profile` | Own profile (FR-60): the Student object itself, not wrapped, `{ id, studentCode, fullName, gender, dob, phone, email, faculty, className, emergencyContact, status }` |
-| GET | `/portal/my-residence` | Current stay (FR-60, FR-61) |
-| GET | `/portal/my-contracts` | All own contracts, newest first, as `Contract[]`. Includes deposit status |
-| GET | `/portal/my-invoices` | `?scope=personal\|room&status=&page=&limit=` (FR-62) |
-| GET | `/portal/my-invoices/:id` | Detail, same shape as §8 |
-| GET | `/portal/my-invoices/:id/vietqr` | QR payload (FR-53) |
-| GET | `/portal/my-payments` | `?page=&limit=`. Own personal payments and room payments, paginated `{ items: Payment[], total, page, limit }` (FR-63) |
-| GET | `/portal/my-room/utility-history` | `?limit=12`, newest first, as `Reading[]` (FR-42). Billed months only: an unbilled reading can still change |
-
-Room invoices are limited to the room the student currently lives in. The portal bell has no endpoint: it counts `GET /portal/my-invoices?scope=room&status=unpaid`.
-
-**GET `/portal/my-residence`**
-```json
-{ "code": "OK", "message": "Success",
-  "data": { "hasResidence": true, "contract": { },
-            "roommates": [ { "studentCode": "2021601235", "fullName": "Trần Văn Bình" } ],
-            "debtSummary": { "totalDebt": 630000, "unpaidInvoiceCount": 1 } } }
-```
-With no `active` or `expired` contract: `{ "hasResidence": false, "contract": null, "roommates": [], "debtSummary": { "totalDebt": 0, "unpaidInvoiceCount": 0 } }`. Roommates expose only name and student code (FR-60).
-
-`debtSummary` counts the student's **personal** unpaid invoices only. Room invoices are shared and paid by one roommate, so the portal reads them from `GET /portal/my-invoices?scope=room&status=unpaid`.
-
-**GET `/portal/my-invoices/:id/vietqr`**
-```json
-{ "code": "OK", "message": "Success",
-  "data": { "bankBin": "970436", "accountNumber": "0011001234567", "accountName": "KY TUC XA HAUI",
-            "amount": 630000, "transferContent": "HAUI INVUTILK1302202610 P302" } }
-```
-
-- The server builds `transferContent` with the invoice code stripped of `-`, because banking apps may drop it: personal `HAUI <code> <studentCode>`, room `HAUI <code> P<roomNumber>`.
-- A paid invoice returns `409 INVOICE_ALREADY_PAID`. The student's transfer does not change the invoice: it stays `unpaid` until staff confirm in §8.
-
----
-
-## 10. Dashboard
-
-| Method | Endpoint | Roles | Description |
-|---|---|---|---|
-| GET | `/dashboard/summary` | admin, staff | KPI cards (FR-70) |
-| GET | `/dashboard/occupancy` | admin, staff | By building (FR-71) |
-| GET | `/dashboard/revenue` | admin | `?year=2026` (FR-72) |
-
-**GET `/dashboard/summary`**
-```json
-{ "code": "OK", "message": "Success",
-  "data": { "occupancy": { "total": 480, "occupied": 352, "available": 120, "maintenance": 8 },
-            "activeStudents": 352, "pendingApplications": 14,
-            "finance": { "totalDebt": 12500000, "roomDebt": 9600000, "utilityDebt": 2900000 } } }
-```
-`occupancy` must satisfy `total = occupied + available + maintenance`. `roomDebt` covers unpaid `room_semester`, `utilityDebt` unpaid `utility`. Deposits are excluded.
-
-**GET `/dashboard/occupancy`**: plain array of `{ buildingId, buildingCode, buildingName, totalRooms, totalBeds, occupied, available, maintenance }`, active buildings only (an inactive building has no usable beds).
-
-**GET `/dashboard/revenue`**: plain array, one entry per month that has payments, oldest first: `{ month: "2026-10", roomRevenue, utilityRevenue, total }`. Grouped by `paidAt`. Deposits are excluded, since they are returned later.
-
----
-
-## 11. Error codes
-
-| Code | HTTP | Meaning |
-|---|---|---|
-| `VALIDATION_ERROR` | 400 | Body or query failed validation |
-| `INVALID_CURRENT_PASSWORD` | 400 | Wrong current password |
-| `PASSWORD_SAME_AS_DEFAULT` | 400 | New password equals the student code |
-| `UNAUTHORIZED` | 401 | Missing or invalid JWT |
-| `TOKEN_EXPIRED` | 401 | JWT expired |
-| `INVALID_CREDENTIALS` | 401 | Wrong identifier or password |
-| `ACCOUNT_LOCKED` | 403 | Account is locked |
-| `FORBIDDEN` | 403 | Role not allowed, or another student's data |
-| `MUST_CHANGE_PASSWORD` | 403 | Password change required first |
-| `NOT_FOUND` | 404 | Resource does not exist |
-| `APPLICATION_NOT_FOUND` | 404 | Public lookup found nothing |
-| `DUPLICATE_ENTRY` | 409 | Unique value already used |
-| `EMAIL_ALREADY_USED` | 409 | Application email belongs to another account |
-| `APPLICATION_OR_CONTRACT_EXISTS` | 409 | Student has a `pending` or `active` contract |
-| `BED_ALREADY_REQUESTED` | 409 | Bed is held by another pending application |
-| `BED_ALREADY_OCCUPIED` | 409 | Bed is no longer available |
-| `CONTRACT_NOT_PENDING` | 409 | Application already processed |
-| `CONTRACT_NOT_TERMINABLE` | 409 | Contract is not `active` or `expired` |
-| `CONTRACT_NOT_TERMINATED` | 409 | Deposit refund requires `terminated` |
-| `DEPOSIT_ALREADY_REFUNDED` | 409 | Deposit already confirmed |
-| `INVOICE_ALREADY_PAID` | 409 | Invoice already paid |
-| `DUPLICATE_TRANSACTION_CODE` | 409 | Bank reference already recorded |
-| `GENDER_MISMATCH` | 422 | Student and room gender differ |
-| `GENDER_CHANGE_NOT_ALLOWED` | 422 | Student gender edited while a `pending` or `active` contract holds a bed |
-| `STUDENT_HAS_ACTIVE_CONTRACT` | 422 | Student still has an `active` contract |
-| `STUDENT_HAS_DEBT` | 422 | Student still owes money |
-| `CANNOT_MODIFY_SELF` | 422 | Action on your own account |
-| `LAST_ACTIVE_ADMIN` | 422 | Would leave no active admin |
-| `BUILDING_HAS_OCCUPANTS` | 422 | Building still has residents |
-| `ROOM_HAS_OCCUPANTS` | 422 | Room still has residents |
-| `ROOM_HAS_PENDING_APPLICATIONS` | 422 | Lowering capacity would drop a bed held by a pending application |
-| `ROOM_NOT_AVAILABLE` | 422 | Approving into a room in maintenance or an inactive building |
-| `OUTSTANDING_INVOICES` | 422 | BR-04 blocks checkout |
-| `NOTHING_TO_PUBLISH` | 422 | No reading ready to bill |
-| `PAYER_NOT_IN_ROOM` | 422 | Payer is not a resident of the room |
-| `INTERNAL_ERROR` | 500 | Unhandled server error |
-
----
-
-## 12. Additions the backend schema needs
-
-These are required by this contract and are not yet in `EDIT_DOCS_DATA_SCHEMA.md`.
-
-| Collection | Change | Why |
-|---|---|---|
-| `contracts` | `isDepositRefunded` (Boolean, default `false`), `depositRefundedAt` (Date), `depositRefundedBy` (ref `User`) | FR-35, BR-08 |
-| `contracts` | Add `rejected` to `status` | FR-33, keeps rejected applications out of `terminated` |
-| `contracts` | `startDate`, `endDate` optional while `pending` | Set at approval |
-| `contracts` | `terminatedAt` (Date) | Shown in history and the deposit tab |
-| `contracts` | `reviewedAt` (Date) | When the application was approved or rejected |
-| `users` | `studentCode` (String, unique, sparse) | FR-01 login, FR-32 |
-| `invoices` | Store the payer of a utility invoice, in `studentId` as the schema suggests or a dedicated `payerStudentId` | FR-41, FR-62 |
-
-**FR-35 (added).** After a contract is terminated, the student collects the deposit at the office and staff confirm it in the system. The student can see whether the deposit has been returned.
-
-**BR-08 (added).** A deposit refund can only be confirmed on a `terminated` contract, once per contract, for the full `depositAmount`. It is not revenue.
-
-**Fixes to apply in the schema document:** the sample in §4.3 builds the code without the building and bills rooms with no residents (`occupants.length || 1`). §7 above is the intended behaviour.
-
----
-
-## 13. Removed from v1.2
-
-| Removed | Replaced by |
-|---|---|
-| `POST /auth/register` | Account created at approval |
-| `/room-types`, `/beds/:id/status`, `/rooms/available` | Fields on the room, `/public/rooms/available` |
-| `/applications`, `/portal/my-applications` | `/contracts?status=pending`, `/contracts/register-online`, `/public/applications/status` |
-| `/residencies` | `contracts` |
-| `PUT /contracts/:id`, `?expiringInDays=` | None |
-| `/requests`, `/portal/my-requests` | Checkout is handled at the office (`PATCH /contracts/:id/terminate`) |
-| `/fee-types` | Fixed invoice types, unit prices on the reading grid |
-| `POST` and `PUT /utility-readings` | `/utility-readings/bulk` |
-| `POST /invoices`, `/invoices/generate`, `/invoices/generation-preview`, `/invoices/:id/cancel` | `/utility-readings/publish`, approval |
-| `/payments/offline`, `/payments/online/*`, `/payments/:id/reconcile`, gateway webhooks | `/payments/cash`, `/payments/vietqr/confirm` |
-| `/supply-items`, `/supply-orders`, `/portal/supply-items`, `/portal/my-supply-orders` | None |
-
-Optional later: a SePay or Casso webhook for FR-54b would call the same logic as `/payments/vietqr/confirm`.
-
----
-
-## 14. Change log
-
-| Version | Date | Change |
-|---|---|---|
-| 2.7 | 12/11/2026 | Student adds `citizenId` (CCCD, 12 digits) and `address` (permanent address). Every Student field is now required in `POST/PUT /students`, the import and the public application. Contact errors use dotted fields (`emergencyContact.phone`). |
-| 2.6 | 11/11/2026 | Pre-integration review. Documented fields the screens already read: `Contract.totalDebt`, contract detail `history`, `Invoice.monthYear`, prices on `GET /public/applications/status`, `/portal/profile` shape, `PUT /users/:id` response, `student.status` values, paginated `/portal/my-payments`. `PUT /buildings/:id` is partial and cannot change `code`. `studentCode` is 10 digits in the public application too. `PUT /students/:id` adds `GENDER_CHANGE_NOT_ALLOWED`. The utility grid and publish include rooms in maintenance that still have residents. |
-| 2.5 | 10/11/2026 | Full review (M10b): approve adds `ROOM_NOT_AVAILABLE`; room update adds `ROOM_HAS_PENDING_APPLICATIONS` and keeps existing beds; online application needs an active room and building; staff reset student passwords only; building rename reaches rooms and contracts. |
-| 2.4 | 10/11/2026 | Dashboard (M9): occupancy lists active buildings only. `GET /dashboard/revenue` returns `403 FORBIDDEN` for staff. |
-| 2.3 | 10/11/2026 | Student portal (M8): `debtSummary` is personal only; utility history returns billed months only. |
-| 2.2 | 10/11/2026 | Invoices (M7): `Invoice.createdAt`; `GET /invoices/:id` adds `contractCode` on personal invoices. |
-| 2.1 | 10/11/2026 | Online application (M4): `GET /rooms/:id` beds carry `hasPendingApplication`; contract `reviewedAt`; `status` filter accepts a list; approve adds `BED_ALREADY_REQUESTED`, `APPLICATION_OR_CONTRACT_EXISTS`. |
-| **2.0** | **09/11/2026** | Rewritten for the streamlined HaUI edition. Three roles, public application portal, one contract document, embedded beds, 6 or 12 month terms, one utility invoice per room, cash and VietQR only, deposit refund confirmation. The v1.2 change history is on branch `backup/v1-full`. |
+| `GET` | `/api/dashboard/summary` | `manager`, `staff` | KPI tổng quan (`?campus=cs1\|cs2\|cs3`): lấp đầy, SV đang ở, đơn chờ duyệt, đơn chờ đóng phí, quá hạn đóng phí, phiếu yêu cầu chờ xử lý, công nợ |
+| `GET` | `/api/dashboard/occupancy` | `manager`, `staff` | Tỷ lệ lấp đầy chi tiết (`?campus=cs1\|cs2\|cs3`) trả `{ byCampus: [...], buildings: [...] }` |
+| `GET` | `/api/dashboard/revenue` | **`manager`** *(chỉ Manager)* | Doanh thu thực thu theo tháng trong năm (`?year=2026&campus=`), tách tiền phòng & điện nước, loại trừ tiền cọc và phiếu chi hoàn cọc |

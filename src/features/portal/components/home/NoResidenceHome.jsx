@@ -1,111 +1,248 @@
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Typography, Tag, Skeleton, Alert } from 'antd';
 import {
-  HomeOutlined, ClockCircleOutlined, CloseCircleOutlined, ArrowRightOutlined, SearchOutlined,
-} from '@ant-design/icons';
+  Card, Button, Grid, Typography, Skeleton, Alert, Modal, Form, Select, Radio, App, Space,
+} from 'antd';
+import { ArrowRightOutlined } from '@ant-design/icons';
 import { useApi } from '../../../../hooks/useApi';
 import { portalApi } from '../../api/portal.api';
-import { CONTRACT_TERM } from '../../../../constants/statuses';
+import { applyApi } from '../../../apply/api/apply.api';
+import { CAMPUS, CONTRACT_TERM, ROOM_TIER } from '../../../../constants/statuses';
+import { getErrorMessage } from '../../../../lib/axiosClient';
 import { formatCurrency, formatDate, formatDateTime } from '../../../../utils/formatter';
 import { roomLabelOf } from '../../../rooms/utils/roomStatus';
 
 const { Title, Text } = Typography;
-const pad2 = (n) => String(n).padStart(2, '0');
+const { useBreakpoint } = Grid;
 
-function InfoRow({ label, children }) {
+function InfoRow({ label, children, mono }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0' }}>
-      <Text type="secondary">{label}</Text>
-      <Text strong style={{ textAlign: 'right' }}>{children}</Text>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
+      <Text type="secondary" style={{ fontSize: 13 }}>{label}</Text>
+      <Text strong className={mono ? 'mono' : undefined} style={{ textAlign: 'right', fontSize: 13 }}>{children}</Text>
     </div>
   );
 }
 
-function IconBox({ bg, children }) {
-  return <div style={{ width: 48, height: 48, borderRadius: 12, background: bg, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{children}</div>;
-}
-
 /**
- * Sinh viên chưa có chỗ ở (thường là hợp đồng cũ đã kết thúc): đơn mới đang chờ / bị từ chối / mời nộp đơn.
- * Nộp đơn ở cổng công khai `/apply` (FR-30) — trong cổng sinh viên không có form nộp đơn.
+ * Sinh viên chưa có chỗ ở hiện tại — phẳng, sắc nét (bỏ banner gradient xanh bóng bẩy)
  */
-export default function NoResidenceHome() {
+export default function NoResidenceHome({ profile, onApplied }) {
   const navigate = useNavigate();
-  const { data: contracts, loading, error } = useApi(() => portalApi.getMyContracts(), []);
+  const screens = useBreakpoint();
+  const { message } = App.useApp();
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form] = Form.useForm();
+
+  const { data: contracts, loading, error, refetch } = useApi(() => portalApi.getMyContracts(), []);
+  const { data: openPeriods } = useApi(
+    () => (applyOpen && profile?.studentCode
+      ? applyApi.getOpenPeriods({ studentCode: profile.studentCode, faculty: profile.faculty })
+      : Promise.resolve({ data: { data: [] } })),
+    [applyOpen, profile?.studentCode, profile?.faculty],
+  );
+
+  const selectedPeriodId = Form.useWatch('periodId', form);
+  const eligiblePeriods = (Array.isArray(openPeriods) ? openPeriods : []).filter((p) => !p.eligibility || p.eligibility.eligible);
+  const selectedPeriod = eligiblePeriods.find((p) => p.id === selectedPeriodId);
+
+  const { meta: roomsMeta } = useApi(
+    () => (applyOpen && selectedPeriodId && profile?.gender
+      ? applyApi.getAvailableRooms({ periodId: selectedPeriodId, gender: profile.gender, limit: 100 })
+      : Promise.resolve({ data: { data: { items: [], roomTypes: [] } } })),
+    [applyOpen, selectedPeriodId, profile?.gender],
+  );
+
+  const roomTypeOptions = useMemo(() => {
+    const types = Array.isArray(roomsMeta?.roomTypes) ? roomsMeta.roomTypes : [];
+    return types.map((t) => {
+      const locked = t.isFull || t.availableSlots <= 0;
+      return {
+        value: t.key,
+        disabled: locked,
+        label: locked
+          ? `${ROOM_TIER[t.roomTier]?.label || t.roomTier} · ${t.capacity} người — ${formatCurrency(t.pricePerMonth)}/th (Hết chỗ · Đã khóa)`
+          : `${ROOM_TIER[t.roomTier]?.label || t.roomTier} · ${t.capacity} người — ${formatCurrency(t.pricePerMonth)}/th (Còn ${t.availableSlots} chỗ)`,
+      };
+    });
+  }, [roomsMeta]);
+
+  const handlePortalApply = async (values) => {
+    setSaving(true);
+    try {
+      const [tier, cap] = String(values.roomChoice || '').split('__');
+      const res = await portalApi.applyFromPortal({
+        periodId: values.periodId,
+        term: values.term,
+        preferredRoomTier: tier,
+        preferredCapacity: Number(cap),
+      });
+      message.success(res.data.message || 'Đã gửi đơn đăng ký nội bộ');
+      setApplyOpen(false);
+      form.resetFields();
+      refetch();
+      onApplied?.();
+    } catch (err) {
+      message.error(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const latest = (contracts || [])[0];
 
   if (error) return <Alert type="error" showIcon title={error} />;
   if (loading && !contracts) return <Card><Skeleton active paragraph={{ rows: 5 }} /></Card>;
 
+  const internalApplyModal = (
+    <Modal
+      open={applyOpen}
+      title="Đăng ký / Gia hạn KTX nội bộ"
+      okText="Gửi đơn đăng ký"
+      cancelText="Hủy"
+      confirmLoading={saving}
+      onOk={() => form.submit()}
+      onCancel={() => setApplyOpen(false)}
+      destroyOnHidden
+      width={560}
+    >
+      <Form form={form} layout="vertical" onFinish={handlePortalApply} style={{ marginTop: 12 }}>
+        {eligiblePeriods.length === 0 ? (
+          <Alert type="info" showIcon title="Hiện chưa có đợt đăng ký nào mở phù hợp với khóa/ngành của bạn" />
+        ) : (
+          <>
+            <Form.Item name="periodId" label="Chọn Đợt đăng ký đang mở" rules={[{ required: true, message: 'Chọn đợt đăng ký' }]}>
+              <Select
+                placeholder="Chọn đợt đăng ký"
+                options={eligiblePeriods.map((p) => ({
+                  value: p.id,
+                  label: `${p.name} (${formatDate(p.startDate)} → ${formatDate(p.endDate)})`,
+                }))}
+                onChange={() => form.setFieldsValue({ roomChoice: undefined, term: undefined })}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="roomChoice"
+              label="Chọn loại phòng nguyện vọng"
+              extra="Loại phòng hết chỗ tự động khóa. Hệ thống xếp phòng đúng giới tính từ tầng thấp lên cao."
+              rules={[{ required: true, message: 'Chọn loại phòng còn chỗ' }]}
+            >
+              <Select
+                placeholder={selectedPeriodId ? 'Chọn loại phòng còn chỗ' : 'Chọn đợt đăng ký trước'}
+                disabled={!selectedPeriodId}
+                options={roomTypeOptions}
+              />
+            </Form.Item>
+
+            <Form.Item name="term" label="Gói kỳ hạn" rules={[{ required: true, message: 'Chọn kỳ hạn' }]}>
+              <Radio.Group
+                disabled={!selectedPeriod}
+                options={(selectedPeriod?.allowedTerms || []).map((t) => ({
+                  value: t,
+                  label: CONTRACT_TERM[t]?.label || t,
+                }))}
+              />
+            </Form.Item>
+          </>
+        )}
+      </Form>
+    </Modal>
+  );
+
   if (latest?.status === 'pending') {
+    const wishText = latest.room
+      ? `${latest.room.buildingName} · Phòng ${roomLabelOf(latest.room)}`
+      : latest.preferredRoomTier
+        ? `${ROOM_TIER[latest.preferredRoomTier]?.label || latest.preferredRoomTier}${latest.preferredCapacity ? ` · ${latest.preferredCapacity} người` : ''} (Chờ xếp tầng thấp → cao)`
+        : 'Chờ xếp tầng thấp → cao';
     return (
-      <Card style={{ borderColor: '#FFD591', background: '#FFFBF0' }}>
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <IconBox bg="#FFE7BA"><ClockCircleOutlined style={{ fontSize: 22, color: '#D46B08' }} /></IconBox>
-          <div style={{ flex: 1, minWidth: 260 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Title level={4} style={{ margin: 0 }}>Đơn đăng ký đang chờ duyệt</Title>
-              <Tag color="warning" style={{ margin: 0 }}>{latest.contractCode}</Tag>
-            </div>
-            <Text type="secondary">Kết quả được gửi qua email. Hóa đơn chỉ tạo sau khi đơn được duyệt.</Text>
-            <div style={{ marginTop: 12, maxWidth: 520 }}>
-              <InfoRow label="Phòng">{latest.room?.buildingName} · Phòng {roomLabelOf(latest.room)} · Giường {pad2(latest.bedNumber)}</InfoRow>
-              <InfoRow label="Gói thuê">{CONTRACT_TERM[latest.term]?.label}</InfoRow>
-              <InfoRow label="Nộp lúc">{formatDateTime(latest.createdAt)}</InfoRow>
-              <InfoRow label="Cần thanh toán khi được duyệt">{formatCurrency(latest.depositAmount + latest.totalRoomFee)}</InfoRow>
-            </div>
+      <>
+        <Card style={{ borderLeft: '4px solid #D97706' }} styles={{ body: { padding: '20px 22px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+            <Title level={4} style={{ margin: 0, fontSize: 17 }}>Đơn đăng ký đang chờ duyệt</Title>
+            <span className="haui-chip mono">{latest.contractCode}</span>
           </div>
-        </div>
-      </Card>
+          <Text type="secondary" style={{ fontSize: 13 }}>Kết quả xếp phòng sẽ được thông báo qua Chuông thông báo và Email.</Text>
+          <div style={{ marginTop: 14, maxWidth: 520 }}>
+            <InfoRow label="Cơ sở">{latest.campusName || CAMPUS[latest.campus]?.label || '—'}</InfoRow>
+            <InfoRow label="Loại phòng / Xếp phòng">{wishText}</InfoRow>
+            <InfoRow label="Gói thuê">{CONTRACT_TERM[latest.term]?.label || latest.term}</InfoRow>
+            <InfoRow label="Nộp lúc" mono>{formatDateTime(latest.createdAt)}</InfoRow>
+            <InfoRow label="Dự kiến nộp khi duyệt" mono>{formatCurrency((latest.depositAmount || 0) + (latest.totalRoomFee || 0))}</InfoRow>
+          </div>
+        </Card>
+        {internalApplyModal}
+      </>
     );
   }
 
   if (latest?.status === 'rejected') {
     return (
-      <Card style={{ borderColor: '#FFA39E', background: '#FFF1F0' }}>
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <IconBox bg="#FFCCC7"><CloseCircleOutlined style={{ fontSize: 22, color: '#CF1322' }} /></IconBox>
-          <div style={{ flex: 1, minWidth: 260 }}>
-            <Title level={4} style={{ margin: 0 }}>Đơn đăng ký {latest.contractCode} đã bị từ chối</Title>
-            <Text type="secondary">Xử lý lúc {formatDateTime(latest.reviewedAt)}</Text>
-            <div style={{ marginTop: 8 }}><Text strong>Lý do:</Text> <Text>{latest.rejectionReason || '—'}</Text></div>
+      <>
+        <Card style={{ borderLeft: '4px solid #DC2626' }} styles={{ body: { padding: '20px 22px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <Title level={4} style={{ margin: 0, fontSize: 17 }}>
+                Đơn <span className="mono">{latest.contractCode}</span> đã bị từ chối
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12.5 }}>Xử lý lúc {formatDateTime(latest.reviewedAt)}</Text>
+              <div style={{ marginTop: 8, fontSize: 13.5 }}><Text strong>Lý do:</Text> <Text>{latest.rejectionReason || '—'}</Text></div>
+            </div>
+            <Button type="primary" onClick={() => setApplyOpen(true)}>Đăng ký lại ngay</Button>
           </div>
-          <Button type="primary" onClick={() => navigate('/apply')}>Nộp đơn mới</Button>
-        </div>
-      </Card>
+        </Card>
+        {internalApplyModal}
+      </>
     );
   }
 
-  const ended = latest?.status === 'terminated';
+  const ended = latest?.status === 'terminated' || latest?.status === 'expired';
+  const cancelled = latest?.status === 'cancelled';
   return (
-    <Card styles={{ body: { padding: 32 } }} style={{ background: 'linear-gradient(135deg, #1677FF 0%, #4096FF 100%)', border: 'none' }}>
-      <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ width: 64, height: 64, borderRadius: 16, background: 'rgba(255,255,255,0.18)', display: 'grid', placeItems: 'center' }}>
-          <HomeOutlined style={{ fontSize: 30, color: '#fff' }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <Title level={3} style={{ margin: 0, color: '#fff' }}>Bạn chưa có chỗ ở tại ký túc xá</Title>
-          <Text style={{ color: 'rgba(255,255,255,0.85)' }}>
-            {ended ? `Hợp đồng ${latest.contractCode} đã kết thúc ngày ${formatDate(latest.terminatedAt || latest.endDate)}. ` : ''}
-            Muốn ở kỳ tiếp theo, bạn nộp đơn mới bằng mã sinh viên hiện tại.
-          </Text>
-          {ended && (
-            <div style={{ marginTop: 8 }}>
-              <Tag color={latest.isDepositRefunded ? 'success' : 'warning'} style={{ margin: 0 }}>
-                {latest.isDepositRefunded
-                  ? `Đã nhận lại cọc ngày ${formatDate(latest.depositRefundedAt)}`
-                  : `Chưa nhận lại cọc ${formatCurrency(latest.depositAmount)} — đến văn phòng KTX để nhận`}
-              </Tag>
+    <>
+      <Card style={{ borderLeft: '4px solid var(--brand)' }} styles={{ body: { padding: '24px 26px' } }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--brand-hover)', marginBottom: 6 }}>
+              Đăng ký lại / Gia hạn nội trú
             </div>
-          )}
+            <Title level={4} style={{ margin: '0 0 6px', fontSize: 19, fontWeight: 700 }}>
+              {ended ? 'Hợp đồng KTX kỳ trước đã kết thúc' : 'Hiện bạn chưa có hợp đồng nội trú hiệu lực'}
+            </Title>
+            <Text type="secondary" style={{ fontSize: 13.5, display: 'block', maxWidth: 580 }}>
+              {ended && `Hợp đồng ${latest.contractCode} đã kết thúc ngày ${formatDate(latest.terminatedAt || latest.endDate)}. `}
+              {cancelled && `Đơn ${latest.contractCode} trước đó đã bị hủy. `}
+              Bạn có thể đăng ký ở lại kỳ mới trực tiếp bằng hồ sơ sinh viên sẵn có mà không cần nhập lại thông tin.
+            </Text>
+            {ended && (
+              <div style={{ marginTop: 10 }}>
+                <span
+                  className="haui-status"
+                  style={latest.isDepositRefunded
+                    ? { background: '#F0FDF4', borderColor: '#BBF7D0', color: '#14532D' }
+                    : { background: '#FFFBEB', borderColor: '#FDE68A', color: '#92400E' }}
+                >
+                  <span className="haui-status-dot" style={{ background: latest.isDepositRefunded ? '#16A34A' : '#D97706' }} />
+                  {latest.isDepositRefunded
+                    ? `Đã hoàn cọc ${formatCurrency(latest.depositRefundAmount)} ngày ${formatDate(latest.depositRefundedAt)}`
+                    : `Chờ nhận lại cọc ${formatCurrency(latest.depositAmount)} — liên hệ văn phòng KTX`}
+                </span>
+              </div>
+            )}
+          </div>
+          <Space orientation="vertical" size={8} style={{ width: screens.sm ? 210 : '100%' }}>
+            <Button type="primary" size="large" block onClick={() => setApplyOpen(true)}>
+              Đăng ký KTX nội bộ <ArrowRightOutlined />
+            </Button>
+            <Button block onClick={() => navigate('/')}>
+              Xem bảng giá &amp; đợt mở
+            </Button>
+          </Space>
         </div>
-        <div style={{ display: 'grid', gap: 8 }}>
-          <Button size="large" onClick={() => navigate('/apply')} style={{ fontWeight: 600 }}>
-            Nộp đơn đăng ký <ArrowRightOutlined />
-          </Button>
-          <Button type="link" icon={<SearchOutlined />} onClick={() => navigate('/apply/status')} style={{ color: '#fff' }}>Tra cứu đơn</Button>
-        </div>
-      </div>
-    </Card>
+      </Card>
+      {internalApplyModal}
+    </>
   );
 }

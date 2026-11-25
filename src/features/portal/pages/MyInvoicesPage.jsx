@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Card, Row, Col, Typography, Tabs, Alert, Skeleton, Empty, Badge,
+  Card, Row, Col, Grid, Typography, Tabs, Alert, Skeleton, Empty, Badge,
 } from 'antd';
 import { WarningOutlined, FileTextOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
@@ -16,6 +16,7 @@ import { periodLabel } from '../../fees/utils/readingSheet';
 import { daysUntil } from '../utils/homeView';
 
 const { Text, Title } = Typography;
+const { useBreakpoint } = Grid;
 
 const TAB_OF_SCOPE = { personal: 'personal', room: 'room' };
 
@@ -70,6 +71,8 @@ export default function MyInvoicesPage() {
 }
 
 function MyInvoicesView({ searchParams }) {
+  const screens = useBreakpoint();
+  const isMobile = !screens.sm;
   const paramInvoice = searchParams.get('invoice');
   const [userTab, setUserTab] = useState(null); // null = tự chọn theo ?invoice= / ?tab=
   const [selectedId, setSelectedId] = useState(paramInvoice || null);
@@ -90,7 +93,7 @@ function MyInvoicesView({ searchParams }) {
     [activeId],
   );
 
-  const header = <PageHeader breadcrumb={['Hóa đơn & thanh toán']} title="Hóa đơn & thanh toán" description="Tiền cọc, tiền phòng của bạn và tiền điện nước của phòng" />;
+  const header = <PageHeader breadcrumb={['Cổng Sinh viên', 'Hóa đơn & thanh toán']} title="Hóa đơn & thanh toán" description="Tiền cọc, tiền phòng của bạn và tiền điện nước của phòng" />;
   if (error) return <>{header}<Alert type="error" showIcon title="Không tải được danh sách hóa đơn" description={error} /></>;
   if (loading && !invoices) return <>{header}<Card><Skeleton active paragraph={{ rows: 6 }} /></Card></>;
 
@@ -124,7 +127,7 @@ function MyInvoicesView({ searchParams }) {
           items={[
             { key: 'personal', label: tabLabel('Của tôi', countUnpaid(personal)) },
             { key: 'room', label: tabLabel('Của phòng', countUnpaid(room)) },
-            { key: 'history', label: 'Lịch sử nộp tiền' },
+            { key: 'history', label: isMobile ? 'Lịch sử' : 'Lịch sử nộp tiền' },
           ]}
         />
         {tab === 'history' ? <MyPaymentsList /> : (

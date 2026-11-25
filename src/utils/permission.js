@@ -1,30 +1,41 @@
-import { ROLES } from '../constants/roles';
+import { ROLES, OPS_ROLES } from '../constants/roles';
 
 /**
- * Ma trận quyền dùng cho GIAO DIỆN (ẩn/hiện nút) — khớp docs/07 mục 2.
- * Đây KHÔNG phải biện pháp bảo mật — backend vẫn phải kiểm tra lại.
+ * Ma trận phân quyền giao diện (ẩn/hiện nút) — khớp 100% BE_QLKTX v3.0.
+ * Backend luôn kiểm tra quyền độc lập trên từng endpoint.
  */
-const { ADMIN, STAFF } = ROLES;
-const OPS = [ADMIN, STAFF];
+const { ADMIN, MANAGER } = ROLES;
 
 const PERMISSIONS = {
-  'student:create': OPS,
-  'student:update': OPS,
-  'student:delete': OPS,
-  'student:resetPassword': OPS,     // FR-06: Staff đặt lại được cho sinh viên, không cho Admin
+  // Quản trị hệ thống — chỉ Admin
+  'user:manage': [ADMIN],
 
-  'building:create': OPS,
-  'room:create': OPS,
-  'room:update': OPS,
+  // Lãnh đạo / Cấu hình KTX — chỉ Manager
+  'period:manage': [MANAGER],
+  'building:create': [MANAGER],
+  'building:update': [MANAGER],
+  'room:create': [MANAGER],
+  'room:update': [MANAGER],
+  'dashboard:revenue': [MANAGER],
+  'request:approveTransfer': [MANAGER],
+  'announcement:delete': [MANAGER],
 
-  'application:review': OPS,        // duyệt / từ chối
-  'contract:terminate': OPS,        // thanh lý khi trả phòng
-  'contract:refundDeposit': OPS,    // xác nhận đã hoàn cọc
+  // Vận hành KTX — Manager & Staff
+  'student:create': OPS_ROLES,
+  'student:update': OPS_ROLES,
+  'student:delete': OPS_ROLES,
+  'student:resetPassword': OPS_ROLES,
 
-  'utilityReading:record': OPS,    // nhập và chốt & phát hành
-  'payment:record': OPS,           // thu tiền mặt, xác nhận VietQR
+  'application:review': OPS_ROLES,
+  'contract:cancel': OPS_ROLES,
+  'contract:checkin': OPS_ROLES,
+  'contract:terminate': OPS_ROLES,
+  'contract:refundDeposit': OPS_ROLES,
 
-  // Màn Tài khoản chỉ Admin: chặn bằng vai trò ở AppRoutes, không qua bảng này
+  'utilityReading:record': OPS_ROLES,
+  'payment:record': OPS_ROLES,
+  'request:handle': OPS_ROLES,
+  'announcement:create': OPS_ROLES,
 };
 
 export const can = (user, action) => {

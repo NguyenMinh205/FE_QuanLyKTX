@@ -44,7 +44,8 @@ export default function TodoCard({ items }) {
           </div>
           {it.action && (
             <Button
-              type={i === 0 ? 'primary' : 'default'} onClick={() => navigate(it.action.to)}
+              type={i === 0 ? 'primary' : 'default'}
+              onClick={() => (it.action.onClick ? it.action.onClick() : navigate(it.action.to))}
               style={screens.sm ? undefined : { width: '100%', marginLeft: 32 }}
             >
               {it.action.label}

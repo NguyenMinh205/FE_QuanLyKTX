@@ -62,6 +62,7 @@ export default function InvoiceDetailPage() {
 
   const subject = subjectOf(inv);
   const paid = inv.status === 'paid';
+  const unpaid = inv.status === 'unpaid';
   const reading = inv.reading;
 
   const meterRows = reading ? [
@@ -87,7 +88,7 @@ export default function InvoiceDetailPage() {
           <span className="invoice-no-print" style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/invoices')}>Danh sách</Button>
             <Button icon={<PrinterOutlined />} onClick={() => window.print()}>In hóa đơn</Button>
-            {canCollect && !paid && (
+            {canCollect && unpaid && (
               <Button type="primary" icon={<DollarOutlined />} onClick={() => setCollecting(true)}>Thu tiền</Button>
             )}
           </span>
@@ -154,16 +155,18 @@ export default function InvoiceDetailPage() {
           >
             {paid
               ? (inv.payments || []).map((p) => <PaymentReceipt key={p.id} payment={p} invoice={inv} />)
-              : (
-                <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-                  <Text>Chưa thu. Sinh viên trả tiền mặt tại văn phòng, hoặc chuyển khoản VietQR với nội dung:</Text>
-                  <Text code copyable style={{ fontSize: 14 }}>{transferContentOf(inv)}</Text>
-                  <Text type="secondary" style={{ fontSize: 13 }}>Thấy tiền vào sao kê thì bấm Thu tiền → chọn VietQR để xác nhận.</Text>
-                  {canCollect && (
-                    <Button type="primary" icon={<DollarOutlined />} onClick={() => setCollecting(true)} className="invoice-no-print">Thu tiền</Button>
-                  )}
-                </Space>
-              )}
+              : inv.status === 'cancelled'
+                ? <Alert type="warning" showIcon title="Hóa đơn đã bị hủy" description="Hóa đơn đầu kỳ đã hủy theo hợp đồng chờ đóng phí." />
+                : (
+                  <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+                    <Text>Chưa thu. Sinh viên trả tiền mặt tại văn phòng, hoặc quét VietQR với nội dung:</Text>
+                    <Text code copyable style={{ fontSize: 14 }}>{transferContentOf(inv)}</Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>Hệ thống hỗ trợ tự động gạch nợ qua Webhook VietQR, giả lập Webhook (demo) hoặc xác nhận thủ công.</Text>
+                    {canCollect && (
+                      <Button type="primary" icon={<DollarOutlined />} onClick={() => setCollecting(true)} className="invoice-no-print">Thu tiền / Giả lập VietQR</Button>
+                    )}
+                  </Space>
+                )}
           </Card>
         </Col>
       </Row>

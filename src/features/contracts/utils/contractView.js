@@ -1,18 +1,18 @@
 import dayjs from 'dayjs';
 import { roomLabelOf } from '../../rooms/utils/roomStatus';
 
-/** Ngưỡng "sắp hết hạn" hiển thị ở danh sách và trang chủ sinh viên */
 export const EXPIRING_DAYS = 30;
 
-/** Số ngày còn lại tới ngày kết thúc (âm = đã qua) */
 export const daysLeftOf = (endDate) => dayjs(endDate).startOf('day').diff(dayjs().startOf('day'), 'day');
 
-/** "K1-203 · Giường 03" từ RoomRef + số giường của hợp đồng */
-export const placeTextOf = (c) => (c?.room ? `${roomLabelOf(c.room)} · Giường ${String(c.bedNumber).padStart(2, '0')}` : '—');
+/** Quản lý cấp Phòng (không còn số giường) */
+export const placeTextOf = (c) => (c?.room ? `Phòng ${roomLabelOf(c.room)}` : '—');
 
-/** Trạng thái tiền cọc của một hợp đồng (FR-35, BR-08) → { text, color } để hiện nhãn */
+/** Trạng thái tiền cọc của hợp đồng */
 export const depositStateOf = (c) => {
-  if (c.isDepositRefunded) return { text: 'Đã hoàn cọc', color: 'success' };
+  if (c.status === 'cancelled') return { text: 'Đã hủy', color: 'default' };
+  if (c.status === 'pending_payment') return { text: 'Chờ nộp cọc', color: 'processing' };
+  if (c.isDepositRefunded) return { text: 'Đã quyết toán cọc', color: 'success' };
   if (c.status === 'terminated') return { text: 'Chờ hoàn cọc', color: 'warning' };
   return { text: 'Đang giữ cọc', color: 'default' };
 };

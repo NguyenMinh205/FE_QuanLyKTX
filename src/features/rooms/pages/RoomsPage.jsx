@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Button, Card, Select, Segmented, Row, Col, Skeleton, Alert, Typography, Table, Drawer, Grid, Space,
+  Button, Card, Select, Segmented, Row, Col, Skeleton, Alert, Typography, Table, Drawer, Grid,
+  Space, Popover, Tag, Badge,
 } from 'antd';
 import {
-  PlusOutlined, AppstoreOutlined, UnorderedListOutlined, InfoCircleOutlined,
+  PlusOutlined, AppstoreOutlined, UnorderedListOutlined, InfoCircleOutlined, FilterOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { roomApi } from '../api/room.api';
-import { GENDER, GENDER_OPTIONS, ROOM_CAPACITY_OPTIONS } from '../../../constants/statuses';
+import {
+  CAMPUS_OPTIONS, GENDER, GENDER_OPTIONS, ROOM_CAPACITY_OPTIONS, ROOM_TIER, ROOM_TIER_OPTIONS,
+} from '../../../constants/statuses';
 import { formatCurrency } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import EmptyState from '../../../components/EmptyState';
@@ -29,49 +32,75 @@ const AVAILABILITY_OPTIONS = [
   { value: 'has_slot', label: 'Còn chỗ' },
   { value: 'full', label: 'Hết chỗ' },
 ];
+const AVAILABILITY_LABEL = { has_slot: 'Còn chỗ', full: 'Hết chỗ' };
+const ROOM_GENDER_FILTER_OPTIONS = [
+  ...GENDER_OPTIONS,
+  { value: 'empty', label: 'Trống (chưa gán)' },
+];
 
-/** Sơ đồ tầng cần cả tòa trong một lần gọi; 100 là mức trần backend cho phép mỗi trang */
 const MAP_PAGE_SIZE = 100;
-
 const EMPTY_PAGE = Promise.resolve({ data: { data: { items: [], total: 0, page: 1, limit: MAP_PAGE_SIZE } } });
 
-/** SCR-23 Phòng — sơ đồ tầng + khung chi tiết (docs/08 mục 6.3) */
+/** Quản lý phòng theo 3 Cơ sở & Sơ đồ tầng — Thanh lọc 1 dòng gọn gàng + Popover bộ lọc phụ */
 export default function RoomsPage() {
   const { user } = useAuth();
   const screens = useBreakpoint();
   const canCreate = can(user, 'room:create');
   const canEdit = can(user, 'room:update');
 
-  // Màn Tòa nhà mở sẵn đúng tòa qua ?buildingId=
   const [searchParams] = useSearchParams();
-  const [filters, setFilters] = useState({ buildingId: searchParams.get('buildingId') || undefined, gender: undefined, capacity: undefined, floor: undefined, availability: undefined });
+  const [filters, setFilters] = useState({
+    campus: undefined,
+    buildingId: searchParams.get('buildingId') || undefined,
+    gender: undefined,
+    roomTier: undefined,
+    capacity: undefined,
+    floor: undefined,
+    availability: undefined,
+  });
   const [view, setView] = useState('map');
   const [selectedId, setSelectedId] = useState(null);
-  const [formRoom, setFormRoom] = useState(null); // null = đóng · {} = thêm · room = sửa
+  const [formRoom, setFormRoom] = useState(null);
   const [detailVersion, setDetailVersion] = useState(0);
 
-  const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
-  // Tòa trong URL không còn hoạt động thì quay về tòa đầu tiên
+  const { data: buildings } = useApi(() => roomApi.getBuildings({ campus: filters.campus }), [filters.campus]);
   const buildingId = (buildings?.some((b) => b.id === filters.buildingId) ? filters.buildingId : null) ?? buildings?.[0]?.id;
 
   const { data: rooms, meta, loading, error, refetch } = useApi(
     () => (buildingId
-      ? roomApi.getRooms({ buildingId, gender: filters.gender, capacity: filters.capacity, availability: filters.availability, limit: MAP_PAGE_SIZE })
+      ? roomApi.getRooms({
+        buildingId,
+        gender: filters.gender,
+        roomTier: filters.roomTier,
+        capacity: filters.capacity,
+        availability: filters.availability,
+        limit: MAP_PAGE_SIZE,
+      })
       : EMPTY_PAGE),
-    [buildingId, filters.gender, filters.capacity, filters.availability],
+    [buildingId, filters.gender, filters.roomTier, filters.capacity, filters.availability],
   );
 
-  // Lọc tầng ở phía giao diện để danh sách tầng trong ô chọn không bị thu hẹp theo chính nó
   const allRooms = rooms || [];
-  // Tòa có nhiều phòng hơn một trang: nói rõ sơ đồ đang thiếu phòng thay vì im lặng vẽ nửa tòa
   const truncated = (meta?.total ?? 0) > allRooms.length;
   const floorOptions = [...new Set(allRooms.map((r) => r.floor))].sort((a, b) => a - b).map((f) => ({ value: f, label: `Tầng ${f}` }));
   const shown = filters.floor ? allRooms.filter((r) => r.floor === filters.floor) : allRooms;
 
   const setFilter = (patch) => {
     setFilters((prev) => ({ ...prev, ...patch }));
-    if ('buildingId' in patch) setSelectedId(null);
+    if ('buildingId' in patch || 'campus' in patch) setSelectedId(null);
   };
+
+  const resetSecondaryFilters = () => setFilter({
+    roomTier: undefined, gender: undefined, capacity: undefined, floor: undefined, availability: undefined,
+  });
+
+  const activeChips = [
+    filters.roomTier && { key: 'roomTier', label: ROOM_TIER[filters.roomTier]?.label || filters.roomTier },
+    filters.gender && { key: 'gender', label: filters.gender === 'empty' ? 'Phòng trống' : `Phòng ${GENDER[filters.gender]?.label}` },
+    filters.capacity && { key: 'capacity', label: `${filters.capacity} người` },
+    filters.floor && { key: 'floor', label: `Tầng ${filters.floor}` },
+    filters.availability && { key: 'availability', label: AVAILABILITY_LABEL[filters.availability] },
+  ].filter(Boolean);
 
   const afterRoomSaved = () => {
     setFormRoom(null);
@@ -90,60 +119,89 @@ export default function RoomsPage() {
     />
   );
 
+  const filterPopoverContent = (
+    <div style={{ width: 290, display: 'grid', gap: 10 }}>
+      <FilterRow label="Hạng phòng">
+        <Select style={{ width: '100%' }} allowClear placeholder="Tất cả" value={filters.roomTier} options={ROOM_TIER_OPTIONS} onChange={(v) => setFilter({ roomTier: v })} />
+      </FilterRow>
+      <FilterRow label="Giới tính">
+        <Select style={{ width: '100%' }} allowClear placeholder="Tất cả" value={filters.gender} options={ROOM_GENDER_FILTER_OPTIONS} onChange={(v) => setFilter({ gender: v })} />
+      </FilterRow>
+      <FilterRow label="Sức chứa">
+        <Select style={{ width: '100%' }} allowClear placeholder="Tất cả" value={filters.capacity} options={ROOM_CAPACITY_OPTIONS} onChange={(v) => setFilter({ capacity: v })} />
+      </FilterRow>
+      <FilterRow label="Tầng">
+        <Select style={{ width: '100%' }} allowClear placeholder="Tất cả" value={filters.floor} options={floorOptions} onChange={(v) => setFilter({ floor: v })} />
+      </FilterRow>
+      <FilterRow label="Tình trạng">
+        <Select style={{ width: '100%' }} allowClear placeholder="Tất cả" value={filters.availability} options={AVAILABILITY_OPTIONS} onChange={(v) => setFilter({ availability: v })} />
+      </FilterRow>
+      {activeChips.length > 0 && (
+        <Button size="small" type="link" style={{ padding: 0, textAlign: 'right' }} onClick={resetSecondaryFilters}>
+          Xóa tất cả bộ lọc phụ
+        </Button>
+      )}
+    </div>
+  );
+
   const columns = [
-    { title: 'Phòng', key: 'room', width: 100, render: (_, r) => <Text strong>{roomLabelOf(r)}</Text> },
-    { title: 'Tầng', dataIndex: 'floor', width: 70, align: 'center' },
-    { title: 'Sức chứa', dataIndex: 'capacity', width: 100, align: 'center', render: (n) => `${n} chỗ` },
+    { title: 'Phòng', key: 'room', width: 105, render: (_, r) => <Text strong>{roomLabelOf(r)}</Text> },
+    { title: 'Hạng phòng', dataIndex: 'roomTier', width: 135, render: (v) => <StatusTag type="roomTier" value={v} /> },
+    { title: 'Tầng', dataIndex: 'floor', width: 65, align: 'center' },
+    { title: 'Sức chứa', dataIndex: 'capacity', width: 95, align: 'center', render: (n) => `${n} người` },
     { title: 'Đơn giá', dataIndex: 'pricePerMonth', width: 130, align: 'right', render: formatCurrency },
-    { title: 'Giới tính', dataIndex: 'gender', width: 90, render: (g) => GENDER[g]?.label },
-    { title: 'Đang ở', key: 'occ', width: 90, align: 'center', render: (_, r) => `${r.occupied}/${r.capacity}` },
-    { title: 'Chỗ trống', dataIndex: 'availableSlots', width: 100, align: 'center' },
-    { title: 'Bảo trì', dataIndex: 'maintenanceBeds', width: 80, align: 'center', render: (n) => (n ? <Text type="danger">{n}</Text> : 0) },
+    { title: 'Giới tính', dataIndex: 'gender', width: 95, render: (g) => (g ? <Tag color={g === 'female' ? 'magenta' : 'blue'} style={{ margin: 0 }}>{GENDER[g]?.label}</Tag> : <Tag style={{ margin: 0 }}>Trống</Tag>) },
+    { title: 'Giữ chỗ', key: 'occ', width: 90, align: 'center', render: (_, r) => `${r.occupied ?? 0}/${r.capacity}` },
+    { title: 'Còn trống', dataIndex: 'availableSlots', width: 90, align: 'center' },
     {
-      title: 'Tình trạng', key: 'fill', width: 190,
+      title: 'Tình trạng', key: 'fill', width: 155,
       render: (_, r) => (r.status === 'maintenance'
         ? <StatusTag type="roomStatus" value="maintenance" />
         : <span style={{ color: FILL_LEVEL[fillLevelOf(r)].text, fontWeight: 500 }}>{slotTextOf(r)}</span>),
     },
-    { title: '', key: 'action', width: 70, fixed: 'right', render: (_, r) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setSelectedId(r.id)}>Xem</Button> },
+    { title: '', key: 'action', width: 65, fixed: 'right', render: (_, r) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setSelectedId(r.id)}>Xem</Button> },
   ];
 
   return (
     <>
       <PageHeader
-        breadcrumb={['Cơ sở vật chất', 'Phòng']}
-        title="Quản lý phòng"
-        description="Sơ đồ tầng, tình trạng giường và thông tin từng phòng"
+        breadcrumb={['Quản lý & Hỗ trợ', 'Phòng ở']}
+        title="Quản lý phòng ở"
+        description="Sơ đồ tầng theo 3 Cơ sở, hạng phòng 2026–2027 và danh sách sinh viên đang cư trú."
         extra={canCreate && <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormRoom({})}>Thêm phòng</Button>}
       />
 
-      <Card styles={{ body: { padding: 16 } }} style={{ marginBottom: 16 }}>
-        <div className="room-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-          <FilterField label="Tòa nhà">
-            <Select
-              style={{ width: 180 }}
-              value={buildingId}
-              loading={!buildings}
-              options={(buildings || []).map((b) => ({ value: b.id, label: b.name }))}
-              onChange={(v) => setFilter({ buildingId: v, floor: undefined })}
-            />
-          </FilterField>
-          <FilterField label="Giới tính">
-            <Select style={{ width: 130 }} allowClear placeholder="Tất cả" value={filters.gender} options={GENDER_OPTIONS} onChange={(v) => setFilter({ gender: v })} />
-          </FilterField>
-          <FilterField label="Sức chứa">
-            <Select style={{ width: 130 }} allowClear placeholder="Tất cả" value={filters.capacity} options={ROOM_CAPACITY_OPTIONS} onChange={(v) => setFilter({ capacity: v })} />
-          </FilterField>
-          <FilterField label="Tầng">
-            <Select style={{ width: 140 }} allowClear placeholder="Tất cả các tầng" value={filters.floor} options={floorOptions} onChange={(v) => setFilter({ floor: v })} />
-          </FilterField>
-          <FilterField label="Tình trạng">
-            <Select style={{ width: 180 }} allowClear placeholder="Tất cả tình trạng" value={filters.availability} options={AVAILABILITY_OPTIONS} onChange={(v) => setFilter({ availability: v })} />
-          </FilterField>
+      <Card styles={{ body: { padding: '12px 16px' } }} style={{ marginBottom: 12 }}>
+        <div className="room-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+          <Select
+            style={{ width: 175 }} allowClear placeholder="Tất cả 3 cơ sở"
+            value={filters.campus} options={CAMPUS_OPTIONS}
+            onChange={(v) => setFilter({ campus: v, buildingId: undefined, floor: undefined })}
+          />
+          <Select
+            style={{ width: 205 }} value={buildingId} loading={!buildings}
+            options={(buildings || []).map((b) => ({ value: b.id, label: `${b.code} · ${b.name}` }))}
+            onChange={(v) => setFilter({ buildingId: v, floor: undefined })}
+          />
+          <Popover content={filterPopoverContent} title="Bộ lọc phòng nâng cao" trigger="click" placement="bottomLeft">
+            <Badge count={activeChips.length} size="small">
+              <Button icon={<FilterOutlined />}>Bộ lọc</Button>
+            </Badge>
+          </Popover>
+
+          {activeChips.length > 0 && (
+            <Space size={4} wrap>
+              {activeChips.map((chip) => (
+                <Tag key={chip.key} closable color="blue" style={{ margin: 0 }} onClose={() => setFilter({ [chip.key]: undefined })}>
+                  {chip.label}
+                </Tag>
+              ))}
+            </Space>
+          )}
+
           <div className="room-filters-view" style={{ marginLeft: 'auto' }}>
             <Segmented
-              value={view}
-              onChange={setView}
+              value={view} onChange={setView}
               options={[
                 { value: 'map', label: 'Sơ đồ', icon: <AppstoreOutlined /> },
                 { value: 'list', label: 'Danh sách', icon: <UnorderedListOutlined /> },
@@ -153,38 +211,33 @@ export default function RoomsPage() {
         </div>
       </Card>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <Space size={8} wrap>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 2px' }}>
+        <Space size={14} wrap>
           {LEGEND_LEVELS.map((key) => (
-            <span key={key} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 999,
-              background: '#fff', border: `1px solid ${FILL_LEVEL[key].border}`, fontSize: 13,
-            }}>
+            <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: FILL_LEVEL[key].color }} />
-              {FILL_LEVEL[key].label} <Text type="secondary" style={{ fontSize: 12 }}>({FILL_LEVEL[key].hint})</Text>
+              <span>{FILL_LEVEL[key].label}</span>
             </span>
           ))}
         </Space>
-        <Text type="secondary" style={{ fontSize: 13 }}><InfoCircleOutlined /> Nhấp vào phòng để xem danh sách giường</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          <InfoCircleOutlined /> {canEdit ? 'Nhấp phòng để xem danh sách SV đang ở và chỉnh sửa' : 'Nhấp phòng để xem chi tiết & danh sách SV đang ở'}
+        </Text>
       </div>
 
       <Row gutter={16} wrap={false}>
         <Col flex="auto" style={{ minWidth: 0 }}>
           {error && <Alert type="error" showIcon title={error} />}
           {!error && !loading && truncated && (
-            <Alert
-              type="warning" showIcon style={{ marginBottom: 12 }}
-              title={`Sơ đồ đang hiện ${allRooms.length}/${meta.total} phòng của tòa này`}
-              description="Dùng bộ lọc sức chứa hoặc tình trạng để thu hẹp danh sách."
-            />
+            <Alert type="warning" showIcon style={{ marginBottom: 12 }} title={`Sơ đồ đang hiện ${allRooms.length}/${meta.total} phòng của tòa này`} />
           )}
           {!error && loading && <Card><Skeleton active paragraph={{ rows: 6 }} /></Card>}
           {!error && !loading && shown.length === 0 && (
             <Card>
               <EmptyState
                 description="Không có phòng phù hợp bộ lọc"
-                actionText={canCreate ? 'Thêm phòng' : undefined}
-                onAction={() => setFormRoom({})}
+                actionText={activeChips.length > 0 ? 'Xóa bộ lọc phụ' : (canCreate ? 'Thêm phòng' : undefined)}
+                onAction={activeChips.length > 0 ? resetSecondaryFilters : () => setFormRoom({})}
               />
             </Card>
           )}
@@ -194,11 +247,7 @@ export default function RoomsPage() {
           {!error && !loading && shown.length > 0 && view === 'list' && (
             <Card styles={{ body: { padding: 0 } }}>
               <Table
-                rowKey="id"
-                columns={columns}
-                dataSource={shown}
-                size="middle"
-                scroll={{ x: 1020 }}
+                rowKey="id" columns={columns} dataSource={shown} size="middle" scroll={{ x: 960 }}
                 pagination={{ pageSize: 20, showSizeChanger: false, showTotal: (t) => `Tổng ${t} phòng` }}
                 onRow={(r) => ({ onClick: () => setSelectedId(r.id), style: { cursor: 'pointer' } })}
                 rowClassName={(r) => (r.id === selectedId ? 'ant-table-row-selected' : '')}
@@ -228,10 +277,10 @@ export default function RoomsPage() {
   );
 }
 
-function FilterField({ label, children }) {
+function FilterRow({ label, children }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4 }}>{label}</div>
+      <Text type="secondary" style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>{label}</Text>
       {children}
     </div>
   );

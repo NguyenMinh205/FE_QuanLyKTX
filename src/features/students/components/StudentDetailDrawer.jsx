@@ -93,6 +93,7 @@ export default function StudentDetailDrawer({
             <Row label="Số điện thoại">{s.phone ? formatPhone(s.phone) : null}</Row>
             <Row label="Email">{s.email || null}</Row>
             <Row label="Lớp · Khoa">{[s.className, s.faculty].filter(Boolean).join(' · ') || null}</Row>
+            <Row label="Khóa nhập học">{s.enrollmentYear ? `Năm ${s.enrollmentYear}` : null}</Row>
             <Row label="Liên hệ khẩn cấp">
               {s.emergencyContact?.name
                 ? <>{s.emergencyContact.name} ({s.emergencyContact.relationship}) · {formatPhone(s.emergencyContact.phone)}</>

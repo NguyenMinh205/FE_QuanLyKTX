@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Card, Select, Table, Tag, Typography, Progress, Alert, Tooltip, App, Space, InputNumber, Button, Upload,
+  Card, Select, Table, Tag, Typography, Progress, Alert, Tooltip, App, Space, InputNumber, Button, Upload, Checkbox,
 } from 'antd';
 import {
   ThunderboltOutlined, ExperimentOutlined, CheckSquareOutlined, HistoryOutlined, InfoCircleOutlined,
@@ -40,6 +40,7 @@ export default function UtilityReadingsPage() {
   const [monthYear, setMonthYear] = useState(currentPeriod);
   const [buildingId, setBuildingId] = useState(null);
   const [drafts, setDrafts] = useState({});             // roomId → { field: value }
+  const [meterResets, setMeterResets] = useState({});   // roomId → boolean (allowMeterReset)
   const [serverErrors, setServerErrors] = useState({}); // roomId → thông báo lỗi lần lưu trước
   const [priceDraft, setPriceDraft] = useState(null);   // null = dùng đơn giá mặc định của lưới (D4)
   const [priceErrors, setPriceErrors] = useState({});
@@ -94,7 +95,7 @@ export default function UtilityReadingsPage() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [counts.dirty]);
 
-  const resetDrafts = () => { setDrafts({}); setServerErrors({}); setPriceDraft(null); setPriceErrors({}); };
+  const resetDrafts = () => { setDrafts({}); setMeterResets({}); setServerErrors({}); setPriceDraft(null); setPriceErrors({}); };
 
   /** Đổi tháng / tòa khi đang có bản nháp → hỏi trước khi bỏ */
   const guard = (apply) => {
@@ -171,7 +172,11 @@ export default function UtilityReadingsPage() {
       const res = await feeApi.saveUtilityBulk({
         buildingId: activeBuildingId, monthYear,
         electricityUnitPrice: prices.electricity, waterUnitPrice: prices.water,
-        rows: toSave.map((r) => ({ roomId: r.room.id, ...Object.fromEntries(METER_FIELDS.map((f) => [f, r.values[f]])) })),
+        rows: toSave.map((r) => ({
+          roomId: r.room.id,
+          ...Object.fromEntries(METER_FIELDS.map((f) => [f, r.values[f]])),
+          ...(meterResets[r.room.id] ? { allowMeterReset: true } : {}),
+        })),
       });
       const { savedCount, errors = [] } = res.data.data;
       const failed = Object.fromEntries(errors.map((e) => [e.roomId, e.message]));
@@ -289,7 +294,7 @@ export default function UtilityReadingsPage() {
     {
       title: 'Người ở', key: 'occupants', width: 80, align: 'center',
       render: (_, r) => (
-        <Tooltip title={`${r.occupants} người đang ở / ${r.room.capacity ?? '—'} giường`}>
+        <Tooltip title={`${r.occupants} người đang ở / ${r.room.capacity ?? '—'} chỗ`}>
           <span style={{
             display: 'inline-grid', placeItems: 'center', minWidth: 30, height: 30, borderRadius: 15, padding: '0 8px',
             background: r.occupants ? 'var(--line)' : '#FAFAFA', color: r.occupants ? undefined : '#BFBFBF', fontWeight: 600,
@@ -317,12 +322,29 @@ export default function UtilityReadingsPage() {
     },
     { title: 'Tiền cả phòng', key: 'amount', width: 150, align: 'right', render: (_, r) => <ReadingAmountCell row={r} /> },
     {
-      title: 'Trạng thái', key: 'status', width: 130, align: 'center',
+      title: 'Trạng thái', key: 'status', width: 155, align: 'center',
       render: (_, r) => {
         const tag = <Tag color={READING_STATUS[r.status].color} style={{ margin: 0 }}>{READING_STATUS[r.status].label}</Tag>;
-        return r.serverError
-          ? <Tooltip title={r.serverError}>{tag}<Text type="danger" style={{ display: 'block', fontSize: 12, lineHeight: 1.3, marginTop: 4 }}>{r.serverError}</Text></Tooltip>
-          : tag;
+        return (
+          <>
+            {r.serverError
+              ? <Tooltip title={r.serverError}>{tag}<Text type="danger" style={{ display: 'block', fontSize: 12, lineHeight: 1.3, marginTop: 4 }}>{r.serverError}</Text></Tooltip>
+              : tag}
+            {canEdit && !r.billed && !r.skipped && (
+              <div style={{ marginTop: 4 }}>
+                <Tooltip title="Tích chọn nếu phòng vừa thay đồng hồ điện/nước mới (cho phép chỉ số cũ khác chỉ số mới tháng trước)">
+                  <Checkbox
+                    checked={Boolean(meterResets[r.room.id])}
+                    onChange={(e) => setMeterResets((prev) => ({ ...prev, [r.room.id]: e.target.checked }))}
+                    style={{ fontSize: 11 }}
+                  >
+                    Thay đồng hồ
+                  </Checkbox>
+                </Tooltip>
+              </div>
+            )}
+          </>
+        );
       },
     },
     {

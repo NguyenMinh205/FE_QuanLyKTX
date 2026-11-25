@@ -30,7 +30,7 @@ export default function ProfilePage() {
   const { data: profile, loading, error } = useApi(() => portalApi.getProfile(), []);
   const { data: residence, error: residenceError } = useApi(() => portalApi.getMyResidence(), []);
 
-  const header = <PageHeader title="Hồ sơ cá nhân" description="Thông tin do ban quản lý ký túc xá lưu giữ" />;
+  const header = <PageHeader breadcrumb={['Cổng Sinh viên', 'Hồ sơ cá nhân']} title="Hồ sơ cá nhân" description="Thông tin do ban quản lý ký túc xá lưu giữ" />;
   if (error) return <>{header}<Alert type="error" showIcon title="Không tải được hồ sơ" description={error} /></>;
   if (loading && !profile) return <>{header}<Card><Skeleton active avatar paragraph={{ rows: 6 }} /></Card></>;
 

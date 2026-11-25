@@ -9,15 +9,12 @@ import { ROLE_LABEL } from '../../../constants/roles';
 const { Text } = Typography;
 
 const ROLE_HINT = {
-  admin: 'Toàn quyền, gồm quản lý tài khoản và xem doanh thu',
-  staff: 'Nghiệp vụ hằng ngày: duyệt đơn, hợp đồng, điện nước, thu tiền',
-  student: 'Tài khoản sinh viên do hệ thống cấp khi duyệt đơn đăng ký',
+  admin: 'Chỉ quản trị kỹ thuật & tài khoản hệ thống (tách biệt khỏi nghiệp vụ và doanh thu KTX)',
+  manager: 'Trưởng ban KTX: mở đợt đăng ký, cấu hình tòa/phòng 3 cơ sở, duyệt chuyển phòng và xem báo cáo doanh thu',
+  staff: 'Cán bộ quản sinh: vận hành hằng ngày (hồ sơ SV, duyệt đơn, QR Check-in, điện nước, thu tiền, báo hỏng)',
+  student: 'Tài khoản sinh viên do hệ thống tự cấp khi duyệt đơn đăng ký KTX',
 };
 
-/**
- * Thêm / sửa tài khoản — SCR-81.
- * user = null → thêm (hệ thống sinh mật khẩu tạm) · user != null → sửa email, họ tên, vai trò.
- */
 export default function UserFormModal({ open, user, currentUserId, onCancel, onCreated, onUpdated }) {
   const [form] = Form.useForm();
   const { message } = App.useApp();
@@ -50,9 +47,8 @@ export default function UserFormModal({ open, user, currentUserId, onCancel, onC
     }
   };
 
-  // Sinh viên ↔ cán bộ không đổi qua lại được; tự sửa mình thì khóa vai trò
   const isStudentAccount = user?.role === 'student';
-  const roleOptions = (isStudentAccount ? ['student'] : ['admin', 'staff']).map((value) => ({
+  const roleOptions = (isStudentAccount ? ['student'] : ['admin', 'manager', 'staff']).map((value) => ({
     value,
     label: ROLE_LABEL[value],
     disabled: isSelf || isStudentAccount,
@@ -61,17 +57,16 @@ export default function UserFormModal({ open, user, currentUserId, onCancel, onC
   return (
     <Modal
       open={open}
-      title={isEdit ? `Sửa tài khoản ${user.email}` : 'Thêm tài khoản cán bộ'}
+      title={isEdit ? `Sửa tài khoản ${user.email}` : 'Thêm tài khoản cán bộ / quản lý'}
       okText={isEdit ? 'Lưu thay đổi' : 'Tạo tài khoản'}
       cancelText="Hủy"
       confirmLoading={saving}
       onOk={() => form.submit()}
       onCancel={onCancel}
       destroyOnHidden
-      width={560}
+      width={600}
     >
       {error && <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />}
-      {/* Cha đặt key theo tài khoản đang sửa nên initialValues luôn đúng mỗi lần mở */}
       <Form
         form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 8 }}
         initialValues={isEdit ? { email: user.email, fullName: user.fullName, role: user.role } : { email: '', fullName: '', role: 'staff' }}
@@ -87,20 +82,20 @@ export default function UserFormModal({ open, user, currentUserId, onCancel, onC
           name="email" label="Email đăng nhập"
           rules={[{ required: true, message: 'Nhập email' }, { type: 'email', message: 'Email không đúng định dạng' }]}
         >
-          <Input placeholder="VD: nhanvien3@dorm.local" autoComplete="off" />
+          <Input placeholder="VD: truongban@dorm.local" autoComplete="off" />
         </Form.Item>
 
         <Form.Item
           name="fullName" label="Họ và tên"
           rules={isStudentAccount ? [] : [{ required: true, whitespace: true, message: 'Nhập họ tên' }]}
-          extra={isStudentAccount ? 'Họ tên sinh viên sửa ở màn Sinh viên' : undefined}
+          extra={isStudentAccount ? 'Họ tên sinh viên được quản lý tại màn Sinh viên' : undefined}
         >
-          <Input placeholder="VD: Nguyễn Thị Lan" disabled={isStudentAccount} maxLength={100} />
+          <Input placeholder="VD: Nguyễn Văn Quản Lý" disabled={isStudentAccount} maxLength={100} />
         </Form.Item>
 
         {!isEdit && (
           <Text type="secondary" style={{ fontSize: 13 }}>
-            Hệ thống tự sinh mật khẩu tạm và hiện <b>một lần</b> sau khi tạo; người dùng phải đổi mật khẩu ở lần đăng nhập đầu tiên.
+            Hệ thống tự sinh mật khẩu tạm và hiển thị <b>một lần</b> sau khi tạo; người dùng bắt buộc đổi mật khẩu ở lần đăng nhập đầu tiên.
           </Text>
         )}
       </Form>

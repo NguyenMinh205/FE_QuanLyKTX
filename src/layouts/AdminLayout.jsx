@@ -1,83 +1,108 @@
 import { useState } from 'react';
-import { Layout, Menu, Dropdown, Avatar, Grid, Drawer, Button, Badge, ConfigProvider, Typography } from 'antd';
+import { Layout, Menu, Dropdown, Grid, Drawer, Button, ConfigProvider, Typography } from 'antd';
 import {
-  DashboardOutlined, TeamOutlined, BankOutlined, FileTextOutlined,
-  DollarOutlined, SettingOutlined, UserOutlined, LogoutOutlined,
-  MenuOutlined, LockOutlined,
+  DashboardOutlined, TeamOutlined, BankOutlined, AppstoreOutlined, FileTextOutlined,
+  AuditOutlined, ThunderboltOutlined, FileDoneOutlined, WalletOutlined, SettingOutlined,
+  LogoutOutlined, MenuOutlined, LockOutlined, CalendarOutlined, ToolOutlined,
+  NotificationOutlined, DownOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ROLES, ROLE_LABEL } from '../constants/roles';
+import { ROLES, OPS_ROLES, ROLE_LABEL } from '../constants/roles';
 import { useApi } from '../hooks/useApi';
 import { dashboardApi } from '../features/dashboard/api/dashboard.api';
 import BrandLogo from '../components/BrandLogo';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { initialsOf } from '../features/applications/utils/applicationView';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 const { useBreakpoint } = Grid;
 
-/** Nhãn menu kèm số đếm việc cần xử lý — cơ chế nhắc việc duy nhất của v1 (docs/08 mục 3.1) */
-const withBadge = (label, count) => (count
+const withCount = (label, count, urgent = false) => (count
   ? (
-    <span style={{ display: 'inline-flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-      {label}<Badge count={count} size="small" style={{ boxShadow: 'none' }} />
+    <span style={{ display: 'inline-flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: 8 }}>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      <span
+        className="mono"
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          lineHeight: '18px',
+          padding: '0 6px',
+          borderRadius: 5,
+          flexShrink: 0,
+          background: urgent ? '#FEF2F2' : '#EFF6FF',
+          color: urgent ? '#DC2626' : '#1D4ED8',
+          border: `1px solid ${urgent ? '#FECACA' : '#BFDBFE'}`,
+        }}
+      >
+        {count}
+      </span>
     </span>
   )
   : label);
 
-/** Menu chuẩn — nguồn duy nhất, KHÔNG chép sidebar từ các frame thiết kế */
 const buildMenu = (role, counts = {}) => {
-  const items = [
-    { key: '/admin/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-    { key: '/admin/students', icon: <TeamOutlined />, label: 'Sinh viên' },
+  if (role === ROLES.ADMIN) {
+    return [
+      {
+        type: 'group',
+        label: 'Quản trị hệ thống',
+        children: [
+          { key: '/admin/users', icon: <SettingOutlined />, label: 'Quản lý tài khoản' },
+        ],
+      },
+    ];
+  }
+
+  return [
     {
-      key: 'rooms', icon: <BankOutlined />, label: 'Cơ sở vật chất',
+      type: 'group',
+      label: 'Tổng quan',
       children: [
-        { key: '/admin/buildings', label: 'Tòa nhà' },
-        { key: '/admin/rooms', label: 'Phòng' },
+        { key: '/admin/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
       ],
     },
     {
-      key: 'residency', icon: <FileTextOutlined />, label: 'Lưu trú & hợp đồng',
+      type: 'group',
+      label: 'Tuyển sinh & Lưu trú',
       children: [
-        { key: '/admin/applications', label: withBadge('Duyệt đơn đăng ký', counts.applications) },
-        { key: '/admin/contracts', label: 'Hợp đồng' },
+        { key: '/admin/periods', icon: <CalendarOutlined />, label: 'Đợt đăng ký' },
+        { key: '/admin/applications', icon: <AuditOutlined />, label: withCount('Duyệt đơn KTX', counts.applications, true) },
+        { key: '/admin/contracts', icon: <FileTextOutlined />, label: withCount('Hợp đồng KTX', counts.overduePayments, true) },
       ],
     },
     {
-      key: 'fees', icon: <DollarOutlined />, label: 'Tài chính',
+      type: 'group',
+      label: 'Quản lý & Hỗ trợ',
       children: [
-        { key: '/admin/utility-readings', label: 'Chỉ số điện nước' },
-        { key: '/admin/invoices', label: 'Hóa đơn' },
-        { key: '/admin/payments', label: 'Thanh toán' },
+        { key: '/admin/students', icon: <TeamOutlined />, label: 'Sinh viên' },
+        { key: '/admin/buildings', icon: <BankOutlined />, label: 'Tòa nhà (3 Cơ sở)' },
+        { key: '/admin/rooms', icon: <AppstoreOutlined />, label: 'Phòng ở' },
+        { key: '/admin/requests', icon: <ToolOutlined />, label: withCount('Phiếu yêu cầu SV', counts.requests, false) },
+        { key: '/admin/notifications', icon: <NotificationOutlined />, label: 'Bảng tin KTX' },
+      ],
+    },
+    {
+      type: 'group',
+      label: 'Tài chính',
+      children: [
+        { key: '/admin/utility-readings', icon: <ThunderboltOutlined />, label: 'Chỉ số điện nước' },
+        { key: '/admin/invoices', icon: <FileDoneOutlined />, label: 'Hóa đơn' },
+        { key: '/admin/payments', icon: <WalletOutlined />, label: 'Thu chi & Hoàn cọc' },
       ],
     },
   ];
-
-  if (role === ROLES.ADMIN) {
-    items.push({
-      key: 'system', icon: <SettingOutlined />, label: 'Hệ thống',
-      children: [
-        { key: '/admin/users', label: 'Tài khoản' },
-      ],
-    });
-  }
-  return items;
 };
-
-/** Mục menu cha chứa đường dẫn đang mở — để submenu tự bung đúng chỗ */
-const parentKeyOf = (items, path) =>
-  items.find((it) => it.children?.some((c) => c.key === path))?.key;
 
 const MENU_THEME = {
   components: {
     Menu: {
       itemSelectedBg: 'var(--brand-soft)',
-      subMenuItemBg: '#FFFFFF',
-      itemSelectedColor: 'var(--brand)',
-      activeBarWidth: 3,
-      itemMarginInline: 8,
+      itemSelectedColor: 'var(--brand-hover)',
+      itemHoverBg: '#F8FAFC',
+      itemMarginInline: 10,
       itemBorderRadius: 6,
     },
   },
@@ -91,14 +116,19 @@ export default function AdminLayout() {
   const isMobile = !screens.lg;
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { data: summary } = useApi(() => dashboardApi.getSummary(), []);
+  const canLoadSummary = OPS_ROLES.includes(user?.role) && !user?.mustChangePassword;
+  const { data: summary } = useApi(
+    () => (canLoadSummary ? dashboardApi.getSummary() : Promise.resolve({ data: { data: null } })),
+    [canLoadSummary, location.pathname],
+  );
+
   const menuItems = buildMenu(user?.role, {
     applications: summary?.pendingApplications,
+    overduePayments: summary?.overduePaymentContracts,
+    requests: summary?.pendingRequests,
   });
 
-  // Trang chi tiết (VD /admin/invoices/:id) vẫn sáng mục cha
   const selectedKey = location.pathname.split('/').slice(0, 3).join('/');
-  const openKey = parentKeyOf(menuItems, selectedKey);
 
   const handleMenuClick = ({ key }) => {
     navigate(key);
@@ -107,37 +137,50 @@ export default function AdminLayout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login', { replace: true });
+    navigate('/admin/login', { replace: true });
   };
 
   const menu = (
     <ConfigProvider theme={MENU_THEME}>
       <Menu
-        key={openKey || 'root'}
+        className="admin-sidebar-menu"
         mode="inline"
         selectedKeys={[selectedKey]}
-        defaultOpenKeys={openKey ? [openKey] : []}
         items={menuItems}
         onClick={handleMenuClick}
-        style={{ borderInlineEnd: 0, paddingBlock: 8 }}
+        style={{ borderInlineEnd: 0, paddingBlock: 10 }}
       />
     </ConfigProvider>
   );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh', background: 'var(--layout-bg)' }}>
       <Header style={{
-        background: '#fff', height: 72, lineHeight: 'normal', padding: '0 24px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-        borderBottom: '1px solid var(--line)', position: 'sticky', top: 0, zIndex: 20,
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
+        background: '#FFFFFF',
+        height: 62,
+        lineHeight: 'normal',
+        padding: '0 22px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 16,
+        borderBottom: '1px solid var(--line)',
+        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           {isMobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} />}
-          <BrandLogo size={40} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3, whiteSpace: 'nowrap' }}>KÝ TÚC XÁ HaUI</div>
-            {!isMobile && <Text type="secondary" style={{ fontSize: 12 }}>Trường Đại học Công nghiệp Hà Nội</Text>}
-          </div>
+          <BrandLogo height={isMobile ? 26 : 30} />
+          {!isMobile && (
+            <>
+              <span style={{ width: 1, height: 22, background: 'var(--line-strong)' }} />
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--brand-deep)', whiteSpace: 'nowrap' }}>
+                Quản trị Ký túc xá
+              </span>
+            </>
+          )}
         </div>
 
         <Dropdown
@@ -150,24 +193,35 @@ export default function AdminLayout() {
             ],
           }}
         >
-          <button type="button" aria-label="Tài khoản" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', textAlign: 'left' }}>
-            <Avatar icon={<UserOutlined />} style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }} />
+          <button
+            type="button"
+            aria-label="Tài khoản"
+            style={{
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+              background: 'none', border: 'none', padding: '4px 6px', borderRadius: 6,
+              fontFamily: 'inherit', color: 'inherit', textAlign: 'left',
+            }}
+          >
+            <span className="haui-avatar-box">
+              {initialsOf(user?.fullName)}
+            </span>
             {!isMobile && (
-              <div style={{ lineHeight: 1.3 }}>
-                <div style={{ fontWeight: 500 }}>{user?.fullName}</div>
-                <Text type="secondary" style={{ fontSize: 12 }}>{ROLE_LABEL[user?.role]}</Text>
+              <div style={{ lineHeight: 1.25 }}>
+                <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--ink)' }}>{user?.fullName}</div>
+                <Text type="secondary" style={{ fontSize: 11.5 }}>{ROLE_LABEL[user?.role]}</Text>
               </div>
             )}
+            {!isMobile && <DownOutlined style={{ fontSize: 10, color: 'var(--text-tertiary)' }} />}
           </button>
         </Dropdown>
       </Header>
 
-      <Layout>
+      <Layout style={{ background: 'var(--layout-bg)' }}>
         {!isMobile && (
           <Sider
-            width={240}
+            width={254}
             theme="light"
-            style={{ borderRight: '1px solid var(--line)', overflow: 'auto', position: 'sticky', top: 72, height: 'calc(100vh - 72px)' }}
+            style={{ borderRight: '1px solid var(--line)', overflow: 'auto', position: 'sticky', top: 62, height: 'calc(100vh - 62px)' }}
           >
             {menu}
           </Sider>
@@ -177,16 +231,17 @@ export default function AdminLayout() {
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           placement="left"
-          size={260}
+          size={264}
           styles={{ body: { padding: 0 } }}
-          title="Menu"
+          title="Menu quản trị"
         >
           {menu}
         </Drawer>
 
-        <Content style={{ padding: isMobile ? 16 : 24, background: 'var(--layout-bg)', minWidth: 0 }}>
-          {/* Một màn hỏng không kéo sập menu; key theo đường dẫn nên bấm sang màn khác là dựng lại từ đầu */}
-          <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>
+        <Content style={{ padding: isMobile ? 14 : '22px 24px 36px', background: 'var(--layout-bg)', minWidth: 0 }}>
+          <div style={{ maxWidth: 1360, margin: '0 auto' }}>
+            <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>
+          </div>
         </Content>
       </Layout>
     </Layout>

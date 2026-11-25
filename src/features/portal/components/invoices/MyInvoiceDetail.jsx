@@ -39,6 +39,7 @@ export default function MyInvoiceDetail({ invoice, loading }) {
   }
 
   const unpaid = invoice.status === 'unpaid';
+  const cancelled = invoice.status === 'cancelled';
   const room = invoice.scope === 'room';
   const daysLeft = daysUntil(invoice.dueDate);
   const pastDue = unpaid && daysLeft !== null && daysLeft < 0;
@@ -57,9 +58,9 @@ export default function MyInvoiceDetail({ invoice, loading }) {
       title={<Space size={8} wrap><Text strong style={{ fontSize: 16 }}>{invoice.invoiceCode}</Text><StatusTag type="invoice" value={invoice.status} /></Space>}
       extra={<Text type="secondary">{INVOICE_TYPE[invoice.type]?.label ?? invoice.type} · {INVOICE_SCOPE[invoice.scope]?.label}</Text>}
     >
-      <div style={{ background: unpaid ? '#FFF7E6' : '#F6FFED', borderRadius: 10, padding: '20px 16px', textAlign: 'center', marginBottom: 16 }}>
+      <div style={{ background: unpaid ? '#FFF7E6' : cancelled ? '#FAFAFA' : '#F6FFED', borderRadius: 10, padding: '20px 16px', textAlign: 'center', marginBottom: 16 }}>
         <Text type="secondary" style={{ textTransform: 'uppercase', fontSize: 12, letterSpacing: 0.5 }}>
-          {unpaid ? (room ? 'Cả phòng cần nộp' : 'Số tiền cần nộp') : 'Đã thanh toán'}
+          {unpaid ? (room ? 'Cả phòng cần nộp' : 'Số tiền cần nộp') : cancelled ? 'Hóa đơn đã hủy' : 'Đã thanh toán'}
         </Text>
         <Title level={2} style={{ margin: '4px 0 6px' }}>{formatCurrency(invoice.amount)}</Title>
         {unpaid ? (
@@ -67,6 +68,8 @@ export default function MyInvoiceDetail({ invoice, loading }) {
             <ClockCircleOutlined /> Hạn nộp: {formatDate(invoice.dueDate)}
             {daysLeft !== null && (pastDue ? ` (đã qua ${Math.abs(daysLeft)} ngày)` : daysLeft === 0 ? ' (hôm nay)' : ` (còn ${daysLeft} ngày)`)}
           </Text>
+        ) : cancelled ? (
+          <Text type="secondary">Hóa đơn không còn hiệu lực</Text>
         ) : (
           <Text type="success">
             <CheckCircleOutlined /> {formatDateTime(invoice.paidAt)}{payment ? ` · ${PAYMENT_METHOD[payment.method]?.label ?? payment.method}` : ''}

@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Form, Input, Button, Typography, Alert, Checkbox, Popover, Collapse, Grid, App } from 'antd';
-import { UserOutlined, LockOutlined, InfoCircleOutlined, FormOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Typography, Alert, Checkbox, Popover, Divider, Grid, App } from 'antd';
+import { UserOutlined, LockOutlined, KeyOutlined, ArrowRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { getErrorCode, getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
-import { USE_MOCK } from '../../../lib/env';
 import { safeRedirectPath } from '../../../routes/paths';
 import { APP_VERSION, SUPPORT_CONTACT } from '../../../constants/app';
 import BrandLogo from '../../../components/BrandLogo';
@@ -12,32 +11,50 @@ import BrandLogo from '../../../components/BrandLogo';
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
-/**
- * Tài khoản thử — CHỈ hiện khi chạy dev. Một bộ cho cả hai chế độ: dữ liệu giả (src/mocks) và seed của backend
- * (BE `src/scripts/seed.js` dựng đúng các tài khoản và tình huống này). ⚠️ Đổi ở một bên thì đổi cả bên kia.
- */
-const DEMO_ACCOUNTS = [
-  ['Quản trị', 'admin@dorm.local', 'Admin@123'],
-  ['Nhân viên', 'staff@dorm.local', 'Staff@123'],
-  ['SV đang ở', 'sv001@dorm.local', 'Student@123'],
-  ['SV chưa có chỗ', 'sv002@dorm.local', 'Student@123'],
-  ['SV sắp hết hạn hợp đồng', 'sv004@dorm.local', 'Student@123'],
-  ['SV bị từ chối đơn', 'sv005@dorm.local', 'Student@123'],
-  ['SV có đơn chờ duyệt', 'sv006@dorm.local', 'Student@123'],
-  ['SV từng ở, có lịch sử', 'sv007@dorm.local', 'Student@123'],
-  ['SV vừa được cấp tài khoản (MSSV)', '2021600005', '2021600005'],
-  ['Mật khẩu tạm (buộc đổi)', 'doimk@dorm.local', 'Tam@12345'],
+const STUDENT_DEMO = [
+  ['SV đang ở (A14-101 · CS1)', 'sv001@dorm.local', 'Student@123'],
+  ['SV sạch nợ (A15-102 · CS1)', 'sv002@dorm.local', 'Student@123'],
+  ['Cựu SV hết hạn HĐ (đăng ký lại)', 'sv003@dorm.local', 'Student@123'],
+  ['SV chờ đóng phí (CS3)', 'sv004@dorm.local', 'Student@123'],
+  ['SV quá hạn phí (CS3)', 'sv005@dorm.local', 'Student@123'],
+  ['SV đổi MK lần đầu', '2026600031', '2026600031'],
 ];
 
-const SupportInfo = () => (
-  <Text type="secondary" style={{ fontSize: 13 }}>
-    <Text strong>Hỗ trợ kỹ thuật:</Text> {SUPPORT_CONTACT.office} · Hotline:{' '}
-    <Text strong>{SUPPORT_CONTACT.hotline}</Text>
-  </Text>
+const ADMIN_DEMO = [
+  ['Admin (Hệ thống)', 'admin@dorm.local', 'Admin@123'],
+  ['Manager (Trưởng ban KTX)', 'manager@dorm.local', 'Manager@123'],
+  ['Staff (Cán bộ KTX)', 'staff@dorm.local', 'Staff@123'],
+  ['Staff đổi MK lần đầu', 'doimk@dorm.local', 'Tam@12345'],
+];
+
+const STUDENT_POINTS = [
+  'Theo dõi hợp đồng nội trú, số phòng và bạn cùng phòng',
+  'Thanh toán tiền phòng & hóa đơn điện nước nhanh qua VietQR',
+  'Mở mã QR Check-in nhận phòng và gửi yêu cầu sửa chữa trực tuyến',
+];
+
+const ADMIN_POINTS = [
+  'Phân quyền chặt chẽ Admin, Trưởng ban KTX và Cán bộ quản sinh',
+  'Duyệt đơn theo thứ tự nộp và tự xếp phòng tầng thấp lên cao',
+  'Quản lý quỹ phòng 3 cơ sở, đối soát thu chi và hoàn cọc minh bạch',
+];
+
+const SupportPopoverContent = () => (
+  <div style={{ maxWidth: 280, fontSize: 13 }}>
+    <Text strong style={{ display: 'block' }}>Hỗ trợ KTX HaUI</Text>
+    <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>{SUPPORT_CONTACT.office}</Text>
+    <div style={{ marginTop: 6 }}>Hotline: <Text strong className="mono">{SUPPORT_CONTACT.hotline}</Text></div>
+    <Text type="secondary" style={{ fontSize: 12 }}>{SUPPORT_CONTACT.workingHours}</Text>
+  </div>
 );
 
-/** SCR-01 Đăng nhập */
-export default function LoginPage() {
+/**
+ * 2 Cổng Đăng nhập tách biệt hoàn toàn:
+ *  - `/login` (`portal="student"`): Nền xanh nhẹ HaUI (#EFF6FF) sáng sang, dùng logo chính thức nguyên màu
+ *  - `/admin/login` (`portal="admin"`): Nền slate nội bộ (#0F172A) tách biệt tuyệt đối
+ */
+export default function LoginPage({ portal = 'student' }) {
+  const isAdmin = portal === 'admin';
   const location = useLocation();
   const { login, isAuthenticated, user } = useAuth();
   const { message } = App.useApp();
@@ -45,19 +62,21 @@ export default function LoginPage() {
   const screens = useBreakpoint();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [demoOpen, setDemoOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Đã đăng nhập (kể cả ngay sau khi bấm nút) → về trang cũ nếu cùng khu vực, không thì về trang chủ theo vai trò.
-  // Tài khoản mật khẩu tạm sẽ bị RoleRoute chuyển tiếp sang trang đổi mật khẩu.
   if (isAuthenticated) {
     return <Navigate to={safeRedirectPath(user.role, location.state?.from)} replace />;
   }
+
+  const demoList = isAdmin ? ADMIN_DEMO : STUDENT_DEMO;
+  const highlights = isAdmin ? ADMIN_POINTS : STUDENT_POINTS;
 
   const handleSubmit = async ({ identifier, password, remember }) => {
     setLoading(true);
     setError(null);
     try {
-      const loggedIn = await login(identifier.trim(), password, remember);
+      const loggedIn = await login(identifier.trim(), password, remember, portal);
       if (loggedIn.mustChangePassword) message.warning('Vui lòng đổi mật khẩu để tiếp tục');
       else message.success('Đăng nhập thành công');
     } catch (err) {
@@ -69,6 +88,7 @@ export default function LoginPage() {
         setError({
           message: getErrorMessage(err, 'Đăng nhập thất bại, vui lòng thử lại'),
           locked: code === 'ACCOUNT_LOCKED',
+          wrongPortal: code === 'WRONG_LOGIN_PORTAL',
         });
       }
     } finally {
@@ -76,139 +96,209 @@ export default function LoginPage() {
     }
   };
 
+  const switchPath = isAdmin ? '/login' : '/admin/login';
+  const switchLabel = isAdmin ? 'Sang Cổng Sinh viên' : 'Sang Cổng Ban quản lý';
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: '#fff' }}>
-      {/* ---------- Nửa trái: nhận diện + những việc làm được trên hệ thống (đều là tính năng có thật) ---------- */}
+    <div style={{ minHeight: '100vh', display: 'flex', background: '#FFFFFF' }}>
       {screens.md && (
-        <div style={{
-          flex: 1, background: 'linear-gradient(160deg, #0E4FB0 0%, var(--brand) 70%)', color: '#fff', position: 'relative',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '48px 56px',
-        }}>
-          <div style={{ maxWidth: 440 }}>
-            {/* Logo cạnh tên (không xếp ô logo trên tiêu đề). ⚠️ Chữ trên nền xanh để trắng đặc: làm mờ (opacity 0.85) chỉ còn 4.48:1, dưới AA */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <BrandLogo size={56} variant="glass" />
-              <div>
-                <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.2 }}>Ký túc xá HaUI</div>
-                <div style={{ fontSize: 15, marginTop: 4 }}>Trường Đại học Công nghiệp Hà Nội</div>
-              </div>
+        <div
+          style={{
+            flex: '0 0 46%',
+            backgroundColor: isAdmin ? '#0F172A' : '#EFF6FF',
+            color: isAdmin ? '#FFFFFF' : '#0F172A',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            padding: '42px 50px',
+            borderRight: `1px solid ${isAdmin ? '#1E293B' : '#DBEAFE'}`,
+          }}
+        >
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+            <BrandLogo height={34} onDark={isAdmin} />
+          </Link>
+
+          <div style={{ maxWidth: 430 }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '4px 10px',
+              borderRadius: 6,
+              background: isAdmin ? 'rgba(59, 130, 246, 0.16)' : '#FFFFFF',
+              border: `1px solid ${isAdmin ? 'rgba(96, 165, 250, 0.35)' : '#BFDBFE'}`,
+              fontSize: 11.5,
+              fontWeight: 600,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              color: isAdmin ? '#93C5FD' : '#1D4ED8',
+              marginBottom: 16,
+            }}>
+              {isAdmin ? 'Hệ thống quản trị nội bộ' : 'Cổng dịch vụ sinh viên nội trú'}
             </div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: '36px 0 0', display: 'grid', gap: 16 }}>
-              {[
-                ['Sinh viên', 'Đăng ký ở ký túc xá, tra cứu đơn, xem hợp đồng và hóa đơn, nộp tiền bằng mã VietQR.'],
-                ['Cán bộ', 'Duyệt đơn và xếp giường, chốt điện nước theo phòng, thu tiền, theo dõi lấp đầy.'],
-                ['Tài khoản', 'Cấp khi đơn được duyệt. Đăng nhập lần đầu bằng mã sinh viên và đổi mật khẩu.'],
-              ].map(([head, text]) => (
-                <li key={head} style={{ display: 'grid', gridTemplateColumns: '88px 1fr', gap: 12, fontSize: 14, lineHeight: 1.55 }}>
-                  <span style={{ fontWeight: 600 }}>{head}</span>
-                  <span>{text}</span>
-                </li>
+
+            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.3, marginBottom: 14 }}>
+              {isAdmin
+                ? 'Vận hành & điều phối ký túc xá tập trung 3 cơ sở'
+                : 'Quản lý chỗ ở, thanh toán VietQR và thủ tục trực tuyến'}
+            </div>
+
+            <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+              {highlights.map((item) => (
+                <div
+                  key={item}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    background: isAdmin ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
+                    border: `1px solid ${isAdmin ? 'rgba(255, 255, 255, 0.09)' : '#DCE7F7'}`,
+                    fontSize: 13.5,
+                    lineHeight: 1.5,
+                    color: isAdmin ? '#E2E8F0' : '#334155',
+                  }}
+                >
+                  <CheckCircleOutlined style={{ color: isAdmin ? '#60A5FA' : '#2563EB', marginTop: 3, flexShrink: 0 }} />
+                  <span>{item}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
-          <div style={{ position: 'absolute', bottom: 24, left: 56, right: 56, fontSize: 12 }}>
-            © {new Date().getFullYear()} Ký túc xá Đại học Công nghiệp Hà Nội · Phiên bản {APP_VERSION}
+
+          <div style={{
+            fontSize: 12,
+            color: isAdmin ? '#94A3B8' : '#64748B',
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 12,
+            paddingTop: 16,
+            borderTop: `1px solid ${isAdmin ? 'rgba(255,255,255,0.1)' : '#DBEAFE'}`,
+          }}>
+            <span>© {new Date().getFullYear()} Trung tâm Hỗ trợ sinh viên HaUI</span>
+            <span className="mono">{APP_VERSION}</span>
           </div>
         </div>
       )}
 
-      {/* ---------- Nửa phải: biểu mẫu ---------- */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
-        <div style={{ width: '100%', maxWidth: 400 }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '36px 24px', background: '#FFFFFF' }}>
+        <div style={{ width: '100%', maxWidth: 390 }}>
           {!screens.md && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
-              <BrandLogo size={40} />
-              <Text strong style={{ fontSize: 16 }}>KÝ TÚC XÁ HaUI</Text>
+            <div style={{ marginBottom: 24 }}>
+              <Link to="/"><BrandLogo height={32} /></Link>
             </div>
           )}
 
-          <Title level={2} style={{ marginBottom: 4 }}>Đăng nhập</Title>
-          <Text type="secondary">Sinh viên dùng mã sinh viên, cán bộ dùng email</Text>
+          <Title level={2} style={{ margin: '0 0 6px', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>
+            {isAdmin ? 'Đăng nhập Ban quản lý' : 'Đăng nhập Sinh viên'}
+          </Title>
+          <Text type="secondary" style={{ fontSize: 13.5 }}>
+            {isAdmin
+              ? 'Dành cho Quản trị viên, Trưởng ban KTX và Cán bộ trực tòa.'
+              : 'Dùng mã sinh viên (10 chữ số) hoặc email được cấp sau khi duyệt đơn.'}
+          </Text>
 
           {error && (
             <Alert
-              type="error"
-              showIcon
-              style={{ marginTop: 24 }}
+              type="error" showIcon style={{ marginTop: 18 }}
               title={error.message}
               description={error.locked ? `Liên hệ ${SUPPORT_CONTACT.office} để được mở khóa.` : undefined}
+              action={error.wrongPortal && (
+                <Button size="small" onClick={() => navigate(switchPath)}>{switchLabel}</Button>
+              )}
             />
           )}
 
           <Form
-            form={form}
-            layout="vertical"
-            size="large"
-           
-            initialValues={{ remember: true }}
-            onFinish={handleSubmit}
-            onValuesChange={() => error && setError(null)}
-            style={{ marginTop: 24 }}
+            form={form} layout="vertical" size="large" initialValues={{ identifier: '', password: '', remember: true }}
+            onFinish={handleSubmit} onValuesChange={() => error && setError(null)}
+            autoComplete="off"
+            style={{ marginTop: 22 }}
           >
             <Form.Item
               name="identifier"
-              label="Email hoặc mã sinh viên"
-              rules={[{ required: true, whitespace: true, message: 'Vui lòng nhập email hoặc mã sinh viên' }]}
+              label={isAdmin ? 'Email cán bộ' : 'Mã sinh viên hoặc Email'}
+              rules={[{ required: true, whitespace: true, message: isAdmin ? 'Vui lòng nhập email cán bộ' : 'Vui lòng nhập MSSV hoặc email' }]}
             >
-              <Input prefix={<UserOutlined style={{ color: 'var(--text-tertiary)' }} />} placeholder="VD: 2021601234" autoComplete="username" autoFocus />
+              <Input
+                prefix={<UserOutlined style={{ color: 'var(--text-tertiary)' }} />}
+                placeholder={isAdmin ? 'manager@dorm.local' : '2024600001 hoặc sv001@dorm.local'}
+                autoComplete="off"
+                autoFocus
+              />
             </Form.Item>
 
             <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}>
-              <Input.Password prefix={<LockOutlined style={{ color: 'var(--text-tertiary)' }} />} placeholder="••••••••" autoComplete="current-password" />
+              <Input.Password prefix={<LockOutlined style={{ color: 'var(--text-tertiary)' }} />} placeholder="Nhập mật khẩu" autoComplete="new-password" />
             </Form.Item>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <Form.Item name="remember" valuePropName="checked" noStyle>
                 <Checkbox>Ghi nhớ đăng nhập</Checkbox>
               </Form.Item>
-              <Popover trigger="click" placement="bottomRight" content={<div style={{ maxWidth: 280 }}><SupportInfo /></div>}>
-                <a>Cần trợ giúp?</a>
+              <Popover trigger="click" placement="bottomRight" content={<SupportPopoverContent />}>
+                <a style={{ fontSize: 13 }}>Cần trợ giúp?</a>
               </Popover>
             </div>
 
-            <Button type="primary" htmlType="submit" block loading={loading}>Đăng nhập</Button>
+            <Button type="primary" htmlType="submit" block loading={loading}>
+              {isAdmin ? 'Đăng nhập Quản trị' : 'Đăng nhập Cổng Sinh viên'}
+            </Button>
           </Form>
 
-          {/* Sinh viên chưa có tài khoản nộp đơn ở cổng công khai (FR-30) */}
-          <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-            <Button block icon={<FormOutlined />} onClick={() => navigate('/apply')}>Đăng ký ở ký túc xá</Button>
-            <Text type="secondary" style={{ textAlign: 'center', fontSize: 13 }}>
-              Đã nộp đơn? <Link to="/apply/status">Tra cứu tiến độ</Link>
-            </Text>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <Text type="secondary" style={{ fontSize: 13 }}>Quên mật khẩu? Liên hệ ban quản lý ký túc xá.</Text>
-          </div>
-
-          <div style={{
-            marginTop: 32, padding: '12px 16px', borderRadius: 8, background: '#FAFAFA', border: '1px solid var(--line)',
-            display: 'flex', gap: 10, alignItems: 'flex-start',
-          }}>
-            <InfoCircleOutlined style={{ color: 'var(--brand)', marginTop: 3 }} />
-            <SupportInfo />
-          </div>
-
-          {import.meta.env.DEV && (
-            <Collapse
-              ghost
-              size="small"
-              style={{ marginTop: 16 }}
-              items={[{
-                key: 'demo',
-                label: <Text type="secondary" style={{ fontSize: 12 }}>Tài khoản thử ({USE_MOCK ? 'dữ liệu giả' : 'seed của backend'}) — chỉ hiện khi chạy dev</Text>,
-                children: (
-                  <div style={{ display: 'grid', gap: 6, fontSize: 12 }}>
-                    {DEMO_ACCOUNTS.map(([label, identifier, password]) => (
-                      <a key={identifier} onClick={() => form.setFieldsValue({ identifier, password })}>
-                        {label}: <code>{identifier}</code> / <code>{password}</code>
-                      </a>
-                    ))}
-                  </div>
-                ),
-              }]}
-            />
+          {!isAdmin && (
+            <>
+              <Divider style={{ margin: '18px 0 14px', fontSize: 12 }}><Text type="secondary">Chưa từng ở KTX?</Text></Divider>
+              <Button block size="large" onClick={() => navigate('/apply')}>
+                Đăng ký ở ký túc xá
+              </Button>
+            </>
           )}
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginTop: 18, fontSize: 13 }}>
+            <Link to="/">Thông tin &amp; Bảng giá</Link>
+            {!isAdmin && (
+              <>
+                <Text type="secondary">·</Text>
+                <Link to="/apply/status">Tra cứu đơn</Link>
+              </>
+            )}
+            {import.meta.env.DEV && (
+              <>
+                <Text type="secondary">·</Text>
+                <Popover
+                  open={demoOpen}
+                  onOpenChange={setDemoOpen}
+                  trigger="click"
+                  placement="top"
+                  title={isAdmin ? 'Tài khoản Cán bộ mẫu (dev)' : 'Tài khoản Sinh viên mẫu (dev)'}
+                  content={(
+                    <div style={{ display: 'grid', gap: 6, fontSize: 12, maxWidth: 310 }}>
+                      {demoList.map(([label, identifier, password]) => (
+                        <a
+                          key={identifier}
+                          onClick={() => { form.setFieldsValue({ identifier, password }); setDemoOpen(false); }}
+                        >
+                          <b>{label}:</b> <code className="mono">{identifier}</code>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                >
+                  <a><KeyOutlined /> Tài khoản mẫu</a>
+                </Popover>
+              </>
+            )}
+          </div>
+
+          <Divider style={{ margin: '18px 0 12px' }} />
+          <div style={{ textAlign: 'center', fontSize: 13 }}>
+            <Text type="secondary">{isAdmin ? 'Bạn là sinh viên? ' : 'Cán bộ quản lý? '}</Text>
+            <Link to={switchPath} style={{ fontWeight: 600 }}>
+              {isAdmin ? 'Đăng nhập Cổng Sinh viên' : 'Đăng nhập Ban quản lý'} <ArrowRightOutlined style={{ fontSize: 11 }} />
+            </Link>
+          </div>
         </div>
       </div>
     </div>

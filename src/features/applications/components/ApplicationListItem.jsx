@@ -1,21 +1,27 @@
-import { Tag, Typography } from 'antd';
-import { CONTRACT_TERM, GENDER } from '../../../constants/statuses';
+import { Tag, Typography, Space } from 'antd';
+import { CONTRACT_TERM, GENDER, ROOM_TIER } from '../../../constants/statuses';
 import { formatDate, formatDateTime } from '../../../utils/formatter';
-import { initialsOf, pad2, roomTextOf } from '../utils/applicationView';
+import { initialsOf, roomTextOf } from '../utils/applicationView';
 
 const { Text } = Typography;
 
-/** Một thẻ đơn trong danh sách bên trái của SCR-31. Đơn là hợp đồng `pending` hoặc `rejected` */
+/** Một thẻ đơn trong danh sách bên trái (xếp thuần theo thứ tự nộp FIFO — không ưu tiên) */
 export default function ApplicationListItem({ app, selected, onSelect }) {
   const { student } = app;
   const open = () => onSelect(app.id);
+
+  const wishOrRoom = app.room
+    ? roomTextOf(app.room)
+    : app.preferredRoomTier
+      ? `${ROOM_TIER[app.preferredRoomTier]?.label || app.preferredRoomTier}${app.preferredCapacity ? ` · ${app.preferredCapacity} chỗ` : ''}`
+      : 'Chờ xếp tầng thấp → cao';
 
   return (
     <div
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      aria-label={`Đơn ${app.contractCode} của ${student.fullName}`}
+      aria-label={`Đơn ${app.contractCode} của ${student?.fullName}`}
       onClick={open}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
       style={{
@@ -29,19 +35,25 @@ export default function ApplicationListItem({ app, selected, onSelect }) {
           width: 40, height: 40, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center',
           background: 'var(--brand-soft)', color: 'var(--brand)', fontWeight: 600,
         }}>
-          {initialsOf(student.fullName)}
+          {initialsOf(student?.fullName)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Text strong ellipsis style={{ fontSize: 15, display: 'block' }}>{student.fullName}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>{student.studentCode} · {GENDER[student.gender]?.label}</Text>
+          <Text strong ellipsis style={{ fontSize: 15, display: 'block' }}>{student?.fullName}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {student?.studentCode} · {GENDER[student?.gender]?.label}
+            {app.campus ? ` · ${app.campus.toUpperCase()}` : ''}
+          </Text>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 }}>
-        <Text style={{ fontSize: 13, color: 'var(--brand)' }}>{roomTextOf(app.room)} · Giường {pad2(app.bedNumber)}</Text>
-        <Tag style={{ margin: 0 }}>{CONTRACT_TERM[app.term]?.label}</Tag>
-        <Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto' }}>
-          {app.status === 'pending' ? `Nộp ${formatDateTime(app.createdAt)}` : `Từ chối ${formatDate(app.reviewedAt)}`}
+      <Space size={4} wrap style={{ marginTop: 8 }}>
+        <Text style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 500 }}>{wishOrRoom}</Text>
+        <Tag style={{ margin: 0 }}>{CONTRACT_TERM[app.term]?.label || app.term}</Tag>
+      </Space>
+
+      <div style={{ marginTop: 6, textAlign: 'right' }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {app.status === 'pending' ? `Nộp ${formatDateTime(app.createdAt)}` : `Cập nhật ${formatDate(app.reviewedAt || app.createdAt)}`}
         </Text>
       </div>
     </div>

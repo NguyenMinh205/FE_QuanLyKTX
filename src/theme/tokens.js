@@ -1,30 +1,36 @@
 /**
- * Một nguồn màu cho cả app (M10b, 10/11/2026). Antd đọc `antdTheme`; style nội dòng dùng biến CSS cùng tên trong index.css
- * (`var(--brand)`…), biểu đồ recharts dùng hằng số ở đây vì thuộc tính SVG không đọc được var().
- *
- * ⚠️ Mọi màu chữ đã đo tương phản WCAG AA (≥ 4.5:1 trên nền trắng). Đổi màu thì đo lại:
- *   BRAND #1263D6 — chữ trắng trên nền xanh 5.55:1, chữ xanh trên nền trắng 5.55:1 (#1677FF cũ chỉ 4.1:1)
- *   TEXT_TERTIARY #5B6474 5.97:1 (#8C8C8C cũ 3.4:1) · SUCCESS_TEXT #2F7D0B 5.17:1 · WARNING_TEXT #9A5B00 5.43:1
+ * Hệ thống màu & thiết kế chuẩn HaUI hiện đại — tông xanh nhẹ thanh lịch, chia khối rõ ràng.
+ * - Màu chủ đạo: Xanh dương hiện đại (#2563EB) hòa hợp logo chính thức HaUI (#153C88 / #21409A)
+ * - Phân tách khối: Nền canvas xám-xanh nhẹ (#F1F5F9), vùng nhấn xanh nhạt (#EFF6FF), card trắng (#FFFFFF) viền sắc nét (#E2E8F0)
+ * - Kiểu chữ: Be Vietnam Pro (tối ưu dấu tiếng Việt) + JetBrains Mono (mã số & số tiền)
  */
-export const BRAND = '#1263D6';
-export const BRAND_SOFT = '#EAF1FC';
-export const TEXT_SECONDARY = '#4B5563';
-export const TEXT_TERTIARY = '#5B6474';
-export const TEXT_PLACEHOLDER = '#6B7280';
-export const SUCCESS_TEXT = '#2F7D0B';
-export const WARNING_TEXT = '#9A5B00';
-export const DANGER_TEXT = '#CF1322';
-export const LAYOUT_BG = '#F4F6F9';
+export const BRAND = '#2563EB';
+export const BRAND_HOVER = '#1D4ED8';
+export const BRAND_DEEP = '#153C88';
+export const BRAND_SOFT = '#EFF6FF';
+export const BRAND_BORDER = '#BFDBFE';
+export const ACCENT = '#DE2737';
+export const INK = '#0F172A';
+export const TEXT_SECONDARY = '#475569';
+export const TEXT_TERTIARY = '#64748B';
+export const TEXT_PLACEHOLDER = '#94A3B8';
+export const SUCCESS_TEXT = '#15803D';
+export const WARNING_TEXT = '#B45309';
+export const DANGER_TEXT = '#DC2626';
+export const LAYOUT_BG = '#F1F5F9';
+export const LINE = '#E2E8F0';
 
 export const antdTheme = {
   token: {
     colorPrimary: BRAND,
     colorLink: BRAND,
+    colorLinkHover: BRAND_HOVER,
     colorInfo: BRAND,
-    colorSuccess: '#52C41A',
-    colorWarning: '#FAAD14',
-    colorError: '#FF4D4F',
-    // Chữ trạng thái (Text type="success|warning|danger", lỗi form) — màu nền giữ nguyên ở trên, chỉ chữ đậm lại cho đủ AA
+    colorSuccess: '#16A34A',
+    colorWarning: '#D97706',
+    colorError: '#DC2626',
+    colorText: INK,
+    colorTextHeading: INK,
     colorSuccessText: SUCCESS_TEXT,
     colorWarningText: WARNING_TEXT,
     colorErrorText: DANGER_TEXT,
@@ -32,21 +38,27 @@ export const antdTheme = {
     colorTextTertiary: TEXT_TERTIARY,
     colorTextPlaceholder: TEXT_PLACEHOLDER,
     colorBgLayout: LAYOUT_BG,
-    colorBorderSecondary: '#EBEEF2',
+    colorBorder: '#CBD5E1',
+    colorBorderSecondary: LINE,
     borderRadius: 8,
     borderRadiusSM: 6,
-    fontFamily: "'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-    // antd mặc định có kiểu "nảy" (back easing) — đổi sang giảm tốc mượt, chuyển động ngắn chỉ để báo trạng thái
+    borderRadiusLG: 10,
+    fontFamily: "'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontSize: 14,
     motionEaseOutBack: 'cubic-bezier(0.22, 1, 0.36, 1)',
     motionEaseInBack: 'cubic-bezier(0.64, 0, 0.78, 0)',
-    motionDurationMid: '0.18s',
-    motionDurationSlow: '0.24s',
+    motionDurationMid: '0.16s',
+    motionDurationSlow: '0.22s',
   },
   components: {
     Layout: { headerBg: '#FFFFFF', siderBg: '#FFFFFF', bodyBg: LAYOUT_BG },
-    Menu: { itemSelectedBg: BRAND_SOFT, itemSelectedColor: BRAND, itemBorderRadius: 8 },
-    Table: { headerBg: '#F7F8FA', headerColor: TEXT_SECONDARY, rowHoverBg: '#F7F9FC' },
-    Card: { headerFontSize: 15 },
-    Tabs: { itemColor: TEXT_SECONDARY },
+    Button: { primaryShadow: '0 1px 2px rgba(37, 99, 235, 0.18)', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 500 },
+    Menu: { itemSelectedBg: BRAND_SOFT, itemSelectedColor: BRAND_HOVER, itemBorderRadius: 6, itemColor: '#334155' },
+    Table: { headerBg: '#F8FAFC', headerColor: TEXT_SECONDARY, rowHoverBg: '#F8FAFC', borderColor: LINE },
+    Card: { headerFontSize: 15, headerHeight: 48, borderRadiusLG: 10 },
+    Tabs: { itemColor: TEXT_SECONDARY, itemSelectedColor: BRAND, inkBarColor: BRAND, titleFontSize: 14 },
+    Segmented: { trackBg: '#E2E8F0', itemSelectedBg: '#FFFFFF', itemColor: TEXT_SECONDARY, itemSelectedColor: INK },
+    Input: { activeShadow: '0 0 0 2px rgba(37, 99, 235, 0.14)' },
+    Select: { optionSelectedBg: BRAND_SOFT },
   },
 };

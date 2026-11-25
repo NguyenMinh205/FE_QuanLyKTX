@@ -1,55 +1,64 @@
 import { Tooltip, Typography } from 'antd';
-import { ToolOutlined } from '@ant-design/icons';
 import { FILL_LEVEL, fillLevelOf, slotTextOf, roomLabelOf } from '../utils/roomStatus';
+import { GENDER, ROOM_TIER } from '../../../constants/statuses';
 import { formatCurrency } from '../../../utils/formatter';
 
 const { Text } = Typography;
+const TIER_SHORT = { high_quality: 'CLC', standard: 'TC', basic: 'CB' };
 
-/** Một ô phòng trên sơ đồ tầng — bấm để mở chi tiết (SCR-23) */
+/** Ô phòng kiến trúc phẳng: nền trắng sắc nét + thanh trạng thái 3px cạnh trái + nhãn giới tính trầm */
 export default function RoomTile({ room, selected, onSelect }) {
   const level = FILL_LEVEL[fillLevelOf(room)];
-  const used = room.occupied / room.capacity;
-  const broken = room.maintenanceBeds / room.capacity;
-  const showMaintenance = room.maintenanceBeds > 0 && room.status === 'active';
+  const used = room.capacity > 0 ? (room.occupied || 0) / room.capacity : 0;
+  const genderLabel = room.gender ? GENDER[room.gender]?.label : 'Trống';
+  const genderStyle = room.gender === 'female'
+    ? { background: '#FDF2F8', color: '#BE185D' }
+    : room.gender === 'male'
+      ? { background: '#EFF6FF', color: '#1D4ED8' }
+      : { background: '#F1F5F9', color: '#475569' };
 
   const open = () => onSelect(room.id);
 
   return (
-    <Tooltip title={`${formatCurrency(room.pricePerMonth)}/người/tháng · Cọc ${formatCurrency(room.depositAmount)}`} mouseEnterDelay={0.5}>
+    <Tooltip
+      title={`${room.gender ? `Phòng ${genderLabel}` : 'Phòng trống (chưa gán giới tính)'} · ${ROOM_TIER[room.roomTier]?.label || 'Tiêu chuẩn'} · ${formatCurrency(room.pricePerMonth)}/SV/tháng`}
+      mouseEnterDelay={0.4}
+    >
       <div
         role="button"
         tabIndex={0}
         aria-pressed={selected}
-        aria-label={`Phòng ${roomLabelOf(room)}, ${slotTextOf(room)}`}
+        aria-label={`Phòng ${roomLabelOf(room)}, ${genderLabel}, ${slotTextOf(room)}`}
         onClick={open}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
-        style={{
-          cursor: 'pointer', borderRadius: 8, padding: '10px 12px', background: level.bg,
-          border: `${selected ? 2 : 1}px solid ${selected ? 'var(--brand)' : level.border}`,
-          boxShadow: selected ? '0 0 0 3px rgba(22,119,255,0.15)' : 'none',
-          margin: selected ? 0 : 1, transition: 'box-shadow .15s, border-color .15s',
-        }}
+        className={`room-tile${selected ? ' room-tile-selected' : ''}`}
+        style={{ borderLeft: `3px solid ${level.rail}` }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 }}>
-          <Text strong style={{ fontSize: 16 }}>{roomLabelOf(room)}</Text>
-          <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{room.capacity} chỗ</Text>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+          <Text strong className="mono" style={{ fontSize: 14, whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+            {roomLabelOf(room)}
+          </Text>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <span style={{ ...genderStyle, fontSize: 10.5, fontWeight: 600, padding: '1px 6px', borderRadius: 3, lineHeight: '16px' }}>
+              {genderLabel}
+            </span>
+            <span style={{ background: '#F2F4F7', color: '#475467', fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 3, lineHeight: '16px' }}>
+              {TIER_SHORT[room.roomTier] || 'TC'}
+            </span>
+          </span>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 4 }}>
           <Text ellipsis style={{ fontSize: 12, color: level.text, fontWeight: 500, minWidth: 0 }}>
-            {showMaintenance ? (room.availableSlots > 0 ? `Còn ${room.availableSlots} chỗ` : 'Hết chỗ') : slotTextOf(room)}
+            {slotTextOf(room)}
           </Text>
-          <Text strong style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{room.occupied}/{room.capacity}</Text>
+          <Text strong className="mono" style={{ fontSize: 12, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+            {room.occupied ?? 0}/{room.capacity}
+          </Text>
         </div>
-        {showMaintenance && (
-          <Text style={{ display: 'block', fontSize: 11, color: level.text, marginTop: 2, whiteSpace: 'nowrap' }}>
-            <ToolOutlined style={{ marginRight: 4 }} />{room.maintenanceBeds} bảo trì
-          </Text>
-        )}
 
-        <div style={{ display: 'flex', height: 4, borderRadius: 2, background: 'var(--line)', overflow: 'hidden', marginTop: 8 }}>
-          <div style={{ width: `${used * 100}%`, background: level === FILL_LEVEL.maintenance ? 'var(--brand)' : level.color }} />
-          {broken > 0 && <div style={{ width: `${broken * 100}%`, background: '#FF4D4F' }} />}
+        <div style={{ display: 'flex', height: 3, borderRadius: 2, background: '#EEF1F5', overflow: 'hidden', marginTop: 7 }}>
+          <div style={{ width: `${Math.min(100, used * 100)}%`, background: level.color }} />
         </div>
       </div>
     </Tooltip>

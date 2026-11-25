@@ -19,13 +19,17 @@ export default function StudentFormModal({ open, student, onCancel, onSaved }) {
   const [saving, setSaving] = useState(false);
   const isEdit = !!student;
   // Mở sửa từ drawer chi tiết nên có `contracts`; thiếu thì chỉ dựa vào `residence`
-  const genderLocked = isEdit && (!!student.residence || !!student.contracts?.some((c) => c.status === 'pending'));
+  const genderLocked = isEdit && (!!student.residence || !!student.contracts?.some((c) => ['pending', 'pending_payment'].includes(c.status)));
 
   useEffect(() => {
     if (!open) return;
-    // ⚠️ Luôn xoá form trước: form sống lâu hơn modal, sinh viên thiếu trường (nhập Excel) sẽ mang giá trị của người sửa trước
     form.resetFields();
-    if (isEdit) form.setFieldsValue({ ...student, dob: student.dob ? dayjs(student.dob) : null });
+    if (isEdit) {
+      form.setFieldsValue({
+        ...student,
+        dob: student.dob ? dayjs(student.dob) : null,
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, student]);
 

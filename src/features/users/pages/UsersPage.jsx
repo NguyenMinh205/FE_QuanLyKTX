@@ -18,16 +18,16 @@ import TemporaryPasswordModal from '../components/TemporaryPasswordModal';
 
 const { Text } = Typography;
 
-const ROLE_COLOR = { admin: 'red', staff: 'blue', student: 'green' };
-const ROLE_FILTERS = ['all', 'admin', 'staff', 'student'];
+const ROLE_COLOR = { admin: 'red', manager: 'purple', staff: 'blue', student: 'green' };
+const ROLE_FILTERS = ['all', 'admin', 'manager', 'staff', 'student'];
 
-/** SCR-81 Tài khoản — chỉ Admin (docs/07 mục 2, FR-06, FR-09) */
+/** Quản lý tài khoản — chỉ Admin (RBAC v3.0) */
 export default function UsersPage() {
   const { user: me, updateUser } = useAuth();
   const { modal, message } = App.useApp();
 
   const [filters, setFilters] = useState({ page: 1, limit: 20, search: '', role: 'all', isActive: undefined });
-  const [formUser, setFormUser] = useState(null); // null = đóng · {} = thêm · user = sửa
+  const [formUser, setFormUser] = useState(null);
   const [tempPassword, setTempPassword] = useState(null);
 
   const { data, meta, loading, error, refetch } = useApi(
@@ -54,8 +54,8 @@ export default function UsersPage() {
     modal.confirm({
       title: `${locking ? 'Khóa' : 'Mở khóa'} tài khoản ${u.email}?`,
       content: locking
-        ? 'Người dùng sẽ không đăng nhập được nữa (báo "Tài khoản đã bị vô hiệu hóa"). Dữ liệu và lịch sử thao tác được giữ nguyên.'
-        : 'Người dùng đăng nhập lại được bằng mật khẩu hiện tại.',
+        ? 'Người dùng sẽ không đăng nhập được nữa. Dữ liệu và lịch sử thao tác vẫn được giữ nguyên.'
+        : 'Người dùng có thể đăng nhập lại bằng mật khẩu hiện tại.',
       okText: locking ? 'Khóa tài khoản' : 'Mở khóa',
       okButtonProps: locking ? { danger: true } : undefined,
       cancelText: 'Hủy',
@@ -73,7 +73,7 @@ export default function UsersPage() {
 
   const confirmReset = (u) => modal.confirm({
     title: `Đặt lại mật khẩu cho ${u.fullName}?`,
-    content: 'Mật khẩu hiện tại hết hiệu lực ngay. Hệ thống sinh mật khẩu tạm để bạn trao trực tiếp; người dùng phải đổi ở lần đăng nhập kế tiếp.',
+    content: 'Mật khẩu hiện tại hết hiệu lực ngay. Hệ thống sinh mật khẩu tạm và buộc đổi ở lần đăng nhập kế tiếp.',
     okText: 'Đặt lại mật khẩu', cancelText: 'Hủy',
     icon: <KeyOutlined style={{ color: '#FAAD14' }} />,
     onOk: async () => {
@@ -89,33 +89,48 @@ export default function UsersPage() {
 
   const columns = [
     {
-      title: 'Tài khoản', key: 'account', width: 280,
+      title: 'Tài khoản', key: 'account', width: 225,
       render: (_, u) => (
         <>
           <Text strong>{u.fullName}</Text>{isMe(u) && <Tag color="processing" style={{ marginLeft: 6 }}>Bạn</Tag>}
-          <div><Text type="secondary" style={{ fontSize: 13 }}>{u.email}</Text></div>
+          <div><Text type="secondary" style={{ fontSize: 12.5 }}>{u.email}</Text></div>
         </>
       ),
     },
-    { title: 'Vai trò', dataIndex: 'role', width: 130, render: (r) => <Tag color={ROLE_COLOR[r]} style={{ margin: 0 }}>{ROLE_LABEL[r]}</Tag> },
-    { title: 'Hồ sơ sinh viên', key: 'student', width: 140, render: (_, u) => (u.student ? u.student.studentCode : <Text type="secondary">—</Text>) },
+    { title: 'Vai trò', dataIndex: 'role', width: 140, render: (r) => <Tag color={ROLE_COLOR[r]} style={{ margin: 0 }}>{ROLE_LABEL[r] || r}</Tag> },
+    { title: 'MSSV', key: 'student', width: 112, render: (_, u) => (u.student ? <span className="mono">{u.student.studentCode}</span> : <Text type="secondary">—</Text>) },
     {
-      title: 'Trạng thái', key: 'status', width: 190,
+      title: 'Trạng thái', key: 'status', width: 175,
       render: (_, u) => (
         <Space size={4} wrap>
-          {u.isActive ? <Tag color="success" style={{ margin: 0 }}>Đang hoạt động</Tag> : <Tag color="error" style={{ margin: 0 }}>Đã khóa</Tag>}
-          {u.mustChangePassword && <Tooltip title="Đang dùng mật khẩu tạm, sẽ bị buộc đổi khi đăng nhập"><Tag color="warning" style={{ margin: 0 }}>Chờ đổi mật khẩu</Tag></Tooltip>}
+          <span
+            className="haui-status"
+            style={u.isActive
+              ? { background: '#F0FDF4', borderColor: '#BBF7D0', color: '#14532D' }
+              : { background: '#FEF2F2', borderColor: '#FECACA', color: '#991B1B' }}
+          >
+            <span className="haui-status-dot" style={{ background: u.isActive ? '#16A34A' : '#DC2626' }} />
+            {u.isActive ? 'Đang hoạt động' : 'Đã khóa'}
+          </span>
+          {u.mustChangePassword && (
+            <Tooltip title="Đang dùng mật khẩu tạm, sẽ bị buộc đổi khi đăng nhập">
+              <span className="haui-status" style={{ background: '#FFFBEB', borderColor: '#FDE68A', color: '#92400E' }}>
+                <span className="haui-status-dot" style={{ background: '#D97706' }} />
+                Chờ đổi MK
+              </span>
+            </Tooltip>
+          )}
         </Space>
       ),
     },
-    { title: 'Đăng nhập gần nhất', dataIndex: 'lastLoginAt', width: 160, render: (v) => (v ? formatDateTime(v) : <Text type="secondary">Chưa đăng nhập</Text>) },
+    { title: 'Đăng nhập gần nhất', dataIndex: 'lastLoginAt', width: 140, render: (v) => (v ? <span className="mono" style={{ fontSize: 12.5 }}>{formatDateTime(v)}</span> : <Text type="secondary">Chưa đăng nhập</Text>) },
     {
-      title: 'Thao tác', key: 'actions', width: 260, fixed: 'right',
+      title: 'Thao tác', key: 'actions', width: 215,
       render: (_, u) => (
-        <Space size={4} wrap>
+        <Space size={2} wrap>
           <Button size="small" type="link" icon={<EditOutlined />} onClick={() => setFormUser(u)}>Sửa</Button>
           <Tooltip title={isMe(u) ? 'Dùng Đổi mật khẩu cho tài khoản của bạn' : null}>
-            <Button size="small" type="link" icon={<KeyOutlined />} disabled={isMe(u)} onClick={() => confirmReset(u)}>Đặt lại mật khẩu</Button>
+            <Button size="small" type="link" icon={<KeyOutlined />} disabled={isMe(u)} onClick={() => confirmReset(u)}>Đặt lại MK</Button>
           </Tooltip>
           <Tooltip title={isMe(u) ? 'Không tự khóa tài khoản của mình' : null}>
             <Button
@@ -134,9 +149,9 @@ export default function UsersPage() {
   return (
     <>
       <PageHeader
-        breadcrumb={['Hệ thống', 'Tài khoản']}
+        breadcrumb={['Quản trị hệ thống', 'Tài khoản']}
         title="Quản lý tài khoản"
-        description="Tạo tài khoản cán bộ, khóa và đặt lại mật khẩu. Tài khoản sinh viên do hệ thống cấp khi duyệt đơn"
+        description="Tạo tài khoản Quản trị, Trưởng ban KTX và Cán bộ quản sinh. Tài khoản sinh viên do hệ thống tự cấp khi duyệt đơn KTX."
         extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setFormUser({})}>Thêm tài khoản cán bộ</Button>}
       />
 
@@ -147,7 +162,7 @@ export default function UsersPage() {
           onChange={(v) => setFilters((f) => ({ ...f, role: v, page: 1 }))}
           options={ROLE_FILTERS.map((r) => ({
             value: r,
-            label: `${r === 'all' ? 'Tất cả' : ROLE_LABEL[r]}${summary ? ` (${summary[r]})` : ''}`,
+            label: `${r === 'all' ? 'Tất cả' : ROLE_LABEL[r]}${summary ? ` (${summary[r] ?? 0})` : ''}`,
           }))}
         />
         <DataTable
@@ -160,7 +175,7 @@ export default function UsersPage() {
           onFiltersChange={setFilters}
           searchPlaceholder="Tìm theo họ tên, email, mã sinh viên..."
           unit="tài khoản"
-          scrollX={1160}
+          scrollX={960}
           extraFilters={(
             <Select
               allowClear placeholder="Tất cả trạng thái" style={{ width: 180 }}
@@ -168,7 +183,7 @@ export default function UsersPage() {
               onChange={(v) => setFilters((f) => ({ ...f, isActive: v, page: 1 }))}
               options={[
                 { value: 'true', label: 'Đang hoạt động' },
-                { value: 'false', label: `Đã khóa${summary ? ` (${summary.locked})` : ''}` },
+                { value: 'false', label: `Đã khóa${summary ? ` (${summary.locked ?? 0})` : ''}` },
               ]}
             />
           )}
@@ -183,7 +198,6 @@ export default function UsersPage() {
         onCancel={() => setFormUser(null)}
         onUpdated={(u) => {
           setFormUser(null);
-          // Sửa chính mình → cập nhật tên/email đang hiện trên header
           if (u.id === me?.id) updateUser({ fullName: u.fullName, email: u.email });
           refetch();
         }}

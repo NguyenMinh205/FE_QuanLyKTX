@@ -1,16 +1,23 @@
 import { ROLES } from '../constants/roles';
 
-/** Trang chủ theo vai trò */
-export const homePathOf = (role) => (role === ROLES.STUDENT ? '/portal/home' : '/admin/dashboard');
+/** Trang chủ mặc định theo vai trò v3.0 */
+export const homePathOf = (role) => {
+  if (role === ROLES.STUDENT) return '/portal/home';
+  if (role === ROLES.ADMIN) return '/admin/users';
+  return '/admin/dashboard';
+};
 
 /** Trang đổi mật khẩu theo khu vực của vai trò */
-export const changePasswordPathOf = (role) => (role === ROLES.STUDENT ? '/portal/change-password' : '/admin/change-password');
+export const changePasswordPathOf = (role) =>
+  (role === ROLES.STUDENT ? '/portal/change-password' : '/admin/change-password');
 
 /**
- * Chỉ quay lại trang cũ nếu trang đó thuộc khu vực của vai trò — tránh sinh viên đăng nhập xong bị đẩy vào /admin rồi dính 403.
+ * Chỉ quay lại trang cũ nếu trang đó thuộc khu vực hợp lệ của vai trò.
+ * Tránh Admin bị đẩy vào /admin/dashboard (403) hay SV bị đẩy vào /admin/*.
  */
 export const safeRedirectPath = (role, from) => {
-  const area = role === ROLES.STUDENT ? '/portal/' : '/admin/';
-  // Không quay lại trang đổi mật khẩu bắt buộc của phiên trước
-  return typeof from === 'string' && from.startsWith(area) && !from.includes('change-password') ? from : homePathOf(role);
+  if (typeof from !== 'string' || from.includes('change-password')) return homePathOf(role);
+  if (role === ROLES.STUDENT) return from.startsWith('/portal/') ? from : homePathOf(role);
+  if (role === ROLES.ADMIN) return from.startsWith('/admin/users') ? from : homePathOf(role);
+  return from.startsWith('/admin/') && !from.startsWith('/admin/users') ? from : homePathOf(role);
 };
