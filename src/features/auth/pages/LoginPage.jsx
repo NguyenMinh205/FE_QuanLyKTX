@@ -12,12 +12,12 @@ const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
 const STUDENT_DEMO = [
-  ['SV đang ở (A14-101 · CS1)', 'sv001@dorm.local', 'Student@123'],
-  ['SV sạch nợ (A15-102 · CS1)', 'sv002@dorm.local', 'Student@123'],
-  ['Cựu SV hết hạn HĐ (đăng ký lại)', 'sv003@dorm.local', 'Student@123'],
-  ['SV chờ đóng phí (CS3)', 'sv004@dorm.local', 'Student@123'],
-  ['SV quá hạn phí (CS3)', 'sv005@dorm.local', 'Student@123'],
-  ['SV đổi MK lần đầu', '2026600031', '2026600031'],
+  ['SV đang ở (A14-101 · nợ ĐN)', 'sv001@dorm.local', 'Student@123'],
+  ['SV sạch nợ (A15-101)', 'sv002@dorm.local', 'Student@123'],
+  ['Cựu SV đã hoàn cọc (đăng ký lại)', 'sv003@dorm.local', 'Student@123'],
+  ['SV chờ đóng phí (A14-205 · VietQR Test)', 'sv004@dorm.local', 'Student@123'],
+  ['SV quá hạn phí (A15-305)', 'sv005@dorm.local', 'Student@123'],
+  ['SV đổi MK lần đầu', '2026600051', '2026600051'],
 ];
 
 const ADMIN_DEMO = [
@@ -35,8 +35,8 @@ const STUDENT_POINTS = [
 
 const ADMIN_POINTS = [
   'Phân quyền chặt chẽ Admin, Trưởng ban KTX và Cán bộ quản sinh',
-  'Duyệt đơn theo thứ tự nộp và tự xếp phòng tầng thấp lên cao',
-  'Quản lý quỹ phòng 3 cơ sở, đối soát thu chi và hoàn cọc minh bạch',
+  'Hệ thống tự động xếp phòng từ tầng thấp lên cao ngay khi SV đăng ký',
+  'Quản lý quỹ phòng Cơ sở 1 (A14, A15), đối soát thu chi và hoàn cọc minh bạch',
 ];
 
 const SupportPopoverContent = () => (
@@ -139,7 +139,7 @@ export default function LoginPage({ portal = 'student' }) {
 
             <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.3, marginBottom: 14 }}>
               {isAdmin
-                ? 'Vận hành & điều phối ký túc xá tập trung 3 cơ sở'
+                ? 'Vận hành & điều phối Ký túc xá Cơ sở 1 (A14, A15)'
                 : 'Quản lý chỗ ở, thanh toán VietQR và thủ tục trực tuyến'}
             </div>
 
@@ -196,7 +196,7 @@ export default function LoginPage({ portal = 'student' }) {
           <Text type="secondary" style={{ fontSize: 13.5 }}>
             {isAdmin
               ? 'Dành cho Quản trị viên, Trưởng ban KTX và Cán bộ trực tòa.'
-              : 'Dùng mã sinh viên (10 chữ số) hoặc email được cấp sau khi duyệt đơn.'}
+              : 'Dùng mã sinh viên (10 chữ số) hoặc email đã đăng ký KTX (TK = MK = MSSV).'}
           </Text>
 
           {error && (

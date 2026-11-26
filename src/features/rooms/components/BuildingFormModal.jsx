@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Row, Col, Alert, App } from 'antd';
+import { Modal, Form, Input, InputNumber, Row, Col, Alert, App } from 'antd';
 import { roomApi } from '../api/room.api';
-import { CAMPUS_OPTIONS } from '../../../constants/statuses';
 import { getErrorCode, getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
 
 const DUPLICATE_CODES = ['DUPLICATE_ENTRY', 'BUILDING_CODE_ALREADY_EXISTS'];
@@ -17,7 +16,7 @@ export default function BuildingFormModal({ open, building, onCancel, onSaved })
     setSaving(true);
     setError(null);
     const body = {
-      campus: values.campus,
+      campus: 'cs1',
       name: values.name.trim(),
       totalFloors: Number(values.totalFloors || 5),
       description: values.description?.trim() || '',
@@ -54,25 +53,21 @@ export default function BuildingFormModal({ open, building, onCancel, onSaved })
       <Form
         form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 8 }}
         initialValues={isEdit
-          ? { campus: building.campus, code: building.code, name: building.name, totalFloors: building.totalFloors || 5, description: building.description }
-          : { campus: 'cs1', code: '', name: '', totalFloors: 5, description: '' }}
+          ? { code: building.code, name: building.name, totalFloors: building.totalFloors || 5, description: building.description }
+          : { code: '', name: '', totalFloors: 5, description: '' }}
       >
-        <Form.Item name="campus" label="Cơ sở trực thuộc" rules={[{ required: true, message: 'Chọn cơ sở' }]}>
-          <Select options={CAMPUS_OPTIONS} disabled={isEdit} />
-        </Form.Item>
-
         <Row gutter={16}>
           <Col span={14}>
             <Form.Item
               name="code" label="Mã tòa nhà"
-              extra={isEdit ? 'Mã tòa không đổi sau khi tạo' : 'VD: A14, B12, C15'}
+              extra={isEdit ? 'Mã tòa không đổi sau khi tạo' : 'VD: A16, A17 (KTX Cơ sở 1)'}
               normalize={(v) => (v || '').toUpperCase()}
               rules={isEdit ? [] : [
                 { required: true, whitespace: true, message: 'Nhập mã tòa nhà' },
                 { pattern: /^[A-Za-z0-9-]{1,10}$/, message: 'Mã gồm chữ, số, dấu -, tối đa 10 ký tự' },
               ]}
             >
-              <Input placeholder="VD: A14" disabled={isEdit} maxLength={10} style={{ textTransform: 'uppercase' }} />
+              <Input placeholder="VD: A16" disabled={isEdit} maxLength={10} style={{ textTransform: 'uppercase' }} />
             </Form.Item>
           </Col>
           <Col span={10}>
@@ -83,7 +78,7 @@ export default function BuildingFormModal({ open, building, onCancel, onSaved })
         </Row>
 
         <Form.Item name="name" label="Tên tòa nhà" rules={[{ required: true, whitespace: true, message: 'Nhập tên tòa nhà' }]}>
-          <Input placeholder="VD: Nhà A14 (KTX Cơ sở 1)" maxLength={100} />
+          <Input placeholder="VD: Nhà A16 (KTX Cơ sở 1)" maxLength={100} />
         </Form.Item>
 
         <Form.Item name="description" label="Mô tả" style={{ marginBottom: 0 }}>

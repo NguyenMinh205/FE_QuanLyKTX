@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Card, Tabs, Select, Tag, Typography, Badge, Button, Modal, Input, Space, App,
+  Card, Tabs, Select, Tag, Typography, Badge, Button, Modal, Input, Space, Alert, App,
 } from 'antd';
-import { QrcodeOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { QrcodeOutlined, DeleteOutlined, CheckCircleOutlined, RollbackOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { contractApi } from '../api/contract.api';
 import { roomApi } from '../../rooms/api/room.api';
-import { CAMPUS_OPTIONS, CONTRACT_TERM } from '../../../constants/statuses';
+import { CONTRACT_TERM } from '../../../constants/statuses';
 import { getErrorMessage } from '../../../lib/axiosClient';
 import { formatCurrency, formatDate } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import DataTable from '../../../components/DataTable';
 import StatusTag from '../../../components/StatusTag';
 import ContractDetailDrawer from '../components/ContractDetailDrawer';
+import RefundDepositModal from '../components/RefundDepositModal';
 import { roomLabelOf } from '../../rooms/utils/roomStatus';
 import { EXPIRING_DAYS, daysLeftOf, depositStateOf } from '../utils/contractView';
 
@@ -50,14 +51,15 @@ export default function ContractsPage() {
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   const [tab, setTab] = useState(() => resolveInitialTab(searchParams.get('tab')));
-  const [filters, setFilters] = useState({ page: 1, limit: 20, search: initialSearch, campus: undefined, buildingId: undefined, term: undefined });
+  const [filters, setFilters] = useState({ page: 1, limit: 20, search: initialSearch, buildingId: undefined, term: undefined });
   const [openId, setOpenId] = useState(null);
+  const [refundContract, setRefundContract] = useState(null);
 
   const [qrOpen, setQrOpen] = useState(false);
   const [qrCode, setQrCode] = useState('');
   const [qrLoading, setQrLoading] = useState(false);
 
-  const { data: buildings } = useApi(() => roomApi.getBuildings({ campus: filters.campus }), [filters.campus]);
+  const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
   const tabParams = TABS.find((t) => t.key === tab).params;
   const { data, meta, loading, error, refetch } = useApi(
     () => contractApi.getList({ ...filters, ...tabParams, search: filters.search || undefined }),
@@ -118,12 +120,12 @@ export default function ContractsPage() {
       render: (_, c) => <><div>{c.student?.fullName}</div><Text type="secondary" style={{ fontSize: 12 }}>{c.student?.studentCode}</Text></>,
     },
     {
-      title: 'Phòng / Cơ sở', key: 'place', width: 155,
+      title: 'Phòng / Tòa nhà', key: 'place', width: 165,
       render: (_, c) => (c.room
         ? (
           <>
             <div style={{ fontWeight: 500 }}>Phòng {roomLabelOf(c.room)}</div>
-            <Text type="secondary" style={{ fontSize: 12 }}>{c.campusName || c.buildingName}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{c.room.buildingName || c.buildingName || 'Cơ sở 1'}</Text>
           </>
         )
         : '—'),
@@ -172,6 +174,19 @@ export default function ContractsPage() {
       },
     },
     { title: 'Trạng thái', dataIndex: 'status', width: 130, render: (s) => <StatusTag type="contract" value={s} /> },
+    ...(canRefund && tab === 'refund' ? [{
+      title: 'Thao tác', key: 'refundAction', width: 130, fixed: 'right',
+      render: (_, c) => (
+        <Button
+          type="primary"
+          size="small"
+          icon={<RollbackOutlined />}
+          onClick={(e) => { e.stopPropagation(); setRefundContract(c); }}
+        >
+          Hoàn cọc
+        </Button>
+      ),
+    }] : []),
   ];
 
   return (
@@ -218,6 +233,16 @@ export default function ContractsPage() {
           })}
         />
 
+        {tab === 'refund' && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 14 }}
+            title="Quyết toán hoàn tiền cọc tài sản sinh viên"
+            description="Các hợp đồng dưới đây đã thanh lý sạch nợ điện nước & phòng. Nhấn nút Hoàn cọc ngay trên từng dòng để hoàn đủ 100% hoặc nhập khoản khấu trừ hư hại (hệ thống tự sinh phiếu chi REF-...)."
+          />
+        )}
+
         <DataTable
           columns={columns}
           data={data}
@@ -228,18 +253,13 @@ export default function ContractsPage() {
           onFiltersChange={setFilters}
           searchPlaceholder="Tìm mã HĐ, MSSV, họ tên, số phòng..."
           unit="hợp đồng"
-          scrollX={940}
+          scrollX={tab === 'refund' && canRefund ? 1070 : 940}
           onRow={(c) => ({ onClick: () => setOpenId(c.id), style: { cursor: 'pointer' } })}
           rowClassName={(c) => (c.id === openId ? 'ant-table-row-selected' : '')}
           extraFilters={(
             <>
               <Select
-                allowClear placeholder="Cơ sở" style={{ width: 165 }}
-                value={filters.campus} options={CAMPUS_OPTIONS}
-                onChange={(v) => setFilters((f) => ({ ...f, campus: v, buildingId: undefined, page: 1 }))}
-              />
-              <Select
-                allowClear placeholder="Tòa nhà" style={{ width: 165 }}
+                allowClear placeholder="Tòa nhà (A14, A15)" style={{ width: 185 }}
                 value={filters.buildingId}
                 options={(buildings || []).map((b) => ({ value: b.id, label: `${b.code} · ${b.name}` }))}
                 onChange={(v) => setFilters((f) => ({ ...f, buildingId: v, page: 1 }))}
@@ -264,6 +284,13 @@ export default function ContractsPage() {
         canCancel={canCancel}
         onClose={() => setOpenId(null)}
         onChanged={refetch}
+      />
+
+      <RefundDepositModal
+        contract={refundContract}
+        open={!!refundContract}
+        onCancel={() => setRefundContract(null)}
+        onRefunded={() => { setRefundContract(null); refetch(); }}
       />
 
       <Modal

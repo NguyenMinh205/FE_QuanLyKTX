@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Row, Col, Progress, Alert, Button, Typography, Tooltip, Space, Card, Skeleton,
@@ -9,11 +8,9 @@ import {
 import dayjs from 'dayjs';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
-import { ROLES } from '../../../constants/roles';
-import { CAMPUS } from '../../../constants/statuses';
+import { can } from '../../../utils/permission';
 import { dashboardApi, occupancyRateOf } from '../api/dashboard.api';
 import PageHeader from '../../../components/PageHeader';
-import StatusTag from '../../../components/StatusTag';
 import { formatCurrency, formatPercent } from '../../../utils/formatter';
 import OccupancyChart from '../components/OccupancyChart';
 import RevenueChart from '../components/RevenueChart';
@@ -21,48 +18,33 @@ import RevenueChart from '../components/RevenueChart';
 const { Text } = Typography;
 
 /**
- * Dashboard tổng quan 3 Cơ sở — Thiết kế bảng điều khiển vận hành phẳng:
- * - Dải 4 KPI liền mạch phân cách bằng đường kẻ mảnh (không lặp 4 card giống nhau)
- * - Dải lọc 3 cơ sở tương tác (Toàn trường / CS1 / CS2 / CS3)
- * - Biểu đồ lấp đầy + Doanh thu (Manager) hoặc Hàng đợi vận hành nhanh (Staff)
+ * Dashboard tổng quan KTX Cơ sở 1 (2 Tòa A14, A15):
+ * - Dải 4 KPI liền mạch phân cách bằng đường kẻ mảnh
+ * - Biểu đồ lấp đầy 2 tòa nhà (A14, A15)
+ * - Biểu đồ Doanh thu thực thu (CHỈ Manager) | Tác vụ vận hành nhanh (Staff)
  */
 export default function DashboardPage() {
   const { user } = useAuth();
-  const isManager = user?.role === ROLES.MANAGER;
-  const [campus, setCampus] = useState(undefined);
+  const canViewRevenue = can(user, 'dashboard:revenue');
 
-  const summaryApi = useApi(() => dashboardApi.getSummary({ campus }), [campus]);
-  const occupancyApi = useApi(() => dashboardApi.getOccupancy({}), []);
+  const summaryApi = useApi(() => dashboardApi.getSummary(), []);
+  const occupancyApi = useApi(() => dashboardApi.getOccupancy(), []);
 
   const s = summaryApi.data;
   const loading = summaryApi.loading && !s;
   const o = s?.occupancy;
   const rate = o ? occupancyRateOf(o) : null;
 
-  const byCampus = occupancyApi.data?.byCampus || [];
   const allBuildings = occupancyApi.data?.buildings || [];
-  const filteredBuildings = campus ? allBuildings.filter((b) => b.campus === campus) : allBuildings;
-
-  const totalAll = byCampus.reduce((acc, c) => ({
-    buildings: acc.buildings + (c.totalBuildings || 0),
-    rooms: acc.rooms + (c.totalRooms || 0),
-    cap: acc.cap + (c.totalCapacity || 0),
-    occ: acc.occ + (c.occupied || 0),
-    avail: acc.avail + (c.available || 0),
-    maint: acc.maint + (c.maintenance || 0),
-  }), { buildings: 0, rooms: 0, cap: 0, occ: 0, avail: 0, maint: 0 });
-  const totalAllPct = Math.round((occupancyRateOf({ total: totalAll.cap, occupied: totalAll.occ, maintenance: totalAll.maint }) ?? 0) * 100);
-
-  const actionTotal = (s?.pendingApplications ?? 0) + (s?.overduePaymentContracts ?? 0) + (s?.pendingRequests ?? 0);
+  const actionTotal = (s?.awaitingDepositRefund ?? 0) + (s?.overduePaymentContracts ?? 0) + (s?.pendingRequests ?? 0);
   const refreshAll = () => { summaryApi.refetch(); occupancyApi.refetch(); };
-  const campusTitle = campus ? CAMPUS[campus]?.label : 'Toàn trường (3 Cơ sở)';
 
   return (
     <>
       <PageHeader
         breadcrumb={['Tổng quan', 'Dashboard']}
-        title="Tổng quan Ký túc xá"
-        description={`Phạm vi hiển thị: ${campusTitle}`}
+        title="Tổng quan KTX Cơ sở 1"
+        description="Trung tâm KTX Cầu Diễn — 2 Tòa nhà A14, A15"
         extra={(
           <Space>
             <Text type="secondary" className="mono" style={{ fontSize: 12 }}>Cập nhật {dayjs().format('HH:mm')}</Text>
@@ -89,7 +71,7 @@ export default function DashboardPage() {
               </div>
               <Progress percent={Math.round((rate ?? 0) * 100)} showInfo={false} strokeColor="#2563EB" size="small" style={{ margin: '8px 0 4px' }} />
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Còn <Text strong className="mono" style={{ color: 'var(--success-text)' }}>{o?.available ?? 0}</Text> trống · {o?.occupied ?? 0}/{o ? o.total - o.maintenance : 0} chỗ
+                Còn <Text strong className="mono" style={{ color: 'var(--success-text)' }}>{o?.available ?? 0}</Text> trống · {o?.occupied ?? 0}/{o ? o.total - o.maintenance : 0} chỗ ({o?.totalRooms ?? 0} phòng)
               </Text>
             </>
           )}
@@ -121,7 +103,7 @@ export default function DashboardPage() {
               </div>
               {s && (
                 <div style={{ display: 'grid', gap: 4, marginTop: 8, fontSize: 12 }}>
-                  <QueueLink label="Đơn chờ duyệt" count={s.pendingApplications} to="/admin/applications" />
+                  <QueueLink label="Chờ hoàn cọc" count={s.awaitingDepositRefund} to="/admin/contracts?tab=refund" />
                   <QueueLink label="Quá hạn đóng phí" count={s.overduePaymentContracts} to="/admin/contracts?tab=pending_payment" danger />
                   <QueueLink label="Yêu cầu hỗ trợ" count={s.pendingRequests} to="/admin/requests" />
                 </div>
@@ -154,59 +136,25 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 2. DẢI LỌC 3 CƠ SỞ TƯƠNG TÁC */}
-      {byCampus.length > 0 && (
-        <Row gutter={[12, 12]} style={{ marginTop: 14 }}>
-          <Col xs={12} lg={6}>
-            <CampusFilterCard
-              active={!campus}
-              onClick={() => setCampus(undefined)}
-              header={<Text strong style={{ fontSize: 13 }}>Toàn trường</Text>}
-              occupied={totalAll.occ}
-              capacity={totalAll.cap}
-              percent={totalAllPct}
-              sub={`${totalAll.buildings} tòa · ${totalAll.rooms} phòng · Trống ${totalAll.avail}`}
-            />
-          </Col>
-          {byCampus.map((c) => {
-            const pct = Math.round((occupancyRateOf({ total: c.totalCapacity, occupied: c.occupied, maintenance: c.maintenance }) ?? 0) * 100);
-            const active = campus === c.campus;
-            return (
-              <Col xs={12} lg={6} key={c.campus}>
-                <CampusFilterCard
-                  active={active}
-                  onClick={() => setCampus(active ? undefined : c.campus)}
-                  header={<StatusTag type="campus" value={c.campus} />}
-                  occupied={c.occupied}
-                  capacity={c.totalCapacity}
-                  percent={pct}
-                  sub={`${c.totalBuildings} tòa · ${c.totalRooms} phòng · Trống ${c.available}`}
-                />
-              </Col>
-            );
-          })}
-        </Row>
-      )}
-
-      {/* 3. BIỂU ĐỒ LẤP ĐẦY */}
+      {/* 2. BIỂU ĐỒ LẤP ĐẦY 2 TÒA NHÀ */}
       <div style={{ marginTop: 16 }}>
         <OccupancyChart
-          buildings={filteredBuildings}
-          campusLabel={campusTitle}
+          buildings={allBuildings}
+          campusLabel="Cơ sở 1 (A14, A15)"
           loading={occupancyApi.loading && !occupancyApi.data}
           error={occupancyApi.error}
         />
       </div>
 
-      {/* 4. DOANH THU (MANAGER) HOẶC LỐI TẮT VẬN HÀNH (STAFF) */}
+      {/* 3. DOANH THU (CHỈ MANAGER) HOẶC LỐI TẮT VẬN HÀNH NHANH (STAFF) */}
       <div style={{ marginTop: 16 }}>
-        {isManager ? (
-          <RevenueChart campus={campus} />
+        {canViewRevenue ? (
+          <RevenueChart />
         ) : (
           <Card title="Tác vụ vận hành nhanh" styles={{ body: { padding: 16 } }}>
             <Row gutter={[12, 12]}>
               {[
-                { to: '/admin/applications', title: 'Duyệt đơn đăng ký', sub: `${s?.pendingApplications ?? 0} đơn đang chờ` },
+                { to: '/admin/contracts?tab=refund', title: 'Quyết toán hoàn cọc', sub: `${s?.awaitingDepositRefund ?? 0} hợp đồng chờ hoàn` },
                 { to: '/admin/contracts', title: 'Check-in QR & Hợp đồng', sub: `${s?.pendingPaymentContracts ?? 0} chờ đóng phí` },
                 { to: '/admin/requests', title: 'Xử lý yêu cầu SV', sub: `${s?.pendingRequests ?? 0} phiếu chờ` },
                 { to: '/admin/utility-readings', title: 'Ghi chỉ số điện nước', sub: 'Chốt kỳ hàng tháng' },
@@ -245,34 +193,5 @@ function QueueLink({ label, count = 0, to, danger }) {
         {count} →
       </span>
     </Link>
-  );
-}
-
-function CampusFilterCard({ active, onClick, header, occupied, capacity, percent, sub }) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onClick())}
-      style={{
-        height: '100%',
-        padding: '13px 15px',
-        borderRadius: 10,
-        cursor: 'pointer',
-        background: active ? 'var(--brand-soft)' : '#FFFFFF',
-        border: `1px solid ${active ? 'var(--brand-border)' : 'var(--line)'}`,
-        borderTop: `3px solid ${active ? 'var(--brand)' : 'transparent'}`,
-        boxShadow: 'var(--card-shadow)',
-        transition: 'border-color 0.14s ease, background-color 0.14s ease',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px 8px', marginBottom: 6 }}>
-        {header}
-        <Text strong className="mono" style={{ fontSize: 12.5, whiteSpace: 'nowrap', flexShrink: 0 }}>{occupied}/{capacity}</Text>
-      </div>
-      <Progress percent={percent} size="small" strokeColor={active ? '#2563EB' : '#94A3B8'} showInfo={false} style={{ marginBottom: 4 }} />
-      <Text type="secondary" style={{ fontSize: 12 }}>{sub}</Text>
-    </div>
   );
 }

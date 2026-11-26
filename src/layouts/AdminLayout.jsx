@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Layout, Menu, Dropdown, Grid, Drawer, Button, ConfigProvider, Typography } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, BankOutlined, AppstoreOutlined, FileTextOutlined,
-  AuditOutlined, ThunderboltOutlined, FileDoneOutlined, WalletOutlined, SettingOutlined,
+  ThunderboltOutlined, FileDoneOutlined, WalletOutlined, SettingOutlined,
   LogoutOutlined, MenuOutlined, LockOutlined, CalendarOutlined, ToolOutlined,
   NotificationOutlined, DownOutlined,
 } from '@ant-design/icons';
@@ -69,8 +69,7 @@ const buildMenu = (role, counts = {}) => {
       label: 'Tuyển sinh & Lưu trú',
       children: [
         { key: '/admin/periods', icon: <CalendarOutlined />, label: 'Đợt đăng ký' },
-        { key: '/admin/applications', icon: <AuditOutlined />, label: withCount('Duyệt đơn KTX', counts.applications, true) },
-        { key: '/admin/contracts', icon: <FileTextOutlined />, label: withCount('Hợp đồng KTX', counts.overduePayments, true) },
+        { key: '/admin/contracts', icon: <FileTextOutlined />, label: withCount('Hợp đồng & Hoàn cọc', counts.contractActions, counts.overduePayments > 0) },
       ],
     },
     {
@@ -78,7 +77,7 @@ const buildMenu = (role, counts = {}) => {
       label: 'Quản lý & Hỗ trợ',
       children: [
         { key: '/admin/students', icon: <TeamOutlined />, label: 'Sinh viên' },
-        { key: '/admin/buildings', icon: <BankOutlined />, label: 'Tòa nhà (3 Cơ sở)' },
+        { key: '/admin/buildings', icon: <BankOutlined />, label: 'Tòa nhà (A14, A15)' },
         { key: '/admin/rooms', icon: <AppstoreOutlined />, label: 'Phòng ở' },
         { key: '/admin/requests', icon: <ToolOutlined />, label: withCount('Phiếu yêu cầu SV', counts.requests, false) },
         { key: '/admin/notifications', icon: <NotificationOutlined />, label: 'Bảng tin KTX' },
@@ -123,8 +122,8 @@ export default function AdminLayout() {
   );
 
   const menuItems = buildMenu(user?.role, {
-    applications: summary?.pendingApplications,
-    overduePayments: summary?.overduePaymentContracts,
+    overduePayments: summary?.overduePaymentContracts ?? 0,
+    contractActions: (summary?.overduePaymentContracts ?? 0) + (summary?.awaitingDepositRefund ?? 0),
     requests: summary?.pendingRequests,
   });
 
@@ -177,7 +176,7 @@ export default function AdminLayout() {
             <>
               <span style={{ width: 1, height: 22, background: 'var(--line-strong)' }} />
               <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--brand-deep)', whiteSpace: 'nowrap' }}>
-                Quản trị Ký túc xá
+                Quản trị KTX Cơ sở 1
               </span>
             </>
           )}

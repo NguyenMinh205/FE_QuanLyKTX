@@ -25,7 +25,7 @@ const Line = ({ label, children }) => (
 );
 
 /** Chi tiết một hóa đơn của sinh viên (SCR-64): số tiền, cách tính điện nước, mã VietQR khi chưa nộp, biên lai khi đã nộp */
-export default function MyInvoiceDetail({ invoice, loading }) {
+export default function MyInvoiceDetail({ invoice, loading, onPaid }) {
   if (loading && !invoice) return <Card><Skeleton active paragraph={{ rows: 8 }} /></Card>;
   if (!invoice) {
     return (
@@ -104,7 +104,7 @@ export default function MyInvoiceDetail({ invoice, loading }) {
               description="Thống nhất với bạn cùng phòng để chỉ một người chuyển khoản, tránh nộp hai lần."
             />
           )}
-          <VietQrPanel invoice={invoice} />
+          <VietQrPanel invoice={invoice} onPaid={onPaid} />
           <div style={{ textAlign: 'center', marginTop: 8 }}>
             <Text type="secondary" style={{ fontSize: 13 }}>Hoặc nộp tiền mặt tại văn phòng ban quản lý ký túc xá</Text>
           </div>

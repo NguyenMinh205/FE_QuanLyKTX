@@ -26,7 +26,7 @@ export const FACULTIES = [
 export const FACULTY_OPTIONS = FACULTIES.map((value) => ({ value, label: value }));
 
 export const SUPPORT_CONTACT = {
-  office: 'Trung tâm Hỗ trợ SV / KTX HaUI — CS1 (A14/A15), CS2 (B12), CS3 (C15 Phù Vân)',
+  office: 'Văn phòng KTX Cơ sở 1 — Tầng 1 nhà A14 (Khu A14–A15), Ngõ 296 Đường Cầu Diễn, P. Tây Tựu, Hà Nội',
   hotline: '0964.331.300',
   email: 'ssc@haui.edu.vn',
   website: 'https://ssc.haui.edu.vn',

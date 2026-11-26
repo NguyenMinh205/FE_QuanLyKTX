@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Drawer, Button, Tag, Typography, Skeleton, Alert, Timeline, Table, Space, Modal, Form, Input, InputNumber, App,
+  Drawer, Button, Tag, Typography, Skeleton, Alert, Timeline, Table, Space, Modal, Form, Input, App,
 } from 'antd';
 import {
   IdcardOutlined, HomeOutlined, HistoryOutlined, FileTextOutlined, CloseCircleOutlined, CheckCircleOutlined, QrcodeOutlined, StopOutlined,
@@ -13,6 +13,7 @@ import { formatCurrency, formatDate, formatDateTime, formatPhone } from '../../.
 import { CONTRACT_TERM, INVOICE_TYPE, INVOICE_STATUS } from '../../../constants/statuses';
 import StatusTag from '../../../components/StatusTag';
 import TerminateContractModal from './TerminateContractModal';
+import RefundDepositModal from './RefundDepositModal';
 import { EXPIRING_DAYS, daysLeftOf, depositStateOf, placeTextOf } from '../utils/contractView';
 
 const { Text } = Typography;
@@ -45,11 +46,9 @@ export default function ContractDetailDrawer({
   const [version, setVersion] = useState(0);
   const [terminateOpen, setTerminateOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
-  const [refunding, setRefunding] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
-  const [refundForm] = Form.useForm();
   const [cancelForm] = Form.useForm();
 
   const { data: c, error } = useApi(
@@ -64,8 +63,6 @@ export default function ContractDetailDrawer({
   const deposit = ready ? depositStateOf(c) : null;
   const canConfirmRefund = ready && canRefund && c.status === 'terminated' && !c.isDepositRefunded;
 
-  const watchedDeduction = Form.useWatch('deductionAmount', refundForm) || 0;
-
   const handleCheckin = async () => {
     if (!c?.checkinCode) return;
     setCheckingIn(true);
@@ -77,24 +74,6 @@ export default function ContractDetailDrawer({
       message.error(getErrorMessage(err));
     } finally {
       setCheckingIn(false);
-    }
-  };
-
-  const handleRefund = async (values) => {
-    setRefunding(true);
-    try {
-      const res = await contractApi.refundDeposit(c.id, {
-        deductionAmount: Number(values.deductionAmount || 0),
-        reason: values.reason?.trim() || '',
-      });
-      message.success(res.data.message);
-      setRefundOpen(false);
-      refundForm.resetFields();
-      reload();
-    } catch (err) {
-      message.error(getErrorMessage(err));
-    } finally {
-      setRefunding(false);
     }
   };
 
@@ -153,7 +132,7 @@ export default function ContractDetailDrawer({
               <Button danger icon={<CloseCircleOutlined />} onClick={() => setTerminateOpen(true)}>Thanh lý hợp đồng</Button>
             )}
             {canConfirmRefund && (
-              <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => { refundForm.setFieldsValue({ deductionAmount: 0, reason: '' }); setRefundOpen(true); }}>
+              <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => setRefundOpen(true)}>
                 Quyết toán hoàn cọc
               </Button>
             )}
@@ -299,37 +278,12 @@ export default function ContractDetailDrawer({
         onTerminated={() => { setTerminateOpen(false); reload(); }}
       />
 
-      {/* Modal Quyết toán hoàn cọc có khấu trừ hỏng đồ */}
-      <Modal
+      <RefundDepositModal
+        contract={ready ? c : null}
         open={refundOpen}
-        title={`Quyết toán hoàn cọc — ${c?.contractCode || ''}`}
-        okText="Xác nhận hoàn cọc"
-        cancelText="Hủy"
-        confirmLoading={refunding}
-        onOk={() => refundForm.submit()}
         onCancel={() => setRefundOpen(false)}
-        destroyOnHidden
-      >
-        <Form form={refundForm} layout="vertical" onFinish={handleRefund} style={{ marginTop: 12 }}>
-          <Alert
-            type="info" showIcon style={{ marginBottom: 14 }}
-            title={`Tiền cọc gốc: ${formatCurrency(c?.depositAmount || 0)} → Hoàn trả thực tế: ${formatCurrency(Math.max(0, (c?.depositAmount || 0) - Number(watchedDeduction || 0)))}`}
-            description="Hệ thống sẽ lập phiếu chi hoàn cọc (REF-...) tách riêng khỏi báo cáo doanh thu."
-          />
-          <Form.Item
-            name="deductionAmount" label="Tiền khấu trừ hư hại tài sản (VNĐ — để 0 nếu hoàn đủ)"
-            rules={[{ type: 'number', min: 0, max: c?.depositAmount || 0, message: 'Số tiền khấu trừ không vượt quá tiền cọc' }]}
-          >
-            <InputNumber style={{ width: '100%' }} min={0} max={c?.depositAmount || 0} step={10000} precision={0} suffix="đ" />
-          </Form.Item>
-          <Form.Item
-            name="reason" label="Ghi chú / Lý do khấu trừ"
-            rules={watchedDeduction > 0 ? [{ required: true, whitespace: true, message: 'Nhập lý do khi có khấu trừ tiền cọc' }] : []}
-          >
-            <Input.TextArea rows={2} maxLength={300} placeholder="VD: Bàn giao đủ tài sản / Làm vỡ kính cửa sổ..." />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onRefunded={() => { setRefundOpen(false); reload(); }}
+      />
 
       {/* Modal Hủy giữ chỗ pending_payment */}
       <Modal

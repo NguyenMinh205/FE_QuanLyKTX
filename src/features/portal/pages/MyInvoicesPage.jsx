@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Card, Row, Col, Grid, Typography, Tabs, Alert, Skeleton, Empty, Badge,
+  Card, Row, Col, Grid, Typography, Tabs, Alert, Skeleton, Empty, Badge, Button, App,
 } from 'antd';
 import { WarningOutlined, FileTextOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
@@ -71,13 +71,15 @@ export default function MyInvoicesPage() {
 }
 
 function MyInvoicesView({ searchParams }) {
+  const navigate = useNavigate();
+  const { message, notification } = App.useApp();
   const screens = useBreakpoint();
   const isMobile = !screens.sm;
   const paramInvoice = searchParams.get('invoice');
   const [userTab, setUserTab] = useState(null); // null = tự chọn theo ?invoice= / ?tab=
   const [selectedId, setSelectedId] = useState(paramInvoice || null);
 
-  const { data: invoices, loading, error } = useApi(() => portalApi.getMyInvoices({ limit: 100 }), []);
+  const { data: invoices, loading, error, refetch: refetchList } = useApi(() => portalApi.getMyInvoices({ limit: 100 }), []);
   const all = useMemo(() => invoices || [], [invoices]);
   const personal = useMemo(() => all.filter((i) => i.scope === 'personal'), [all]);
   const room = useMemo(() => all.filter((i) => i.scope === 'room'), [all]);
@@ -88,10 +90,29 @@ function MyInvoicesView({ searchParams }) {
   const shown = tab === 'room' ? room : personal;
   const activeId = tab === 'history' ? null : ((selectedId && shown.some((i) => i.id === selectedId) ? selectedId : shown[0]?.id) ?? null);
 
-  const { data: detail, loading: detailLoading, error: detailError } = useApi(
+  const { data: detail, loading: detailLoading, error: detailError, refetch: refetchDetail } = useApi(
     () => (activeId ? portalApi.getMyInvoiceById(activeId) : Promise.resolve({ data: { data: null } })),
     [activeId],
   );
+
+  const handleSandboxPaid = (result, msg) => {
+    refetchList();
+    refetchDetail();
+    if (result?.contractActivated) {
+      notification.success({
+        title: 'Đã thanh toán & Kích hoạt hợp đồng KTX!',
+        description: 'Toàn bộ phí đầu kỳ đã hoàn tất. Hệ thống đã tự động sinh mã QR Check-in nhận phòng.',
+        actions: (
+          <Button type="primary" size="small" onClick={() => navigate('/portal/my-residence')}>
+            Xem mã QR Check-in
+          </Button>
+        ),
+        duration: 8,
+      });
+    } else {
+      message.success(msg || 'Đã thanh toán VietQR (Test) thành công');
+    }
+  };
 
   const header = <PageHeader breadcrumb={['Cổng Sinh viên', 'Hóa đơn & thanh toán']} title="Hóa đơn & thanh toán" description="Tiền cọc, tiền phòng của bạn và tiền điện nước của phòng" />;
   if (error) return <>{header}<Alert type="error" showIcon title="Không tải được danh sách hóa đơn" description={error} /></>;
@@ -140,7 +161,13 @@ function MyInvoicesView({ searchParams }) {
             <Col xs={24} lg={15}>
               {detailError
                 ? <Alert type="error" showIcon title="Không tải được hóa đơn" description={detailError} />
-                : <MyInvoiceDetail invoice={detail && detail.id === activeId ? detail : null} loading={detailLoading || (!!activeId && detail?.id !== activeId)} />}
+                : (
+                  <MyInvoiceDetail
+                    invoice={detail && detail.id === activeId ? detail : null}
+                    loading={detailLoading || (!!activeId && detail?.id !== activeId)}
+                    onPaid={handleSandboxPaid}
+                  />
+                )}
             </Col>
           </Row>
         )}

@@ -10,9 +10,9 @@ const { Text } = Typography;
 
 const ROLE_HINT = {
   admin: 'Chỉ quản trị kỹ thuật & tài khoản hệ thống (tách biệt khỏi nghiệp vụ và doanh thu KTX)',
-  manager: 'Trưởng ban KTX: mở đợt đăng ký, cấu hình tòa/phòng 3 cơ sở, duyệt chuyển phòng và xem báo cáo doanh thu',
-  staff: 'Cán bộ quản sinh: vận hành hằng ngày (hồ sơ SV, duyệt đơn, QR Check-in, điện nước, thu tiền, báo hỏng)',
-  student: 'Tài khoản sinh viên do hệ thống tự cấp khi duyệt đơn đăng ký KTX',
+  manager: 'Trưởng ban KTX: mở đợt đăng ký, cấu hình tòa/phòng Cơ sở 1 (A14, A15), duyệt chuyển phòng và xem báo cáo doanh thu',
+  staff: 'Cán bộ quản sinh: vận hành hằng ngày (hồ sơ SV, QR Check-in, hoàn cọc, điện nước, thu tiền, báo hỏng)',
+  student: 'Tài khoản sinh viên do hệ thống tự cấp ngay khi đăng ký KTX thành công',
 };
 
 export default function UserFormModal({ open, user, currentUserId, onCancel, onCreated, onUpdated }) {

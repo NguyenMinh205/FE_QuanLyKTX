@@ -95,7 +95,7 @@ export default function RoomFormModal({ open, room, buildings, defaultBuildingId
           <Col span={12}>
             <Form.Item name="buildingId" label="Tòa nhà" rules={[{ required: true, message: 'Chọn tòa nhà' }]}>
               <Select
-                options={buildings.map((b) => ({ value: b.id, label: `${b.code} · ${b.name} (${b.campus?.toUpperCase()})` }))}
+                options={buildings.map((b) => ({ value: b.id, label: `${b.code} · ${b.name}` }))}
                 disabled={isEdit}
               />
             </Form.Item>

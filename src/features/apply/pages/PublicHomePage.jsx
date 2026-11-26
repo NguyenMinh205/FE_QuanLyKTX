@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  Alert, Button, Col, Grid, Row, Skeleton, Space, Table, Tabs, Typography, Progress,
+  Alert, Button, Col, Grid, Row, Skeleton, Table, Tabs, Typography, Progress,
 } from 'antd';
 import { ArrowRightOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
@@ -38,6 +38,8 @@ export default function PublicHomePage() {
   const { data: announcements, loading: annLoading } = useApi(() => applyApi.getAnnouncements({ limit: 8 }), []);
 
   const campuses = campusInfo?.campuses || [];
+  const primaryCampus = campuses[0] || null;
+  const buildings = primaryCampus?.buildings || [];
   const periods = Array.isArray(openPeriods) ? openPeriods : [];
   const news = Array.isArray(announcements) ? announcements : [];
 
@@ -56,10 +58,9 @@ export default function PublicHomePage() {
         </div>
       ),
     },
-    { title: 'Loại phòng', dataIndex: 'cap', key: 'cap', width: 110, align: 'center', render: (v) => <span className="haui-chip">{v}</span> },
-    { title: 'Cơ sở 1 (HN)', key: 'cs1', width: 145, align: 'right', render: (_, r) => <Text strong className="mono">{formatCurrency(r.prices.cs1)}</Text> },
-    { title: 'Cơ sở 2 (HN)', key: 'cs2', width: 145, align: 'right', render: (_, r) => <Text strong className="mono">{formatCurrency(r.prices.cs2)}</Text> },
-    { title: 'Cơ sở 3 (Ninh Bình)', key: 'cs3', width: 165, align: 'right', render: (_, r) => <Text strong className="mono">{formatCurrency(r.prices.cs3)}</Text> },
+    { title: 'Loại phòng', dataIndex: 'cap', key: 'cap', width: 120, align: 'center', render: (v) => <span className="haui-chip">{v}</span> },
+    { title: 'Đơn giá Cơ sở 1 (VNĐ/SV/tháng)', key: 'cs1', width: 230, align: 'right', render: (_, r) => <Text strong className="mono" style={{ color: 'var(--brand-hover)' }}>{formatCurrency(r.prices.cs1)}</Text> },
+    { title: 'Tiền cọc tài sản', key: 'dep', width: 150, align: 'right', render: () => <Text className="mono">{formatCurrency(500000)}</Text> },
   ];
 
   const tabItems = [
@@ -72,7 +73,7 @@ export default function PublicHomePage() {
             <div style={{ marginBottom: 14 }}>
               <Text strong style={{ fontSize: 15.5, color: 'var(--ink)' }}>Đợt đăng ký đang tiếp nhận</Text>
               <Text type="secondary" style={{ display: 'block', fontSize: 13 }}>
-                Tự phân luồng theo 4 chữ số đầu MSSV và Khoa/Ngành đào tạo.
+                Tự động phân loại Tân sinh viên / Năm 2+ theo 4 chữ số đầu MSSV và tự động duyệt xếp phòng ngay khi nộp đơn.
               </Text>
             </div>
             {periodsLoading && <Skeleton active paragraph={{ rows: 3 }} />}
@@ -160,55 +161,67 @@ export default function PublicHomePage() {
       ),
     },
     {
-      key: 'campuses',
-      label: isMobile ? '3 Cơ sở' : 'Quy mô 3 Cơ sở',
+      key: 'buildings',
+      label: isMobile ? `${buildings.length || 2} Tòa nhà` : `Hệ thống ${buildings.length || 2} Tòa nhà`,
       children: (
         <div style={{ paddingTop: 6 }}>
           {campusLoading && <Skeleton active paragraph={{ rows: 3 }} />}
+          {primaryCampus && (
+            <div style={{
+              marginBottom: 16,
+              padding: '12px 16px',
+              background: '#FFFFFF',
+              border: '1px solid var(--line)',
+              borderRadius: 10,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 10,
+              boxShadow: 'var(--card-shadow)',
+            }}>
+              <div style={{ fontSize: 13.5 }}>
+                <EnvironmentOutlined style={{ marginRight: 6, color: 'var(--brand)' }} />
+                <Text strong>{primaryCampus.name}</Text>
+                <Text type="secondary"> — {primaryCampus.address}</Text>
+              </div>
+              <span className="haui-chip mono">{buildings.length} tòa · {totalRooms} phòng</span>
+            </div>
+          )}
           <Row gutter={[16, 16]}>
-            {campuses.map((c) => {
-              const total = c.stats?.totalSlots || 0;
-              const occ = c.stats?.occupiedSlots || 0;
+            {buildings.map((b) => {
+              const total = b.stats?.totalSlots || 0;
+              const occ = b.stats?.occupiedSlots || 0;
+              const avail = b.stats?.availableSlots ?? 0;
               const pct = total > 0 ? Math.round((occ / total) * 100) : 0;
               return (
-                <Col xs={24} md={8} key={c.code}>
+                <Col xs={24} md={12} key={b.id}>
                   <div style={{
                     height: '100%',
                     background: '#FFFFFF',
                     border: '1px solid var(--line)',
                     borderTop: '3px solid var(--brand)',
                     borderRadius: 10,
-                    padding: 20,
+                    padding: 18,
                     display: 'flex',
                     flexDirection: 'column',
                     boxShadow: 'var(--card-shadow)',
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <Text strong style={{ fontSize: 15.5, color: 'var(--ink)' }}>{c.name}</Text>
-                      <StatusTag type="campus" value={c.code} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Text strong style={{ fontSize: 15.5, color: 'var(--ink)' }}>{b.name}</Text>
+                      <span className="haui-chip mono">{b.code} · {b.totalFloors}T</span>
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.5 }}>
-                      <EnvironmentOutlined style={{ marginRight: 6, color: 'var(--brand)' }} />
-                      {c.address}
-                    </div>
-                    <div style={{ marginBottom: 16 }}>
-                      <Text type="secondary" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 6 }}>
-                        Tòa nhà nội trú
-                      </Text>
-                      <Space size={6} wrap>
-                        {(c.buildings || []).map((b) => (
-                          <span key={b.id} className="haui-chip mono">{b.code} · {b.totalFloors}T</span>
-                        ))}
-                      </Space>
-                    </div>
+                    <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+                      {b.description || 'Khu nhà nội trú sinh viên Cơ sở 1 — phòng khép kín, wifi miễn phí.'}
+                    </Text>
                     <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--line)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
                         <Text type="secondary">Chỗ còn trống</Text>
-                        <Text strong className="mono" style={{ color: 'var(--success-text)' }}>{c.stats?.availableSlots ?? 0} / {total}</Text>
+                        <Text strong className="mono" style={{ color: 'var(--success-text)' }}>{avail} / {total}</Text>
                       </div>
                       <Progress percent={pct} size="small" strokeColor="#2563EB" showInfo={false} />
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        {c.stats?.totalRooms ?? 0} phòng đang vận hành · Lấp đầy {pct}%
+                        {b.stats?.totalRooms ?? 0} phòng vận hành · Lấp đầy {pct}%
                       </Text>
                     </div>
                   </div>
@@ -251,7 +264,7 @@ export default function PublicHomePage() {
         padding: screens.md ? '36px 20px 32px' : '20px 14px 20px',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Row gutter={[32, 20]} align="middle">
+          <Row gutter={[screens.md ? 32 : 16, 20]} align="middle">
             <Col xs={24} lg={15}>
               <div style={{
                 display: 'inline-flex',
@@ -272,10 +285,10 @@ export default function PublicHomePage() {
                 <span>Năm học {campusInfo?.academicYear || '2026–2027'} · Hỗ trợ sinh viên HaUI</span>
               </div>
               <Title level={1} style={{ margin: '0 0 10px', fontSize: screens.md ? 32 : 24, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.25, color: 'var(--ink)' }}>
-                Cổng Thông Tin &amp; Đăng Ký Ký Túc Xá
+                Cổng Thông Tin &amp; Đăng Ký KTX Cơ Sở 1
               </Title>
               <Paragraph style={{ color: 'var(--text-secondary)', fontSize: screens.md ? 15 : 14, maxWidth: 620, marginBottom: 18, lineHeight: 1.6 }}>
-                Tiếp nhận đơn nội trú trực tuyến tại 3 cơ sở Hà Nội &amp; Ninh Bình, tự động xếp phòng từ tầng thấp lên cao theo đúng loại phòng, thanh toán VietQR và nhận phòng bằng mã QR Check-in.
+                Tiếp nhận đăng ký nội trú tại 2 tòa nhà A14 &amp; A15 (Cầu Diễn, Hà Nội) — tự động duyệt &amp; xếp phòng ngay từ tầng thấp lên cao, thanh toán VietQR và nhận phòng bằng mã QR Check-in.
               </Paragraph>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 <Button type="primary" size="large" block={isMobile} onClick={() => navigate('/apply')}>
@@ -296,7 +309,7 @@ export default function PublicHomePage() {
                 boxShadow: '0 4px 16px rgba(37, 99, 235, 0.06)',
               }}>
                 <FactRow label="Đợt đăng ký đang mở" value={`${periods.length} đợt`} accent />
-                <FactRow label="Quy mô vận hành" value={`${totalRooms} phòng · 7 tòa`} />
+                <FactRow label="Quy mô Cơ sở 1" value={`${totalRooms} phòng · ${buildings.length || 2} tòa`} />
                 <FactRow label="Chỗ còn trống" value={`${totalAvailable} / ${totalSlots} chỗ`} success />
                 <FactRow label="Hotline hỗ trợ" value={campusInfo?.hotline || SUPPORT_CONTACT.hotline} last />
               </div>

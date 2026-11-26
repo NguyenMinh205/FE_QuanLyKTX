@@ -11,35 +11,21 @@ export const CAMPUS = {
     address: 'Ngõ 296 / Số 298 Đường Cầu Diễn, Phường Tây Tựu, TP. Hà Nội',
     buildings: ['A14', 'A15'],
   },
-  cs2: {
-    label: 'Cơ sở 2 (Tây Tựu)',
-    shortLabel: 'CS2 - Tây Tựu',
-    color: 'cyan',
-    address: 'Tổ dân phố Thượng 2, Phường Tây Tựu, TP. Hà Nội',
-    buildings: ['B12', 'B14'],
-  },
-  cs3: {
-    label: 'Cơ sở 3 (Ninh Bình)',
-    shortLabel: 'CS3 - Phù Vân',
-    color: 'purple',
-    address: 'Phường Phù Vân, Tỉnh Ninh Bình',
-    buildings: ['C15', 'C16', 'C17'],
-  },
   all: {
-    label: 'Tất cả 3 Cơ sở',
-    shortLabel: 'Toàn trường',
+    label: 'Toàn bộ KTX Cơ sở 1',
+    shortLabel: 'KTX Cơ sở 1',
     color: 'geekblue',
   },
 };
 
-export const CAMPUS_OPTIONS = ['cs1', 'cs2', 'cs3'].map((value) => ({
+export const CAMPUS_OPTIONS = ['cs1'].map((value) => ({
   value,
   label: CAMPUS[value].label,
 }));
 
 export const CAMPUS_SCOPE_OPTIONS = [
+  { value: 'cs1', label: CAMPUS.cs1.label },
   { value: 'all', label: CAMPUS.all.label },
-  ...CAMPUS_OPTIONS,
 ];
 
 export const ROOM_TIER = {
@@ -117,7 +103,7 @@ export const CONTRACT_STATUS = {
 export const CONTRACT_TERM = {
   '5_months':   { label: '5 tháng',    hint: '1 học kỳ chuẩn',         months: 5 },
   '6_months':   { label: '6 tháng',    hint: '1 học kỳ mở rộng',       months: 6 },
-  '8.5_months': { label: '8,5 tháng',  hint: 'Tân SV năm nhất CS3',    months: 8.5 },
+  '8.5_months': { label: '8,5 tháng',  hint: 'Tân SV năm nhất',        months: 8.5 },
   '10_months':  { label: '10 tháng',   hint: '1 năm học (2 học kỳ)',   months: 10 },
   '12_months':  { label: '12 tháng',   hint: 'Cả năm (gồm hè)',        months: 12 },
 };

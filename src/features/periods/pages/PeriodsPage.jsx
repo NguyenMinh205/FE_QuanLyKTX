@@ -10,7 +10,7 @@ import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { periodApi } from '../api/period.api';
-import { CAMPUS_SCOPE_OPTIONS, CONTRACT_TERM, PERIOD_STATUS_OPTIONS } from '../../../constants/statuses';
+import { CONTRACT_TERM, PERIOD_STATUS_OPTIONS } from '../../../constants/statuses';
 import { getErrorMessage } from '../../../lib/axiosClient';
 import { formatDate } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
@@ -35,13 +35,13 @@ export default function PeriodsPage() {
   const { message, modal } = App.useApp();
   const canManage = can(user, 'period:manage');
 
-  const [filters, setFilters] = useState({ page: 1, limit: 20, campus: undefined, status: undefined });
+  const [filters, setFilters] = useState({ page: 1, limit: 20, status: undefined });
   const [formPeriod, setFormPeriod] = useState(null);
   const [detailPeriod, setDetailPeriod] = useState(null);
 
   const { data, meta, loading, error, refetch } = useApi(
     () => periodApi.getList({
-      page: filters.page, limit: filters.limit, campus: filters.campus, status: filters.status,
+      page: filters.page, limit: filters.limit, status: filters.status,
     }),
     [filters],
   );
@@ -98,12 +98,12 @@ export default function PeriodsPage() {
       ),
     },
     {
-      title: 'Tiếp nhận', key: 'stats', width: 135, align: 'right',
+      title: 'Tiếp nhận', key: 'stats', width: 145, align: 'right',
       render: (_, p) => (
         <>
-          <div><Text strong>{p.stats?.total ?? 0}</Text> <Text type="secondary" style={{ fontSize: 12 }}>đơn</Text></div>
-          <Text type={p.stats?.pending ? 'warning' : 'secondary'} style={{ fontSize: 12 }}>
-            {p.stats?.pending ?? 0} chờ duyệt
+          <div><Text strong>{p.stats?.total ?? 0}</Text> <Text type="secondary" style={{ fontSize: 12 }}>đăng ký</Text></div>
+          <Text type={p.stats?.pending_payment ? 'warning' : 'secondary'} style={{ fontSize: 12 }}>
+            {p.stats?.pending_payment ?? 0} chờ đóng phí
           </Text>
         </>
       ),
@@ -138,20 +138,20 @@ export default function PeriodsPage() {
   ];
 
   const statsItems = detailPeriod ? [
-    { label: 'Tổng đơn', value: detailPeriod.stats?.total ?? 0 },
-    { label: 'Chờ duyệt', value: detailPeriod.stats?.pending ?? 0, color: 'var(--warning-text)' },
+    { label: 'Tổng đăng ký', value: detailPeriod.stats?.total ?? 0 },
     { label: 'Chờ đóng phí', value: detailPeriod.stats?.pending_payment ?? 0, color: 'var(--brand)' },
     { label: 'Đang ở', value: detailPeriod.stats?.active ?? 0, color: 'var(--success-text)' },
-    { label: 'Từ chối', value: detailPeriod.stats?.rejected ?? 0 },
+    { label: 'Đã thanh lý', value: detailPeriod.stats?.terminated ?? 0 },
     { label: 'Đã hủy', value: detailPeriod.stats?.cancelled ?? 0 },
+    { label: 'Từ chối', value: detailPeriod.stats?.rejected ?? 0 },
   ] : [];
 
   return (
     <>
       <PageHeader
         breadcrumb={['Tuyển sinh & Lưu trú', 'Đợt đăng ký']}
-        title="Đợt đăng ký KTX"
-        description="Điều phối lịch mở cổng tiếp nhận đơn theo 3 cơ sở, khóa sinh viên và khoa/ngành đào tạo."
+        title="Đợt đăng ký KTX Cơ sở 1"
+        description="Điều phối lịch mở cổng tiếp nhận đăng ký (tự động duyệt & xếp phòng ngay khi sinh viên nộp đơn)."
         extra={canManage && <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormPeriod({})}>Tạo đợt đăng ký</Button>}
       />
 
@@ -170,20 +170,12 @@ export default function PeriodsPage() {
           onRow={(p) => ({ onClick: () => setDetailPeriod(p), style: { cursor: 'pointer' } })}
           rowClassName={(p) => (p.id === detailPeriod?.id ? 'ant-table-row-selected' : '')}
           extraFilters={(
-            <>
-              <Select
-                allowClear placeholder="Tất cả cơ sở" style={{ width: 185 }}
-                value={filters.campus}
-                onChange={(v) => setFilters((f) => ({ ...f, campus: v, page: 1 }))}
-                options={CAMPUS_SCOPE_OPTIONS}
-              />
-              <Select
-                allowClear placeholder="Tất cả trạng thái" style={{ width: 155 }}
-                value={filters.status}
-                onChange={(v) => setFilters((f) => ({ ...f, status: v, page: 1 }))}
-                options={PERIOD_STATUS_OPTIONS}
-              />
-            </>
+            <Select
+              allowClear placeholder="Tất cả trạng thái" style={{ width: 165 }}
+              value={filters.status}
+              onChange={(v) => setFilters((f) => ({ ...f, status: v, page: 1 }))}
+              options={PERIOD_STATUS_OPTIONS}
+            />
           )}
         />
       </Card>
@@ -259,8 +251,8 @@ export default function PeriodsPage() {
             </Row>
 
             <div style={{ marginTop: 16 }}>
-              <Link to="/admin/applications">
-                <Button block>Đi tới danh sách duyệt đơn <ArrowRightOutlined /></Button>
+              <Link to="/admin/contracts?tab=pending_payment">
+                <Button block>Xem hợp đồng chờ đóng phí <ArrowRightOutlined /></Button>
               </Link>
             </div>
           </>

@@ -102,7 +102,7 @@ function InvoicesView({ searchParams }) {
       <PageHeader
         breadcrumb={['Tài chính', 'Hóa đơn']}
         title="Hóa đơn"
-        description="Sinh khi duyệt đơn (cọc, tiền phòng cả kỳ) và khi chốt điện nước. Thu tiền mặt hoặc xác nhận chuyển khoản VietQR."
+        description="Tự động sinh khi sinh viên đăng ký (cọc, tiền phòng cả kỳ) và khi chốt điện nước. Thu tiền mặt hoặc xác nhận chuyển khoản VietQR."
       />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>

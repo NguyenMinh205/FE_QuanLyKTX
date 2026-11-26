@@ -3,7 +3,7 @@ import { Modal, Form, Input, InputNumber, Select, DatePicker, Row, Col, Alert, A
 import dayjs from 'dayjs';
 import { periodApi } from '../api/period.api';
 import {
-  CAMPUS_SCOPE_OPTIONS, TARGET_COHORT_OPTIONS, CONTRACT_TERM_OPTIONS, PERIOD_STATUS_OPTIONS,
+  TARGET_COHORT_OPTIONS, CONTRACT_TERM_OPTIONS, PERIOD_STATUS_OPTIONS,
 } from '../../../constants/statuses';
 import { FACULTY_OPTIONS } from '../../../constants/app';
 import { getErrorMessage, getFieldErrors } from '../../../lib/axiosClient';
@@ -47,7 +47,7 @@ export default function PeriodFormModal({ open, period, onCancel, onSaved }) {
       code: values.code.trim().toUpperCase(),
       name: values.name.trim(),
       academicYearStart: Number(values.academicYearStart),
-      campus: values.campus,
+      campus: 'cs1',
       targetCohort: values.targetCohort,
       allowedFaculties: values.allowedFaculties || [],
       excludedFaculties: values.excludedFaculties || [],
@@ -94,28 +94,23 @@ export default function PeriodFormModal({ open, period, onCancel, onSaved }) {
               normalize={(v) => (v || '').toUpperCase()}
               rules={[{ required: true, message: 'Nhập mã đợt' }, { pattern: /^[A-Z0-9_-]{3,40}$/, message: 'Chữ hoa, số, - hoặc _ (3–40 ký tự)' }]}
             >
-              <Input placeholder="VD: DOT-2026-CS3-TSV" disabled={isEdit} />
+              <Input placeholder="VD: DOT-2026-CS1-TSV" disabled={isEdit} />
             </Form.Item>
           </Col>
           <Col xs={24} md={15}>
             <Form.Item name="name" label="Tên đợt đăng ký" rules={[{ required: true, whitespace: true, message: 'Nhập tên đợt' }]}>
-              <Input placeholder="VD: Đợt đăng ký KTX Tân SV K21 — Cơ sở 3 Ninh Bình" />
+              <Input placeholder="VD: Đợt đăng ký KTX Tân SV K21 — Cơ sở 1 (A14, A15)" />
             </Form.Item>
           </Col>
         </Row>
 
         <Row gutter={16}>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={12}>
             <Form.Item name="academicYearStart" label="Năm bắt đầu năm học" rules={[{ required: true, message: 'Nhập năm học' }]}>
               <InputNumber min={2020} max={2100} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
-          <Col xs={24} md={8}>
-            <Form.Item name="campus" label="Phạm vi cơ sở" rules={[{ required: true }]}>
-              <Select options={CAMPUS_SCOPE_OPTIONS} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={12}>
             <Form.Item name="targetCohort" label="Đối tượng SV" rules={[{ required: true }]}>
               <Select options={TARGET_COHORT_OPTIONS} />
             </Form.Item>

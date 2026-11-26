@@ -12,7 +12,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { roomApi } from '../api/room.api';
 import {
-  CAMPUS_OPTIONS, GENDER, GENDER_OPTIONS, ROOM_CAPACITY_OPTIONS, ROOM_TIER, ROOM_TIER_OPTIONS,
+  GENDER, GENDER_OPTIONS, ROOM_CAPACITY_OPTIONS, ROOM_TIER, ROOM_TIER_OPTIONS,
 } from '../../../constants/statuses';
 import { formatCurrency } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
@@ -50,7 +50,6 @@ export default function RoomsPage() {
 
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState({
-    campus: undefined,
     buildingId: searchParams.get('buildingId') || undefined,
     gender: undefined,
     roomTier: undefined,
@@ -63,7 +62,7 @@ export default function RoomsPage() {
   const [formRoom, setFormRoom] = useState(null);
   const [detailVersion, setDetailVersion] = useState(0);
 
-  const { data: buildings } = useApi(() => roomApi.getBuildings({ campus: filters.campus }), [filters.campus]);
+  const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
   const buildingId = (buildings?.some((b) => b.id === filters.buildingId) ? filters.buildingId : null) ?? buildings?.[0]?.id;
 
   const { data: rooms, meta, loading, error, refetch } = useApi(
@@ -166,20 +165,15 @@ export default function RoomsPage() {
     <>
       <PageHeader
         breadcrumb={['Quản lý & Hỗ trợ', 'Phòng ở']}
-        title="Quản lý phòng ở"
-        description="Sơ đồ tầng theo 3 Cơ sở, hạng phòng 2026–2027 và danh sách sinh viên đang cư trú."
+        title="Quản lý phòng ở Cơ sở 1"
+        description="Sơ đồ tầng 2 tòa nhà (A14, A15 — 60 phòng), hạng phòng 2026–2027 và danh sách sinh viên đang cư trú."
         extra={canCreate && <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormRoom({})}>Thêm phòng</Button>}
       />
 
       <Card styles={{ body: { padding: '12px 16px' } }} style={{ marginBottom: 12 }}>
         <div className="room-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
           <Select
-            style={{ width: 175 }} allowClear placeholder="Tất cả 3 cơ sở"
-            value={filters.campus} options={CAMPUS_OPTIONS}
-            onChange={(v) => setFilter({ campus: v, buildingId: undefined, floor: undefined })}
-          />
-          <Select
-            style={{ width: 205 }} value={buildingId} loading={!buildings}
+            style={{ width: 220 }} value={buildingId} loading={!buildings}
             options={(buildings || []).map((b) => ({ value: b.id, label: `${b.code} · ${b.name}` }))}
             onChange={(v) => setFilter({ buildingId: v, floor: undefined })}
           />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Button, Card, Table, Tag, Typography, Segmented, Progress, Space, Tooltip, Alert, Select, App,
+  Button, Card, Table, Tag, Typography, Segmented, Progress, Space, Tooltip, Alert, App,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, StopOutlined, CheckCircleOutlined, AppstoreOutlined,
@@ -10,11 +10,9 @@ import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { roomApi } from '../api/room.api';
-import { CAMPUS_OPTIONS } from '../../../constants/statuses';
 import { getErrorMessage } from '../../../lib/axiosClient';
 import { formatPercent } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
-import StatusTag from '../../../components/StatusTag';
 import BuildingFormModal from '../components/BuildingFormModal';
 
 const { Text } = Typography;
@@ -32,12 +30,11 @@ export default function BuildingsPage() {
   const canEdit = can(user, 'building:create');
 
   const [status, setStatus] = useState('active');
-  const [campus, setCampus] = useState(undefined);
   const [formBuilding, setFormBuilding] = useState(null);
 
   const { data, loading, error, refetch } = useApi(
-    () => roomApi.getBuildings({ includeInactive: true, campus }),
-    [campus],
+    () => roomApi.getBuildings({ includeInactive: true }),
+    [],
   );
   const all = data || [];
   const shown = all.filter((b) => (status === 'all' ? true : status === 'active' ? b.isActive : !b.isActive));
@@ -79,15 +76,6 @@ export default function BuildingsPage() {
             <div><Text type="secondary" style={{ fontSize: 12 }}>{b.totalFloors} tầng{b.description ? ` · ${b.description}` : ''}</Text></div>
           </div>
         </div>
-      ),
-    },
-    {
-      title: 'Cơ sở', key: 'campus', width: 170,
-      render: (_, b) => (
-        <>
-          <StatusTag type="campus" value={b.campus} />
-          {b.campusAddress && <div><Text type="secondary" style={{ fontSize: 11 }}>{b.campusAddress}</Text></div>}
-        </>
       ),
     },
     { title: 'Số phòng', key: 'rooms', width: 90, align: 'center', render: (_, b) => b.stats?.totalRooms ?? 0 },
@@ -149,29 +137,23 @@ export default function BuildingsPage() {
   return (
     <>
       <PageHeader
-        breadcrumb={['Cơ sở vật chất', 'Tòa nhà (3 Cơ sở)']}
-        title="Quản lý Tòa nhà (3 Cơ sở HaUI)"
-        description="Danh mục tòa nhà tại CS1 (A14–A15), CS2 (B12–B14) và CS3 Ninh Bình (C15–C17)."
+        breadcrumb={['Quản lý & Hỗ trợ', 'Tòa nhà (A14, A15)']}
+        title="Quản lý Tòa nhà KTX Cơ sở 1"
+        description="Danh mục 2 tòa nhà nội trú tại Cầu Diễn (Nhà A14 & Nhà A15)."
         extra={canEdit && <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormBuilding({})}>Thêm tòa nhà</Button>}
       />
 
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-          <Space wrap>
-            <Segmented
-              value={status}
-              onChange={setStatus}
-              options={[
-                { value: 'active', label: `Đang hoạt động (${all.length - inactiveCount})` },
-                { value: 'inactive', label: `Ngừng hoạt động (${inactiveCount})` },
-                { value: 'all', label: `Tất cả (${all.length})` },
-              ]}
-            />
-            <Select
-              allowClear placeholder="Lọc theo cơ sở" style={{ width: 200 }}
-              value={campus} onChange={setCampus} options={CAMPUS_OPTIONS}
-            />
-          </Space>
+          <Segmented
+            value={status}
+            onChange={setStatus}
+            options={[
+              { value: 'active', label: `Đang hoạt động (${all.length - inactiveCount})` },
+              { value: 'inactive', label: `Ngừng hoạt động (${inactiveCount})` },
+              { value: 'all', label: `Tất cả (${all.length})` },
+            ]}
+          />
           <Text type="secondary" style={{ fontSize: 13, alignSelf: 'center' }}>
             {canEdit ? 'Chỉ Trưởng ban KTX được thêm/sửa cấu hình tòa nhà' : 'Chế độ chỉ xem (Cán bộ quản sinh)'}
           </Text>

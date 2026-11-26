@@ -7,7 +7,6 @@ import {
 import { formatPercent } from '../../../utils/formatter';
 import { BRAND, TEXT_TERTIARY } from '../../../theme/tokens';
 import { occupancyRateOf } from '../api/dashboard.api';
-import StatusTag from '../../../components/StatusTag';
 
 const { Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -50,13 +49,12 @@ export default function OccupancyChart({ buildings = [], campusLabel, loading, e
     return {
       ...b,
       totalCapacity: cap,
-      shortName: isMobile ? b.buildingCode : `${b.buildingCode} (${b.campus?.toUpperCase() || ''})`,
+      shortName: b.buildingCode,
       label: `${rateText(b)} · ${b.occupied}/${cap - (b.maintenance || 0)}`,
     };
   });
 
   const columns = [
-    { title: 'Cơ sở', dataIndex: 'campus', width: 150, render: (v) => <StatusTag type="campus" value={v} /> },
     { title: 'Tòa nhà', key: 'name', render: (_, b) => <Text strong>{b.buildingCode} — {b.buildingName}</Text> },
     { title: 'Phòng', dataIndex: 'totalRooms', align: 'right', className: 'mono' },
     { title: 'Sức chứa', dataIndex: 'totalCapacity', align: 'right', className: 'mono' },

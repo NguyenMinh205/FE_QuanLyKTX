@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Typography, Alert, Skeleton } from 'antd';
-import { QrcodeOutlined } from '@ant-design/icons';
+import { Typography, Alert, Skeleton, Button, Tag, App } from 'antd';
+import { QrcodeOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useApi } from '../../../../hooks/useApi';
 import { portalApi } from '../../api/portal.api';
+import { getErrorMessage } from '../../../../lib/axiosClient';
 import { formatCurrency } from '../../../../utils/formatter';
 
 const { Text } = Typography;
@@ -17,11 +18,25 @@ const Line = ({ label, children }) => (
   </div>
 );
 
-/** Khối chuyển khoản VietQR động chuẩn NAPAS 247 (tự gạch nợ qua Webhook VietQR) */
-export default function VietQrPanel({ invoice }) {
+/** Khối chuyển khoản VietQR động chuẩn NAPAS 247 + Nút Giả lập Webhook cho môi trường Test/Sandbox */
+export default function VietQrPanel({ invoice, onPaid }) {
+  const { message } = App.useApp();
   const [imageFailed, setImageFailed] = useState(false);
+  const [simulating, setSimulating] = useState(false);
   const { data: qr, error } = useApi(() => portalApi.getMyInvoiceVietqr(invoice.id), [invoice.id]);
   const ready = qr && qr.amount === invoice.amount;
+
+  const handleSimulate = async () => {
+    setSimulating(true);
+    try {
+      const res = await portalApi.simulateMyInvoiceVietqr(invoice.id);
+      onPaid?.(res.data.data, res.data.message);
+    } catch (err) {
+      message.error(getErrorMessage(err));
+    } finally {
+      setSimulating(false);
+    }
+  };
 
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 16 }}>
@@ -29,24 +44,59 @@ export default function VietQrPanel({ invoice }) {
       {error && <Alert type="error" showIcon title={error} style={{ marginTop: 12 }} />}
       {!error && !ready && <Skeleton active paragraph={{ rows: 4 }} style={{ marginTop: 12 }} />}
       {!error && ready && (
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 12, alignItems: 'flex-start' }}>
-          <div style={{ width: 220, maxWidth: '100%', margin: '0 auto', textAlign: 'center' }}>
-            {imageFailed
-              ? <Alert type="warning" showIcon title="Không tải được ảnh QR" description="Chuyển khoản tay theo thông tin bên cạnh, giữ nguyên nội dung." />
-              : <img src={qr.qrImageUrl || fallbackQrUrl(qr)} alt={`Mã VietQR ${formatCurrency(qr.amount)}`} width={220} style={{ maxWidth: '100%', height: 'auto', display: 'block' }} onError={() => setImageFailed(true)} />}
-            <Text type="secondary" style={{ fontSize: 12 }}>Mở app ngân hàng → Quét mã VietQR</Text>
+        <>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 12, alignItems: 'flex-start' }}>
+            <div style={{ width: 220, maxWidth: '100%', margin: '0 auto', textAlign: 'center' }}>
+              {imageFailed
+                ? <Alert type="warning" showIcon title="Không tải được ảnh QR" description="Chuyển khoản tay theo thông tin bên cạnh, giữ nguyên nội dung." />
+                : <img src={qr.qrImageUrl || fallbackQrUrl(qr)} alt={`Mã VietQR ${formatCurrency(qr.amount)}`} width={220} style={{ maxWidth: '100%', height: 'auto', display: 'block' }} onError={() => setImageFailed(true)} />}
+              <Text type="secondary" style={{ fontSize: 12 }}>Mở app ngân hàng → Quét mã VietQR</Text>
+            </div>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <Line label="Số tiền"><Text strong style={{ color: '#CF1322' }}>{formatCurrency(qr.amount)}</Text></Line>
+              <Line label="Nội dung"><Text code copyable={{ text: qr.transferContent, tooltips: ['Sao chép', 'Đã sao chép'] }}>{qr.transferContent}</Text></Line>
+              {qr.bankName && <Line label="Ngân hàng">{qr.bankName}</Line>}
+              <Line label="Số tài khoản"><Text copyable={{ tooltips: ['Sao chép', 'Đã sao chép'] }}>{qr.accountNumber}</Text></Line>
+              <Line label="Chủ tài khoản">{qr.accountName}</Line>
+              <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 8 }}>
+                Giữ nguyên số tiền và nội dung chuyển khoản. Hệ thống tự động gạch nợ qua Webhook VietQR và kích hoạt hợp đồng / cấp mã QR Check-in ngay khi nhận đủ phí đầu kỳ.
+              </Text>
+            </div>
           </div>
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <Line label="Số tiền"><Text strong style={{ color: '#CF1322' }}>{formatCurrency(qr.amount)}</Text></Line>
-            <Line label="Nội dung"><Text code copyable={{ text: qr.transferContent, tooltips: ['Sao chép', 'Đã sao chép'] }}>{qr.transferContent}</Text></Line>
-            {qr.bankName && <Line label="Ngân hàng">{qr.bankName}</Line>}
-            <Line label="Số tài khoản"><Text copyable={{ tooltips: ['Sao chép', 'Đã sao chép'] }}>{qr.accountNumber}</Text></Line>
-            <Line label="Chủ tài khoản">{qr.accountName}</Line>
-            <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 8 }}>
-              Giữ nguyên số tiền và nội dung chuyển khoản. Hệ thống tự động gạch nợ qua Webhook VietQR và kích hoạt hợp đồng / cấp mã QR Check-in ngay khi nhận đủ phí đầu kỳ.
-            </Text>
-          </div>
-        </div>
+
+          {qr.sandboxEnabled && (
+            <div style={{
+              marginTop: 14,
+              padding: '12px 14px',
+              borderRadius: 8,
+              background: '#F0F6FF',
+              border: '1px dashed #93C5FD',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <Tag color="blue" style={{ margin: 0 }}>Môi trường Test / Sandbox</Tag>
+                  <Text strong style={{ fontSize: 13 }}>Kiểm thử thanh toán không cần chuyển tiền thật</Text>
+                </div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Giả lập ngân hàng gửi Webhook báo có VietQR để tự gạch nợ, lập biên lai và kích hoạt hợp đồng.
+                </Text>
+              </div>
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                loading={simulating}
+                onClick={handleSimulate}
+              >
+                Giả lập chuyển khoản VietQR (Test)
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

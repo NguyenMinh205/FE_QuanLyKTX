@@ -30,7 +30,7 @@ function InfoRow({ label, children, mono }) {
 export default function NoResidenceHome({ profile, onApplied }) {
   const navigate = useNavigate();
   const screens = useBreakpoint();
-  const { message } = App.useApp();
+  const { message, notification } = App.useApp();
   const [applyOpen, setApplyOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
@@ -78,7 +78,13 @@ export default function NoResidenceHome({ profile, onApplied }) {
         preferredRoomTier: tier,
         preferredCapacity: Number(cap),
       });
-      message.success(res.data.message || 'Đã gửi đơn đăng ký nội bộ');
+      const created = res.data.data;
+      notification.success({
+        title: created?.room
+          ? `Đã tự động xếp Phòng ${roomLabelOf(created.room)}`
+          : 'Đăng ký KTX thành công',
+        description: res.data.message || 'Phòng đã được giữ chỗ. Vui lòng thanh toán VietQR trước hạn để kích hoạt hợp đồng.',
+      });
       setApplyOpen(false);
       form.resetFields();
       refetch();
@@ -98,8 +104,8 @@ export default function NoResidenceHome({ profile, onApplied }) {
   const internalApplyModal = (
     <Modal
       open={applyOpen}
-      title="Đăng ký / Gia hạn KTX nội bộ"
-      okText="Gửi đơn đăng ký"
+      title="Đăng ký / Gia hạn KTX Cơ sở 1"
+      okText="Đăng ký & Xếp phòng ngay"
       cancelText="Hủy"
       confirmLoading={saving}
       onOk={() => form.submit()}
@@ -126,7 +132,7 @@ export default function NoResidenceHome({ profile, onApplied }) {
             <Form.Item
               name="roomChoice"
               label="Chọn loại phòng nguyện vọng"
-              extra="Loại phòng hết chỗ tự động khóa. Hệ thống xếp phòng đúng giới tính từ tầng thấp lên cao."
+              extra="Loại phòng hết chỗ tự động khóa. Hệ thống tự động duyệt & xếp phòng từ tầng thấp lên cao ngay khi nộp."
               rules={[{ required: true, message: 'Chọn loại phòng còn chỗ' }]}
             >
               <Select

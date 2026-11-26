@@ -16,6 +16,7 @@ import {
 } from '../../../constants/statuses';
 import { FACULTY_OPTIONS } from '../../../constants/app';
 import { formatCurrency, formatDate } from '../../../utils/formatter';
+import { roomLabelOf } from '../../rooms/utils/roomStatus';
 import EmptyState from '../../../components/EmptyState';
 import StatusTag from '../../../components/StatusTag';
 import PublicShell from '../components/PublicShell';
@@ -228,31 +229,58 @@ export default function PublicApplyPage() {
     const submittedWish = submitted.preferredRoomTier
       ? `${ROOM_TIER[submitted.preferredRoomTier]?.label || submitted.preferredRoomTier}${submitted.preferredCapacity ? ` · ${submitted.preferredCapacity} người` : ''}`
       : '—';
+    const assignedRoomText = submitted.room
+      ? `${submitted.room.buildingName} · Phòng ${roomLabelOf(submitted.room)} (Tầng ${submitted.room.floor})`
+      : 'Đã khóa chỗ thành công';
     return (
       <PublicShell>
         <Card>
           <Result
             status="success"
-            title="Đã gửi đơn đăng ký KTX thành công"
-            subTitle={submitted.message}
+            title="Đăng ký thành công — Hệ thống đã tự động xếp phòng!"
+            subTitle={submitted.message || 'Phòng đã được giữ chỗ và hóa đơn đầu kỳ đã phát hành. Đăng nhập Cổng Sinh viên để thanh toán VietQR.'}
             extra={[
-              <Button type="primary" key="status" onClick={() => navigate(statusUrl)}>Tra cứu tiến độ đơn</Button>,
+              <Button type="primary" size="large" key="login" onClick={() => navigate('/login')}>Đăng nhập thanh toán VietQR ngay</Button>,
+              <Button key="status" onClick={() => navigate(statusUrl)}>Tra cứu / Tự hủy giữ chỗ</Button>,
               <Button key="home" onClick={() => navigate('/')}>Về trang chủ KTX</Button>,
             ]}
           >
-            <div style={{ maxWidth: 460, margin: '0 auto' }}>
-              <Line label="Mã đơn" mono>{submitted.contractCode}</Line>
+            <div style={{ maxWidth: 500, margin: '0 auto' }}>
+              <div style={{
+                marginBottom: 14,
+                padding: '12px 16px',
+                borderRadius: 8,
+                background: 'var(--brand-soft)',
+                border: '1px solid var(--brand-border)',
+                textAlign: 'center',
+              }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>PHÒNG ĐƯỢC XẾP TỰ ĐỘNG (TẦNG THẤP → CAO)</Text>
+                <Text strong className="mono" style={{ fontSize: 18, color: 'var(--brand-deep)' }}>
+                  {assignedRoomText}
+                </Text>
+              </div>
+              <Line label="Mã hợp đồng" mono>{submitted.contractCode}</Line>
               <Line label="Trạng thái"><StatusTag type="contract" value={submitted.status} /></Line>
-              <Line label="Cơ sở">{submitted.campusName || CAMPUS[submitted.campus]?.label || '—'}</Line>
-              <Line label="Loại phòng đã chọn">{submittedWish}</Line>
-              <Line label="Xếp phòng">Tự động từ tầng thấp → cao khi duyệt</Line>
+              <Line label="Cơ sở">{submitted.campusName || CAMPUS[submitted.campus]?.label || 'Cơ sở 1 (Cầu Diễn)'}</Line>
+              <Line label="Loại phòng">{submittedWish}</Line>
               <Line label="Gói thuê">{CONTRACT_TERM[submitted.term]?.label || submitted.term}</Line>
+              {submitted.paymentDeadline && (
+                <Line label="Hạn đóng phí giữ chỗ" mono>
+                  <Text strong type="warning">{formatDate(submitted.paymentDeadline)}</Text>
+                </Line>
+              )}
               <Divider style={{ margin: '10px 0' }} />
-              <Line label="Tiền cọc" mono>{formatCurrency(submitted.depositAmount)}</Line>
+              <Line label="Tiền cọc tài sản" mono>{formatCurrency(submitted.depositAmount)}</Line>
               <Line label="Tiền phòng cả kỳ" mono>{formatCurrency(submitted.totalRoomFee)}</Line>
-              <Line label="Tổng nộp sau khi duyệt" strong mono>{formatCurrency(submitted.depositAmount + submitted.totalRoomFee)}</Line>
-              <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 6, background: 'var(--surface-subtle)', border: '1px solid var(--line)', fontSize: 12.5, color: 'var(--text-secondary)' }}>
-                Kết quả xếp phòng và tài khoản (TK = MK = MSSV) sẽ gửi tới <Text strong>{submitted.email}</Text> ngay khi cán bộ xét duyệt.
+              <Line label="Tổng cần thanh toán" strong mono>{formatCurrency((submitted.depositAmount || 0) + (submitted.totalRoomFee || 0))}</Line>
+              <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 6, background: '#F0FDF4', border: '1px solid #BBF7D0', fontSize: 12.5, color: '#14532D' }}>
+                <div><b>Tài khoản Cổng Sinh viên đã sẵn sàng:</b></div>
+                <div style={{ marginTop: 4 }}>
+                  Tài khoản: <Text code className="mono">{submitted.studentCode}</Text> · Mật khẩu mặc định: <Text code className="mono">{submitted.studentCode}</Text>
+                </div>
+                <div style={{ marginTop: 4, opacity: 0.9 }}>
+                  Thông tin chi tiết cũng đã gửi tới <b>{submitted.email}</b>. Sau khi thanh toán VietQR, hợp đồng tự động kích hoạt và sinh mã QR Check-in ngay lập tức.
+                </div>
               </div>
             </div>
           </Result>
@@ -267,10 +295,10 @@ export default function PublicApplyPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
         <div>
           <Title level={3} style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
-            Đăng ký ở Ký túc xá HaUI
+            Đăng ký ở Ký túc xá Cơ sở 1
           </Title>
           <Text type="secondary" style={{ fontSize: 13.5 }}>
-            Chọn đợt, chọn loại phòng còn chỗ và điền hồ sơ — hệ thống tự xếp phòng từ tầng thấp lên cao.
+            Chọn đợt, chọn loại phòng còn chỗ và điền hồ sơ — hệ thống tự động duyệt &amp; xếp phòng ngay từ tầng thấp lên cao.
           </Text>
         </div>
         <div style={{ width: '100%', maxWidth: 360 }}>
@@ -293,7 +321,7 @@ export default function PublicApplyPage() {
             <Alert
               type="warning" showIcon style={{ marginBottom: 14 }}
               title="Mã sinh viên này đã có đơn đăng ký hoặc hợp đồng đang hiệu lực"
-              description={<span>Kiểm tra hoặc tự hủy đơn chờ duyệt tại <Link to="/apply/status">Tra cứu đơn</Link>.</span>}
+              description={<span>Kiểm tra hoặc tự hủy giữ chỗ chưa thanh toán tại <Link to="/apply/status">Tra cứu đơn</Link>.</span>}
             />
           )}
           {roomAlert && <Alert type="error" showIcon closable style={{ marginBottom: 14 }} title={roomAlert} onClose={() => setRoomAlert(null)} />}
@@ -316,7 +344,7 @@ export default function PublicApplyPage() {
               <Col xs={24} md={10}>
                 <Form.Item
                   name="faculty" label="Khoa / Viện đào tạo"
-                  extra="Tự động phân luồng CS1–CS2 (HN) hoặc CS3 (Ninh Bình)"
+                  extra="Khoa / Viện đang theo học tại HaUI"
                   rules={[{ required: true, whitespace: true, message: 'Chọn hoặc nhập khoa / viện' }]}
                 >
                   <AutoComplete
@@ -395,7 +423,7 @@ export default function PublicApplyPage() {
               <div style={{ marginBottom: 14 }}>
                 <Text strong style={{ fontSize: 15, display: 'block' }}>Chọn loại phòng nguyện vọng</Text>
                 <Text type="secondary" style={{ fontSize: 12.5 }}>
-                  Loại phòng hết chỗ tự động khóa. Khi duyệt đơn, hệ thống xếp lấp đầy từ tầng thấp lên cao đúng giới tính.
+                  Loại phòng hết chỗ tự động khóa. Khi nộp đơn, hệ thống lập tức giữ chỗ từ tầng thấp lên cao đúng giới tính.
                 </Text>
               </div>
 
@@ -499,7 +527,7 @@ export default function PublicApplyPage() {
                   <Line label="Đơn giá" mono>{formatCurrency(estPrice)}/tháng</Line>
                   <Line label={`Tiền phòng (${String(months).replace('.', ',')} tháng)`} mono>{formatCurrency(estRoomFee)}</Line>
                   <Line label="Tiền cọc tài sản" mono>{formatCurrency(estDeposit)}</Line>
-                  <Line label="Tổng nộp khi duyệt" strong mono>{formatCurrency(estRoomFee + estDeposit)}</Line>
+                  <Line label="Tổng nộp giữ chỗ" strong mono>{formatCurrency(estRoomFee + estDeposit)}</Line>
                 </>
               ) : (
                 <Text type="secondary" style={{ display: 'block', padding: '8px 0', fontSize: 13 }}>
@@ -605,14 +633,14 @@ export default function PublicApplyPage() {
               <Line label="Khoa / Giới tính">{step1Info?.faculty} · {GENDER[step1Info?.gender]?.label}</Line>
               <Line label="Đợt đăng ký">{activePeriod?.name}</Line>
               <Line label="Loại phòng">{wishLabel}</Line>
-              <Line label="Xếp phòng">Tự động tầng thấp → cao</Line>
+              <Line label="Xếp phòng">Tự động ngay khi nộp đơn</Line>
               <Line label="Gói thuê">{CONTRACT_TERM[effectiveTerm]?.label}</Line>
               {selectedType && (
                 <>
                   <Divider style={{ margin: '10px 0' }} />
                   <Line label={`Tiền phòng (${String(months).replace('.', ',')} tháng)`} mono>{formatCurrency(estRoomFee)}</Line>
                   <Line label="Tiền cọc" mono>{formatCurrency(estDeposit)}</Line>
-                  <Line label="Tổng nộp khi duyệt" strong mono>{formatCurrency(estRoomFee + estDeposit)}</Line>
+                  <Line label="Tổng nộp giữ chỗ" strong mono>{formatCurrency(estRoomFee + estDeposit)}</Line>
                 </>
               )}
 

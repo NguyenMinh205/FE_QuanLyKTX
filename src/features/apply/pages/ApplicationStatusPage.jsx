@@ -137,13 +137,21 @@ export default function ApplicationStatusPage() {
             )}
 
             {app.status === 'pending_payment' && (
-              <Alert
-                type={app.isPaymentOverdue ? 'error' : 'warning'}
-                showIcon
-                title={app.isPaymentOverdue ? 'Đơn đã quá hạn đóng phí giữ chỗ' : 'Đơn đã được duyệt — Chờ hoàn tất đóng phí'}
-                description="Đăng nhập Cổng Sinh viên (TK = MK = MSSV) để quét mã VietQR. Hệ thống tự kích hoạt hợp đồng và sinh mã QR Check-in ngay khi nhận tiền."
-                action={<Button type="primary" onClick={() => navigate('/login')}>Đăng nhập thanh toán</Button>}
-              />
+              <div style={{ display: 'grid', gap: 12 }}>
+                <Alert
+                  type={app.isPaymentOverdue ? 'error' : 'warning'}
+                  showIcon
+                  title={app.isPaymentOverdue ? 'Hợp đồng đã quá hạn đóng phí giữ chỗ' : 'Đã tự động xếp phòng — Chờ hoàn tất đóng phí giữ chỗ'}
+                  description="Đăng nhập Cổng Sinh viên (TK = MK = MSSV) để quét mã VietQR. Hệ thống tự kích hoạt hợp đồng và sinh mã QR Check-in ngay khi nhận tiền."
+                  action={<Button type="primary" onClick={() => navigate('/login')}>Đăng nhập thanh toán</Button>}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <Text type="secondary" style={{ fontSize: 12.5 }}>
+                    Chưa thanh toán và muốn đổi nhu cầu? Bạn có thể tự hủy để nhả chỗ phòng ngay.
+                  </Text>
+                  <Button danger size="small" icon={<CloseCircleOutlined />} onClick={() => setCancelOpen(true)}>Tự hủy giữ chỗ</Button>
+                </div>
+              </div>
             )}
 
             {active && (

@@ -9,7 +9,7 @@ import { can } from '../../../utils/permission';
 import { requestApi } from '../api/request.api';
 import { applyApi } from '../../apply/api/apply.api';
 import {
-  CAMPUS_OPTIONS, REQUEST_TYPE_OPTIONS, REPAIR_CATEGORY, REQUEST_STATUS, ROOM_TIER,
+  REQUEST_TYPE_OPTIONS, REPAIR_CATEGORY, REQUEST_STATUS, ROOM_TIER,
 } from '../../../constants/statuses';
 import { getErrorMessage } from '../../../lib/axiosClient';
 import { formatDateTime } from '../../../utils/formatter';
@@ -37,7 +37,7 @@ export default function RequestsPage() {
   const canApproveTransfer = can(user, 'request:approveTransfer');
 
   const [filters, setFilters] = useState({
-    page: 1, limit: 20, search: '', status: 'all', type: undefined, campus: undefined,
+    page: 1, limit: 20, search: '', status: 'all', type: undefined,
   });
   const [handling, setHandling] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -50,7 +50,6 @@ export default function RequestsPage() {
       search: filters.search || undefined,
       status: filters.status === 'all' ? undefined : filters.status,
       type: filters.type,
-      campus: filters.campus,
     }),
     [filters],
   );
@@ -188,18 +187,11 @@ export default function RequestsPage() {
           unit="phiếu"
           scrollX={1120}
           extraFilters={(
-            <>
-              <Select
-                allowClear placeholder="Loại yêu cầu" style={{ width: 175 }}
-                value={filters.type} options={REQUEST_TYPE_OPTIONS}
-                onChange={(v) => setFilters((f) => ({ ...f, type: v, page: 1 }))}
-              />
-              <Select
-                allowClear placeholder="Cơ sở" style={{ width: 170 }}
-                value={filters.campus} options={CAMPUS_OPTIONS}
-                onChange={(v) => setFilters((f) => ({ ...f, campus: v, page: 1 }))}
-              />
-            </>
+            <Select
+              allowClear placeholder="Loại yêu cầu" style={{ width: 175 }}
+              value={filters.type} options={REQUEST_TYPE_OPTIONS}
+              onChange={(v) => setFilters((f) => ({ ...f, type: v, page: 1 }))}
+            />
           )}
         />
       </Card>

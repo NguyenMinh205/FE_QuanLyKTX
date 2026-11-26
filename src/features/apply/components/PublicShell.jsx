@@ -17,9 +17,9 @@ const NAV_LINKS = [
 ];
 
 const CAMPUS_FOOTER_ITEMS = [
-  { name: 'Cơ sở 1 (A14, A15)', address: 'Ngõ 296 Cầu Diễn, P. Tây Tựu, TP. Hà Nội' },
-  { name: 'Cơ sở 2 (B12, B14)', address: 'TDP Thượng 2, P. Tây Tựu, TP. Hà Nội' },
-  { name: 'Cơ sở 3 (C15, C16, C17)', address: 'Phường Phù Vân, Tỉnh Ninh Bình' },
+  { name: 'Nhà A14 (5 tầng · 30 phòng)', address: 'Tầng 1: Văn phòng Trung tâm KTX · Phòng CLC, Tiêu chuẩn & Cơ bản' },
+  { name: 'Nhà A15 (5 tầng · 30 phòng)', address: 'Khu nội trú sinh viên — Phòng CLC, Tiêu chuẩn & Cơ bản' },
+  { name: 'Địa chỉ Cơ sở 1', address: 'Ngõ 296 / Số 298 Đường Cầu Diễn, P. Tây Tựu, TP. Hà Nội' },
 ];
 
 /**
@@ -221,13 +221,13 @@ export default function PublicShell({ children, fullBleed = false }) {
                 Trung tâm Hỗ trợ sinh viên (SSC)
               </div>
               <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.65, color: '#94A3B8', maxWidth: 340 }}>
-                Hệ thống quản lý nội trú Ký túc xá Trường Đại học Công nghiệp Hà Nội — tiếp nhận đăng ký, xếp phòng tự động, thanh toán VietQR và hỗ trợ sinh viên tại 3 cơ sở.
+                Hệ thống quản lý nội trú Ký túc xá Cơ sở 1 (Nhà A14, A15) — ĐH Công nghiệp Hà Nội: tiếp nhận đăng ký, tự động xếp phòng ngay, thanh toán VietQR và hỗ trợ sinh viên.
               </div>
             </Col>
 
             <Col xs={24} md={12} lg={7}>
               <div style={{ fontWeight: 600, fontSize: 13.5, color: '#FFFFFF', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Hệ thống 3 Cơ sở KTX
+                Ký túc xá Cơ sở 1 (A14, A15)
               </div>
               <div style={{ display: 'grid', gap: 10 }}>
                 {CAMPUS_FOOTER_ITEMS.map((c) => (

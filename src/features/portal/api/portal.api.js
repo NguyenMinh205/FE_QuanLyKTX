@@ -11,6 +11,7 @@ export const portalApi = {
   getMyInvoices:           (params) => axiosClient.get('/portal/my-invoices', { params }),
   getMyInvoiceById:        (id)     => axiosClient.get(`/portal/my-invoices/${id}`),
   getMyInvoiceVietqr:      (id)     => axiosClient.get(`/portal/my-invoices/${id}/vietqr`),
+  simulateMyInvoiceVietqr: (id)     => axiosClient.post(`/portal/my-invoices/${id}/simulate-vietqr`),
   getMyPayments:           (params) => axiosClient.get('/portal/my-payments', { params }),
   getMyRoomUtilityHistory: (params) => axiosClient.get('/portal/my-room/utility-history', { params }),
 

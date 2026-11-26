@@ -20,7 +20,6 @@ import StudentsPage from '../features/students/pages/StudentsPage';
 import UsersPage from '../features/users/pages/UsersPage';
 import RoomsPage from '../features/rooms/pages/RoomsPage';
 import BuildingsPage from '../features/rooms/pages/BuildingsPage';
-import ApplicationsPage from '../features/applications/pages/ApplicationsPage';
 import ContractsPage from '../features/contracts/pages/ContractsPage';
 import RequestsPage from '../features/requests/pages/RequestsPage';
 import NotificationsPage from '../features/notifications/pages/NotificationsPage';
@@ -67,7 +66,7 @@ export default function AppRoutes() {
         <Route path="/admin/students" element={<StudentsPage />} />
         <Route path="/admin/buildings" element={<BuildingsPage />} />
         <Route path="/admin/rooms" element={<RoomsPage />} />
-        <Route path="/admin/applications" element={<ApplicationsPage />} />
+        <Route path="/admin/applications" element={<Navigate to="/admin/contracts?tab=pending_payment" replace />} />
         <Route path="/admin/contracts" element={<ContractsPage />} />
         <Route path="/admin/requests" element={<RequestsPage />} />
         <Route path="/admin/notifications" element={<NotificationsPage />} />
