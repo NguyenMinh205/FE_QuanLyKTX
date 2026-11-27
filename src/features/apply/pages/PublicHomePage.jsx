@@ -15,13 +15,11 @@ const { Title, Text, Paragraph } = Typography;
 const { useBreakpoint } = Grid;
 
 const PRICE_ROWS = [
-  { key: 'hq3', tier: 'Chất lượng cao', note: 'Điều hòa, nóng lạnh, giường gỗ, đệm', cap: '3 người', prices: ROOM_PRICES_2026.high_quality[3] },
-  { key: 'hq4', tier: 'Chất lượng cao', note: 'Điều hòa, nóng lạnh, đệm', cap: '4 người', prices: ROOM_PRICES_2026.high_quality[4] },
-  { key: 'hq6', tier: 'Chất lượng cao', note: 'Điều hòa, nóng lạnh, đệm', cap: '6 người', prices: ROOM_PRICES_2026.high_quality[6] },
-  { key: 'st4', tier: 'Tiêu chuẩn', note: 'Bình nóng lạnh, quạt trần, khép kín', cap: '4 người', prices: ROOM_PRICES_2026.standard[4] },
-  { key: 'st6', tier: 'Tiêu chuẩn', note: 'Bình nóng lạnh, quạt trần, khép kín', cap: '6 người', prices: ROOM_PRICES_2026.standard[6] },
-  { key: 'ba4', tier: 'Cơ bản', note: 'Quạt trần, tủ cá nhân, khép kín', cap: '4 người', prices: ROOM_PRICES_2026.basic[4] },
-  { key: 'ba6', tier: 'Cơ bản', note: 'Quạt trần, tủ cá nhân, khép kín', cap: '6 người', prices: ROOM_PRICES_2026.basic[6] },
+  { key: 'hq3', tier: 'Chất lượng cao', note: 'Wifi miễn phí, điều hòa, nóng lạnh, tủ cá nhân, giường gỗ, đệm, quạt trần, khép kín', cap: '3 người', prices: ROOM_PRICES_2026.high_quality[3] },
+  { key: 'hq4', tier: 'Chất lượng cao', note: 'Wifi miễn phí, điều hòa, nóng lạnh, tủ cá nhân, giường tầng, đệm, quạt trần, khép kín', cap: '4 người', prices: ROOM_PRICES_2026.high_quality[4] },
+  { key: 'hq6', tier: 'Chất lượng cao', note: 'Wifi miễn phí, điều hòa, nóng lạnh, tủ cá nhân, giường tầng, đệm, quạt trần, khép kín', cap: '6 người', prices: ROOM_PRICES_2026.high_quality[6] },
+  { key: 'st4', tier: 'Tiêu chuẩn', note: 'Wifi miễn phí, nóng lạnh, tủ cá nhân, giường tầng, quạt trần, dụng cụ vệ sinh, khép kín', cap: '4 người', prices: ROOM_PRICES_2026.standard[4] },
+  { key: 'st6', tier: 'Tiêu chuẩn', note: 'Wifi miễn phí, nóng lạnh, tủ cá nhân, giường tầng, quạt trần, dụng cụ vệ sinh, khép kín', cap: '6 người', prices: ROOM_PRICES_2026.standard[6] },
 ];
 
 /**
@@ -127,34 +125,76 @@ export default function PublicHomePage() {
                 Tin mới nhất từ Trung tâm Hỗ trợ sinh viên.
               </Text>
             </div>
-            <div style={{
-              background: '#FFFFFF',
-              border: '1px solid var(--line)',
-              borderRadius: 10,
-              padding: '4px 18px',
-              boxShadow: 'var(--card-shadow)',
-            }}>
-              {annLoading && <div style={{ padding: '16px 0' }}><Skeleton active paragraph={{ rows: 4 }} /></div>}
-              {!annLoading && news.length === 0 && (
-                <div style={{ padding: '16px 0' }}><Text type="secondary">Chưa có thông báo công khai nào.</Text></div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {annLoading && (
+                <div style={{ padding: 16, background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 8 }}>
+                  <Skeleton active paragraph={{ rows: 4 }} />
+                </div>
               )}
-              {news.map((item, idx) => (
-                <article
-                  key={item.id}
-                  style={{ padding: '14px 0', borderTop: idx > 0 ? '1px solid var(--line)' : 'none' }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <StatusTag type="campus" value={item.campus} />
-                    <Text type="secondary" className="mono" style={{ fontSize: 11 }}>{formatDateTime(item.createdAt)}</Text>
-                  </div>
-                  <Text strong style={{ display: 'block', fontSize: 13.5, lineHeight: 1.45, marginBottom: 4, color: 'var(--ink)' }}>
-                    {item.title}
-                  </Text>
-                  <Paragraph type="secondary" ellipsis={{ rows: 3 }} style={{ margin: 0, fontSize: 12.5 }}>
-                    {item.content}
-                  </Paragraph>
-                </article>
-              ))}
+              {!annLoading && news.length === 0 && (
+                <div style={{ padding: 16, background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 8 }}>
+                  <Text type="secondary">Chưa có thông báo công khai nào.</Text>
+                </div>
+              )}
+              {news.map((item) => {
+                const isUrgent = item.priority === 'urgent';
+                const isImportant = item.priority === 'important';
+                const isMoney = /giá|phí|vietqr|cọc/i.test(item.title || '');
+                const tone = isUrgent
+                  ? { glyph: '!', bar: '#F87171', bg: '#FEE2E2', color: '#DC2626' }
+                  : isImportant
+                    ? { glyph: isMoney ? '$' : '!', bar: '#FBBF24', bg: '#FEF3C7', color: '#D97706' }
+                    : { glyph: isMoney ? '$' : 'i', bar: '#60A5FA', bg: '#E0F2FE', color: '#0284C7' };
+                return (
+                  <article
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 11,
+                      padding: '11px 13px',
+                      background: '#FFFFFF',
+                      border: '1px solid #EEF2F6',
+                      borderLeft: `3px solid ${tone.bar}`,
+                      borderRadius: 7,
+                      boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        flexShrink: 0,
+                        marginTop: 1,
+                        display: 'grid',
+                        placeItems: 'center',
+                        background: tone.bg,
+                        color: tone.color,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {tone.glyph}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+                        <Text strong style={{ fontSize: 13, lineHeight: 1.4, color: 'var(--ink)' }}>
+                          {item.title}
+                        </Text>
+                        <Text type="secondary" className="mono" style={{ fontSize: 10.5, flexShrink: 0 }}>
+                          {formatDateTime(item.createdAt).slice(0, 5)}
+                        </Text>
+                      </div>
+                      <Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }}>
+                        {item.content}
+                      </Paragraph>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </Col>
         </Row>
@@ -247,8 +287,10 @@ export default function PublicHomePage() {
               scroll={{ x: 680 }}
             />
           </div>
-          <Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12.5 }}>
-            Đơn giá tính theo VNĐ/SV/tháng. Phòng tiêu chuẩn &gt;30m², khép kín, wifi miễn phí. Tiền điện nước tính riêng hàng tháng theo chỉ số công tơ thực tế của từng phòng.
+          <Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12.5, lineHeight: 1.65 }}>
+            • Các phòng có diện tích tương đương nhau (&gt;30m²), khép kín có khu phơi đồ, phòng vệ sinh &amp; phòng tắm riêng.
+            {' '}Chi phí điện, nước thanh toán hàng tháng theo chỉ số công tơ thực tế quy định của Nhà nước.
+            {' '}Khuôn viên KTX có đủ Nhà ăn, Nhà để xe, Gian hàng SV, Cafe và Sân thể thao.
           </Text>
         </div>
       ),

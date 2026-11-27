@@ -11,7 +11,7 @@ import { APP_VERSION, SUPPORT_CONTACT } from '../constants/app';
 import BrandLogo from '../components/BrandLogo';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { roomLabelOf } from '../features/rooms/utils/roomStatus';
-import { initialsOf } from '../features/applications/utils/applicationView';
+import { initialsOf } from '../utils/formatter';
 import RoomInvoiceBell from '../features/portal/components/RoomInvoiceBell';
 
 const { Header, Content, Footer } = Layout;

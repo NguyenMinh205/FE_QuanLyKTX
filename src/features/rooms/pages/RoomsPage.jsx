@@ -166,7 +166,7 @@ export default function RoomsPage() {
       <PageHeader
         breadcrumb={['Quản lý & Hỗ trợ', 'Phòng ở']}
         title="Quản lý phòng ở Cơ sở 1"
-        description="Sơ đồ tầng 2 tòa nhà (A14, A15 — 60 phòng), hạng phòng 2026–2027 và danh sách sinh viên đang cư trú."
+        description="Sơ đồ tầng 2 tòa nhà (A14, A15 — 40 phòng CLC & Tiêu chuẩn), bảng giá 2026–2027 và danh sách sinh viên đang cư trú."
         extra={canCreate && <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormRoom({})}>Thêm phòng</Button>}
       />
 

@@ -9,9 +9,8 @@ import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { portalApi } from '../api/portal.api';
 import { GENDER } from '../../../constants/statuses';
-import { formatDate, formatPhone } from '../../../utils/formatter';
+import { formatDate, formatPhone, initialsOf } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
-import { initialsOf } from '../../applications/utils/applicationView';
 import { placeTextOf } from '../../contracts/utils/contractView';
 
 const { Text, Title } = Typography;

@@ -130,7 +130,7 @@ export default function RoomFormModal({ open, room, buildings, defaultBuildingId
                 onChange={(tier) => {
                   form.setFieldsValue({
                     hasAirConditioner: tier === 'high_quality',
-                    hasWaterHeater: tier !== 'basic',
+                    hasWaterHeater: true,
                   });
                 }}
               />

@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import {
-  Button, Card, Table, Typography, Modal, Form, Input, App,
+  Button, Card, Table, Typography, Modal, Form, Input, Radio, App,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { notificationApi } from '../api/notification.api';
+import { NOTIFICATION_PRIORITY_OPTIONS } from '../../../constants/statuses';
 import { getErrorMessage } from '../../../lib/axiosClient';
 import { formatDateTime } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
+import StatusTag from '../../../components/StatusTag';
 
 const { Text } = Typography;
 
-/** Quản lý Bảng tin & Thông báo công khai KTX Cơ sở 1 (Manager & Staff đăng; Manager xóa) */
+/** Quản lý Bảng tin & Thông báo công khai KTX Cơ sở 1 (phân loại mức độ Khẩn cấp / Quan trọng / Thông thường) */
 export default function NotificationsPage() {
   const { user } = useAuth();
   const { message, modal } = App.useApp();
@@ -36,6 +38,7 @@ export default function NotificationsPage() {
         title: values.title.trim(),
         content: values.content.trim(),
         campus: 'cs1',
+        priority: values.priority || 'normal',
       });
       message.success(res.data.message);
       setOpen(false);
@@ -67,6 +70,10 @@ export default function NotificationsPage() {
 
   const columns = [
     {
+      title: 'Mức độ', dataIndex: 'priority', width: 135,
+      render: (v) => <StatusTag type="notificationPriority" value={v || 'normal'} />,
+    },
+    {
       title: 'Tiêu đề & Nội dung', key: 'title',
       render: (_, n) => (
         <>
@@ -90,9 +97,9 @@ export default function NotificationsPage() {
       <PageHeader
         breadcrumb={['Truyền thông KTX', 'Bảng tin']}
         title="Bảng tin & Thông báo KTX Cơ sở 1"
-        description="Đăng tin tức, thông báo mở đợt, lịch bảo trì hiển thị công khai trên Trang chủ KTX và Chuông thông báo sinh viên."
+        description="Đăng tin tức, lịch bảo trì, thông báo khẩn cấp hiển thị trên Trang chủ KTX và Chuông thông báo sinh viên (tin Khẩn/Quan trọng tự ghim lên đầu)."
         extra={canCreate && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.setFieldsValue({ priority: 'normal' }); setOpen(true); }}>
             Đăng bảng tin mới
           </Button>
         )}
@@ -101,7 +108,7 @@ export default function NotificationsPage() {
       <Card>
         <Table
           rowKey="id" columns={columns} dataSource={data || []} loading={loading}
-          pagination={{ pageSize: 15, showSizeChanger: false }} scroll={{ x: 760 }}
+          pagination={{ pageSize: 15, showSizeChanger: false }} scroll={{ x: 840 }}
           locale={{ emptyText: 'Chưa có bảng tin nào' }}
         />
       </Card>
@@ -117,9 +124,16 @@ export default function NotificationsPage() {
         destroyOnHidden
         width={580}
       >
-        <Form form={form} layout="vertical" onFinish={handleCreate} style={{ marginTop: 12 }}>
+        <Form form={form} layout="vertical" onFinish={handleCreate} initialValues={{ priority: 'normal' }} style={{ marginTop: 12 }}>
+          <Form.Item
+            name="priority"
+            label="Mức độ ưu tiên (phân màu & tự ghim chống trôi)"
+            rules={[{ required: true }]}
+          >
+            <Radio.Group options={NOTIFICATION_PRIORITY_OPTIONS} />
+          </Form.Item>
           <Form.Item name="title" label="Tiêu đề thông báo" rules={[{ required: true, whitespace: true, message: 'Nhập tiêu đề' }]}>
-            <Input maxLength={180} placeholder="VD: Thông báo mở đợt đăng ký KTX Cơ sở 1 năm học 2026–2027" />
+            <Input maxLength={180} placeholder="VD: Lịch tạm cắt điện nước bảo trì định kỳ tại nhà A14 & A15" />
           </Form.Item>
           <Form.Item name="content" label="Nội dung chi tiết" rules={[{ required: true, whitespace: true, message: 'Nhập nội dung' }]} style={{ marginBottom: 0 }}>
             <Input.TextArea rows={4} maxLength={2000} showCount placeholder="Nhập nội dung đầy đủ gửi tới sinh viên..." />

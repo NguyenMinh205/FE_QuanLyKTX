@@ -127,15 +127,6 @@ export default function ApplicationStatusPage() {
 
             <Divider style={{ margin: '14px 0' }} />
 
-            {app.status === 'pending' && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <Text type="secondary" style={{ fontSize: 13, flex: 1 }}>
-                  Đơn đang chờ cán bộ xét duyệt. Tài khoản sẽ gửi qua email khi được duyệt giữ chỗ.
-                </Text>
-                <Button danger icon={<CloseCircleOutlined />} onClick={() => setCancelOpen(true)}>Tự hủy đơn</Button>
-              </div>
-            )}
-
             {app.status === 'pending_payment' && (
               <div style={{ display: 'grid', gap: 12 }}>
                 <Alert
@@ -159,14 +150,6 @@ export default function ApplicationStatusPage() {
                 type="success" showIcon title="Hợp đồng đã có hiệu lực"
                 description="Đăng nhập Cổng Sinh viên để xem thông tin phòng, mã QR Check-in và hóa đơn điện nước."
                 action={<Button type="primary" onClick={() => navigate('/login')}>Vào Cổng SV</Button>}
-              />
-            )}
-
-            {app.status === 'rejected' && (
-              <Alert
-                type="error" showIcon title="Đơn bị từ chối"
-                description={`Lý do: ${app.rejectionReason || '—'}`}
-                action={<Button onClick={() => navigate('/apply')}>Nộp đơn mới</Button>}
               />
             )}
 

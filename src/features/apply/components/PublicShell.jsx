@@ -17,8 +17,8 @@ const NAV_LINKS = [
 ];
 
 const CAMPUS_FOOTER_ITEMS = [
-  { name: 'Nhà A14 (5 tầng · 30 phòng)', address: 'Tầng 1: Văn phòng Trung tâm KTX · Phòng CLC, Tiêu chuẩn & Cơ bản' },
-  { name: 'Nhà A15 (5 tầng · 30 phòng)', address: 'Khu nội trú sinh viên — Phòng CLC, Tiêu chuẩn & Cơ bản' },
+  { name: 'Nhà A14 (5 tầng · 20 phòng)', address: 'Tầng 1: Văn phòng Trung tâm KTX · Phòng Chất lượng cao & Tiêu chuẩn (>30m²)' },
+  { name: 'Nhà A15 (5 tầng · 20 phòng)', address: 'Khu nội trú sinh viên — Phòng Chất lượng cao & Tiêu chuẩn (>30m²)' },
   { name: 'Địa chỉ Cơ sở 1', address: 'Ngõ 296 / Số 298 Đường Cầu Diễn, P. Tây Tựu, TP. Hà Nội' },
 ];
 

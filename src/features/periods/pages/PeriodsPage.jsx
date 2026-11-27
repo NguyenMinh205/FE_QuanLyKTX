@@ -143,7 +143,6 @@ export default function PeriodsPage() {
     { label: 'Đang ở', value: detailPeriod.stats?.active ?? 0, color: 'var(--success-text)' },
     { label: 'Đã thanh lý', value: detailPeriod.stats?.terminated ?? 0 },
     { label: 'Đã hủy', value: detailPeriod.stats?.cancelled ?? 0 },
-    { label: 'Từ chối', value: detailPeriod.stats?.rejected ?? 0 },
   ] : [];
 
   return (

@@ -13,7 +13,7 @@ import { useApi } from '../hooks/useApi';
 import { dashboardApi } from '../features/dashboard/api/dashboard.api';
 import BrandLogo from '../components/BrandLogo';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { initialsOf } from '../features/applications/utils/applicationView';
+import { initialsOf } from '../utils/formatter';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;

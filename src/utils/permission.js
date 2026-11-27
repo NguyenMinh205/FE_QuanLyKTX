@@ -26,7 +26,6 @@ const PERMISSIONS = {
   'student:delete': OPS_ROLES,
   'student:resetPassword': OPS_ROLES,
 
-  'application:review': OPS_ROLES,
   'contract:cancel': OPS_ROLES,
   'contract:checkin': OPS_ROLES,
   'contract:terminate': OPS_ROLES,

@@ -31,7 +31,7 @@ export default function PeriodFormModal({ open, period, onCancel, onSaved }) {
         targetCohort: 'returning',
         allowedFaculties: [],
         excludedFaculties: [],
-        allowedTerms: ['5_months', '10_months'],
+        allowedTerms: ['6_months', '12_months'],
         range: [dayjs(), dayjs().add(30, 'day')],
         paymentDeadlineDays: 7,
         status: 'open',

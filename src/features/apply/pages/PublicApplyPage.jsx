@@ -109,9 +109,9 @@ export default function PublicApplyPage() {
     return picked || availableTypes[0] || null;
   }, [availableTypes, roomChoice]);
 
-  const allowedTerms = activePeriod?.allowedTerms?.length ? activePeriod.allowedTerms : ['10_months', '5_months'];
+  const allowedTerms = activePeriod?.allowedTerms?.length ? activePeriod.allowedTerms : ['6_months', '12_months'];
   const effectiveTerm = allowedTerms.includes(term) ? term : allowedTerms[0];
-  const months = CONTRACT_TERM[effectiveTerm]?.months ?? 10;
+  const months = CONTRACT_TERM[effectiveTerm]?.months ?? 12;
 
   const estPrice = selectedType?.pricePerMonth ?? 0;
   const estDeposit = selectedType?.depositAmount ?? 500000;

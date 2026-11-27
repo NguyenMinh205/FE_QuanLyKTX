@@ -3,7 +3,7 @@
  */
 export const APP_VERSION = 'v3.0';
 
-/** Danh mục Khoa / Viện HaUI — đồng bộ với quy tắc phân luồng CS1-CS2 vs CS3 của BE */
+/** Danh mục Khoa / Viện HaUI */
 export const FACULTIES = [
   'Công nghệ thông tin',
   'Cơ khí',

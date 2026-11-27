@@ -18,40 +18,25 @@ export const CAMPUS = {
   },
 };
 
-export const CAMPUS_OPTIONS = ['cs1'].map((value) => ({
-  value,
-  label: CAMPUS[value].label,
-}));
-
-export const CAMPUS_SCOPE_OPTIONS = [
-  { value: 'cs1', label: CAMPUS.cs1.label },
-  { value: 'all', label: CAMPUS.all.label },
-];
-
 export const ROOM_TIER = {
   high_quality: { label: 'Chất lượng cao', color: 'gold' },
   standard:     { label: 'Tiêu chuẩn',     color: 'blue' },
-  basic:        { label: 'Cơ bản',         color: 'default' },
 };
 
 export const ROOM_TIER_OPTIONS = Object.entries(ROOM_TIER).map(([value, { label }]) => ({ value, label }));
 
 export const ROOM_CAPACITY_OPTIONS = [2, 3, 4, 6].map((n) => ({ value: n, label: `${n} người` }));
 
-/** Bảng giá phòng ở KTX HaUI chính thức năm học 2026–2027 (VNĐ/SV/tháng) */
+/** Bảng giá phòng ở KTX HaUI chính thức năm học 2026–2027 — Cơ sở 1 (VNĐ/SV/tháng) */
 export const ROOM_PRICES_2026 = {
   high_quality: {
-    3: { cs1: 930000, cs2: 930000, cs3: 900000 },
-    4: { cs1: 700000, cs2: 700000, cs3: 680000 },
-    6: { cs1: 470000, cs2: 470000, cs3: 460000 },
+    3: { cs1: 930000 },
+    4: { cs1: 700000 },
+    6: { cs1: 470000 },
   },
   standard: {
-    4: { cs1: 550000, cs2: 490000, cs3: 500000 },
-    6: { cs1: 380000, cs2: 350000, cs3: 350000 },
-  },
-  basic: {
-    4: { cs1: 450000, cs2: 420000, cs3: 420000 },
-    6: { cs1: 320000, cs2: 300000, cs3: 300000 },
+    4: { cs1: 550000 },
+    6: { cs1: 380000 },
   },
 };
 
@@ -99,13 +84,10 @@ export const CONTRACT_STATUS = {
   cancelled:       { label: 'Đã hủy',        color: 'default' },
 };
 
-/** Các gói kỳ hạn hợp lệ theo quy chế HaUI 2026–2027 */
+/** Các gói kỳ hạn hợp lệ (Nửa năm / 1 năm) */
 export const CONTRACT_TERM = {
-  '5_months':   { label: '5 tháng',    hint: '1 học kỳ chuẩn',         months: 5 },
-  '6_months':   { label: '6 tháng',    hint: '1 học kỳ mở rộng',       months: 6 },
-  '8.5_months': { label: '8,5 tháng',  hint: 'Tân SV năm nhất',        months: 8.5 },
-  '10_months':  { label: '10 tháng',   hint: '1 năm học (2 học kỳ)',   months: 10 },
-  '12_months':  { label: '12 tháng',   hint: 'Cả năm (gồm hè)',        months: 12 },
+  '6_months':  { label: 'Nửa năm (6 tháng)', hint: '1 học kỳ',   months: 6 },
+  '12_months': { label: '1 năm (12 tháng)',  hint: 'Cả năm học', months: 12 },
 };
 
 export const CONTRACT_TERM_OPTIONS = Object.entries(CONTRACT_TERM).map(([value, { label, hint }]) => ({
@@ -168,12 +150,24 @@ export const REQUEST_STATUS = {
 };
 
 export const NOTIFICATION_TYPE = {
-  application:  { label: 'Đơn đăng ký', color: 'blue' },
-  payment:      { label: 'Thanh toán',  color: 'green' },
-  utility:      { label: 'Điện nước',   color: 'cyan' },
-  request:      { label: 'Yêu cầu',     color: 'orange' },
-  announcement: { label: 'Bảng tin',    color: 'purple' },
+  application:  { label: 'Xếp phòng / HĐ', color: 'blue' },
+  payment:      { label: 'Thanh toán',     color: 'green' },
+  utility:      { label: 'Điện nước',      color: 'orange' },
+  request:      { label: 'Yêu cầu SV',     color: 'purple' },
+  announcement: { label: 'Bảng tin',       color: 'default' },
 };
+
+export const NOTIFICATION_PRIORITY = {
+  urgent:    { label: 'Khẩn cấp',     color: 'red' },
+  important: { label: 'Quan trọng',   color: 'warning' },
+  normal:    { label: 'Thông thường', color: 'default' },
+};
+
+export const NOTIFICATION_PRIORITY_OPTIONS = [
+  { value: 'normal',    label: 'Thông thường' },
+  { value: 'important', label: 'Quan trọng (Vàng cam)' },
+  { value: 'urgent',    label: 'Khẩn cấp (Đỏ · Ghim đầu)' },
+];
 
 export const GENDER = {
   male:   { label: 'Nam' },

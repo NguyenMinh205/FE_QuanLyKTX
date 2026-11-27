@@ -15,8 +15,8 @@ const STUDENT_DEMO = [
   ['SV đang ở (A14-101 · nợ ĐN)', 'sv001@dorm.local', 'Student@123'],
   ['SV sạch nợ (A15-101)', 'sv002@dorm.local', 'Student@123'],
   ['Cựu SV đã hoàn cọc (đăng ký lại)', 'sv003@dorm.local', 'Student@123'],
-  ['SV chờ đóng phí (A14-205 · VietQR Test)', 'sv004@dorm.local', 'Student@123'],
-  ['SV quá hạn phí (A15-305)', 'sv005@dorm.local', 'Student@123'],
+  ['SV chờ đóng phí (A14-301 · VietQR Test)', 'sv004@dorm.local', 'Student@123'],
+  ['SV quá hạn phí (A15-403)', 'sv005@dorm.local', 'Student@123'],
   ['SV đổi MK lần đầu', '2026600051', '2026600051'],
 ];
 

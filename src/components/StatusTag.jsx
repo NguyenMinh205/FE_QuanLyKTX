@@ -11,6 +11,7 @@ import {
   REQUEST_STATUS,
   REQUEST_TYPE,
   NOTIFICATION_TYPE,
+  NOTIFICATION_PRIORITY,
   TARGET_COHORT,
 } from '../constants/statuses';
 
@@ -27,17 +28,21 @@ const MAP = {
   request: REQUEST_STATUS,
   requestType: REQUEST_TYPE,
   notificationType: NOTIFICATION_TYPE,
+  notificationPriority: NOTIFICATION_PRIORITY,
   cohort: TARGET_COHORT,
 };
 
-/** Nhóm trạng thái nghiệp vụ: hiển thị chấm màu tinh tế (Status Dot) thay cho Tag nền sặc sỡ */
-const STATUS_TYPES = new Set(['contract', 'invoice', 'roomStatus', 'period', 'request']);
+/** Nhóm trạng thái nghiệp vụ & phân loại thông báo: hiển thị pill màu rõ ràng dễ quét */
+const STATUS_TYPES = new Set([
+  'contract', 'invoice', 'roomStatus', 'period', 'request', 'notificationType', 'notificationPriority',
+]);
 
 const DOT_PALETTE = {
   success:    { dot: '#16A34A', text: '#14532D', bg: '#F0FDF4', border: '#BBF7D0' },
   green:      { dot: '#16A34A', text: '#14532D', bg: '#F0FDF4', border: '#BBF7D0' },
   processing: { dot: '#2563EB', text: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE' },
   blue:       { dot: '#2563EB', text: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE' },
+  purple:     { dot: '#7C3AED', text: '#5B21B6', bg: '#F5F3FF', border: '#DDD6FE' },
   warning:    { dot: '#D97706', text: '#92400E', bg: '#FFFBEB', border: '#FDE68A' },
   gold:       { dot: '#D97706', text: '#92400E', bg: '#FFFBEB', border: '#FDE68A' },
   orange:     { dot: '#EA580C', text: '#9A3412', bg: '#FFF7ED', border: '#FED7AA' },

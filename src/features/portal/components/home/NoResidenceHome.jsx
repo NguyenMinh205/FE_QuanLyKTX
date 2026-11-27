@@ -7,25 +7,16 @@ import { ArrowRightOutlined } from '@ant-design/icons';
 import { useApi } from '../../../../hooks/useApi';
 import { portalApi } from '../../api/portal.api';
 import { applyApi } from '../../../apply/api/apply.api';
-import { CAMPUS, CONTRACT_TERM, ROOM_TIER } from '../../../../constants/statuses';
+import { CONTRACT_TERM, ROOM_TIER } from '../../../../constants/statuses';
 import { getErrorMessage } from '../../../../lib/axiosClient';
-import { formatCurrency, formatDate, formatDateTime } from '../../../../utils/formatter';
+import { formatCurrency, formatDate } from '../../../../utils/formatter';
 import { roomLabelOf } from '../../../rooms/utils/roomStatus';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
-function InfoRow({ label, children, mono }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
-      <Text type="secondary" style={{ fontSize: 13 }}>{label}</Text>
-      <Text strong className={mono ? 'mono' : undefined} style={{ textAlign: 'right', fontSize: 13 }}>{children}</Text>
-    </div>
-  );
-}
-
 /**
- * Sinh viên chưa có chỗ ở hiện tại — phẳng, sắc nét (bỏ banner gradient xanh bóng bẩy)
+ * Sinh viên chưa có chỗ ở hiện tại — đăng ký lại / gia hạn tự động xếp phòng ngay
  */
 export default function NoResidenceHome({ profile, onApplied }) {
   const navigate = useNavigate();
@@ -156,53 +147,6 @@ export default function NoResidenceHome({ profile, onApplied }) {
       </Form>
     </Modal>
   );
-
-  if (latest?.status === 'pending') {
-    const wishText = latest.room
-      ? `${latest.room.buildingName} · Phòng ${roomLabelOf(latest.room)}`
-      : latest.preferredRoomTier
-        ? `${ROOM_TIER[latest.preferredRoomTier]?.label || latest.preferredRoomTier}${latest.preferredCapacity ? ` · ${latest.preferredCapacity} người` : ''} (Chờ xếp tầng thấp → cao)`
-        : 'Chờ xếp tầng thấp → cao';
-    return (
-      <>
-        <Card style={{ borderLeft: '4px solid #D97706' }} styles={{ body: { padding: '20px 22px' } }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-            <Title level={4} style={{ margin: 0, fontSize: 17 }}>Đơn đăng ký đang chờ duyệt</Title>
-            <span className="haui-chip mono">{latest.contractCode}</span>
-          </div>
-          <Text type="secondary" style={{ fontSize: 13 }}>Kết quả xếp phòng sẽ được thông báo qua Chuông thông báo và Email.</Text>
-          <div style={{ marginTop: 14, maxWidth: 520 }}>
-            <InfoRow label="Cơ sở">{latest.campusName || CAMPUS[latest.campus]?.label || '—'}</InfoRow>
-            <InfoRow label="Loại phòng / Xếp phòng">{wishText}</InfoRow>
-            <InfoRow label="Gói thuê">{CONTRACT_TERM[latest.term]?.label || latest.term}</InfoRow>
-            <InfoRow label="Nộp lúc" mono>{formatDateTime(latest.createdAt)}</InfoRow>
-            <InfoRow label="Dự kiến nộp khi duyệt" mono>{formatCurrency((latest.depositAmount || 0) + (latest.totalRoomFee || 0))}</InfoRow>
-          </div>
-        </Card>
-        {internalApplyModal}
-      </>
-    );
-  }
-
-  if (latest?.status === 'rejected') {
-    return (
-      <>
-        <Card style={{ borderLeft: '4px solid #DC2626' }} styles={{ body: { padding: '20px 22px' } }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 260 }}>
-              <Title level={4} style={{ margin: 0, fontSize: 17 }}>
-                Đơn <span className="mono">{latest.contractCode}</span> đã bị từ chối
-              </Title>
-              <Text type="secondary" style={{ fontSize: 12.5 }}>Xử lý lúc {formatDateTime(latest.reviewedAt)}</Text>
-              <div style={{ marginTop: 8, fontSize: 13.5 }}><Text strong>Lý do:</Text> <Text>{latest.rejectionReason || '—'}</Text></div>
-            </div>
-            <Button type="primary" onClick={() => setApplyOpen(true)}>Đăng ký lại ngay</Button>
-          </div>
-        </Card>
-        {internalApplyModal}
-      </>
-    );
-  }
 
   const ended = latest?.status === 'terminated' || latest?.status === 'expired';
   const cancelled = latest?.status === 'cancelled';
