@@ -79,6 +79,12 @@ export default function MyInvoiceDetail({ invoice, loading, onPaid }) {
       </div>
 
       <Line label="Nội dung">{invoice.description}</Line>
+      {invoice.type === 'initial_payment' && invoice.roomFeeAmount != null && (
+        <>
+          <Line label="· Tiền phòng cả kỳ"><span className="mono">{formatCurrency(invoice.roomFeeAmount)}</span></Line>
+          <Line label="· Tiền cọc tài sản (hoàn lại khi trả phòng)"><span className="mono">{formatCurrency(invoice.depositAmount || 0)}</span></Line>
+        </>
+      )}
       {invoice.room && <Line label="Phòng">{invoice.room.buildingName} · {roomTextOf(invoice.room)}</Line>}
       <Line label="Ngày tạo">{formatDate(invoice.createdAt)}</Line>
 

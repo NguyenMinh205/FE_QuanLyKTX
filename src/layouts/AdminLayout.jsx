@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Layout, Menu, Dropdown, Grid, Drawer, Button, ConfigProvider, Typography } from 'antd';
+import { Layout, Menu, Dropdown, Grid, Drawer, Button, ConfigProvider, Typography, Tooltip, Badge } from 'antd';
 import {
   DashboardOutlined, TeamOutlined, BankOutlined, AppstoreOutlined, FileTextOutlined,
   ThunderboltOutlined, FileDoneOutlined, WalletOutlined, SettingOutlined,
-  LogoutOutlined, MenuOutlined, LockOutlined, CalendarOutlined, ToolOutlined,
+  LogoutOutlined, MenuOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LockOutlined, CalendarOutlined, ToolOutlined,
   NotificationOutlined, DownOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -43,7 +43,23 @@ const withCount = (label, count, urgent = false) => (count
   )
   : label);
 
-const buildMenu = (role, counts = {}) => {
+const SIDEBAR_STORAGE_KEY = 'haui_admin_sidebar_collapsed';
+
+const readCollapsed = () => {
+  try {
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const iconWithDot = (icon, count, urgent, collapsed) => (
+  collapsed && count > 0
+    ? <Badge dot color={urgent ? '#DC2626' : '#2563EB'} offset={[2, 2]}>{icon}</Badge>
+    : icon
+);
+
+const buildMenu = (role, counts = {}, collapsed = false) => {
   if (role === ROLES.ADMIN) {
     return [
       {
@@ -69,7 +85,12 @@ const buildMenu = (role, counts = {}) => {
       label: 'Tuyển sinh & Lưu trú',
       children: [
         { key: '/admin/periods', icon: <CalendarOutlined />, label: 'Đợt đăng ký' },
-        { key: '/admin/contracts', icon: <FileTextOutlined />, label: withCount('Hợp đồng & Hoàn cọc', counts.contractActions, counts.overduePayments > 0) },
+        {
+          key: '/admin/contracts',
+          icon: iconWithDot(<FileTextOutlined />, counts.contractActions, counts.overduePayments > 0, collapsed),
+          label: withCount('Hợp đồng & Hoàn cọc', counts.contractActions, counts.overduePayments > 0),
+          title: counts.contractActions ? `Hợp đồng & Hoàn cọc (${counts.contractActions})` : 'Hợp đồng & Hoàn cọc',
+        },
       ],
     },
     {
@@ -79,7 +100,12 @@ const buildMenu = (role, counts = {}) => {
         { key: '/admin/students', icon: <TeamOutlined />, label: 'Sinh viên' },
         { key: '/admin/buildings', icon: <BankOutlined />, label: 'Tòa nhà (A14, A15)' },
         { key: '/admin/rooms', icon: <AppstoreOutlined />, label: 'Phòng ở' },
-        { key: '/admin/requests', icon: <ToolOutlined />, label: withCount('Phiếu yêu cầu SV', counts.requests, false) },
+        {
+          key: '/admin/requests',
+          icon: iconWithDot(<ToolOutlined />, counts.requests, false, collapsed),
+          label: withCount('Phiếu yêu cầu SV', counts.requests, false),
+          title: counts.requests ? `Phiếu yêu cầu SV (${counts.requests})` : 'Phiếu yêu cầu SV',
+        },
         { key: '/admin/notifications', icon: <NotificationOutlined />, label: 'Bảng tin KTX' },
       ],
     },
@@ -114,6 +140,15 @@ export default function AdminLayout() {
   const screens = useBreakpoint();
   const isMobile = !screens.lg;
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? '1' : '0'); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const canLoadSummary = OPS_ROLES.includes(user?.role) && !user?.mustChangePassword;
   const { data: summary } = useApi(
@@ -121,11 +156,13 @@ export default function AdminLayout() {
     [canLoadSummary, location.pathname],
   );
 
-  const menuItems = buildMenu(user?.role, {
+  const counts = {
     overduePayments: summary?.overduePaymentContracts ?? 0,
     contractActions: (summary?.overduePaymentContracts ?? 0) + (summary?.awaitingDepositRefund ?? 0),
     requests: summary?.pendingRequests,
-  });
+  };
+  const desktopMenuItems = buildMenu(user?.role, counts, collapsed);
+  const mobileMenuItems = buildMenu(user?.role, counts, false);
 
   const selectedKey = location.pathname.split('/').slice(0, 3).join('/');
 
@@ -139,13 +176,13 @@ export default function AdminLayout() {
     navigate('/admin/login', { replace: true });
   };
 
-  const menu = (
+  const renderMenu = (items) => (
     <ConfigProvider theme={MENU_THEME}>
       <Menu
         className="admin-sidebar-menu"
         mode="inline"
         selectedKeys={[selectedKey]}
-        items={menuItems}
+        items={items}
         onClick={handleMenuClick}
         style={{ borderInlineEnd: 0, paddingBlock: 10 }}
       />
@@ -170,7 +207,9 @@ export default function AdminLayout() {
         boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          {isMobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} />}
+          {isMobile && (
+            <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} aria-label="Mở menu" />
+          )}
           <BrandLogo height={isMobile ? 26 : 30} />
           {!isMobile && (
             <>
@@ -218,11 +257,46 @@ export default function AdminLayout() {
       <Layout style={{ background: 'var(--layout-bg)' }}>
         {!isMobile && (
           <Sider
-            width={254}
+            width={264}
+            collapsedWidth={68}
+            collapsible
+            collapsed={collapsed}
+            trigger={null}
             theme="light"
-            style={{ borderRight: '1px solid var(--line)', overflow: 'auto', position: 'sticky', top: 62, height: 'calc(100vh - 62px)' }}
+            className="admin-sider"
+            style={{
+              borderRight: '1px solid var(--line)',
+              position: 'sticky',
+              top: 62,
+              height: 'calc(100vh - 62px)',
+            }}
           >
-            {menu}
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                {renderMenu(desktopMenuItems)}
+              </div>
+              <div style={{ borderTop: '1px solid var(--line)', padding: collapsed ? '8px 10px' : '8px 12px', flexShrink: 0 }}>
+                <Tooltip title={collapsed ? 'Mở rộng menu' : ''} placement="right">
+                  <Button
+                    type="text"
+                    block
+                    icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                    onClick={toggleCollapsed}
+                    aria-label={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: collapsed ? 'center' : 'flex-start',
+                      color: 'var(--text-secondary)',
+                      fontSize: 13,
+                      height: 34,
+                    }}
+                  >
+                    {!collapsed && 'Thu gọn menu'}
+                  </Button>
+                </Tooltip>
+              </div>
+            </div>
           </Sider>
         )}
 
@@ -234,7 +308,7 @@ export default function AdminLayout() {
           styles={{ body: { padding: 0 } }}
           title="Menu quản trị"
         >
-          {menu}
+          {renderMenu(mobileMenuItems)}
         </Drawer>
 
         <Content style={{ padding: isMobile ? 14 : '22px 24px 36px', background: 'var(--layout-bg)', minWidth: 0 }}>

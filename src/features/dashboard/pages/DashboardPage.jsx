@@ -113,7 +113,12 @@ export default function DashboardPage() {
         </div>
 
         <div className="haui-kpi-cell">
-          <Text type="secondary" style={{ fontSize: 12.5, fontWeight: 500 }}>Công nợ chưa thu</Text>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text type="secondary" style={{ fontSize: 12.5, fontWeight: 500 }}>Công nợ chưa thu</Text>
+            <Tooltip title="Chỉ tính công nợ doanh thu (Tiền phòng + Điện nước). Tiền cọc giữ chỗ được tách riêng ngoài doanh thu.">
+              <InfoCircleOutlined style={{ color: 'var(--text-tertiary)', fontSize: 13 }} />
+            </Tooltip>
+          </div>
           {loading ? <Skeleton active paragraph={{ rows: 1 }} title={false} style={{ marginTop: 10 }} /> : (
             <>
               <div className="stat-card-value mono" style={{ marginTop: 6, color: s?.finance?.totalDebt ? 'var(--danger-text)' : 'var(--success-text)' }}>
@@ -124,6 +129,11 @@ export default function DashboardPage() {
                   <Text type="secondary" style={{ fontSize: 12, marginTop: 6 }}>
                     Phòng <span className="mono">{formatCurrency(s.finance.roomDebt)}</span> · ĐN <span className="mono">{formatCurrency(s.finance.utilityDebt)}</span>
                   </Text>
+                  {s.finance.depositPending > 0 && (
+                    <Text type="secondary" style={{ fontSize: 11.5 }}>
+                      Cọc giữ chỗ chờ nộp: <span className="mono">{formatCurrency(s.finance.depositPending)}</span>
+                    </Text>
+                  )}
                   <div style={{ marginTop: 'auto', paddingTop: 10 }}>
                     <Link to="/admin/invoices?status=unpaid" style={{ fontSize: 12.5, fontWeight: 500 }}>
                       Xem hóa đơn <ArrowRightOutlined style={{ fontSize: 11 }} />

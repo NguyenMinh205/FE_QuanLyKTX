@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Grid, Typography, Button, Table, Alert, Skeleton, Space, Empty, Tabs, Divider, QRCode,
 } from 'antd';
+import { PrinterOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { portalApi } from '../api/portal.api';
 import { CONTRACT_TERM } from '../../../constants/statuses';
@@ -12,6 +14,7 @@ import { EXPIRING_DAYS, daysUntil } from '../utils/homeView';
 import { placeTextOf } from '../../contracts/utils/contractView';
 import { roomLabelOf } from '../../rooms/utils/roomStatus';
 import RoomUtilityHistoryCard from '../components/RoomUtilityHistoryCard';
+import ContractPrintModal from '../../contracts/components/ContractPrintModal';
 
 const { Text, Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -28,7 +31,9 @@ export default function MyResidencePage() {
   const navigate = useNavigate();
   const screens = useBreakpoint();
   const isMobile = !screens.sm;
+  const [printOpen, setPrintOpen] = useState(false);
   const { data: residence, loading, error } = useApi(() => portalApi.getMyResidence(), []);
+  const { data: profile } = useApi(() => portalApi.getProfile(), []);
   const { data: contracts, loading: histLoading, error: histError } = useApi(() => portalApi.getMyContracts(), []);
 
   const currentContract = residence?.contract;
@@ -155,7 +160,12 @@ export default function MyResidencePage() {
         <Col xs={24} lg={12}>
           <Card
             title="Hợp đồng & QR Check-in"
-            extra={<StatusTag type="contract" value={currentContract.status} />}
+            extra={(
+              <Space size={8}>
+                <Button size="small" icon={<PrinterOutlined />} onClick={() => setPrintOpen(true)}>In HĐ A4</Button>
+                <StatusTag type="contract" value={currentContract.status} />
+              </Space>
+            )}
             style={{ height: '100%' }}
           >
             <Info label="Mã hợp đồng" mono><Text strong>{currentContract.contractCode}</Text></Info>
@@ -220,6 +230,13 @@ export default function MyResidencePage() {
       <Card style={{ marginTop: 16 }} styles={{ body: { paddingTop: 4 } }}>
         <Tabs defaultActiveKey={tabItems[0]?.key} items={tabItems} />
       </Card>
+
+      <ContractPrintModal
+        contract={currentContract}
+        student={profile}
+        open={printOpen}
+        onCancel={() => setPrintOpen(false)}
+      />
     </>
   );
 }

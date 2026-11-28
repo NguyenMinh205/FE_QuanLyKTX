@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Button, Card, Select, DatePicker, Typography, Tooltip, Row, Col,
+  Button, Card, Select, DatePicker, Typography, Tooltip, Row, Col, App,
 } from 'antd';
 import {
-  CheckCircleOutlined, WalletOutlined, QrcodeOutlined, ReloadOutlined, EyeOutlined, RollbackOutlined,
+  CheckCircleOutlined, WalletOutlined, QrcodeOutlined, ReloadOutlined, EyeOutlined, RollbackOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useApi } from '../../../hooks/useApi';
 import { paymentApi } from '../api/payment.api';
-import { INVOICE_TYPE, PAYMENT_METHOD, PAYMENT_TYPE } from '../../../constants/statuses';
+import { INVOICE_TYPE, INVOICE_TYPE_FILTER_OPTIONS, PAYMENT_METHOD, PAYMENT_TYPE } from '../../../constants/statuses';
 import { formatCurrency, formatDateTime } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import DataTable from '../../../components/DataTable';
@@ -17,6 +17,7 @@ import StatCard from '../../../components/StatCard';
 import StatusTag from '../../../components/StatusTag';
 import PaymentDetailDrawer from '../components/PaymentDetailDrawer';
 import { roomTextOf } from '../../fees/utils/invoiceView';
+import { exportPaymentsExcel } from '../../fees/utils/financeExcel';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -34,9 +35,11 @@ export default function PaymentsPage() {
 }
 
 function PaymentsView({ searchParams }) {
+  const { message } = App.useApp();
   const [filters, setFilters] = useState(() => ({ ...EMPTY_FILTERS, search: searchParams.get('search') || '' }));
   const [tableKey, setTableKey] = useState(0);
   const [openPayment, setOpenPayment] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const { data, meta, loading, error } = useApi(
     () => paymentApi.getList({ ...filters, search: filters.search || undefined }),
@@ -47,6 +50,21 @@ function PaymentsView({ searchParams }) {
   const setFilter = (patch) => setFilters((f) => ({ ...f, ...patch, page: 1 }));
   const resetFilters = () => { setFilters(EMPTY_FILTERS); setTableKey((k) => k + 1); };
   const hasFilter = filters.search || filters.paymentType || filters.type || filters.method || filters.from;
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const res = await paymentApi.getList({ ...filters, page: 1, limit: 2000, search: filters.search || undefined });
+      const items = res.data?.data?.items || [];
+      if (!items.length) { message.warning('Không có chứng từ nào khớp bộ lọc để xuất Excel'); return; }
+      await exportPaymentsExcel({ items, summary: res.data?.data?.summary });
+      message.success(`Đã xuất ${items.length} chứng từ thu chi ra file Excel`);
+    } catch (err) {
+      message.error(`Không thể xuất Excel: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const columns = [
     {
@@ -115,6 +133,11 @@ function PaymentsView({ searchParams }) {
         breadcrumb={['Tài chính', 'Thu chi & Hoàn cọc']}
         title="Phiếu thu & Phiếu chi hoàn cọc"
         description="Theo dõi lịch sử thu tiền mặt, đối soát/Webhook VietQR tự động và các phiếu chi hoàn cọc sau thanh lý."
+        extra={(
+          <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExportExcel}>
+            Xuất sổ thu chi (Excel)
+          </Button>
+        )}
       />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -170,9 +193,9 @@ function PaymentsView({ searchParams }) {
                 options={PAYMENT_TYPE_OPTIONS}
               />
               <Select
-                placeholder="Mọi loại hóa đơn" allowClear style={{ width: 165 }}
+                placeholder="Mọi loại hóa đơn" allowClear style={{ width: 195 }}
                 value={filters.type} onChange={(v) => setFilter({ type: v })}
-                options={Object.entries(INVOICE_TYPE).map(([value, t]) => ({ value, label: t.label }))}
+                options={INVOICE_TYPE_FILTER_OPTIONS}
               />
               <Select
                 placeholder="Mọi hình thức" allowClear style={{ width: 175 }}

@@ -102,10 +102,16 @@ export const INVOICE_STATUS = {
 };
 
 export const INVOICE_TYPE = {
-  deposit:       { label: 'Tiền cọc',         color: 'blue' },
-  room_semester: { label: 'Tiền phòng cả kỳ', color: 'geekblue' },
-  utility:       { label: 'Điện nước',        color: 'cyan' },
+  initial_payment: { label: 'Phí đầu kỳ (Phòng + Cọc)', color: 'geekblue' },
+  deposit:         { label: 'Tiền cọc',                 color: 'blue' },
+  room_semester:   { label: 'Tiền phòng cả kỳ',         color: 'geekblue' },
+  utility:         { label: 'Điện nước',                color: 'cyan' },
 };
+
+export const INVOICE_TYPE_FILTER_OPTIONS = [
+  { value: 'initial_payment', label: 'Phí đầu kỳ (Phòng + Cọc)' },
+  { value: 'utility',         label: 'Điện nước' },
+];
 
 export const INVOICE_SCOPE = {
   personal: { label: 'Cá nhân' },

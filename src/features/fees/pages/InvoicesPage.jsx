@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Button, Card, Select, Typography, Tooltip, Row, Col,
+  Button, Card, Select, Typography, Tooltip, Row, Col, App,
 } from 'antd';
 import {
-  WalletOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ReloadOutlined, DollarOutlined,
+  WalletOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ReloadOutlined, DollarOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
 import { feeApi } from '../api/fee.api';
 import { roomApi } from '../../rooms/api/room.api';
-import { INVOICE_SCOPE, INVOICE_STATUS, INVOICE_TYPE } from '../../../constants/statuses';
+import { INVOICE_SCOPE, INVOICE_STATUS, INVOICE_TYPE_FILTER_OPTIONS } from '../../../constants/statuses';
 import { formatCurrency, formatDate, formatPercent } from '../../../utils/formatter';
 import PageHeader from '../../../components/PageHeader';
 import DataTable from '../../../components/DataTable';
@@ -19,6 +19,7 @@ import StatCard from '../../../components/StatCard';
 import StatusTag from '../../../components/StatusTag';
 import CollectPaymentModal from '../components/invoices/CollectPaymentModal';
 import { isPastDue, subjectOf } from '../utils/invoiceView';
+import { exportInvoicesExcel } from '../utils/financeExcel';
 
 const { Text } = Typography;
 
@@ -34,6 +35,7 @@ export default function InvoicesPage() {
 function InvoicesView({ searchParams }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { message } = App.useApp();
   const canCollect = can(user, 'payment:record');
 
   // Mở từ Dashboard kèm ?status=unpaid, hoặc từ nơi khác kèm ?search=
@@ -44,6 +46,7 @@ function InvoicesView({ searchParams }) {
   }));
   const [tableKey, setTableKey] = useState(0); // đổi key để ô tìm kiếm của DataTable về rỗng khi đặt lại
   const [collectId, setCollectId] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const { data: buildings } = useApi(() => roomApi.getBuildings(), []);
   const { data, meta, loading, error, refetch } = useApi(
@@ -55,6 +58,21 @@ function InvoicesView({ searchParams }) {
   const setFilter = (patch) => setFilters((f) => ({ ...f, ...patch, page: 1 }));
   const resetFilters = () => { setFilters(EMPTY_FILTERS); setTableKey((k) => k + 1); };
   const hasFilter = filters.search || filters.scope || filters.type || filters.status || filters.buildingId;
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const res = await feeApi.getInvoices({ ...filters, page: 1, limit: 2000, search: filters.search || undefined });
+      const items = res.data?.data?.items || [];
+      if (!items.length) { message.warning('Không có hóa đơn nào khớp bộ lọc để xuất Excel'); return; }
+      await exportInvoicesExcel({ items, summary: res.data?.data?.summary });
+      message.success(`Đã xuất ${items.length} hóa đơn ra file Excel`);
+    } catch (err) {
+      message.error(`Không thể xuất Excel: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const columns = [
     {
@@ -102,7 +120,12 @@ function InvoicesView({ searchParams }) {
       <PageHeader
         breadcrumb={['Tài chính', 'Hóa đơn']}
         title="Hóa đơn"
-        description="Tự động sinh khi sinh viên đăng ký (cọc, tiền phòng cả kỳ) và khi chốt điện nước. Thu tiền mặt hoặc xác nhận chuyển khoản VietQR."
+        description="Tự động sinh 01 hóa đơn phí đầu kỳ (tiền phòng + cọc) khi đăng ký và hóa đơn điện nước khi chốt tháng."
+        extra={(
+          <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExportExcel}>
+            Xuất Excel công nợ
+          </Button>
+        )}
       />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -155,9 +178,9 @@ function InvoicesView({ searchParams }) {
                 options={Object.entries(INVOICE_SCOPE).map(([value, t]) => ({ value, label: t.label }))}
               />
               <Select
-                aria-label="Loại hóa đơn" placeholder="Tất cả loại" allowClear style={{ width: 170 }}
+                aria-label="Loại hóa đơn" placeholder="Tất cả loại" allowClear style={{ width: 195 }}
                 value={filters.type} onChange={(v) => setFilter({ type: v })}
-                options={Object.entries(INVOICE_TYPE).map(([value, t]) => ({ value, label: t.label }))}
+                options={INVOICE_TYPE_FILTER_OPTIONS}
               />
               <Select
                 aria-label="Trạng thái" placeholder="Tất cả trạng thái" allowClear style={{ width: 170 }}

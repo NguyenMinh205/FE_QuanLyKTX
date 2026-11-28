@@ -48,11 +48,11 @@ export default function ContractsPage() {
   const canCheckin = can(user, 'contract:checkin');
   const canCancel = can(user, 'contract:cancel');
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   const [tab, setTab] = useState(() => resolveInitialTab(searchParams.get('tab')));
   const [filters, setFilters] = useState({ page: 1, limit: 20, search: initialSearch, buildingId: undefined, term: undefined });
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useState(() => searchParams.get('contractId') || null);
   const [refundContract, setRefundContract] = useState(null);
 
   const [qrOpen, setQrOpen] = useState(false);
@@ -282,7 +282,14 @@ export default function ContractsPage() {
         canRefund={canRefund}
         canCheckin={canCheckin}
         canCancel={canCancel}
-        onClose={() => setOpenId(null)}
+        onClose={() => {
+          setOpenId(null);
+          if (searchParams.get('contractId')) {
+            const next = new URLSearchParams(searchParams);
+            next.delete('contractId');
+            setSearchParams(next, { replace: true });
+          }
+        }}
         onChanged={refetch}
       />
 

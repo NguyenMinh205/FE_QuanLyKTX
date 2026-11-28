@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Button, Card, Select, Segmented, Typography, Space, Modal, Form, Input, Alert, Tag, Badge, App,
 } from 'antd';
-import { EditOutlined } from '@ant-design/icons';
+import { EditOutlined, ExportOutlined } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { useAuth } from '../../../context/AuthContext';
 import { can } from '../../../utils/permission';
@@ -30,8 +31,9 @@ const STATUS_LABELS = {
   rejected: 'Từ chối',
 };
 
-/** Xử lý Phiếu yêu cầu SV (Manager & Staff; Riêng duyệt chuyển phòng nguyên tử chỉ Manager!) */
+/** Xử lý Phiếu yêu cầu SV (Manager & Staff; Riêng duyệt chuyển phòng cùng hạng chỉ Manager; Trả phòng liên kết trực tiếp sang Thanh lý HĐ) */
 export default function RequestsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { message } = App.useApp();
   const canApproveTransfer = can(user, 'request:approveTransfer');
@@ -56,19 +58,28 @@ export default function RequestsPage() {
   const summary = meta?.summary;
 
   const nextStatus = Form.useWatch('status', form);
-  const isTransferApprove = handling?.type === 'transfer' && ['approved', 'completed'].includes(nextStatus);
+  const isTransferComplete = handling?.type === 'transfer' && nextStatus === 'completed';
 
   const { data: targetRooms } = useApi(
     () => (handling && handling.type === 'transfer' && handling.room
-      ? applyApi.getAvailableRooms({ campus: handling.room.campus, gender: handling.student?.gender, limit: 100 })
+      ? applyApi.getAvailableRooms({
+        campus: handling.room.campus,
+        gender: handling.student?.gender,
+        roomTier: handling.room.roomTier,
+        capacity: handling.room.capacity,
+        limit: 100,
+      })
       : Promise.resolve({ data: { data: { items: [] } } })),
     [handling?.id],
   );
 
   const openHandle = (reqItem) => {
     setHandling(reqItem);
+    const defaultNext = reqItem.type === 'checkout'
+      ? 'in_progress'
+      : (reqItem.status === 'pending' ? 'in_progress' : 'completed');
     form.setFieldsValue({
-      status: reqItem.status === 'pending' ? 'in_progress' : 'completed',
+      status: defaultNext,
       targetRoomId: reqItem.targetRoom?.id || undefined,
       handlerNote: reqItem.handlerNote || '',
     });
@@ -80,7 +91,7 @@ export default function RequestsPage() {
       const res = await requestApi.updateStatus(handling.id, {
         status: values.status,
         handlerNote: values.handlerNote?.trim() || '',
-        ...(isTransferApprove && values.targetRoomId ? { targetRoomId: values.targetRoomId } : {}),
+        ...(isTransferComplete && values.targetRoomId ? { targetRoomId: values.targetRoomId } : {}),
       });
       message.success(res.data.message);
       setHandling(null);
@@ -95,13 +106,28 @@ export default function RequestsPage() {
 
   const statusOptionsFor = (r) => {
     if (!r) return [];
-    const opts = [
-      { value: 'in_progress', label: 'Đang xử lý' },
-      { value: 'approved', label: r.type === 'transfer' ? 'Phê duyệt & Chuyển phòng ngay (Manager)' : 'Phê duyệt', disabled: r.type === 'transfer' && !canApproveTransfer },
-      { value: 'completed', label: r.type === 'transfer' ? 'Hoàn tất chuyển phòng (Manager)' : 'Hoàn tất xử lý', disabled: r.type === 'transfer' && !canApproveTransfer },
+    if (r.type === 'checkout') {
+      return [
+        { value: 'in_progress', label: 'Xác nhận lịch hẹn kiểm kê & trả phòng' },
+        { value: 'rejected', label: 'Từ chối yêu cầu' },
+      ];
+    }
+    if (r.type === 'transfer') {
+      return [
+        { value: 'in_progress', label: 'Đang xem xét' },
+        {
+          value: 'completed',
+          label: 'Phê duyệt & Chuyển phòng ngay (Manager)',
+          disabled: !canApproveTransfer,
+        },
+        { value: 'rejected', label: 'Từ chối yêu cầu' },
+      ];
+    }
+    return [
+      { value: 'in_progress', label: 'Đang xử lý kỹ thuật' },
+      { value: 'completed', label: 'Hoàn tất sửa chữa' },
       { value: 'rejected', label: 'Từ chối yêu cầu' },
     ];
-    return opts;
   };
 
   const columns = [
@@ -140,9 +166,21 @@ export default function RequestsPage() {
     },
     { title: 'Trạng thái', dataIndex: 'status', width: 135, render: (v) => <StatusTag type="request" value={v} /> },
     {
-      title: 'Thao tác', key: 'actions', width: 110, fixed: 'right',
+      title: 'Thao tác', key: 'actions', width: 185, fixed: 'right',
       render: (_, r) => (!TERMINAL.has(r.status) ? (
-        <Button size="small" type="link" icon={<EditOutlined />} onClick={() => openHandle(r)}>Xử lý</Button>
+        <Space size={4}>
+          <Button size="small" type="link" icon={<EditOutlined />} onClick={() => openHandle(r)}>Xử lý</Button>
+          {r.type === 'checkout' && r.contractId && (
+            <Button
+              size="small"
+              type="link"
+              icon={<ExportOutlined />}
+              onClick={() => navigate(`/admin/contracts?contractId=${r.contractId}`)}
+            >
+              Thanh lý
+            </Button>
+          )}
+        </Space>
       ) : (
         <Text type="secondary" style={{ fontSize: 12 }}>{r.handledByName || REQUEST_STATUS[r.status]?.label}</Text>
       )),
@@ -185,7 +223,7 @@ export default function RequestsPage() {
           onFiltersChange={setFilters}
           searchPlaceholder="Tìm mã phiếu, MSSV, họ tên, tiêu đề..."
           unit="phiếu"
-          scrollX={1120}
+          scrollX={1180}
           extraFilters={(
             <Select
               allowClear placeholder="Loại yêu cầu" style={{ width: 175 }}
@@ -223,22 +261,51 @@ export default function RequestsPage() {
               />
             )}
 
+            {handling.type === 'checkout' && (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 14 }}
+                title="Phiếu trả phòng đồng bộ tự động với Thanh lý Hợp đồng"
+                description="Tại đây cán bộ xác nhận lịch hẹn kiểm kê (Đang xử lý) hoặc Từ chối. Khi bấm Thanh lý hợp đồng (đã kiểm tra sạch nợ 100% & nhả chỗ), phiếu này sẽ tự động chuyển Hoàn tất."
+                action={handling.contractId && (
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<ExportOutlined />}
+                    onClick={() => {
+                      const cid = handling.contractId;
+                      setHandling(null);
+                      navigate(`/admin/contracts?contractId=${cid}`);
+                    }}
+                  >
+                    Mở Hợp đồng
+                  </Button>
+                )}
+              />
+            )}
+
             <Form.Item name="status" label="Trạng thái mới" rules={[{ required: true }]}>
               <Select options={statusOptionsFor(handling)} />
             </Form.Item>
 
-            {isTransferApprove && (
+            {isTransferComplete && (
               <Form.Item
-                name="targetRoomId" label="Phòng đích chuyển sang (tự động khóa chỗ mới & nhả chỗ cũ)"
-                rules={[{ required: true, message: 'Chọn phòng đích còn chỗ trống' }]}
+                name="targetRoomId"
+                label="Phòng đích cùng hạng & sức chứa (tự động khóa chỗ mới & nhả chỗ cũ)"
+                extra="Chính sách 2A: chỉ phê duyệt chuyển sang phòng cùng hạng, cùng sức chứa và cùng đơn giá. Phải sạch nợ điện nước phòng cũ."
+                rules={[{ required: true, message: 'Chọn phòng đích cùng hạng còn chỗ trống' }]}
               >
                 <Select
-                  placeholder="Chọn phòng đích"
+                  placeholder="Chọn phòng đích cùng hạng"
                   options={(targetRooms || [])
-                    .filter((r) => r.id !== handling.room?.id)
+                    .filter((r) => (
+                      r.id !== handling.room?.id
+                      && (handling.room?.pricePerMonth == null || Number(r.pricePerMonth) === Number(handling.room.pricePerMonth))
+                    ))
                     .map((r) => ({
                       value: r.id,
-                      label: `Phòng ${roomLabelOf(r)} (${r.buildingName}) · Tầng ${r.floor} · ${ROOM_TIER[r.roomTier]?.label || ''} · Còn ${r.availableSlots} chỗ`,
+                      label: `Phòng ${roomLabelOf(r)} (${r.buildingName}) · Tầng ${r.floor} · ${ROOM_TIER[r.roomTier]?.label || ''} ${r.capacity} người · Còn ${r.availableSlots} chỗ`,
                     }))}
                 />
               </Form.Item>

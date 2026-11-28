@@ -4,7 +4,8 @@ import {
   Drawer, Button, Tag, Typography, Skeleton, Alert, Timeline, Table, Space, Modal, Form, Input, App,
 } from 'antd';
 import {
-  IdcardOutlined, HomeOutlined, HistoryOutlined, FileTextOutlined, CloseCircleOutlined, CheckCircleOutlined, QrcodeOutlined, StopOutlined,
+  IdcardOutlined, HomeOutlined, HistoryOutlined, FileTextOutlined, CloseCircleOutlined,
+  CheckCircleOutlined, QrcodeOutlined, StopOutlined, PrinterOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../hooks/useApi';
 import { contractApi } from '../api/contract.api';
@@ -14,6 +15,7 @@ import { CONTRACT_TERM, INVOICE_TYPE, INVOICE_STATUS } from '../../../constants/
 import StatusTag from '../../../components/StatusTag';
 import TerminateContractModal from './TerminateContractModal';
 import RefundDepositModal from './RefundDepositModal';
+import ContractPrintModal from './ContractPrintModal';
 import { EXPIRING_DAYS, daysLeftOf, depositStateOf, placeTextOf } from '../utils/contractView';
 
 const { Text } = Typography;
@@ -46,6 +48,7 @@ export default function ContractDetailDrawer({
   const [version, setVersion] = useState(0);
   const [terminateOpen, setTerminateOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
@@ -137,7 +140,12 @@ export default function ContractDetailDrawer({
               </Button>
             )}
           </Space>
-          <Button onClick={onClose}>Đóng</Button>
+          <Space>
+            {c.status !== 'cancelled' && (
+              <Button icon={<PrinterOutlined />} onClick={() => setPrintOpen(true)}>In HĐ A4</Button>
+            )}
+            <Button onClick={onClose}>Đóng</Button>
+          </Space>
         </div>
       )}
     >
@@ -166,6 +174,15 @@ export default function ContractDetailDrawer({
               type="warning" showIcon style={{ marginBottom: 16 }}
               title={daysLeft === 0 ? 'Hợp đồng hết hạn hôm nay' : `Hợp đồng còn ${daysLeft} ngày`}
               description="Sinh viên có thể đăng ký đợt tiếp theo ngay trên Cổng Sinh viên."
+            />
+          )}
+          {['active', 'expired'].includes(c.status) && c.openCheckoutRequest && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              title={`Sinh viên đã gửi phiếu trả phòng ${c.openCheckoutRequest.requestCode}`}
+              description={`Nội dung: "${c.openCheckoutRequest.title}". Khi bấm Thanh lý hợp đồng, hệ thống sẽ kiểm tra sạch nợ, nhả chỗ và tự động đóng phiếu yêu cầu này sang Hoàn tất.`}
             />
           )}
           {['active', 'expired'].includes(c.status) && c.roomUtilityDebt > 0 && (
@@ -283,6 +300,13 @@ export default function ContractDetailDrawer({
         open={refundOpen}
         onCancel={() => setRefundOpen(false)}
         onRefunded={() => { setRefundOpen(false); reload(); }}
+      />
+
+      <ContractPrintModal
+        contract={ready ? c : null}
+        student={ready ? c.student : null}
+        open={printOpen}
+        onCancel={() => setPrintOpen(false)}
       />
 
       {/* Modal Hủy giữ chỗ pending_payment */}

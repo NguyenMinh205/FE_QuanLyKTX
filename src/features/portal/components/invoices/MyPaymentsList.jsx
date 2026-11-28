@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Table, Typography, Modal, Alert } from 'antd';
+import { Table, Typography, Modal, Alert, Button, Space } from 'antd';
+import { PrinterOutlined } from '@ant-design/icons';
 import { useApi } from '../../../../hooks/useApi';
 import { portalApi } from '../../api/portal.api';
 import { INVOICE_TYPE, PAYMENT_METHOD } from '../../../../constants/statuses';
 import { formatCurrency, formatDateTime } from '../../../../utils/formatter';
 import StatusTag from '../../../../components/StatusTag';
 import PaymentReceipt from '../../../payments/components/PaymentReceipt';
+import { printReceipt } from '../../../payments/utils/printReceipt';
 
 const { Text } = Typography;
 
@@ -41,7 +43,19 @@ export default function MyPaymentsList() {
         scroll={{ x: 900 }} locale={{ emptyText: 'Chưa có lịch sử giao dịch nào' }}
         onRow={(p) => ({ onClick: () => setOpen(p), style: { cursor: 'pointer' } })}
       />
-      <Modal open={!!open} onCancel={() => setOpen(null)} footer={null} title="Chi tiết biên lai" width={480} destroyOnHidden>
+      <Modal
+        open={!!open}
+        onCancel={() => setOpen(null)}
+        footer={(
+          <Space>
+            <Button onClick={() => setOpen(null)}>Đóng</Button>
+            <Button type="primary" icon={<PrinterOutlined />} onClick={printReceipt}>In chứng từ</Button>
+          </Space>
+        )}
+        title={open?.paymentType === 'refund' ? 'Chi tiết phiếu chi hoàn cọc' : 'Chi tiết biên lai'}
+        width={500}
+        destroyOnHidden
+      >
         {open && <PaymentReceipt payment={open} />}
       </Modal>
     </>

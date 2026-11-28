@@ -292,15 +292,26 @@ export default function UtilityReadingsPage() {
       ),
     },
     {
-      title: 'Người ở', key: 'occupants', width: 80, align: 'center',
-      render: (_, r) => (
-        <Tooltip title={`${r.occupants} người đang ở / ${r.room.capacity ?? '—'} chỗ`}>
-          <span style={{
-            display: 'inline-grid', placeItems: 'center', minWidth: 30, height: 30, borderRadius: 15, padding: '0 8px',
-            background: r.occupants ? 'var(--line)' : '#FAFAFA', color: r.occupants ? undefined : '#BFBFBF', fontWeight: 600,
-          }}>{r.occupants}</span>
-        </Tooltip>
-      ),
+      title: 'Người ở', key: 'occupants', width: 92, align: 'center',
+      render: (_, r) => {
+        const pendingCk = r.room.pendingCheckin ?? 0;
+        const tip = pendingCk > 0
+          ? `${r.occupants} người đã Check-in / ${r.room.capacity ?? '—'} chỗ (+${pendingCk} người đã đóng tiền nhưng chưa Check-in — không chia điện nước kỳ này)`
+          : `${r.occupants} người đã Check-in / ${r.room.capacity ?? '—'} chỗ`;
+        return (
+          <Tooltip title={tip}>
+            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={{
+                display: 'inline-grid', placeItems: 'center', minWidth: 30, height: 30, borderRadius: 15, padding: '0 8px',
+                background: r.occupants ? 'var(--line)' : '#FAFAFA', color: r.occupants ? undefined : '#BFBFBF', fontWeight: 600,
+              }}>{r.occupants}</span>
+              {pendingCk > 0 && (
+                <Text type="warning" style={{ fontSize: 11, lineHeight: 1.1 }}>+{pendingCk} chờ CK</Text>
+              )}
+            </div>
+          </Tooltip>
+        );
+      },
     },
     {
       title: <Space size={6} style={{ color: 'var(--brand)' }}><ThunderboltOutlined />ĐIỆN (kWh)</Space>,

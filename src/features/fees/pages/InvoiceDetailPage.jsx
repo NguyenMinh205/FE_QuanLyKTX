@@ -103,6 +103,12 @@ export default function InvoiceDetailPage() {
             <InfoRow label="Người phải trả"><Text strong>{subject.name}</Text>{subject.sub && <div><Text type="secondary" style={{ fontSize: 12 }}>{subject.sub}</Text></div>}</InfoRow>
             <InfoRow label="Phòng">{inv.room ? `${inv.room.buildingName} · ${roomTextOf(inv.room)}` : '—'}</InfoRow>
             <InfoRow label="Nội dung">{inv.description}</InfoRow>
+            {inv.type === 'initial_payment' && inv.roomFeeAmount != null && (
+              <>
+                <InfoRow label="· Tiền phòng cả kỳ"><span className="mono">{formatCurrency(inv.roomFeeAmount)}</span></InfoRow>
+                <InfoRow label="· Tiền cọc tài sản (tách khỏi doanh thu)"><span className="mono">{formatCurrency(inv.depositAmount || 0)}</span></InfoRow>
+              </>
+            )}
             <InfoRow label="Số tiền"><Text strong style={{ fontSize: 20, color: paid ? 'var(--success-text)' : '#CF1322' }}>{formatCurrency(inv.amount)}</Text></InfoRow>
             <InfoRow label="Ngày tạo">{formatDateTime(inv.createdAt)}</InfoRow>
             <InfoRow label="Hạn nộp">

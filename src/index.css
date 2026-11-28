@@ -100,6 +100,44 @@ a { text-underline-offset: 3px; cursor: pointer; }
   border-radius: 2px;
   background: var(--brand);
 }
+/* Trạng thái thu gọn sidebar quản trị chỉ còn icon */
+.admin-sidebar-menu.ant-menu-inline-collapsed {
+  width: 100% !important;
+}
+.admin-sidebar-menu.ant-menu-inline-collapsed .ant-menu-item-group-title {
+  height: 1px !important;
+  padding: 0 !important;
+  margin: 8px 16px !important;
+  background: var(--line);
+  font-size: 0 !important;
+  line-height: 0 !important;
+  overflow: hidden;
+}
+.admin-sidebar-menu.ant-menu-inline-collapsed .ant-menu-item-group:first-child .ant-menu-item-group-title {
+  display: none !important;
+}
+.admin-sidebar-menu.ant-menu-inline-collapsed .ant-menu-item {
+  width: calc(100% - 16px) !important;
+  margin-inline: 8px !important;
+  padding-inline: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.admin-sidebar-menu.ant-menu-inline-collapsed .ant-menu-item .anticon {
+  font-size: 16px !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+.admin-sidebar-menu.ant-menu-inline-collapsed .ant-menu-item .ant-badge {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+}
+.admin-sidebar-menu.ant-menu-inline-collapsed .ant-menu-title-content {
+  display: none !important;
+}
 
 /* Hộp viết tắt tên người dùng trong header (căn giữa tuyệt đối) */
 .haui-avatar-box {
